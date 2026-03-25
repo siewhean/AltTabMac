@@ -1,0 +1,178 @@
+import XCTest
+@testable import AltTabMac
+
+final class SwitcherCycleSessionTests: XCTestCase {
+    func testRepeatedQuickPressUsesCurrentSnapshotSelection() throws {
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+
+        let firstSession = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+
+        XCTAssertEqual(firstSession.commitSelection().title, "Arc")
+
+        let secondSession = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [finder, arc],
+                currentFrontmost: arc.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+
+        XCTAssertEqual(secondSession.commitSelection().title, "Finder")
+    }
+
+    func testHoldToCycleAdvancesForwardBeforeCommit() throws {
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+
+        session.advance(reverse: false)
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+    }
+
+    func testReverseCycleStartsAtPreviousItemAndMovesBackward() throws {
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: true,
+                pinsSnapshot: true
+            )
+        )
+
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+
+        session.advance(reverse: true)
+        XCTAssertEqual(session.commitSelection().title, "Arc")
+    }
+
+    func testRefreshPreservesSelectedIdentityWhenItemsReorder() throws {
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: false,
+                pinsSnapshot: false
+            )
+        )
+
+        session.advance(reverse: false)
+        session.refreshItems([finder, arc, safari])
+
+        XCTAssertEqual(session.selectedIndex, 2)
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+    }
+
+    // MARK: - New tests for subsequent-switch correctness
+
+    /// After committing a selection, the second session (with updated frontmost)
+    /// starts at the correct item — not the just-activated app.
+    func testSecondSessionAfterCommitStartsAtCorrectIndex() throws {
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder",           identity: .appWindow(pid: 101, windowID: 11))
+        let arc    = makeItem(title: "Arc",    appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari",           identity: .appWindow(pid: 303, windowID: 33))
+
+        // First session: frontmost=Finder, items=[Arc, Safari, Finder(at end)]
+        let firstSession = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+        XCTAssertEqual(firstSession.commitSelection().title, "Arc")
+
+        // Simulate eager history note + second session where Arc is now frontmost
+        // Items = [Finder, Safari, Arc(at end)] after ordering
+        let secondSession = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [finder, safari, arc],
+                currentFrontmost: arc.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+        XCTAssertEqual(secondSession.commitSelection().title, "Finder")
+    }
+
+    /// Reverse (Cmd+Shift+Tab) with three items starts at second-to-last item.
+    func testReverseWithThreeItemsStartsAtSecondToLast() throws {
+        let arc    = makeItem(title: "Arc",    appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari",           identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder",           identity: .appWindow(pid: 101, windowID: 11))
+
+        // Items = [arc, safari, finder_at_end] with finder as frontmost
+        let session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: finder.historyIdentity,
+                reverse: true,
+                pinsSnapshot: true
+            )
+        )
+        // Frontmost (finder) is last → reverse starts at index count-2 = Safari
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+    }
+
+    /// Move by delta wraps around correctly at boundaries.
+    func testMoveByDeltaWrapsAround() throws {
+        let arc    = makeItem(title: "Arc",    appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari",           identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder",           identity: .appWindow(pid: 101, windowID: 11))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(mode: .app, items: [arc, safari, finder], currentFrontmost: nil, reverse: false, pinsSnapshot: true)
+        )
+        XCTAssertEqual(session.selectedIndex, 0)
+
+        session.move(by: -1)  // wrap: 0 - 1 → count-1 = 2
+        XCTAssertEqual(session.selectedIndex, 2)
+        XCTAssertEqual(session.commitSelection().title, "Finder")
+    }
+
+    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
+        SwitcherItem(
+            title: title,
+            subtitle: appID,
+            icon: nil,
+            previewImage: nil,
+            historyIdentity: identity,
+            sourceAppIdentifier: appID,
+            kind: .appWindow
+        ) {}
+    }
+}

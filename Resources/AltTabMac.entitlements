@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- AppleScript automation: required for Tab mode to enumerate browser tabs.
+         Restricted to Automation permission which the user must explicitly grant. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+
+    <!-- Explicitly deny all network access. AltTabMac has no legitimate reason
+         to make or accept network connections. Setting these to false under
+         Hardened Runtime causes the kernel to refuse socket() calls, providing
+         a hard OS-level guarantee beyond just "not calling the API". -->
+    <key>com.apple.security.network.client</key>
+    <false/>
+    <key>com.apple.security.network.server</key>
+    <false/>
+
+    <!-- NOTE: com.apple.security.get-task-allow (debugger attachment) is
+         intentionally omitted from this production entitlements file.
+         Add it only in a separate Debug.entitlements for development builds. -->
+</dict>
+</plist>
