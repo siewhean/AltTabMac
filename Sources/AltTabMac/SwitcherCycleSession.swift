@@ -100,14 +100,24 @@ struct SwitcherCycleSession {
         currentFrontmost: SwitcherHistoryIdentity?,
         reverse: Bool
     ) -> Int {
-        guard reverse else { return 0 }
         guard items.count > 1 else { return 0 }
 
-        let frontmostWasMovedToEnd = currentFrontmost != nil && items.last?.historyIdentity == currentFrontmost
-        if frontmostWasMovedToEnd {
-            return max(0, items.count - 2)
+        let currentPID = currentFrontmost?.ownerPID
+
+        if reverse {
+            let frontmostWasMovedToEnd = currentFrontmost != nil && items.last?.historyIdentity == currentFrontmost
+            let fallbackIndex = frontmostWasMovedToEnd ? max(0, items.count - 2) : items.count - 1
+
+            guard let currentPID else { return fallbackIndex }
+            if let reverseIndex = stride(from: fallbackIndex, through: 0, by: -1).first(where: {
+                items[$0].historyIdentity.ownerPID != currentPID
+            }) {
+                return reverseIndex
+            }
+            return fallbackIndex
         }
 
-        return items.count - 1
+        guard let currentPID else { return 0 }
+        return items.firstIndex(where: { $0.historyIdentity.ownerPID != currentPID }) ?? 0
     }
 }

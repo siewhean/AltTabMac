@@ -31,6 +31,24 @@ final class SwitcherCycleSessionTests: XCTestCase {
         XCTAssertEqual(secondSession.commitSelection().title, "Finder")
     }
 
+    func testInitialSelectionSkipsOtherWindowsFromCurrentApp() throws {
+        let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
+        let arcWindow = makeItem(title: "Arc Window", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        let session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arcWindow, finder, notebookLM],
+                currentFrontmost: notebookLM.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+
+        XCTAssertEqual(session.commitSelection().title, "Finder")
+    }
+
     func testHoldToCycleAdvancesForwardBeforeCommit() throws {
         let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
         let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
