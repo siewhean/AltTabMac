@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import ApplicationServices
+import os.log
 
 // MARK: - SkyLight private API (window capture for minimized / off-screen windows)
 
@@ -64,10 +65,24 @@ private enum AXWindowIDLookup {
 
 // MARK: - AppSwitcher
 
+private let appSwitcherLog = OSLog(subsystem: "AltTabMac", category: "AppSwitcher")
+
 /// Enumerates real application windows and captures thumbnails for the switcher.
 final class AppSwitcher: NSObject {
     private let preferences = SwitcherPreferences.shared
     private let history = SwitcherHistoryStore.shared
+
+    /// Bundle IDs of known browsers. When the user disables browser-tab inclusion,
+    /// windows belonging to these apps are dropped from the candidate list during
+    /// enumeration so they never reach the UI.
+    private static let browserBundleIDs: Set<String> = [
+        "com.google.Chrome",
+        "company.thebrowser.Browser",    // Arc
+        "com.apple.Safari",
+        "org.mozilla.firefox",
+        "com.microsoft.edgemac",
+        "com.brave.Browser",
+    ]
 
     // ── Non-blocking cache architecture ──────────────────────────────────────
     // The build queue runs thumbnail capture off the main thread.
@@ -150,33 +165,69 @@ final class AppSwitcher: NSObject {
         return currentFrontmostIdentity(for: app)
     }
 
-    // MARK: - Cache build
+    // MARK: - Two-phase cache build
+    //
+    // Phase 1 (fast): Enumerate windows via CGWindowListCopyWindowInfo,
+    //   create items with app icons only (previewImage = nil), cache
+    //   immediately, and notify the UI so the panel can appear instantly.
+    // Phase 2 (slow): Capture window thumbnails via CGWindowListCreateImage
+    //   on this background queue, rebuild items with real previews, cache
+    //   again, and notify the UI to swap icons for thumbnails.
 
     private func refreshCacheIfNeeded(force: Bool) {
         guard force || Date().timeIntervalSince(lastRefresh) > refreshInterval else { return }
         guard !isRefreshing else { return }
         isRefreshing = true
 
-        let items = buildItems()
+        // ── Phase 1: Icon-only pass (fast) ─────────────────────────────────
+        let context = enumerateWindows()
+        let iconItems = assembleItems(from: context, capturePreviews: false)
+
         cacheLock.lock()
-        _cachedItems = items
+        _cachedItems = iconItems
+        cacheLock.unlock()
+
+        // Notify UI immediately — icons appear, zero preview lag.
+        DispatchQueue.main.async { [weak self] in
+            self?.onItemsChanged?(iconItems)
+        }
+
+        // ── Phase 2: Thumbnail pass (slow) ─────────────────────────────────
+        if #available(macOS 10.15, *) {
+            if !CGPreflightScreenCaptureAccess() {
+                os_log(.error, log: appSwitcherLog,
+                       "Screen Recording permission not granted — thumbnails will be unavailable. Grant access in System Settings > Privacy & Security > Screen Recording.")
+            }
+        }
+
+        let fullItems = assembleItems(from: context, capturePreviews: true)
+
+        cacheLock.lock()
+        _cachedItems = fullItems
         cacheLock.unlock()
         lastRefresh = Date()
         isRefreshing = false
 
+        // Notify UI again — thumbnails now available.
         DispatchQueue.main.async { [weak self] in
-            self?.onItemsChanged?(items)
+            self?.onItemsChanged?(fullItems)
         }
     }
 
-    private func buildItems() -> [SwitcherItem] {
+    // MARK: - Build helpers
+
+    /// Shared context from the fast window-enumeration pass, reused by both
+    /// the icon-only and thumbnail assembly phases.
+    private struct BuildContext {
+        let candidates: [WindowCandidate]
+        let runningApps: [NSRunningApplication]
+    }
+
+    /// Phase 1 core: enumerate windows, filter, sort, limit — no preview I/O.
+    private func enumerateWindows() -> BuildContext {
         let runningApps = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != Bundle.main.bundleIdentifier }
 
-        // Pre-build a PID→app lookup once per refresh.
-        // Eliminates the O(N×M) cost of NSRunningApplication(processIdentifier:) being
-        // called inside makeCandidate for every window — each call did a linear scan of
-        // all running processes. Now it's one O(N) build + O(1) lookups.
         let appsByPID: [pid_t: NSRunningApplication] = Dictionary(
             runningApps.map { ($0.processIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
@@ -189,11 +240,16 @@ final class AppSwitcher: NSObject {
             }
         ).sorted(by: compareCandidates)
 
-        let limitedCandidates = limitedByApp(candidates)
-        let preparedEntries = preparedWindowEntries(from: limitedCandidates)
-        let appsWithWindows = Set(preparedEntries.map(\.candidate.ownerPID))
+        return BuildContext(candidates: limitedByApp(candidates), runningApps: runningApps)
+    }
 
-        let fallbackAppItems = runningApps
+    /// Create SwitcherItem arrays from a BuildContext. When `capturePreviews`
+    /// is false, every item gets `previewImage: nil` (icon-only). When true,
+    /// each window candidate is captured via CGWindowListCreateImage.
+    private func assembleItems(from context: BuildContext, capturePreviews: Bool) -> [SwitcherItem] {
+        let appsWithWindows = Set(context.candidates.map(\.ownerPID))
+
+        let fallbackAppItems = context.runningApps
             .sorted(by: compareApps)
             .filter { !appsWithWindows.contains($0.processIdentifier) }
             .map { app in
@@ -212,13 +268,13 @@ final class AppSwitcher: NSObject {
                 }
             }
 
-        let windowItems = preparedEntries.map { entry in
-            let candidate = entry.candidate
+        let windowItems = context.candidates.map { candidate in
+            let preview: NSImage? = capturePreviews ? capturePreview(for: candidate) : nil
             return SwitcherItem(
                 title: candidate.windowTitle,
                 subtitle: candidate.appName,
                 icon: candidate.appIcon,
-                previewImage: entry.preview,
+                previewImage: preview,
                 historyIdentity: candidate.historyIdentity,
                 sourceAppIdentifier: candidate.sourceAppIdentifier,
                 kind: .appWindow
@@ -309,7 +365,10 @@ final class AppSwitcher: NSObject {
         }
 
         history.noteActivation(identity)
-        warmCache(force: true)
+        // warmCache intentionally omitted: the NSWorkspace.didActivateApplication
+        // notification fires after app.activate() and already calls warmCache(force: true)
+        // via appActivated(_:). Calling it here too queues a redundant rebuild that
+        // races with the AX focus operations above, adding perceived latency.
     }
 
     private func activateWindow(_ candidate: WindowCandidate) {
@@ -325,9 +384,12 @@ final class AppSwitcher: NSObject {
             if #available(macOS 14.0, *) { app.activate() }
         }
 
-        focusBestMatchingWindow(candidate, attempt: 0)
         history.noteActivation(candidate.historyIdentity)
-        warmCache(force: true)
+        focusBestMatchingWindow(candidate, attempt: 0)
+        // warmCache intentionally omitted: NSWorkspace.didActivateApplication fires
+        // after activate() and already triggers warmCache via appActivated(_:).
+        // A second rebuild here races with the AX retry chain, doubling the work
+        // and adding measurable latency to the switch.
     }
 
     // MARK: - Window focus (exact CGWindowID match first, then heuristic fallback)
@@ -447,6 +509,15 @@ final class AppSwitcher: NSObject {
             app = found
         }
 
+        // When the user opts out of browser content, exclude browser-owned
+        // windows during enumeration. The browser app still appears as a
+        // fallback entry so the user can switch to it.
+        if !preferences.includeTabsInAppSwitcher,
+           let bid = app.bundleIdentifier,
+           Self.browserBundleIDs.contains(bid) {
+            return nil
+        }
+
         let alpha = (windowInfo[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1.0
         guard alpha > 0.08 else { return nil }
 
@@ -498,10 +569,6 @@ final class AppSwitcher: NSObject {
             ].joined(separator: "|")
             return seen.insert(key).inserted
         }
-    }
-
-    private func preparedWindowEntries(from candidates: [WindowCandidate]) -> [PreparedWindowEntry] {
-        candidates.map { PreparedWindowEntry(candidate: $0, preview: capturePreview(for: $0)) }
     }
 
     // MARK: - Multi-strategy window capture
@@ -627,7 +694,4 @@ private struct WindowCandidate {
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }
 }
 
-private struct PreparedWindowEntry {
-    let candidate: WindowCandidate
-    let preview: NSImage?
-}
+

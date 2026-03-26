@@ -133,7 +133,19 @@ final class TabSwitcher {
             })
         }
 
-        return applyRecentTabLimit(to: items)
+        // Sort by MRU before applying the user-defined cap so the limit always
+        // retains the most recently accessed tabs rather than an arbitrary slice.
+        let historySnapshot = history.snapshot()
+        items.sort { lhs, rhs in
+            let lhsRank = historySnapshot.firstIndex(of: lhs.historyIdentity) ?? Int.max
+            let rhsRank = historySnapshot.firstIndex(of: rhs.historyIdentity) ?? Int.max
+            return lhsRank < rhsRank
+        }
+
+        let limit = preferences.maxBrowserTabsShown
+        if limit > 0 { items = Array(items.prefix(limit)) }
+
+        return items
     }
 
     private func fetchTabs(bundleID: String, name: String, previewLookup: [NSImage?], icon: NSImage?) -> [BrowserTabDescriptor]? {
@@ -551,18 +563,6 @@ final class TabSwitcher {
 
     private func browser(for bundleID: String) -> (id: String, name: String)? {
         browsers.first(where: { $0.id == bundleID })
-    }
-
-    private func applyRecentTabLimit(to items: [SwitcherItem]) -> [SwitcherItem] {
-        let limit = preferences.maxRecentTabs
-        guard limit > 0 else { return items }
-
-        return SwitcherTabLimiting.limitedRecentTabs(
-            items,
-            historyEntries: history.snapshot(),
-            currentFrontmost: currentFrontmostIdentity(),
-            limit: limit
-        )
     }
 
     private func appleScriptStringLiteral(_ value: String) -> String {

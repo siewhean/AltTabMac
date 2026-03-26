@@ -138,20 +138,49 @@ enum SwitcherOrdering {
         history: SwitcherHistoryStore,
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
-        orderedItems(items, historyEntries: history.snapshot(), currentFrontmost: currentFrontmost)
-    }
-}
+        let historyEntries = history.snapshot()
 
-enum SwitcherTabLimiting {
-    static func limitedRecentTabs(
-        _ items: [SwitcherItem],
-        historyEntries: [SwitcherHistoryIdentity],
-        currentFrontmost: SwitcherHistoryIdentity?,
-        limit: Int
-    ) -> [SwitcherItem] {
-        guard limit > 0 else { return items }
-        let orderedTabs = SwitcherOrdering.orderedItems(items, historyEntries: historyEntries, currentFrontmost: currentFrontmost)
-        return Array(orderedTabs.prefix(limit))
+        // For each item, prefer an exact identity match in history; fall back to
+        // a PID/bundleID app-level rank. The fallback matters when a CGWindowID
+        // changed since the entry was recorded (minimize → restore recreates the
+        // window ID), which would otherwise force the item to sort by raw offset
+        // instead of recency, making recently-used apps appear at the bottom.
+        func rank(for item: SwitcherItem) -> Int? {
+            if let exact = historyEntries.firstIndex(of: item.historyIdentity) {
+                return exact
+            }
+            if let pid = item.historyIdentity.ownerPID {
+                return history.rankForApp(bundleID: item.sourceAppIdentifier, pid: pid)
+            }
+            return nil
+        }
+
+        let ranked = items.enumerated().sorted { lhs, rhs in
+            let lhsRank = rank(for: lhs.element)
+            let rhsRank = rank(for: rhs.element)
+
+            switch (lhsRank, rhsRank) {
+            case let (.some(lhsRank), .some(rhsRank)):
+                if lhsRank != rhsRank { return lhsRank < rhsRank }
+            case (.some, .none):
+                return true
+            case (.none, .some):
+                return false
+            case (.none, .none):
+                break
+            }
+
+            return lhs.offset < rhs.offset
+        }
+
+        var ordered = ranked.map(\.element)
+        if let currentFrontmost,
+           let currentIndex = ordered.firstIndex(where: { $0.historyIdentity == currentFrontmost }) {
+            let activeItem = ordered.remove(at: currentIndex)
+            ordered.append(activeItem)
+        }
+
+        return ordered
     }
 }
 

@@ -9,11 +9,9 @@ final class SwitcherPreferences: ObservableObject {
     private let includeTabsInAppSwitcherKey = "includeTabsInAppSwitcher"
     private let launchAtLoginKey = "launchAtLogin"
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
-    private let maxRecentTabsKey = "maxRecentTabs"
+    private let maxBrowserTabsShownKey = "maxBrowserTabsShown"
     private let enableVibrancyKey = "enableVibrancy"
     private let switcherStyleKey = "switcherStyle"
-
-    static let maxRecentTabsRange = 0...50
 
     @Published var primaryMode: SwitcherMode {
         didSet { persist(primaryMode.rawValue, forKey: primaryModeKey) }
@@ -36,16 +34,10 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(maxWindowsPerApp, forKey: maxWindowsPerAppKey) }
     }
 
-    /// Max recent browser tabs shown globally. 0 = show all.
-    @Published var maxRecentTabs: Int {
-        didSet {
-            let clampedValue = Self.clampRecentTabs(maxRecentTabs)
-            if clampedValue != maxRecentTabs {
-                maxRecentTabs = clampedValue
-                return
-            }
-            persist(maxRecentTabs, forKey: maxRecentTabsKey)
-        }
+    /// Max browser tabs returned by the Tab Switcher. Tabs are sorted by most
+    /// recently used before the limit is applied. 0 = show all.
+    @Published var maxBrowserTabsShown: Int {
+        didSet { persist(maxBrowserTabsShown, forKey: maxBrowserTabsShownKey) }
     }
 
     /// Use frosted-glass / vibrancy for the switcher background.
@@ -68,7 +60,7 @@ final class SwitcherPreferences: ObservableObject {
         self.includeTabsInAppSwitcher = defaults.object(forKey: includeTabsInAppSwitcherKey) as? Bool ?? false
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
         self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 3
-        self.maxRecentTabs = Self.clampRecentTabs(defaults.object(forKey: maxRecentTabsKey) as? Int ?? 12)
+        self.maxBrowserTabsShown = defaults.object(forKey: maxBrowserTabsShownKey) as? Int ?? 20
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
         self.switcherStyle = defaults.string(forKey: switcherStyleKey)
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
@@ -81,9 +73,5 @@ final class SwitcherPreferences: ObservableObject {
     private func persist(_ value: Any, forKey key: String) {
         UserDefaults.standard.set(value, forKey: key)
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
-    }
-
-    static func clampRecentTabs(_ value: Int) -> Int {
-        min(max(value, maxRecentTabsRange.lowerBound), maxRecentTabsRange.upperBound)
     }
 }

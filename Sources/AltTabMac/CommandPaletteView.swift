@@ -20,25 +20,11 @@ struct CommandPaletteView: View {
         ZStack {
             // Background
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(preferences.enableVibrancy ? 0.018 : 0.04))
+                .fill(Color.white.opacity(0.04))
                 .background(
-                    ZStack {
+                    Group {
                         if preferences.enableVibrancy {
                             VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                                .opacity(0.78)
-
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.07),
-                                            Color.white.opacity(0.02),
-                                            Color.black.opacity(0.05)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
                         } else {
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(Color(red: 0.10, green: 0.10, blue: 0.12))
@@ -48,7 +34,7 @@ struct CommandPaletteView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.white.opacity(preferences.enableVibrancy ? 0.08 : 0.06), lineWidth: 1)
+                        .stroke(Color.white.opacity(preferences.enableVibrancy ? 0.12 : 0.06), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.45), radius: 32, x: 0, y: 16)
 

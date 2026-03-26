@@ -29,6 +29,11 @@
     <!-- AppleScript (Tab mode) -->
     <key>NSAppleEventsUsageDescription</key>
     <string>AltTabMac uses AppleScript to read and switch browser tabs.</string>
+    <!-- LSUIElement: false → show Dock icon so users can click to open Settings.
+         The switcher panel itself is .nonactivatingPanel so it never steals focus
+         during ⌘Tab; the app appearing in the Dock does not affect hotkey behaviour. -->
+    <key>LSUIElement</key>
+    <false/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>

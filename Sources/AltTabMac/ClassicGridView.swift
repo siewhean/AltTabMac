@@ -14,20 +14,21 @@ struct ClassicGridView: View {
         ZStack {
             // Panel background — vibrancy (liquid glass) or solid dark
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(preferences.enableVibrancy ? 0.02 : 0.05))
+                .fill(Color.white.opacity(0.05))
                 .background(
                     ZStack {
                         if preferences.enableVibrancy {
+                            // Full-opacity vibrancy so the desktop/content beneath
+                            // bleeds through maximally — the "liquid glass" effect.
                             VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
-                                .opacity(0.76)
 
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .fill(
                                     LinearGradient(
                                         colors: [
                                             Color.white.opacity(0.08),
-                                            Color.white.opacity(0.028),
-                                            Color.white.opacity(0.008)
+                                            Color.white.opacity(0.03),
+                                            Color.white.opacity(0.01)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -42,7 +43,7 @@ struct ClassicGridView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(preferences.enableVibrancy ? 0.08 : 0.06), lineWidth: 1)
+                        .stroke(Color.white.opacity(preferences.enableVibrancy ? 0.12 : 0.06), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.45), radius: 40, x: 0, y: 20)
 

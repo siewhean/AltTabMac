@@ -25,26 +25,12 @@ struct RadialMenuView: View {
         ZStack {
             // Subtle circular frosted panel so the background shows through
             Circle()
-                .fill(Color.white.opacity(preferences.enableVibrancy ? 0.015 : 0.03))
+                .fill(Color.white.opacity(0.03))
                 .background(
-                    ZStack {
+                    Group {
                         if preferences.enableVibrancy {
                             VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
                                 .clipShape(Circle())
-                                .opacity(0.72)
-
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.white.opacity(0.06),
-                                            Color.white.opacity(0.02),
-                                            Color.black.opacity(0.06)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
                         } else {
                             Circle()
                                 .fill(Color(red: 0.10, green: 0.10, blue: 0.12).opacity(0.90))
@@ -54,7 +40,7 @@ struct RadialMenuView: View {
                 .clipShape(Circle())
                 .overlay(
                     Circle()
-                        .stroke(Color.white.opacity(preferences.enableVibrancy ? 0.075 : 0.10), lineWidth: 1)
+                        .stroke(Color.white.opacity(0.10), lineWidth: 1)
                 )
                 .shadow(color: Color.black.opacity(0.45), radius: 40, x: 0, y: 20)
 

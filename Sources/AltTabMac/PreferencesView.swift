@@ -6,13 +6,6 @@ struct PreferencesView: View {
     let onOpenApplications: () -> Void
     let onOpenBrowserTabs: () -> Void
 
-    private var maxRecentTabsBinding: Binding<Int> {
-        Binding(
-            get: { preferences.maxRecentTabs },
-            set: { preferences.maxRecentTabs = min(max($0, SwitcherPreferences.maxRecentTabsRange.lowerBound), SwitcherPreferences.maxRecentTabsRange.upperBound) }
-        )
-    }
-
     var body: some View {
         ZStack {
             LinearGradient(
@@ -115,16 +108,21 @@ struct PreferencesView: View {
             .toggleStyle(.switch)
             .tint(.blue)
 
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsStepperRow(
-                title: "Recent browser tab limit",
-                subtitle: "Restrict how many recent browser tabs can appear. Set to 0 to show all recent tabs.",
-                value: maxRecentTabsBinding,
-                range: SwitcherPreferences.maxRecentTabsRange
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
+            HStack(alignment: .center, spacing: 16) {
+                SettingsRowText(
+                    title: "Max browser tabs shown",
+                    subtitle: "Limit to the most recently used tabs. Set to 0 to show all open tabs."
+                )
+                Spacer()
+                Picker("", selection: $preferences.maxBrowserTabsShown) {
+                    Text("All").tag(0)
+                    ForEach([5, 10, 15, 20, 30, 50], id: \.self) { count in
+                        Text("\(count)").tag(count)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 80)
+            }
 
             HStack(alignment: .center, spacing: 16) {
                 SettingsRowText(
