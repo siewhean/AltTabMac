@@ -15,6 +15,7 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
 - CGEvent.tap callback refactored to be fully non-blocking (Phase 2 latency fix).
 - Both `⌘Tab` and `⌥Tab` now reveal the same app-window switcher immediately.
 - First-use cache priming is synchronous for the fast icon phase so the overlay does not stall on an empty cache.
+- Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
 
 ## Active Constraints / Non-Negotiables
 
@@ -48,6 +49,9 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
   - `SwitcherWindowController` primes the fast icon cache before first reveal and no longer spins on a retry loop waiting for items.
   - Dock reopen now opens the live switcher instead of the settings window.
   - Removed stale browser-tab Apple Events metadata from `Resources/Info.plist`, `Resources/AltTabMac.entitlements`, and `build.sh`.
+- 2026-03-27: Preserved cached thumbnails across refreshes.
+  - `AppSwitcher` now keeps a thumbnail cache keyed by switcher identity and reuses those previews during the fast refresh pass.
+  - Forced refreshes no longer replace existing thumbnail tiles with icon-only placeholders while the new capture pass is still running.
 - 2026-03-27: Fixed `⌘Tab` hold-to-show timing drift.
   - Replaced loose pending hotkey fields in `HotkeyManager` with `HotkeyTriggerState` and `PendingHotkeyTrigger`.
   - Hidden `⌘Tab` now schedules reveal from the first keydown and ignores repeated hidden `Tab` events, preventing auto-repeat from stretching the 100ms threshold.

@@ -79,10 +79,12 @@ final class AppSwitcher: NSObject {
     // and the UI updates when onItemsChanged fires.
     private let buildQueue = DispatchQueue(label: "AltTabMac.AppSwitcher.Build", qos: .userInitiated)
     private var _cachedItems: [SwitcherItem] = []
+    private var previewCache: [String: NSImage] = [:]
     private let cacheLock = NSLock()
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
     private let refreshInterval: TimeInterval = 0.8
+    private let maxPreviewCacheEntries = 512
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     private var pendingActivationPID: pid_t?
@@ -158,7 +160,11 @@ final class AppSwitcher: NSObject {
         guard existing.isEmpty else { return existing }
 
         let context = enumerateWindows()
-        let iconItems = assembleItems(from: context, capturePreviews: false)
+        let iconItems = assembleItems(
+            from: context,
+            capturePreviews: false,
+            previewFallbacks: cachedPreviewSnapshot()
+        )
 
         cacheLock.lock()
         if _cachedItems.isEmpty {
@@ -194,6 +200,13 @@ final class AppSwitcher: NSObject {
         return items
     }
 
+    private func cachedPreviewSnapshot() -> [String: NSImage] {
+        cacheLock.lock()
+        let snapshot = previewCache
+        cacheLock.unlock()
+        return snapshot
+    }
+
     func currentFrontmostIdentity() -> SwitcherHistoryIdentity? {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.activationPolicy == .regular,
@@ -204,8 +217,8 @@ final class AppSwitcher: NSObject {
     // MARK: - Two-phase cache build
     //
     // Phase 1 (fast): Enumerate windows via CGWindowListCopyWindowInfo,
-    //   create items with app icons only (previewImage = nil), cache
-    //   immediately, and notify the UI so the panel can appear instantly.
+    //   reuse any previously captured thumbnails, cache immediately, and notify
+    //   the UI so the panel can appear instantly without flashing back to icons.
     // Phase 2 (slow): Capture window thumbnails via CGWindowListCreateImage
     //   on this background queue, rebuild items with real previews, cache
     //   again, and notify the UI to swap icons for thumbnails.
@@ -215,15 +228,21 @@ final class AppSwitcher: NSObject {
         guard !isRefreshing else { return }
         isRefreshing = true
 
-        // ── Phase 1: Icon-only pass (fast) ─────────────────────────────────
+        // ── Phase 1: Reuse cached previews immediately ──────────────────────
         let context = enumerateWindows()
-        let iconItems = assembleItems(from: context, capturePreviews: false)
+        let preservedPreviews = cachedPreviewSnapshot()
+        let iconItems = assembleItems(
+            from: context,
+            capturePreviews: false,
+            previewFallbacks: preservedPreviews
+        )
 
         cacheLock.lock()
         _cachedItems = iconItems
         cacheLock.unlock()
 
-        // Notify UI immediately — icons appear, zero preview lag.
+        // Notify UI immediately — existing thumbnails stay in place while the
+        // fresh capture pass updates anything new or changed.
         DispatchQueue.main.async { [weak self] in
             self?.onItemsChanged?(iconItems)
         }
@@ -241,10 +260,15 @@ final class AppSwitcher: NSObject {
                 }
             }
 
-            let fullItems = self.assembleItems(from: context, capturePreviews: true)
+            let fullItems = self.assembleItems(
+                from: context,
+                capturePreviews: true,
+                previewFallbacks: preservedPreviews
+            )
 
             self.cacheLock.lock()
             self._cachedItems = fullItems
+            self.updatePreviewCacheLocked(with: fullItems)
             self.cacheLock.unlock()
             self.lastRefresh = Date()
             self.isRefreshing = false
@@ -286,9 +310,14 @@ final class AppSwitcher: NSObject {
     }
 
     /// Create SwitcherItem arrays from a BuildContext. When `capturePreviews`
-    /// is false, every item gets `previewImage: nil` (icon-only). When true,
-    /// each window candidate is captured via CGWindowListCreateImage.
-    private func assembleItems(from context: BuildContext, capturePreviews: Bool) -> [SwitcherItem] {
+    /// is false, previously captured thumbnails are reused. When true, each
+    /// window candidate attempts a fresh capture and falls back to the cached
+    /// preview if capture fails.
+    private func assembleItems(
+        from context: BuildContext,
+        capturePreviews: Bool,
+        previewFallbacks: [String: NSImage]
+    ) -> [SwitcherItem] {
         let appsWithWindows = Set(context.candidates.map(\.ownerPID))
 
         let fallbackAppItems = context.runningApps
@@ -311,7 +340,13 @@ final class AppSwitcher: NSObject {
             }
 
         let windowItems = context.candidates.map { candidate in
-            let preview: NSImage? = capturePreviews ? capturePreview(for: candidate) : nil
+            let previewKey = candidate.historyIdentity.stableKey
+            let preview: NSImage?
+            if capturePreviews {
+                preview = capturePreview(for: candidate) ?? previewFallbacks[previewKey]
+            } else {
+                preview = previewFallbacks[previewKey]
+            }
             return SwitcherItem(
                 title: candidate.windowTitle,
                 subtitle: candidate.appName,
@@ -326,6 +361,25 @@ final class AppSwitcher: NSObject {
         }
 
         return windowItems + fallbackAppItems
+    }
+
+    private func updatePreviewCacheLocked(with items: [SwitcherItem]) {
+        for item in items {
+            guard let preview = item.previewImage else { continue }
+            previewCache[item.historyIdentity.stableKey] = preview
+        }
+
+        guard previewCache.count > maxPreviewCacheEntries else { return }
+
+        let activeKeys = Set(items.map { $0.historyIdentity.stableKey })
+        previewCache = previewCache.filter { activeKeys.contains($0.key) }
+
+        if previewCache.count > maxPreviewCacheEntries {
+            let overflow = previewCache.count - maxPreviewCacheEntries
+            for key in previewCache.keys.sorted().prefix(overflow) {
+                previewCache.removeValue(forKey: key)
+            }
+        }
     }
 
     /// Keep at most N windows per application. 0 = unlimited.
@@ -726,4 +780,3 @@ private struct WindowCandidate {
     var historyIdentity: SwitcherHistoryIdentity { .appWindow(pid: ownerPID, windowID: id) }
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }
 }
-
