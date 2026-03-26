@@ -6,31 +6,37 @@ struct PreferencesView: View {
     let onOpenApplications: () -> Void
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.11, green: 0.13, blue: 0.17),
-                    Color(red: 0.08, green: 0.09, blue: 0.12)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        GeometryReader { proxy in
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.11, green: 0.13, blue: 0.17),
+                        Color(red: 0.08, green: 0.09, blue: 0.12)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    header
-                    quickActionsSection
-                    switcherSection
-                    appearanceSection
-                    startupSection
-                    shortcutsSection
-                    permissionsSection
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header
+                        quickActionsSection
+                        switcherSection
+                        appearanceSection
+                        startupSection
+                        shortcutsSection
+                        permissionsSection
+                    }
+                    .frame(width: max(0, proxy.size.width - 48), alignment: .leading)
+                    .padding(.top, 28)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
                 }
-                .padding(24)
+                .scrollIndicators(.hidden)
             }
         }
-        .frame(minWidth: 680, minHeight: 700)
+        .frame(minWidth: 720, minHeight: 760)
     }
 
     private var header: some View {
@@ -113,6 +119,7 @@ struct PreferencesView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Divider().overlay(Color.white.opacity(0.08))
@@ -204,6 +211,7 @@ private struct SettingsCard<Content: View>: View {
             content
         }
         .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(Color.white.opacity(0.055))
@@ -370,7 +378,7 @@ private struct StylePreviewCard: View {
         case .commandPalette:
             return "Searchable compact list"
         case .radialMenu:
-            return "Cursor-centered ring"
+            return "Screen-centered ring"
         }
     }
 }

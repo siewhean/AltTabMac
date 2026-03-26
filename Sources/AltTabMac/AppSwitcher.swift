@@ -87,7 +87,7 @@ final class AppSwitcher: NSObject {
     private let maxPreviewCacheEntries = 512
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
-    private var pendingActivationPID: pid_t?
+    private var pendingActivationPIDs = Set<pid_t>()
 
     override init() {
         super.init()
@@ -120,8 +120,7 @@ final class AppSwitcher: NSObject {
               app.activationPolicy == .regular,
               app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
 
-        if app.processIdentifier == pendingActivationPID {
-            pendingActivationPID = nil
+        if clearPendingActivation(app.processIdentifier) {
             warmCache(force: true)
             return
         }
@@ -318,28 +317,7 @@ final class AppSwitcher: NSObject {
         capturePreviews: Bool,
         previewFallbacks: [String: NSImage]
     ) -> [SwitcherItem] {
-        let appsWithWindows = Set(context.candidates.map(\.ownerPID))
-
-        let fallbackAppItems = context.runningApps
-            .sorted(by: compareApps)
-            .filter { !appsWithWindows.contains($0.processIdentifier) }
-            .map { app in
-                let bundleID = sourceAppIdentifier(for: app)
-                let identity = SwitcherHistoryIdentity.appFallback(bundleID: bundleID, pid: app.processIdentifier)
-                return SwitcherItem(
-                    title: app.localizedName ?? "Application",
-                    subtitle: "Running in background",
-                    icon: app.icon,
-                    previewImage: nil,
-                    historyIdentity: identity,
-                    sourceAppIdentifier: bundleID,
-                    kind: .appFallback
-                ) { [weak self] in
-                    self?.activateFallbackApplication(app, identity: identity)
-                }
-            }
-
-        let windowItems = context.candidates.map { candidate in
+        let windowItems: [SwitcherItem] = context.candidates.compactMap { candidate -> SwitcherItem? in
             let previewKey = candidate.historyIdentity.stableKey
             let preview: NSImage?
             if capturePreviews {
@@ -347,6 +325,11 @@ final class AppSwitcher: NSObject {
             } else {
                 preview = previewFallbacks[previewKey]
             }
+
+            guard Self.shouldDisplayWindowItem(previewImage: preview, capturePreviews: capturePreviews) else {
+                return nil
+            }
+
             return SwitcherItem(
                 title: candidate.windowTitle,
                 subtitle: candidate.appName,
@@ -355,12 +338,29 @@ final class AppSwitcher: NSObject {
                 historyIdentity: candidate.historyIdentity,
                 sourceAppIdentifier: candidate.sourceAppIdentifier,
                 kind: .appWindow
-            ) { [weak self] in
-                self?.activateWindow(candidate)
+                ) { [weak self] in
+                    self?.activateWindow(candidate)
+                }
             }
-        }
 
-        return windowItems + fallbackAppItems
+        return windowItems
+    }
+
+    static func shouldIncludeFallbackApp(
+        processIdentifier: pid_t,
+        sourceAppIdentifier: String,
+        representedWindowPIDs: Set<pid_t>,
+        representedWindowAppIdentifiers: Set<String>,
+        seenFallbackAppIdentifiers: inout Set<String>
+    ) -> Bool {
+        guard !representedWindowPIDs.contains(processIdentifier) else { return false }
+        guard !representedWindowAppIdentifiers.contains(sourceAppIdentifier) else { return false }
+        return seenFallbackAppIdentifiers.insert(sourceAppIdentifier).inserted
+    }
+
+    static func shouldDisplayWindowItem(previewImage: NSImage?, capturePreviews: Bool) -> Bool {
+        guard capturePreviews else { return true }
+        return previewImage != nil
     }
 
     private func updatePreviewCacheLocked(with items: [SwitcherItem]) {
@@ -405,7 +405,14 @@ final class AppSwitcher: NSObject {
             from: onScreenWindows.enumerated().compactMap { index, info in
                 makeCandidate(from: info, orderIndex: index, includeBackgroundWindows: false, restrictToPID: app.processIdentifier)
             }
-        )
+        ).sorted(by: compareCandidates)
+
+        if let focusedWindowID = focusedWindowID(for: app.processIdentifier) {
+            if let focusedCandidate = visibleCandidates.first(where: { $0.id == focusedWindowID }) {
+                return focusedCandidate.historyIdentity
+            }
+            return .appWindow(pid: app.processIdentifier, windowID: focusedWindowID)
+        }
 
         if let candidate = visibleCandidates.first {
             return candidate.historyIdentity
@@ -444,7 +451,7 @@ final class AppSwitcher: NSObject {
     // MARK: - Window activation
 
     private func activateFallbackApplication(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity) {
-        pendingActivationPID = app.processIdentifier
+        markPendingActivation(app.processIdentifier)
         schedulePendingActivationTimeout(for: app.processIdentifier)
         activateApplication(app, activateAllWindows: true)
 
@@ -465,7 +472,7 @@ final class AppSwitcher: NSObject {
 
     private func activateWindow(_ candidate: WindowCandidate) {
         guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
-        pendingActivationPID = candidate.ownerPID
+        markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID)
 
         history.noteActivation(candidate.historyIdentity)
@@ -576,7 +583,7 @@ final class AppSwitcher: NSObject {
 
     private func ensureApplicationFrontmost(_ app: NSRunningApplication, attempt: Int) {
         guard currentSystemFrontmostPID() != app.processIdentifier else {
-            pendingActivationPID = nil
+            _ = clearPendingActivation(app.processIdentifier)
             return
         }
         guard attempt < 4 else { return }
@@ -585,7 +592,7 @@ final class AppSwitcher: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard self.currentSystemFrontmostPID() != app.processIdentifier else {
-                self.pendingActivationPID = nil
+                _ = self.clearPendingActivation(app.processIdentifier)
                 return
             }
             self.activateApplication(app, activateAllWindows: true)
@@ -595,7 +602,7 @@ final class AppSwitcher: NSObject {
 
     private func ensureWindowFrontmost(_ candidate: WindowCandidate, attempt: Int) {
         guard !isFrontmostWindow(candidate) else {
-            pendingActivationPID = nil
+            _ = clearPendingActivation(candidate.ownerPID)
             return
         }
         guard attempt < 4,
@@ -605,7 +612,7 @@ final class AppSwitcher: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard !self.isFrontmostWindow(candidate) else {
-                self.pendingActivationPID = nil
+                _ = self.clearPendingActivation(candidate.ownerPID)
                 return
             }
             self.activateApplication(app, activateAllWindows: false)
@@ -615,9 +622,18 @@ final class AppSwitcher: NSObject {
 
     private func schedulePendingActivationTimeout(for pid: pid_t) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
-            guard let self, self.pendingActivationPID == pid else { return }
-            self.pendingActivationPID = nil
+            guard let self else { return }
+            _ = self.clearPendingActivation(pid)
         }
+    }
+
+    private func markPendingActivation(_ pid: pid_t) {
+        pendingActivationPIDs.insert(pid)
+    }
+
+    @discardableResult
+    private func clearPendingActivation(_ pid: pid_t) -> Bool {
+        pendingActivationPIDs.remove(pid) != nil
     }
 
     private func isFrontmostWindow(_ candidate: WindowCandidate) -> Bool {

@@ -108,7 +108,7 @@ struct SwitcherLayoutMetrics {
     // MARK: - Radial Menu layout
 
     /// Fixed square canvas for the circular icon arrangement.
-    /// The panel is 560×560pt, centred on the cursor at show time.
+    /// The panel is 560×560pt and centered on the active screen.
     static func makeRadial(itemCount: Int) -> SwitcherLayoutMetrics {
         return SwitcherLayoutMetrics(
             columns: 1,

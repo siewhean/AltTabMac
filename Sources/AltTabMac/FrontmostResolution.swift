@@ -39,6 +39,7 @@ enum FrontmostResolution {
     static func effectiveIdentity(
         availableItems: [SwitcherItem],
         historyEntries: [SwitcherHistoryIdentity],
+        systemFrontmostIdentity: SwitcherHistoryIdentity?,
         systemFrontmostPID: pid_t,
         observedFrontmostPID: pid_t,
         overrideState: FrontmostOverrideState?,
@@ -48,6 +49,11 @@ enum FrontmostResolution {
         if let overrideState = activeOverride(overrideState, now: now, graceInterval: graceInterval),
            availableItems.contains(where: { $0.historyIdentity == overrideState.identity }) {
             return overrideState.identity
+        }
+
+        if let systemFrontmostIdentity,
+           availableItems.contains(where: { $0.historyIdentity == systemFrontmostIdentity }) {
+            return systemFrontmostIdentity
         }
 
         let pid = effectivePID(

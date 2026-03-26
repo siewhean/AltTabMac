@@ -5,15 +5,12 @@ final class MenuBarController {
     private var statusItem: NSStatusItem!
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
-    private let onActivatePrimarySwitcher: () -> Void
     private var contextMenu: NSMenu?
 
     init(
-        preferencesWindowController: PreferencesWindowController,
-        onActivatePrimarySwitcher: @escaping () -> Void
+        preferencesWindowController: PreferencesWindowController
     ) {
         self.preferencesWindowController = preferencesWindowController
-        self.onActivatePrimarySwitcher = onActivatePrimarySwitcher
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handlePreferencesDidChange),
@@ -31,7 +28,7 @@ final class MenuBarController {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleStatusItemClick)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusItem.button?.toolTip = "Left click to open the AltTab switcher. Right click for settings and quick controls."
+        statusItem.button?.toolTip = "Left click to open AltTabMac settings. Right click for quick controls."
 
         updateMenu()
     }
@@ -91,7 +88,7 @@ final class MenuBarController {
 
     @objc private func handleStatusItemClick() {
         guard let event = NSApp.currentEvent else {
-            onActivatePrimarySwitcher()
+            preferencesWindowController.show()
             return
         }
 
@@ -100,7 +97,7 @@ final class MenuBarController {
                 menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY), in: button)
             }
         } else {
-            onActivatePrimarySwitcher()
+            preferencesWindowController.show()
         }
     }
 
@@ -116,7 +113,7 @@ final class MenuBarController {
 
         ⌘ Tab  — Switch between application windows
         ⌥ Tab  — Same switcher, alternate modifier
-        Left click  — Open the live switcher
+        Left click  — Open settings
         Right click  — Open settings and quick controls
 
         Hold the modifier and press Tab repeatedly to cycle.

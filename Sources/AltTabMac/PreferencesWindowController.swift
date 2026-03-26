@@ -15,8 +15,11 @@ final class PreferencesWindowController: NSWindowController {
         window.title = "AltTabMac Settings"
         window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
         window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.titlebarSeparatorStyle = .none
         window.center()
-        window.setContentSize(NSSize(width: 620, height: 640))
+        window.setContentSize(NSSize(width: 720, height: 760))
+        window.minSize = NSSize(width: 720, height: 760)
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenAuxiliary]
 

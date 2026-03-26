@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import AltTabMac
 
 /// Tests for SwitcherHistoryStore and the activation/ordering logic that
@@ -212,6 +213,50 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertEqual(ordered.count, 1)
         // Finder is both frontmost AND only item — still present (moved to end = stays)
         XCTAssertEqual(ordered.first?.title, "Finder")
+    }
+
+    func testFallbackAppsAreDroppedWhenWindowsAlreadyRepresentThatApp() {
+        var seen = Set<String>()
+
+        XCTAssertFalse(
+            AppSwitcher.shouldIncludeFallbackApp(
+                processIdentifier: 101,
+                sourceAppIdentifier: "com.apple.finder",
+                representedWindowPIDs: [101],
+                representedWindowAppIdentifiers: ["com.apple.finder"],
+                seenFallbackAppIdentifiers: &seen
+            )
+        )
+    }
+
+    func testFallbackAppsAreDeduplicatedByApplicationIdentifier() {
+        var seen = Set<String>()
+
+        XCTAssertTrue(
+            AppSwitcher.shouldIncludeFallbackApp(
+                processIdentifier: 101,
+                sourceAppIdentifier: "com.apple.finder",
+                representedWindowPIDs: [],
+                representedWindowAppIdentifiers: [],
+                seenFallbackAppIdentifiers: &seen
+            )
+        )
+
+        XCTAssertFalse(
+            AppSwitcher.shouldIncludeFallbackApp(
+                processIdentifier: 202,
+                sourceAppIdentifier: "com.apple.finder",
+                representedWindowPIDs: [],
+                representedWindowAppIdentifiers: [],
+                seenFallbackAppIdentifiers: &seen
+            )
+        )
+    }
+
+    func testPreviewlessWindowTilesAreDroppedInFinalThumbnailPass() {
+        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: NSImage(size: NSSize(width: 10, height: 10)), capturePreviews: true))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
     }
 
     /// Empty items list returns empty.

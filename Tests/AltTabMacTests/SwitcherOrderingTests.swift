@@ -67,7 +67,7 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["Arc", "Finder W2", "Finder W1"])
     }
 
-    func testLeadingWindowsFromCurrentAppMoveBehindMostRecentDifferentApp() {
+    func testLeadingWindowsFromCurrentAppStayInStrictRecencyOrder() {
         let notebookLM = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 21)
         let arcWindow  = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 22)
         let finder     = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 11)
@@ -84,7 +84,7 @@ final class SwitcherOrderingTests: XCTestCase {
             currentFrontmost: arcWindow
         )
 
-        XCTAssertEqual(ordered.map(\.title), ["Finder", "NotebookLM", "Arc Window"])
+        XCTAssertEqual(ordered.map(\.title), ["NotebookLM", "Finder", "Arc Window"])
     }
 
     /// Items with no history entries keep their original array offset order

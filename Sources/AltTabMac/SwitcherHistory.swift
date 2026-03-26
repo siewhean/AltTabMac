@@ -113,7 +113,7 @@ enum SwitcherOrdering {
             ordered.append(activeItem)
         }
 
-        return normalizeLeadingCurrentAppItems(in: ordered, currentFrontmost: currentFrontmost)
+        return ordered
     }
 
     static func orderedItems(
@@ -163,29 +163,6 @@ enum SwitcherOrdering {
             ordered.append(activeItem)
         }
 
-        return normalizeLeadingCurrentAppItems(in: ordered, currentFrontmost: currentFrontmost)
-    }
-
-    private static func normalizeLeadingCurrentAppItems(
-        in ordered: [SwitcherItem],
-        currentFrontmost: SwitcherHistoryIdentity?
-    ) -> [SwitcherItem] {
-        guard let currentPID = currentFrontmost?.ownerPID else { return ordered }
-
-        let leadingCurrentCount = ordered.prefix { $0.historyIdentity.ownerPID == currentPID }.count
-        guard leadingCurrentCount > 0, leadingCurrentCount < ordered.count else { return ordered }
-
-        let leadingCurrentItems = Array(ordered.prefix(leadingCurrentCount))
-        var remainingItems = Array(ordered.dropFirst(leadingCurrentCount))
-
-        let insertionIndex: Int
-        if remainingItems.last?.historyIdentity.ownerPID == currentPID {
-            insertionIndex = max(0, remainingItems.count - 1)
-        } else {
-            insertionIndex = remainingItems.count
-        }
-
-        remainingItems.insert(contentsOf: leadingCurrentItems, at: insertionIndex)
-        return remainingItems
+        return ordered
     }
 }

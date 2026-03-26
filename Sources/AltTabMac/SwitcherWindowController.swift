@@ -240,7 +240,9 @@ final class SwitcherWindowController {
                 return
             }
             self.activeFrontmostPID = app.processIdentifier
-            self.frontmostOverride = nil
+            if self.frontmostOverride?.pid != app.processIdentifier {
+                self.frontmostOverride = nil
+            }
         }
 
         NotificationCenter.default.addObserver(
@@ -269,8 +271,15 @@ final class SwitcherWindowController {
         self.session = session
         syncViewModelFromSession()
 
-        if let screen = NSScreen.screens.first(where: { $0.visibleFrame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main {
-            viewModel.layout = SwitcherLayoutMetrics.make(itemCount: refreshedItems.count, visibleFrame: screen.visibleFrame)
+        if let screen = presentationScreen(for: preferences.switcherStyle) {
+            switch preferences.switcherStyle {
+            case .classicGrid:
+                viewModel.layout = SwitcherLayoutMetrics.make(itemCount: refreshedItems.count, visibleFrame: screen.visibleFrame)
+            case .commandPalette:
+                viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: refreshedItems.count, visibleFrame: screen.visibleFrame)
+            case .radialMenu:
+                viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: refreshedItems.count)
+            }
         }
     }
 
@@ -298,6 +307,7 @@ final class SwitcherWindowController {
         return FrontmostResolution.effectiveIdentity(
             availableItems: availableItems,
             historyEntries: historyEntries,
+            systemFrontmostIdentity: appSwitcher.currentFrontmostIdentity(),
             systemFrontmostPID: currentSystemFrontmostPID(),
             observedFrontmostPID: activeFrontmostPID,
             overrideState: frontmostOverride,
@@ -316,8 +326,7 @@ final class SwitcherWindowController {
             syncViewModelFromSession()
         }
 
-        let mouseLocation = NSEvent.mouseLocation
-        let targetScreen = NSScreen.screens.first(where: { $0.visibleFrame.contains(mouseLocation) }) ?? NSScreen.main
+        let targetScreen = presentationScreen(for: preferences.switcherStyle)
 
         if let screen = targetScreen {
             let visibleFrame = screen.visibleFrame
@@ -339,9 +348,8 @@ final class SwitcherWindowController {
             let oy: CGFloat
             switch style {
             case .radialMenu:
-                let inset = visibleFrame.insetBy(dx: layout.contentWidth / 2, dy: layout.contentHeight / 2)
-                ox = min(max(mouseLocation.x - layout.contentWidth / 2, inset.minX), inset.maxX)
-                oy = min(max(mouseLocation.y - layout.contentHeight / 2, inset.minY), inset.maxY)
+                ox = visibleFrame.midX - layout.contentWidth / 2
+                oy = visibleFrame.midY - layout.contentHeight / 2
             default:
                 let safeFrame = visibleFrame.insetBy(dx: 18, dy: 18)
                 let proposedX = visibleFrame.midX - layout.contentWidth / 2
@@ -378,6 +386,22 @@ final class SwitcherWindowController {
         viewModel.layout = .empty
         viewModel.hoveredIndex = nil
         viewModel.searchQuery = ""
+    }
+
+    private func presentationScreen(for style: SwitcherStyle) -> NSScreen? {
+        switch style {
+        case .radialMenu:
+            if viewModel.isVisible {
+                return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
+            }
+            return NSScreen.main ?? panel.screen ?? NSScreen.screens.first
+        case .classicGrid, .commandPalette:
+            let mouseLocation = NSEvent.mouseLocation
+            return NSScreen.screens.first(where: { $0.visibleFrame.contains(mouseLocation) })
+                ?? panel.screen
+                ?? NSScreen.main
+                ?? NSScreen.screens.first
+        }
     }
 
     /// Filter `viewModel.items` to rows matching `query`, then reset selection.
