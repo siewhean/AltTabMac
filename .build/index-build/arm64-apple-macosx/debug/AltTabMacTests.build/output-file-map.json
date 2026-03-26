@@ -1,0 +1,26 @@
+{
+  "": {
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/master.swiftdeps"
+  },
+  "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/AppSwitcherActivationTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherCycleSessionTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherOrderingTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests.dia"
+  }
+}

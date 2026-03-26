@@ -4,27 +4,19 @@ import AppKit
 
 enum SwitcherMode: String {
     case app
-    case tab
 
     var title: String {
-        switch self {
-        case .app: return "Applications"
-        case .tab: return "Browser Tabs"
-        }
+        return "Applications"
     }
 
     var systemImage: String {
-        switch self {
-        case .app: return "square.stack.3d.up.fill"
-        case .tab: return "globe"
-        }
+        return "square.stack.3d.up.fill"
     }
 }
 
 enum SwitcherItemKind: String {
     case appWindow
     case appFallback
-    case browserTab
 }
 
 // MARK: - Item

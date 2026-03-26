@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/master.swiftdeps"
+  },
+  "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner.dia"
+  }
+}

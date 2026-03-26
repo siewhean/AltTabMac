@@ -135,13 +135,6 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.dia"
   },
-  "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/TabSwitcher.swift": {
-    "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.d",
-    "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swift.o",
-    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher~partial.swiftmodule",
-    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swiftdeps",
-    "diagnostics": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.dia"
-  },
   "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/main.d",
     "object": "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/main.swift.o",

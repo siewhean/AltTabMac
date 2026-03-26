@@ -72,18 +72,6 @@ final class AppSwitcher: NSObject {
     private let preferences = SwitcherPreferences.shared
     private let history = SwitcherHistoryStore.shared
 
-    /// Bundle IDs of known browsers. When the user disables browser-tab inclusion,
-    /// windows belonging to these apps are dropped from the candidate list during
-    /// enumeration so they never reach the UI.
-    private static let browserBundleIDs: Set<String> = [
-        "com.google.Chrome",
-        "company.thebrowser.Browser",    // Arc
-        "com.apple.Safari",
-        "org.mozilla.firefox",
-        "com.microsoft.edgemac",
-        "com.brave.Browser",
-    ]
-
     // ── Non-blocking cache architecture ──────────────────────────────────────
     // The build queue runs thumbnail capture off the main thread.
     // The cacheLock protects reads/writes to _cachedItems so getItems() never
@@ -119,6 +107,9 @@ final class AppSwitcher: NSObject {
             name: SwitcherPreferences.didChangeNotification, object: nil
         )
 
+        // Warm cache asynchronously. Do NOT wait — getItems() will return whatever
+        // is currently cached (empty on first call, but refreshCacheIfNeeded will
+        // populate it from onItemsChanged callbacks).
         warmCache(force: true)
     }
 
@@ -145,17 +136,62 @@ final class AppSwitcher: NSObject {
     /// Non-blocking. Returns cached items immediately — never waits for a
     /// pending thumbnail capture. Kicks off a background refresh if stale.
     func getItems() -> [SwitcherItem] {
-        warmCache()
+        // Return cached items immediately without waiting.
+        // Trigger a background refresh if stale.
+        let cached = cachedItemsSnapshot()
+        if cached.isEmpty {
+            return primeCacheIfNeeded()
+        }
+
+        if shouldRefresh() {
+            warmCache(force: false)
+        }
+        return cached
+    }
+
+    /// Populate a fast icon-only cache synchronously when the app is first
+    /// invoked and the background builder has not produced anything yet.
+    /// This keeps the first Alt-Tab reveal from stalling on the empty-cache path.
+    @discardableResult
+    func primeCacheIfNeeded() -> [SwitcherItem] {
+        let existing = cachedItemsSnapshot()
+        guard existing.isEmpty else { return existing }
+
+        let context = enumerateWindows()
+        let iconItems = assembleItems(from: context, capturePreviews: false)
+
         cacheLock.lock()
-        let items = _cachedItems
+        if _cachedItems.isEmpty {
+            _cachedItems = iconItems
+        }
+        let snapshot = _cachedItems
         cacheLock.unlock()
-        return items
+
+        if !snapshot.isEmpty {
+            DispatchQueue.main.async { [weak self] in
+                self?.onItemsChanged?(snapshot)
+            }
+            warmCache(force: true)
+        }
+
+        return snapshot
+    }
+
+    private func shouldRefresh() -> Bool {
+        Date().timeIntervalSince(lastRefresh) > refreshInterval
     }
 
     func warmCache(force: Bool = false) {
         buildQueue.async { [weak self] in
             self?.refreshCacheIfNeeded(force: force)
         }
+    }
+
+    private func cachedItemsSnapshot() -> [SwitcherItem] {
+        cacheLock.lock()
+        let items = _cachedItems
+        cacheLock.unlock()
+        return items
     }
 
     func currentFrontmostIdentity() -> SwitcherHistoryIdentity? {
@@ -193,24 +229,30 @@ final class AppSwitcher: NSObject {
         }
 
         // ── Phase 2: Thumbnail pass (slow) ─────────────────────────────────
-        if #available(macOS 10.15, *) {
-            if !CGPreflightScreenCaptureAccess() {
-                os_log(.error, log: appSwitcherLog,
-                       "Screen Recording permission not granted — thumbnails will be unavailable. Grant access in System Settings > Privacy & Security > Screen Recording.")
+        // Schedule Phase 2 as a separate, independent work item so Phase 1
+        // notification to the UI is not delayed by thumbnail capture.
+        buildQueue.async { [weak self] in
+            guard let self else { return }
+
+            if #available(macOS 10.15, *) {
+                if !CGPreflightScreenCaptureAccess() {
+                    os_log(.error, log: appSwitcherLog,
+                           "Screen Recording permission not granted — thumbnails will be unavailable. Grant access in System Settings > Privacy & Security > Screen Recording.")
+                }
             }
-        }
 
-        let fullItems = assembleItems(from: context, capturePreviews: true)
+            let fullItems = self.assembleItems(from: context, capturePreviews: true)
 
-        cacheLock.lock()
-        _cachedItems = fullItems
-        cacheLock.unlock()
-        lastRefresh = Date()
-        isRefreshing = false
+            self.cacheLock.lock()
+            self._cachedItems = fullItems
+            self.cacheLock.unlock()
+            self.lastRefresh = Date()
+            self.isRefreshing = false
 
-        // Notify UI again — thumbnails now available.
-        DispatchQueue.main.async { [weak self] in
-            self?.onItemsChanged?(fullItems)
+            // Notify UI again — thumbnails now available.
+            DispatchQueue.main.async { [weak self] in
+                self?.onItemsChanged?(fullItems)
+            }
         }
     }
 
@@ -509,15 +551,6 @@ final class AppSwitcher: NSObject {
             app = found
         }
 
-        // When the user opts out of browser content, exclude browser-owned
-        // windows during enumeration. The browser app still appears as a
-        // fallback entry so the user can switch to it.
-        if !preferences.includeTabsInAppSwitcher,
-           let bid = app.bundleIdentifier,
-           Self.browserBundleIDs.contains(bid) {
-            return nil
-        }
-
         let alpha = (windowInfo[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1.0
         guard alpha > 0.08 else { return nil }
 
@@ -693,5 +726,4 @@ private struct WindowCandidate {
     var historyIdentity: SwitcherHistoryIdentity { .appWindow(pid: ownerPID, windowID: id) }
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }
 }
-
 

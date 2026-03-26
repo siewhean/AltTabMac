@@ -331,15 +331,6 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertEqual(identity.ownerPID, 101)
     }
 
-    func testOwnerPIDReturnsNilForBrowserTab() {
-        let identity = SwitcherHistoryIdentity.browserTab(
-            bundleID: "com.apple.Safari",
-            normalizedURL: "https://example.com",
-            normalizedTitle: "example"
-        )
-        XCTAssertNil(identity.ownerPID)
-    }
-
     // MARK: - PID-based frontmost detection tests
 
     /// When the committed identity's window ID changes across cache rebuilds,

@@ -4,7 +4,6 @@ import AppKit
 struct PreferencesView: View {
     @ObservedObject var preferences: SwitcherPreferences
     let onOpenApplications: () -> Void
-    let onOpenBrowserTabs: () -> Void
 
     var body: some View {
         ZStack {
@@ -40,7 +39,7 @@ struct PreferencesView: View {
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
 
-            Text("Tune how applications, windows, and browser tabs appear in the switcher. The settings below prioritize stability, recency ordering, and fast previews of each visual style.")
+            Text("Tune how applications and windows appear in the switcher. The settings below prioritize stability, recency ordering, and fast previews of each visual style.")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.66))
                 .fixedSize(horizontal: false, vertical: true)
@@ -49,41 +48,20 @@ struct PreferencesView: View {
 
     private var quickActionsSection: some View {
         SettingsCard(title: "Quick Actions", subtitle: "Open the live switcher directly from this control page.") {
-            HStack(spacing: 12) {
-                Button(action: onOpenApplications) {
-                    Label("Show Applications", systemImage: "square.stack.3d.up.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-
-                Button(action: onOpenBrowserTabs) {
-                    Label("Show Browser Tabs", systemImage: "globe")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.white)
+            Button(action: onOpenApplications) {
+                Label("Show Applications", systemImage: "square.stack.3d.up.fill")
+                    .frame(maxWidth: .infinity)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.blue)
         }
     }
 
     private var switcherSection: some View {
         SettingsCard(title: "Switcher", subtitle: "Control what shows up when you press the shortcut.") {
-            SettingsSegmentedPicker(
-                title: "Primary Shortcut",
-                subtitle: "Choose what `⌘Tab` opens by default.",
-                selection: $preferences.primaryMode,
-                options: [
-                    (.app, "Applications"),
-                    (.tab, "Browser Tabs")
-                ]
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
             SettingsRowText(
                 title: "Strict separate-window recency",
-                subtitle: "Applications, windows, and supported browser tabs stay in one global MRU list, so repeated apps remain interleaved instead of grouped together."
+                subtitle: "Applications and windows stay in one global MRU list, so repeated apps remain interleaved instead of grouped together."
             )
 
             Divider().overlay(Color.white.opacity(0.08))
@@ -98,31 +76,6 @@ struct PreferencesView: View {
             .tint(.blue)
 
             Divider().overlay(Color.white.opacity(0.08))
-
-            Toggle(isOn: $preferences.includeTabsInAppSwitcher) {
-                SettingsRowText(
-                    title: "Include browser tabs in the application switcher",
-                    subtitle: "Mix recent tabs from supported browsers like Arc, Chrome, and Safari into the app switcher."
-                )
-            }
-            .toggleStyle(.switch)
-            .tint(.blue)
-
-            HStack(alignment: .center, spacing: 16) {
-                SettingsRowText(
-                    title: "Max browser tabs shown",
-                    subtitle: "Limit to the most recently used tabs. Set to 0 to show all open tabs."
-                )
-                Spacer()
-                Picker("", selection: $preferences.maxBrowserTabsShown) {
-                    Text("All").tag(0)
-                    ForEach([5, 10, 15, 20, 30, 50], id: \.self) { count in
-                        Text("\(count)").tag(count)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 80)
-            }
 
             HStack(alignment: .center, spacing: 16) {
                 SettingsRowText(
@@ -192,7 +145,7 @@ struct PreferencesView: View {
         SettingsCard(title: "Shortcuts", subtitle: "Current control surface.") {
             ShortcutRow(shortcut: "⌘ Tab", detail: "Open the primary switcher")
             Divider().overlay(Color.white.opacity(0.08))
-            ShortcutRow(shortcut: "⌥ Tab", detail: "Open the alternate switcher")
+            ShortcutRow(shortcut: "⌥ Tab", detail: "Open the same switcher with the alternate modifier")
             Divider().overlay(Color.white.opacity(0.08))
             ShortcutRow(shortcut: "Arrow Keys", detail: "Move through the grid")
             Divider().overlay(Color.white.opacity(0.08))

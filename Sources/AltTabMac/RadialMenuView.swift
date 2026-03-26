@@ -106,14 +106,18 @@ private struct RadialItemView: View {
                         Circle()
                             .strokeBorder(
                                 isSelected
-                                    ? Color(red: 0.3, green: 0.6, blue: 1.0).opacity(0.90)
+                                    ? Color(red: 0.26, green: 0.58, blue: 1.0).opacity(1.0)
                                     : Color.white.opacity(0.14),
-                                lineWidth: isSelected ? 2 : 1
+                                lineWidth: isSelected ? 3.5 : 1
                             )
                     )
                     .shadow(
-                        color: isSelected ? Color(red: 0.2, green: 0.5, blue: 1.0).opacity(0.55) : .clear,
-                        radius: 14, x: 0, y: 0
+                        color: isSelected ? Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.72) : .clear,
+                        radius: isSelected ? 34 : 0, x: 0, y: 0
+                    )
+                    .shadow(
+                        color: isSelected ? Color(red: 0.14, green: 0.40, blue: 1.0).opacity(0.30) : .clear,
+                        radius: isSelected ? 60 : 0, x: 0, y: 0
                     )
 
                 if let icon = item.icon {

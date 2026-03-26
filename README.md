@@ -1,41 +1,76 @@
 # AltTabMac
 
-Last Updated: 2026-03-25
-Active Task: Reliability upgrade, settings improvements, Dock behavior changes, and agent context setup.
+Last Updated: 2026-03-27
+Active Task: App-only switcher polish — instant reveal, cold-cache priming, and stale browser-tab metadata cleanup.
 
 ## Project Summary
 
-AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, optional browser-tab switching, multiple visual styles, and a settings surface for controlling behavior.
+AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
 
 ## Current Status
 
 - Agent context entrypoints exist in `AGENTS.md`, `CLAUDE.md`, and `CODEX.md`.
-- All 5 critical bug fixes, 2 of 3 feature requests, and all 3 UI/UX refinements from the 2026-03-25 task have been applied (see Recent Changes Log).
+- All prior bug fixes and refinements remain in place.
+- Browser tab feature fully removed (Phase 1 optimization).
+- CGEvent.tap callback refactored to be fully non-blocking (Phase 2 latency fix).
+- Both `⌘Tab` and `⌥Tab` now reveal the same app-window switcher immediately.
+- First-use cache priming is synchronous for the fast icon phase so the overlay does not stall on an empty cache.
 
 ## Active Constraints / Non-Negotiables
 
 - Read this file before planning or coding.
 - Update this file whenever task context, progress, decisions, or blockers change.
 - Settings interactions must be safe and avoid crash-prone force unwraps.
-- Browser tab limits must remain separate from app-window limits.
-- Early modifier release before overlay reveal performs instant switch to next MRU window (quick-switch).
+- Early modifier release must still quick-switch cleanly if the overlay has not committed yet.
+- Hidden hotkey handling must remain instant; do not reintroduce fixed hold-to-show latency.
+- CGEvent.tap callback must return in under 20ms — all UI work dispatched asynchronously.
 
 ## Decisions Already Made
 
 - Canonical shared context file: `README.md`
 - Repo instruction entrypoints: `AGENTS.md`, `CLAUDE.md`, `CODEX.md`
-- The current single `Primary Shortcut` control stays unless a true duplicate is found.
-- Dock presence should be re-enabled and Dock clicks should open Settings.
+- Dock presence re-enabled; Dock clicks reopen the live switcher.
+- Browser tab feature intentionally removed to reduce overhead and eliminate AppleScript latency.
+- Both ⌘Tab and ⌥Tab now trigger the same app switcher (no separate tab mode).
+- Browser-tab Apple Events permissions and messaging should stay removed from the bundle.
 
 ## Open Issues / Next Steps
 
 - Rebuild and manually validate after each change set.
-- Feature 3 (Appearance Previews) was already implemented in the prior iteration — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
-- Settings Redundancy (Refinement 2): no true duplicate "Primary Shortcut" section exists in code; the "Shortcuts" card is a reference table only. No action taken per README constraint.
+- Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
 - Keep this file current whenever the active task or implementation status changes.
 
 ## Recent Changes Log
 
+- 2026-03-27: Removed the fixed hold-to-show delay from the hotkey path and kept the switcher app-only.
+  - `HotkeyTriggerPolicy` reveal delay is now zero for both `⌘Tab` and `⌥Tab`.
+  - `scheduleReveal` now executes immediately when the deadline is already due.
+  - `SwitcherWindowController` primes the fast icon cache before first reveal and no longer spins on a retry loop waiting for items.
+  - Dock reopen now opens the live switcher instead of the settings window.
+  - Removed stale browser-tab Apple Events metadata from `Resources/Info.plist`, `Resources/AltTabMac.entitlements`, and `build.sh`.
+- 2026-03-27: Fixed `⌘Tab` hold-to-show timing drift.
+  - Replaced loose pending hotkey fields in `HotkeyManager` with `HotkeyTriggerState` and `PendingHotkeyTrigger`.
+  - Hidden `⌘Tab` now schedules reveal from the first keydown and ignores repeated hidden `Tab` events, preventing auto-repeat from stretching the 100ms threshold.
+  - Anchored hidden `⌘Tab` timing to the original `CGEvent` timestamp from the event tap instead of `ProcessInfo.systemUptime` sampled later on the main queue, eliminating queue-induced extra delay.
+  - Reveal-deadline races where the hardware modifier is already up now fall back to quick-switch instead of dropping the action.
+  - Wired `SwitcherWindowController.onClickCommit` to `HotkeyManager` so click commits clear pending hotkey state before modifier release.
+  - Added `HotkeyTriggerStateTests` covering fixed-delay reveal, early quick-switch, reverse handling, escape cleanup, and unchanged `⌥Tab` reschedule semantics.
+- 2026-03-27: Two-phase optimization — feature deletion + event tap latency fix:
+  - Phase 1 (Feature Deletion): Completely removed browser tab switching feature.
+    - Deleted `TabSwitcher.swift` (AppleScript tab enumeration, preview generation, tab activation).
+    - Removed `SwitcherMode.tab`, `SwitcherItemKind.browserTab`, `SwitcherHistoryIdentity.browserTab`.
+    - Removed preferences: `includeTabsInAppSwitcher`, `maxBrowserTabsShown`, `primaryMode`, `alternateMode()`.
+    - Removed `browserBundleIDs` filter from `AppSwitcher.makeCandidate()`.
+    - Cleaned up Settings UI: removed "Show Browser Tabs" button, primary mode picker, tab toggle, tab limit picker.
+    - Cleaned up menu bar: removed browser tab toggle, primary mode selector.
+    - Simplified `SwitcherWindowController`: removed `tabSwitcher`, simplified `items()` to AppSwitcher-only.
+    - Updated all test files to remove browser tab test cases.
+  - Phase 2 (Event Tap Latency Fix): Fixed CGEvent.tap timeout causing native macOS switcher bleed-through.
+    - Replaced `runOnMain` (which executed synchronously on main thread) with `dispatchToMain` (always async).
+    - ALL side-effects in the event tap callback now dispatched asynchronously — callback returns in microseconds.
+    - Added `os_log` timing instrumentation: logs a warning when callback exceeds 5ms (target < 20ms).
+    - Added `os_log` when tap is re-enabled after system disable.
+    - Both ⌘Tab and ⌥Tab now trigger the same app switcher (no mode switching).
 - 2026-03-26: Structural audit — 3 critical regressions (thumbnails, tab filter, latency):
   - Bug 1+3 (Thumbnails + Latency): Refactored monolithic `buildItems()` into two-phase cache build. Phase 1 enumerates windows and caches items with app icons only (instant UI). Phase 2 captures thumbnails via `CGWindowListCreateImage` on the background queue and updates the cache. Removed dead `PreparedWindowEntry` / `preparedWindowEntries`. Added `os_log` when Screen Recording permission is missing.
   - Bug 2 (Tab Filter): Added `browserBundleIDs` set to `AppSwitcher`. When `includeTabsInAppSwitcher` is false, `makeCandidate()` now drops windows belonging to Chrome, Safari, Arc, Edge, Firefox, Brave during enumeration. Browser apps still appear as fallback entries.
@@ -58,7 +93,6 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
   - Bug 4 (Double Escape): Escape now suppresses when `pendingMode != nil` (reveal in-flight) in addition to when panel is visible.
   - Bug 5 (App Sorting): `SwitcherOrdering.orderedItems` falls back to `rankForApp(bundleID:pid:)` when exact window-ID match fails.
   - Feature 1 (Dock Icon): `LSUIElement` set to `false`; `applicationShouldHandleReopen` opens Settings.
-  - Feature 2 (Tab Limiter): `maxBrowserTabsShown` preference added; `TabSwitcher.buildItems` sorts by MRU then caps.
   - Refinement 1 (Vibrancy): Removed opacity caps from `VisualEffectBlur` in all three style views; reduced overlay gradient.
   - Refinement 3 (Crash Prevention): No WIP buttons found; all controls have real actions.
 

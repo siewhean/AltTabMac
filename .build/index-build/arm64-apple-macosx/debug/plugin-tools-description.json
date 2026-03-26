@@ -1,0 +1,861 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.xctest/Contents/MacOS/AltTabMacPackageTests",
+      "packagePath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac",
+      "productName" : "AltTabMacPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.AltTabMac-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/sources",
+      "importPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppSwitcher.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/ClassicGridView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/CommandPaletteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/HotkeyManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/LaunchAtLoginController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/MenuBarController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesWindowController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/RadialMenuView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherCycleSession.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherHistory.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherItem.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherLayout.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherPreferences.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherStyle.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "AltTabMac",
+      "moduleOutputPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMac.swiftmodule",
+      "objects" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/AppDelegate.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/AppSwitcher.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/ClassicGridView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/CommandPaletteView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/HotkeyManager.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/LaunchAtLoginController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/MenuBarController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/PreferencesView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/PreferencesWindowController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/RadialMenuView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherCycleSession.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherHistory.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherItem.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherLayout.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherPreferences.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherStyle.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherViewModel.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-Onone",
+        "-enable-testing",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "AltTabMac_main",
+        "-swift-version",
+        "5",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "alttabmac"
+      ],
+      "outputFileMapPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMac.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppDelegate.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppSwitcher.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/ClassicGridView.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/CommandPaletteView.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/HotkeyManager.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/LaunchAtLoginController.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/MenuBarController.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesView.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesWindowController.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/RadialMenuView.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherCycleSession.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherHistory.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherItem.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherLayout.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherPreferences.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherStyle.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
+      ],
+      "tempsPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.AltTabMacPackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/sources",
+      "importPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMacTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "AltTabMacPackageTests",
+      "moduleOutputPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMacPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx13.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/include/AltTabMacPackageTests-Swift.h",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "alttabmac"
+      ],
+      "outputFileMapPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMacPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.AltTabMacTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/sources",
+      "importPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/AppSwitcherActivationTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherCycleSessionTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherOrderingTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMac.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "AltTabMacTests",
+      "moduleOutputPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMacTests.swiftmodule",
+      "objects" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/AppSwitcherActivationTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherCycleSessionTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/SwitcherOrderingTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j12",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "5",
+        "-Xfrontend",
+        "-experimental-lazy-typecheck",
+        "-Xfrontend",
+        "-experimental-skip-all-function-bodies",
+        "-Xfrontend",
+        "-experimental-allow-module-with-compiler-errors",
+        "-Xfrontend",
+        "-empty-abi-descriptor",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "alttabmac"
+      ],
+      "outputFileMapPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules/AltTabMacTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : true,
+      "sources" : [
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/AppSwitcherActivationTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherCycleSessionTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherOrderingTests.swift"
+      ],
+      "tempsPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "AltTabMac" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AltTabMac",
+      "-package-name",
+      "alttabmac",
+      "-c",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppDelegate.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppSwitcher.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/ClassicGridView.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/CommandPaletteView.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/HotkeyManager.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/LaunchAtLoginController.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/MenuBarController.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesView.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesWindowController.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/RadialMenuView.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherCycleSession.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherHistory.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherItem.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherLayout.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherPreferences.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherStyle.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift",
+      "-I",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-Onone",
+      "-enable-testing",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "AltTabMac_main",
+      "-swift-version",
+      "5",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "alttabmac",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "AltTabMacPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AltTabMacPackageTests",
+      "-package-name",
+      "alttabmac",
+      "-c",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx13.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/include/AltTabMacPackageTests-Swift.h",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "alttabmac",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "AltTabMacTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AltTabMacTests",
+      "-package-name",
+      "alttabmac",
+      "-c",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/AppSwitcherActivationTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherCycleSessionTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherOrderingTests.swift",
+      "-I",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j12",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "5",
+      "-Xfrontend",
+      "-experimental-lazy-typecheck",
+      "-Xfrontend",
+      "-experimental-skip-all-function-bodies",
+      "-Xfrontend",
+      "-experimental-allow-module-with-compiler-errors",
+      "-Xfrontend",
+      "-empty-abi-descriptor",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "alttabmac",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "AltTabMac" : [
+
+    ],
+    "AltTabMacPackageTests" : [
+      "AltTabMacTests",
+      "AltTabMac"
+    ],
+    "AltTabMacTests" : [
+      "AltTabMac"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppDelegate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/AppSwitcher.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/ClassicGridView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/CommandPaletteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/HotkeyManager.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/LaunchAtLoginController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/MenuBarController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/PreferencesWindowController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/RadialMenuView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherCycleSession.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherHistory.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherItem.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherLayout.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherPreferences.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherStyle.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMac.build/sources"
+    },
+    "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacPackageTests.build/sources"
+    },
+    "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/AppSwitcherActivationTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherCycleSessionTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Tests/AltTabMacTests/SwitcherOrderingTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/AltTabMacTests.build/sources"
+    },
+    "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

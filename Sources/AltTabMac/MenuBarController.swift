@@ -39,34 +39,6 @@ final class MenuBarController {
     func updateMenu() {
         let menu = NSMenu()
 
-        let primaryHeader = NSMenuItem(title: "Primary Switcher", action: nil, keyEquivalent: "")
-        primaryHeader.isEnabled = false
-        menu.addItem(primaryHeader)
-
-        let appsItem = NSMenuItem(
-            title: "⌘ Tab  →  Applications",
-            action: #selector(selectApplications),
-            keyEquivalent: ""
-        )
-        appsItem.state = preferences.primaryMode == .app ? .on : .off
-        appsItem.target = self
-        menu.addItem(appsItem)
-
-        let tabsItem = NSMenuItem(
-            title: "⌘ Tab  →  Browser Tabs",
-            action: #selector(selectBrowserTabs),
-            keyEquivalent: ""
-        )
-        tabsItem.state = preferences.primaryMode == .tab ? .on : .off
-        tabsItem.target = self
-        menu.addItem(tabsItem)
-
-        let alternateItem = NSMenuItem(title: "⌥ Tab  →  Alternate Mode", action: nil, keyEquivalent: "")
-        alternateItem.isEnabled = false
-        menu.addItem(alternateItem)
-
-        menu.addItem(.separator())
-
         let showBackgroundWindows = NSMenuItem(
             title: "Include Background Windows",
             action: #selector(toggleBackgroundWindows),
@@ -75,15 +47,6 @@ final class MenuBarController {
         showBackgroundWindows.state = preferences.includeBackgroundWindows ? .on : .off
         showBackgroundWindows.target = self
         menu.addItem(showBackgroundWindows)
-
-        let includeBrowserTabs = NSMenuItem(
-            title: "Include Browser Tabs In App Switcher",
-            action: #selector(toggleIncludeBrowserTabs),
-            keyEquivalent: ""
-        )
-        includeBrowserTabs.state = preferences.includeTabsInAppSwitcher ? .on : .off
-        includeBrowserTabs.target = self
-        menu.addItem(includeBrowserTabs)
 
         let launchAtLogin = NSMenuItem(
             title: "Launch At Login",
@@ -114,22 +77,8 @@ final class MenuBarController {
         self.statusItem.menu = nil
     }
 
-    @objc private func selectApplications() {
-        preferences.primaryMode = .app
-        updateMenu()
-    }
-
-    @objc private func selectBrowserTabs() {
-        preferences.primaryMode = .tab
-        updateMenu()
-    }
-
     @objc private func toggleBackgroundWindows() {
         preferences.includeBackgroundWindows.toggle()
-    }
-
-    @objc private func toggleIncludeBrowserTabs() {
-        preferences.includeTabsInAppSwitcher.toggle()
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -165,8 +114,8 @@ final class MenuBarController {
         alert.informativeText = """
         Windows-style Alt+Tab for macOS.
 
-        ⌘ Tab  — Switch with your selected primary mode
-        ⌥ Tab  — Open the alternate mode
+        ⌘ Tab  — Switch between application windows
+        ⌥ Tab  — Same switcher, alternate modifier
         Left click  — Open the live switcher
         Right click  — Open settings and quick controls
 

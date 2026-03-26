@@ -25,17 +25,11 @@
     <!-- Accessibility (CGEventTap) -->
     <key>NSAccessibilityUsageDescription</key>
     <string>AltTabMac needs Accessibility permission to intercept ⌘Tab and ⌥Tab globally.</string>
-
-    <!-- AppleScript (Tab mode) -->
-    <key>NSAppleEventsUsageDescription</key>
-    <string>AltTabMac uses AppleScript to read and switch browser tabs.</string>
-
-    <!-- LSUIElement: run as background agent (no Dock icon). More reliable than
-         the programmatic NSApp.setActivationPolicy(.accessory) which can be
-         reverted by the system when windows become key. -->
+    <!-- LSUIElement: false → show Dock icon so users can click to open Settings.
+         The switcher panel itself is .nonactivatingPanel so it never steals focus
+         during ⌘Tab; the app appearing in the Dock does not affect hotkey behaviour. -->
     <key>LSUIElement</key>
-    <true/>
-
+    <false/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>

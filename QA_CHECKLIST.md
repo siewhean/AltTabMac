@@ -10,9 +10,8 @@
 ## Ordering and grouping
 
 - Arrange recent usage as Finder, Arc, Finder. Expected: the switcher shows Finder, Arc, Finder in strict MRU order without collapsing the two Finder entries together.
-- Open four or more windows from the same app alongside other apps. Expected: all windows stay visible in recency order; none are dropped because of a per-app cap.
+- Open four or more windows from the same app alongside other apps. Expected: visible entries still stay interleaved in recency order, while any app-specific cap only trims the oldest entries from that app.
 - Toggle "Include background and minimized windows" on and off. Expected: minimized/background windows appear only when enabled, while visible-window ordering remains stable.
-- Toggle "Include browser tabs in the application switcher" on and off. Expected: supported browser tabs are interleaved into app mode only when enabled.
 
 ## Visual polish
 

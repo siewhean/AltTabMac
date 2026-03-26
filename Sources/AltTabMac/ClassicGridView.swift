@@ -110,13 +110,18 @@ struct ClassicItemCardView: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(
-                            isSelected ? Color(red: 0.3, green: 0.6, blue: 1.0).opacity(0.95) : Color.white.opacity(0.08),
-                            lineWidth: isSelected ? 2.5 : 0.5
+                            isSelected ? Color(red: 0.26, green: 0.58, blue: 1.0).opacity(1.0) : Color.white.opacity(0.08),
+                            lineWidth: isSelected ? 3.5 : 0.5
                         )
                 )
                 .shadow(
-                    color: isSelected ? Color(red: 0.2, green: 0.5, blue: 1.0).opacity(0.7) : Color.clear,
-                    radius: isSelected ? 12 : 0,
+                    color: isSelected ? Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.72) : Color.clear,
+                    radius: isSelected ? 42 : 0,
+                    x: 0, y: 0
+                )
+                .shadow(
+                    color: isSelected ? Color(red: 0.14, green: 0.40, blue: 1.0).opacity(0.34) : Color.clear,
+                    radius: isSelected ? 72 : 0,
                     x: 0, y: 0
                 )
 
@@ -162,7 +167,7 @@ struct ClassicItemCardView: View {
                            height: min(96, layout.thumbnailHeight * 0.55))
                     .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
             } else {
-                Image(systemName: mode == .tab ? "globe" : "app.fill")
+                Image(systemName: "app.fill")
                     .font(.system(size: 48))
                     .foregroundColor(.white.opacity(0.30))
             }

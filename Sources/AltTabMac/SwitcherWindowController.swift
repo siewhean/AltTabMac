@@ -40,7 +40,6 @@ final class SwitcherWindowController {
     private var panel: SwitcherPanel!
     private let viewModel = SwitcherViewModel()
     private let appSwitcher = AppSwitcher()
-    private let tabSwitcher = TabSwitcher()
     private let history = SwitcherHistoryStore.shared
     private let preferences = SwitcherPreferences.shared
     private var session: SwitcherCycleSession?
@@ -53,7 +52,6 @@ final class SwitcherWindowController {
     private var activeFrontmostPID: pid_t = 0
 
     var isVisible: Bool { viewModel.isVisible }
-    var currentMode: SwitcherMode { viewModel.mode }
     var currentStyle: SwitcherStyle { preferences.switcherStyle }
 
     /// Called by `handleCardClick` so HotkeyManager can clear its trigger state
@@ -64,7 +62,8 @@ final class SwitcherWindowController {
     init() {
         buildPanel()
         wireDataSources()
-        warmCaches(force: true)
+        _ = appSwitcher.primeCacheIfNeeded()
+        appSwitcher.warmCache(force: true)
 
         // Seed activeFrontmostPID from the OS's current frontmost app.
         if let frontmost = NSWorkspace.shared.frontmostApplication,
@@ -76,9 +75,9 @@ final class SwitcherWindowController {
 
     // MARK: - Public API (called from HotkeyManager on main thread)
 
-    func showOrAdvance(mode: SwitcherMode, reverse: Bool = false) {
-        if !viewModel.isVisible || session?.mode != mode {
-            guard startSession(mode: mode, reverse: reverse, pinsSnapshot: false) else { return }
+    func showOrAdvance(reverse: Bool = false) {
+        if !viewModel.isVisible {
+            guard startSession(reverse: reverse) else { return }
             showPanel()
             return
         }
@@ -87,13 +86,13 @@ final class SwitcherWindowController {
         syncViewModelSelection()
     }
 
-    func commitTriggerSession(mode: SwitcherMode, reverse: Bool = false) {
-        guard startSession(mode: mode, reverse: reverse, pinsSnapshot: false) else { return }
+    func commitTriggerSession(reverse: Bool = false) {
+        guard startSession(reverse: reverse) else { return }
         commitCurrentSelection()
     }
 
-    func showStandalone(mode: SwitcherMode) {
-        guard startSession(mode: mode, reverse: false, pinsSnapshot: false) else { return }
+    func showStandalone() {
+        guard startSession(reverse: false) else { return }
         showPanel(makeKey: true)
     }
 
@@ -204,20 +203,20 @@ final class SwitcherWindowController {
         commitCurrentSelection()
     }
 
-    private func makeSession(mode: SwitcherMode, reverse: Bool, pinsSnapshot: Bool) -> SwitcherCycleSession? {
-        let snapshot = items(for: mode)
-        let currentFrontmost = currentFrontmostIdentity(for: mode, availableItems: snapshot)
+    private func makeSession(reverse: Bool) -> SwitcherCycleSession? {
+        let snapshot = items()
+        let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
         return SwitcherCycleSession(
-            mode: mode,
+            mode: .app,
             items: snapshot,
             currentFrontmost: currentFrontmost,
             reverse: reverse,
-            pinsSnapshot: pinsSnapshot
+            pinsSnapshot: false
         )
     }
 
-    private func startSession(mode: SwitcherMode, reverse: Bool, pinsSnapshot: Bool) -> Bool {
-        guard let newSession = makeSession(mode: mode, reverse: reverse, pinsSnapshot: pinsSnapshot) else { return false }
+    private func startSession(reverse: Bool) -> Bool {
+        guard let newSession = makeSession(reverse: reverse) else { return false }
         session = newSession
         syncViewModelFromSession()
         return true
@@ -225,11 +224,7 @@ final class SwitcherWindowController {
 
     private func wireDataSources() {
         appSwitcher.onItemsChanged = { [weak self] _ in
-            self?.refreshVisibleItemsIfNeeded(triggeredBy: .app)
-        }
-
-        tabSwitcher.onItemsChanged = { [weak self] _ in
-            self?.refreshVisibleItemsIfNeeded(triggeredBy: .tab)
+            self?.refreshVisibleItemsIfNeeded()
         }
 
         // Track external app activations (user clicked on a window, Dock click, etc.)
@@ -253,43 +248,22 @@ final class SwitcherWindowController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.warmCaches(force: true)
-            self?.refreshVisibleItemsIfNeeded(triggeredBy: self?.viewModel.mode ?? .app)
+            self?.appSwitcher.warmCache(force: true)
+            self?.refreshVisibleItemsIfNeeded()
         }
     }
 
-    private func warmCaches(force: Bool = false) {
-        appSwitcher.warmCache(force: force)
-        tabSwitcher.warmCache(force: force || preferences.includeTabsInAppSwitcher || preferences.primaryMode == .tab)
-    }
-
-    private func items(for mode: SwitcherMode) -> [SwitcherItem] {
-        let rawItems: [SwitcherItem]
-        switch mode {
-        case .app:
-            var items = appSwitcher.getItems()
-            if preferences.includeTabsInAppSwitcher {
-                let tabItems = tabSwitcher.getItems()
-                let uniqueTabItems = tabItems.filter { tabItem in
-                    !items.contains { $0.dedupeKey == tabItem.dedupeKey }
-                }
-                items.append(contentsOf: uniqueTabItems)
-            }
-            rawItems = items
-        case .tab:
-            rawItems = tabSwitcher.getItems()
-        }
-
-        let currentFrontmost = currentFrontmostIdentity(for: mode, availableItems: rawItems)
+    private func items() -> [SwitcherItem] {
+        let rawItems = appSwitcher.getItems()
+        let currentFrontmost = currentFrontmostIdentity(availableItems: rawItems)
         return SwitcherOrdering.orderedItems(rawItems, history: history, currentFrontmost: currentFrontmost)
     }
 
-    private func refreshVisibleItemsIfNeeded(triggeredBy mode: SwitcherMode) {
+    private func refreshVisibleItemsIfNeeded() {
         guard viewModel.isVisible, var session else { return }
-        guard mode == session.mode || (session.mode == .app && preferences.includeTabsInAppSwitcher && mode == .tab) else { return }
         guard !session.pinsSnapshot else { return }
 
-        let refreshedItems = items(for: session.mode)
+        let refreshedItems = items()
         guard !refreshedItems.isEmpty else { return }
         session.refreshItems(refreshedItems)
         self.session = session
@@ -316,33 +290,11 @@ final class SwitcherWindowController {
     /// Determine which identity represents the "currently active" app/window
     /// so that `orderedItems` can move it to the end of the MRU list.
     ///
-    /// This function is called synchronously on the main thread right before
-    /// `showPanel()` renders the overlay. Any blocking work here adds directly
-    /// to the user-perceived appearance latency, so it MUST stay O(n) in memory
-    /// with no I/O.
-    ///
-    /// Implementation: pure PID-based lookup against `activeFrontmostPID`.
-    /// That field is kept current by the `NSWorkspace.didActivateApplication`
-    /// observer wired in `wireDataSources()` and is seeded from
-    /// `NSWorkspace.shared.frontmostApplication` during `init()`.
-    ///
-    /// The former fallback called `appSwitcher.currentFrontmostIdentity()` /
-    /// `tabSwitcher.currentFrontmostIdentity()` when the PID lookup found no
-    /// match. Those methods call `CGWindowListCopyWindowInfo` and AppleScript
-    /// respectively — both synchronous, both potentially 10–50 ms on a loaded
-    /// system, both happening at the worst possible moment (main thread, during
-    /// the first render of the panel). They are intentionally omitted here.
-    ///
-    /// When PID lookup fails (cold start before any activation notification),
-    /// returning `nil` is correct: `SwitcherOrdering` skips the "pin current
-    /// app to end" step and orders purely by history rank, which is fine.
-    private func currentFrontmostIdentity(for mode: SwitcherMode, availableItems: [SwitcherItem]) -> SwitcherHistoryIdentity? {
+    /// Pure PID-based lookup against `activeFrontmostPID`. No I/O.
+    private func currentFrontmostIdentity(availableItems: [SwitcherItem]) -> SwitcherHistoryIdentity? {
         let pid = activeFrontmostPID
         guard pid != 0 else { return nil }
 
-        // Among items belonging to this PID, pick the one with the best
-        // (lowest) history rank — that's the specific window most recently
-        // seen by the history store.
         let historyEntries = history.snapshot()
         return availableItems
             .filter { $0.historyIdentity.ownerPID == pid }
@@ -356,11 +308,14 @@ final class SwitcherWindowController {
 
     /// - Parameter makeKey: Pass `true` when showing via menu-bar / standalone click so
     ///   `NSApp.activate` is also called, making our app the active one for the session.
-    ///   In hotkey mode (default `false`) we skip `NSApp.activate` so the previously-
-    ///   active app stays the frontmost application — but we still call
-    ///   `makeKeyAndOrderFront` in both cases (see below).
     private func showPanel(makeKey: Bool = false) {
-        guard !viewModel.items.isEmpty else { return }
+        if viewModel.items.isEmpty, var session {
+            let primedItems = items()
+            guard !primedItems.isEmpty else { return }
+            session.refreshItems(primedItems)
+            self.session = session
+            syncViewModelFromSession()
+        }
 
         let mouseLocation = NSEvent.mouseLocation
         let targetScreen = NSScreen.screens.first(where: { $0.visibleFrame.contains(mouseLocation) }) ?? NSScreen.main
@@ -369,7 +324,6 @@ final class SwitcherWindowController {
             let visibleFrame = screen.visibleFrame
             let style = preferences.switcherStyle
 
-            // Choose the layout metrics for the active style.
             let layout: SwitcherLayoutMetrics
             switch style {
             case .classicGrid:
@@ -382,17 +336,14 @@ final class SwitcherWindowController {
             viewModel.layout = layout
             panel.setContentSize(NSSize(width: layout.contentWidth, height: layout.contentHeight))
 
-            // Choose the panel origin for the active style.
             let ox: CGFloat
             let oy: CGFloat
             switch style {
             case .radialMenu:
-                // Centre the radial panel on the cursor, constrained to the screen.
                 let inset = visibleFrame.insetBy(dx: layout.contentWidth / 2, dy: layout.contentHeight / 2)
                 ox = min(max(mouseLocation.x - layout.contentWidth / 2, inset.minX), inset.maxX)
                 oy = min(max(mouseLocation.y - layout.contentHeight / 2, inset.minY), inset.maxY)
             default:
-                // Centre all other styles on the screen.
                 let safeFrame = visibleFrame.insetBy(dx: 18, dy: 18)
                 let proposedX = visibleFrame.midX - layout.contentWidth / 2
                 let proposedY = visibleFrame.midY - layout.contentHeight / 2
@@ -406,22 +357,10 @@ final class SwitcherWindowController {
 
         panel.alphaValue = 1
 
-        // Always use makeKeyAndOrderFront so the panel becomes the key window
-        // in BOTH hotkey and standalone modes.
-        //
-        // Why this matters for Esc: `orderFrontRegardless` only makes the panel
-        // visible — it does NOT make it key. A non-key, borderless panel never
-        // enters NSApp's event-dispatch chain. If the CGEventTap is momentarily
-        // disabled by a system timeout, the Esc keydown has no path to the panel
-        // and is effectively lost, forcing a second press.
-        //
-        // The `.nonactivatingPanel` style mask ensures `makeKeyAndOrderFront`
-        // makes the panel key WITHOUT activating our application. The previously-
-        // active app stays the active application; only key-window status moves.
-        // This matches the pattern used by Spotlight, Alfred, and Raycast.
         if makeKey {
             NSApp.activate(ignoringOtherApps: true)
         }
+        panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
         viewModel.isVisible = true
     }
@@ -439,14 +378,12 @@ final class SwitcherWindowController {
         viewModel.selectedIndex = 0
         viewModel.layout = .empty
         viewModel.hoveredIndex = nil
-        viewModel.searchQuery = ""   // clear palette search so next open is fresh
+        viewModel.searchQuery = ""
     }
 
     /// Filter `viewModel.items` to rows matching `query`, then reset selection.
-    /// Navigation (arrows, Tab) operates on the already-filtered item list so
-    /// no changes to SwitcherCycleSession or HotkeyManager are needed.
     private func updatePaletteFilter(_ query: String) {
-        let allItems = items(for: viewModel.mode)
+        let allItems = items()
         let filtered: [SwitcherItem]
         if query.isEmpty {
             filtered = allItems
@@ -467,15 +404,8 @@ final class SwitcherWindowController {
             return
         }
 
-        // Eagerly record the selection in history BEFORE hiding the panel.
-        // This ensures that if the user presses Cmd+Tab again immediately,
-        // the next session's orderedItems already sees the correct MRU order
-        // and moves the just-selected app to the end of the list.
         history.noteActivation(selectedItem.historyIdentity)
 
-        // Record the PID we're about to activate. This is the critical fix:
-        // using PID (not exact identity) means even if the cache rebuilds with
-        // different window IDs, we still correctly identify the frontmost app.
         if let pid = selectedItem.historyIdentity.ownerPID {
             activeFrontmostPID = pid
         }
@@ -485,11 +415,6 @@ final class SwitcherWindowController {
     }
 
     private func activateSelection(_ item: SwitcherItem) {
-        // Activate SYNCHRONOUSLY — no delay. The panel is already hidden
-        // (orderOut is synchronous) and the panel is .nonactivatingPanel so
-        // NSApp was never the frontmost app. Any delay here directly translates
-        // to user-perceived lag AND creates a race window where the next
-        // Cmd+Tab sees stale state.
         item.activate()
     }
 }

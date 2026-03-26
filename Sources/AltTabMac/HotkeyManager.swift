@@ -1,29 +1,44 @@
 import AppKit
 import CoreGraphics
+import os.log
 
-/// Intercepts ⌘Tab (App mode) and ⌥Tab (Tab mode) globally via CGEventTap.
+private let hotkeyLog = OSLog(subsystem: "AltTabMac", category: "HotkeyManager")
+
+/// Intercepts ⌘Tab and ⌥Tab globally via CGEventTap.
 /// Suppresses the default macOS switcher while the overlay is shown.
+///
+/// **Critical design constraint:** The CGEvent.tap callback MUST return in
+/// under ~20 ms or macOS will temporarily disable the tap, allowing the native
+/// switcher to bleed through. ALL work inside the callback is limited to
+/// reading lightweight state and returning nil (swallowing the event).
+/// Every side-effect (UI updates, window fetching) is dispatched
+/// asynchronously to the main queue.
 final class HotkeyManager {
     private weak var switcher: SwitcherWindowController?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private let preferences = SwitcherPreferences.shared
 
     private var cmdDown = false
     private var optDown = false
-    private let showUIDelay: TimeInterval = 0.1
     private var showUIWorkItem: DispatchWorkItem?
-    private var pendingMode: SwitcherMode?
-    private var pendingReverse = false
-    private var pendingModifier: HotkeyModifier?
+    private var triggerState = HotkeyTriggerState()
+    private let currentUptime: () -> TimeInterval
 
-    init(switcher: SwitcherWindowController) {
+    init(
+        switcher: SwitcherWindowController,
+        currentUptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
+    ) {
         self.switcher = switcher
+        self.currentUptime = currentUptime
         install()
     }
 
     deinit {
         uninstallTap()
+    }
+
+    private func uptime(for eventTimestamp: CGEventTimestamp) -> TimeInterval {
+        TimeInterval(eventTimestamp) / 1_000_000_000
     }
 
     // MARK: - Setup
@@ -77,12 +92,11 @@ final class HotkeyManager {
         }
     }
 
-    private func runOnMain(_ work: @escaping () -> Void) {
-        if Thread.isMainThread {
-            work()
-        } else {
-            DispatchQueue.main.async(execute: work)
-        }
+    /// Dispatch work to the main queue asynchronously. NEVER executes
+    /// synchronously, even when already on the main thread — this ensures
+    /// the CGEvent.tap callback returns immediately without blocking.
+    private func dispatchToMain(_ work: @escaping () -> Void) {
+        DispatchQueue.main.async(execute: work)
     }
 
     private func cancelScheduledReveal() {
@@ -90,116 +104,153 @@ final class HotkeyManager {
         showUIWorkItem = nil
     }
 
-    private func scheduleReveal() {
+    private func clearPendingTrigger() {
         cancelScheduledReveal()
+        triggerState.cancelPendingTrigger()
+    }
+
+    private func scheduleReveal(for revealAtUptime: TimeInterval) {
+        cancelScheduledReveal()
+
+        let delay = max(0, revealAtUptime - currentUptime())
+        if delay <= 0 {
+            handleScheduledReveal()
+            return
+        }
 
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.showUIWorkItem = nil
-
-            // Re-read both fields inside the closure — if handleModifierRelease
-            // cleared them before this item was dequeued, we abort here.
-            guard let mode     = self.pendingMode,
-                  let modifier = self.pendingModifier else { return }
-
-            // Last-gate: consult the live hardware modifier state.
-            // DispatchWorkItem.cancel() only prevents execution if the item
-            // hasn't started yet. In the tight race where the modifier is
-            // released at the exact millisecond the deadline fires, the item
-            // is already running and cancel() has no effect. NSEvent.modifierFlags
-            // bypasses our cached cmdDown/optDown booleans (which may not have
-            // been updated yet by the pending flagsChanged event) and reads
-            // the physical key state directly.
-            let live = NSEvent.modifierFlags
-            switch modifier {
-            case .command where !live.contains(.command):
-                self.pendingMode = nil; self.pendingModifier = nil; self.pendingReverse = false
-                return
-            case .option where !live.contains(.option):
-                self.pendingMode = nil; self.pendingModifier = nil; self.pendingReverse = false
-                return
-            default:
-                break
-            }
-
-            self.runOnMain { [weak self] in
-                guard let self else { return }
-                self.switcher?.showOrAdvance(mode: mode, reverse: self.pendingReverse)
-
-                // Post-show safety net: if CGEventTap was disabled during
-                // the reveal delay, the flagsChanged for modifier-release
-                // was lost. A one-shot hardware check 50ms later catches
-                // the stuck-panel ("ghost window") case.
-                let postShowModifier = self.pendingModifier
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-                    guard let self,
-                          self.switcher?.isVisible == true,
-                          let mod = postShowModifier else { return }
-                    let live = NSEvent.modifierFlags
-                    let stillHeld: Bool
-                    switch mod {
-                    case .command: stillHeld = live.contains(.command)
-                    case .option:  stillHeld = live.contains(.option)
-                    }
-                    if !stillHeld {
-                        self.handleModifierRelease(mod)
-                    }
-                }
-            }
+            self.handleScheduledReveal()
         }
 
         showUIWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + showUIDelay, execute: work)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
-    private func handleTabTrigger(modifier: HotkeyModifier, mode: SwitcherMode, reverse: Bool) {
+    private func handleScheduledReveal() {
+        guard let action = triggerState.handleRevealDeadline(
+            now: currentUptime(),
+            heldModifiers: liveHeldModifiers()
+        ) else {
+            return
+        }
+
+        performTriggerAction(action)
+    }
+
+    private func liveHeldModifiers() -> Set<HotkeyModifier> {
+        let flags = NSEvent.modifierFlags
+        var held = Set<HotkeyModifier>()
+        if flags.contains(.command) {
+            held.insert(.command)
+        }
+        if flags.contains(.option) {
+            held.insert(.option)
+        }
+        return held
+    }
+
+    private func schedulePostShowModifierCheck(for modifier: HotkeyModifier) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self,
+                  self.switcher?.isVisible == true,
+                  self.triggerState.pendingModifier == modifier else {
+                return
+            }
+
+            if !modifier.isHeld(in: NSEvent.modifierFlags) {
+                self.handleModifierRelease(modifier)
+            }
+        }
+    }
+
+    private func performTriggerAction(_ action: HotkeyTriggerAction) {
+        switch action {
+        case let .scheduleReveal(atUptime):
+            scheduleReveal(for: atUptime)
+
+        case let .showOverlay(reverse, modifier):
+            switcher?.showOrAdvance(reverse: reverse)
+            schedulePostShowModifierCheck(for: modifier)
+
+        case let .quickSwitch(reverse):
+            dispatchToMain { [weak self] in
+                self?.switcher?.commitTriggerSession(reverse: reverse)
+            }
+
+        case .confirmSelection:
+            dispatchToMain { [weak self] in
+                self?.switcher?.confirmAndHide()
+            }
+        }
+    }
+
+    private func handleTabTrigger(
+        modifier: HotkeyModifier,
+        reverse: Bool,
+        triggeredAtUptime: TimeInterval? = nil
+    ) {
         guard let switcher else { return }
         if switcher.isVisible {
-            runOnMain { [weak self] in
-                self?.switcher?.showOrAdvance(mode: mode, reverse: reverse)
+            dispatchToMain { [weak self] in
+                self?.switcher?.showOrAdvance(reverse: reverse)
             }
             return
         }
 
-        pendingMode = mode
-        pendingReverse = reverse
-        pendingModifier = modifier
-        scheduleReveal()
+        guard let action = triggerState.registerHiddenTabTrigger(
+            modifier: modifier,
+            reverse: reverse,
+            startedAtUptime: triggeredAtUptime ?? currentUptime()
+        ) else {
+            return
+        }
+
+        performTriggerAction(action)
     }
 
     private func handleModifierRelease(_ modifier: HotkeyModifier) {
-        guard pendingModifier == modifier || switcher?.isVisible == true else { return }
-
         cancelScheduledReveal()
-
-        if switcher?.isVisible == true {
-            // Panel is showing — commit the current selection and hide.
-            runOnMain { [weak self] in
-                self?.switcher?.confirmAndHide()
-            }
-        } else if let mode = pendingMode {
-            // Fast path: modifier released before the UI appearance delay
-            // fired. Instantly activate the next MRU window without ever
-            // showing the overlay.
-            let reverse = pendingReverse
-            runOnMain { [weak self] in
-                self?.switcher?.commitTriggerSession(mode: mode, reverse: reverse)
-            }
+        guard let action = triggerState.handleModifierRelease(
+            modifier,
+            switcherVisible: switcher?.isVisible == true
+        ) else {
+            return
         }
 
-        pendingMode = nil
-        pendingModifier = nil
-        pendingReverse = false
+        performTriggerAction(action)
+    }
+
+    /// Called before click-based commits so the follow-up modifier release
+    /// cannot trigger a second activation.
+    func clearTriggerStateFromClickCommit() {
+        clearPendingTrigger()
     }
 
     // MARK: - Event handling
 
+    /// The CGEvent.tap callback. This MUST return as fast as possible (< 20 ms).
+    /// All heavy work is dispatched asynchronously via `dispatchToMain`.
     private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        let start = DispatchTime.now()
+
+        let result = handleInner(proxy: proxy, type: type, event: event)
+
+        let elapsed = DispatchTime.now().uptimeNanoseconds - start.uptimeNanoseconds
+        let elapsedMs = Double(elapsed) / 1_000_000
+        if elapsedMs > 5 {
+            os_log(.info, log: hotkeyLog, "Event tap callback took %.2f ms (type=%{public}d) — target < 20 ms", elapsedMs, type.rawValue)
+        }
+
+        return result
+    }
+
+    /// Inner handler — pure logic, no timing overhead.
+    private func handleInner(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            // Re-enable the tap and drop the synthetic "disabled" pseudo-event.
-            // Passing it downstream could let a ⌘Tab that fired during the gap
-            // reach the system and trigger the default macOS switcher.
+            os_log(.info, log: hotkeyLog, "Event tap re-enabled after system disable (type=%{public}d)", type.rawValue)
             recoverEventTap()
             return nil
 
@@ -211,44 +262,50 @@ final class HotkeyManager {
             optDown = flags.contains(.maskAlternate)
 
             if wasCmd && !cmdDown {
-                handleModifierRelease(.command)
+                dispatchToMain { [weak self] in self?.handleModifierRelease(.command) }
             }
 
             if wasOpt && !optDown {
-                handleModifierRelease(.option)
+                dispatchToMain { [weak self] in self?.handleModifierRelease(.option) }
             }
 
         case .keyDown:
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
             let shift = event.flags.contains(.maskShift)
+            let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
 
             if keyCode == 53 {
-                // Capture state BEFORE clearing it so we know whether to suppress.
-                let wasPendingOrVisible = pendingMode != nil || switcher?.isVisible == true
-                cancelScheduledReveal()
-                pendingMode = nil
-                pendingModifier = nil
-                pendingReverse = false
+                let wasPendingOrVisible = triggerState.hasPendingTrigger || switcher?.isVisible == true
+                clearPendingTrigger()
                 if switcher?.isVisible == true {
-                    runOnMain { [weak self] in
+                    dispatchToMain { [weak self] in
                         self?.switcher?.cancelAndHide()
                     }
                 }
-                // Suppress Escape whenever we were in any switcher state (panel
-                // visible OR pending reveal). This closes the "double Escape" window
-                // caused by the gap between the first Escape arriving at the tap
-                // and the panel's isVisible flag updating on the main thread.
                 if wasPendingOrVisible { return nil }
             }
 
+            // Tab key — both ⌘Tab and ⌥Tab trigger the same app switcher.
             if keyCode == 48 {
                 if cmdDown && !optDown {
-                    handleTabTrigger(modifier: .command, mode: preferences.primaryMode, reverse: shift)
+                    if isAutorepeat && triggerState.hasPendingTrigger && switcher?.isVisible != true {
+                        return nil
+                    }
+                    let triggerUptime = uptime(for: event.timestamp)
+                    dispatchToMain { [weak self] in
+                        self?.handleTabTrigger(
+                            modifier: .command,
+                            reverse: shift,
+                            triggeredAtUptime: triggerUptime
+                        )
+                    }
                     return nil
                 }
 
                 if optDown && !cmdDown {
-                    handleTabTrigger(modifier: .option, mode: preferences.alternateMode(), reverse: shift)
+                    dispatchToMain { [weak self] in
+                        self?.handleTabTrigger(modifier: .option, reverse: shift)
+                    }
                     return nil
                 }
             }
@@ -256,23 +313,20 @@ final class HotkeyManager {
             if let switcher, switcher.isVisible {
                 switch keyCode {
                 case 123:
-                    runOnMain { switcher.moveSelection(by: -1) }
+                    dispatchToMain { switcher.moveSelection(by: -1) }
                     return nil
                 case 124:
-                    runOnMain { switcher.moveSelection(by: 1) }
+                    dispatchToMain { switcher.moveSelection(by: 1) }
                     return nil
                 case 125:
-                    runOnMain { switcher.moveSelectionDown() }
+                    dispatchToMain { switcher.moveSelectionDown() }
                     return nil
                 case 126:
-                    runOnMain { switcher.moveSelectionUp() }
+                    dispatchToMain { switcher.moveSelectionUp() }
                     return nil
                 case 36, 76:
-                    cancelScheduledReveal()
-                    pendingMode = nil
-                    pendingModifier = nil
-                    pendingReverse = false
-                    runOnMain { switcher.confirmAndHide() }
+                    clearPendingTrigger()
+                    dispatchToMain { switcher.confirmAndHide() }
                     return nil
                 default:
                     break
@@ -280,7 +334,7 @@ final class HotkeyManager {
 
                 if switcher.currentStyle == .commandPalette {
                     if keyCode == 51 {
-                        runOnMain { switcher.deleteSearchCharacter() }
+                        dispatchToMain { switcher.deleteSearchCharacter() }
                         return nil
                     }
 
@@ -296,7 +350,7 @@ final class HotkeyManager {
                        scalar.value >= 32,
                        scalar.value != 127 {
                         let safeChar = String(scalar)
-                        runOnMain { switcher.appendSearchCharacter(safeChar) }
+                        dispatchToMain { switcher.appendSearchCharacter(safeChar) }
                         return nil
                     }
                 }
@@ -304,10 +358,7 @@ final class HotkeyManager {
 
         case .keyUp:
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-            // Suppress Tab key-up when we consumed the matching key-down.
-            // Without this the WindowServer sees an orphaned Tab-up while
-            // Cmd is held and may trigger the native macOS app switcher.
-            if keyCode == 48 && (pendingMode != nil || switcher?.isVisible == true) {
+            if keyCode == 48 && (triggerState.hasPendingTrigger || switcher?.isVisible == true) {
                 return nil
             }
 
@@ -319,7 +370,148 @@ final class HotkeyManager {
     }
 }
 
-private enum HotkeyModifier {
+enum HotkeyModifier: Hashable {
     case command
     case option
+
+    func isHeld(in flags: NSEvent.ModifierFlags) -> Bool {
+        switch self {
+        case .command:
+            return flags.contains(.command)
+        case .option:
+            return flags.contains(.option)
+        }
+    }
+}
+
+enum HotkeyEarlyReleaseAction: Equatable {
+    case none
+    case quickSwitch
+}
+
+struct HotkeyTriggerPolicy: Equatable {
+    let revealDelay: TimeInterval
+    let ignoresRepeatedTabBeforeReveal: Bool
+    let earlyReleaseAction: HotkeyEarlyReleaseAction
+
+    static func forModifier(_ modifier: HotkeyModifier) -> HotkeyTriggerPolicy {
+        switch modifier {
+        case .command:
+            return HotkeyTriggerPolicy(
+                revealDelay: 0,
+                ignoresRepeatedTabBeforeReveal: true,
+                earlyReleaseAction: .quickSwitch
+            )
+        case .option:
+            return HotkeyTriggerPolicy(
+                revealDelay: 0,
+                ignoresRepeatedTabBeforeReveal: false,
+                earlyReleaseAction: .quickSwitch
+            )
+        }
+    }
+}
+
+struct PendingHotkeyTrigger: Equatable {
+    let modifier: HotkeyModifier
+    let reverse: Bool
+    let startedAtUptime: TimeInterval
+    let policy: HotkeyTriggerPolicy
+
+    init(modifier: HotkeyModifier, reverse: Bool, startedAtUptime: TimeInterval) {
+        self.modifier = modifier
+        self.reverse = reverse
+        self.startedAtUptime = startedAtUptime
+        self.policy = .forModifier(modifier)
+    }
+
+    var revealAtUptime: TimeInterval {
+        startedAtUptime + policy.revealDelay
+    }
+
+    func shouldIgnoreRepeatedTab(for modifier: HotkeyModifier) -> Bool {
+        self.modifier == modifier && policy.ignoresRepeatedTabBeforeReveal
+    }
+}
+
+enum HotkeyTriggerAction: Equatable {
+    case scheduleReveal(atUptime: TimeInterval)
+    case showOverlay(reverse: Bool, modifier: HotkeyModifier)
+    case quickSwitch(reverse: Bool)
+    case confirmSelection
+}
+
+struct HotkeyTriggerState {
+    private(set) var pendingTrigger: PendingHotkeyTrigger?
+
+    var hasPendingTrigger: Bool {
+        pendingTrigger != nil
+    }
+
+    var pendingModifier: HotkeyModifier? {
+        pendingTrigger?.modifier
+    }
+
+    mutating func registerHiddenTabTrigger(
+        modifier: HotkeyModifier,
+        reverse: Bool,
+        startedAtUptime: TimeInterval
+    ) -> HotkeyTriggerAction? {
+        if let pendingTrigger, pendingTrigger.shouldIgnoreRepeatedTab(for: modifier) {
+            return nil
+        }
+
+        let trigger = PendingHotkeyTrigger(
+            modifier: modifier,
+            reverse: reverse,
+            startedAtUptime: startedAtUptime
+        )
+        pendingTrigger = trigger
+        return .scheduleReveal(atUptime: trigger.revealAtUptime)
+    }
+
+    mutating func handleRevealDeadline(
+        now: TimeInterval,
+        heldModifiers: Set<HotkeyModifier>
+    ) -> HotkeyTriggerAction? {
+        guard let trigger = pendingTrigger, now >= trigger.revealAtUptime else {
+            return nil
+        }
+
+        guard heldModifiers.contains(trigger.modifier) else {
+            pendingTrigger = nil
+            return actionForHiddenRelease(of: trigger)
+        }
+
+        return .showOverlay(reverse: trigger.reverse, modifier: trigger.modifier)
+    }
+
+    mutating func handleModifierRelease(
+        _ modifier: HotkeyModifier,
+        switcherVisible: Bool
+    ) -> HotkeyTriggerAction? {
+        guard let trigger = pendingTrigger, trigger.modifier == modifier else {
+            return nil
+        }
+
+        pendingTrigger = nil
+        if switcherVisible {
+            return .confirmSelection
+        }
+
+        return actionForHiddenRelease(of: trigger)
+    }
+
+    mutating func cancelPendingTrigger() {
+        pendingTrigger = nil
+    }
+
+    private func actionForHiddenRelease(of trigger: PendingHotkeyTrigger) -> HotkeyTriggerAction? {
+        switch trigger.policy.earlyReleaseAction {
+        case .none:
+            return nil
+        case .quickSwitch:
+            return .quickSwitch(reverse: trigger.reverse)
+        }
+    }
 }

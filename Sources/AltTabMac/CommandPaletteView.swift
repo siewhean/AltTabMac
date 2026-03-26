@@ -160,7 +160,23 @@ private struct PaletteRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
-        .background(isSelected ? Color(red: 0.18, green: 0.38, blue: 0.82).opacity(0.28) : Color.clear)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(isSelected ? Color(red: 0.18, green: 0.38, blue: 0.82).opacity(0.30) : Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(
+                            isSelected ? Color(red: 0.26, green: 0.58, blue: 1.0).opacity(1.0) : Color.clear,
+                            lineWidth: isSelected ? 2.5 : 0
+                        )
+                )
+                .shadow(
+                    color: isSelected ? Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.55) : .clear,
+                    radius: isSelected ? 28 : 0,
+                    x: 0,
+                    y: 0
+                )
+        )
         .contentShape(Rectangle())
     }
 }

@@ -3,7 +3,6 @@ import Foundation
 enum SwitcherHistoryIdentity: Hashable {
     case appWindow(pid: Int32, windowID: UInt32)
     case appFallback(bundleID: String, pid: Int32?)
-    case browserTab(bundleID: String, normalizedURL: String, normalizedTitle: String)
 
     var stableKey: String {
         switch self {
@@ -11,8 +10,6 @@ enum SwitcherHistoryIdentity: Hashable {
             return "app-window:\(pid):\(windowID)"
         case let .appFallback(bundleID, pid):
             return "app-fallback:\(bundleID.lowercased()):\(pid ?? -1)"
-        case let .browserTab(bundleID, normalizedURL, normalizedTitle):
-            return "browser-tab:\(bundleID.lowercased()):\(normalizedURL):\(normalizedTitle)"
         }
     }
 
@@ -22,8 +19,6 @@ enum SwitcherHistoryIdentity: Hashable {
             return nil
         case let .appFallback(bundleID, _):
             return bundleID
-        case let .browserTab(bundleID, _, _):
-            return bundleID
         }
     }
 
@@ -32,7 +27,6 @@ enum SwitcherHistoryIdentity: Hashable {
         switch self {
         case let .appWindow(pid, _):   return pid
         case let .appFallback(_, pid): return pid
-        case .browserTab:              return nil
         }
     }
 
@@ -48,18 +42,7 @@ enum SwitcherHistoryIdentity: Hashable {
                 return true
             }
             return false
-        case let .browserTab(identityBundleID, _, _):
-            guard let bundleID else { return false }
-            return identityBundleID.caseInsensitiveCompare(bundleID) == .orderedSame
         }
-    }
-
-    static func browserTab(bundleID: String, url: String, title: String) -> SwitcherHistoryIdentity {
-        .browserTab(
-            bundleID: bundleID,
-            normalizedURL: normalizeHistoryComponent(url),
-            normalizedTitle: normalizeHistoryComponent(title)
-        )
     }
 }
 
@@ -184,8 +167,3 @@ enum SwitcherOrdering {
     }
 }
 
-func normalizeHistoryComponent(_ value: String) -> String {
-    value
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-        .lowercased()
-}

@@ -30,7 +30,7 @@ final class SwitcherOrderingTests: XCTestCase {
             makeItem(title: "Calendar", appID: "com.apple.iCal", identity: .appWindow(pid: 303, windowID: 31)),
             makeItem(title: "Finder 3", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 13)),
             makeItem(title: "Finder 4", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 14)),
-            makeItem(title: "Arc 2", appID: "company.thebrowser.Browser", identity: .browserTab(bundleID: "company.thebrowser.Browser", url: "https://example.com/2", title: "Arc 2")),
+            makeItem(title: "Arc 2", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22)),
         ]
 
         let ordered = SwitcherOrdering.orderedItems(
@@ -40,21 +40,6 @@ final class SwitcherOrderingTests: XCTestCase {
         )
 
         XCTAssertEqual(ordered.map(\.title), ["Finder 1", "Arc 1", "Finder 2", "Calendar", "Finder 3", "Finder 4", "Arc 2"])
-    }
-
-    func testBrowserTabIdentityNormalizesUrlAndTitle() {
-        let lhs = SwitcherHistoryIdentity.browserTab(
-            bundleID: "company.thebrowser.Browser",
-            url: " HTTPS://Example.com/Page ",
-            title: "  My Tab "
-        )
-        let rhs = SwitcherHistoryIdentity.browserTab(
-            bundleID: "company.thebrowser.Browser",
-            url: "https://example.com/page",
-            title: "my tab"
-        )
-
-        XCTAssertEqual(lhs, rhs)
     }
 
     // MARK: - New interleaving & ordering tests

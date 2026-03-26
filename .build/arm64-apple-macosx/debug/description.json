@@ -104,10 +104,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/TabSwitcher.swift"
-        },
-        {
-          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
         },
         {
@@ -142,7 +138,6 @@
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherView.swift.o",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherViewModel.swift.o",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.swift.o",
-        "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swift.o",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/main.swift.o"
       ],
       "otherArguments" : [
@@ -280,10 +275,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swift.o"
-        },
-        {
-          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/main.swift.o"
         },
         {
@@ -312,7 +303,6 @@
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift",
-        "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/TabSwitcher.swift",
         "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
       ],
       "tempsPath" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build",
@@ -570,7 +560,6 @@
       "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherView.swift",
       "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherViewModel.swift",
       "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/SwitcherWindowController.swift",
-      "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/TabSwitcher.swift",
       "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift",
       "-I",
       "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/Modules",
@@ -897,10 +886,6 @@
         },
         {
           "kind" : "file",
-          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/TabSwitcher.swift"
-        },
-        {
-          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/Sources/AltTabMac/main.swift"
         }
       ],
@@ -988,10 +973,6 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swift.o"
         },
         {
           "kind" : "file",
@@ -1096,10 +1077,6 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/SwitcherWindowController.swift.o"
-        },
-        {
-          "kind" : "file",
-          "name" : "/Users/Siew Hean/Documents/GitHub/AltTabMac/.build/arm64-apple-macosx/debug/AltTabMac.build/TabSwitcher.swift.o"
         },
         {
           "kind" : "file",
