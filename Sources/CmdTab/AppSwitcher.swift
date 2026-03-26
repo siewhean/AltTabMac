@@ -363,6 +363,7 @@ final class AppSwitcher: NSObject {
                 icon: candidate.appIcon,
                 previewImage: preview,
                 backdropImage: backdrop,
+                backdropFrame: candidate.bounds,
                 previewCacheKey: previewKey,
                 historyIdentity: candidate.historyIdentity,
                 sourceAppIdentifier: candidate.sourceAppIdentifier,

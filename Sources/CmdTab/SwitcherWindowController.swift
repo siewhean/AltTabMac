@@ -439,6 +439,7 @@ final class SwitcherWindowController {
 
     private func updateBackdropFrame(for screen: NSScreen) {
         backdropPanel.setFrame(screen.frame, display: false)
+        viewModel.backdropScreenFrame = screen.frame
     }
 
     private func updateBackdropPanelIfNeeded() {

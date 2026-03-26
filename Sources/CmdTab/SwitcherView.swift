@@ -73,18 +73,27 @@ struct VisualEffectBlur: NSViewRepresentable {
 
 private struct SelectedPreviewBackdrop: View {
     let preview: NSImage
+    let windowFrame: CGRect?
+    let screenFrame: CGRect
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Image(nsImage: preview)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .clipped()
-                    .scaleEffect(1.01)
-                    .saturation(1.0)
+                Color.black.opacity(0.34)
+
+                if let windowFrame, screenFrame != .zero {
+                    ActualWindowBackdrop(
+                        preview: preview,
+                        windowFrame: windowFrame,
+                        screenFrame: screenFrame
+                    )
+                } else {
+                    Image(nsImage: preview)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                }
 
                 LinearGradient(
                     colors: [
@@ -102,6 +111,53 @@ private struct SelectedPreviewBackdrop: View {
     }
 }
 
+private struct ActualWindowBackdrop: NSViewRepresentable {
+    let preview: NSImage
+    let windowFrame: CGRect
+    let screenFrame: CGRect
+
+    func makeNSView(context: Context) -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let imageView = NSImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = true
+        imageView.imageAlignment = .alignCenter
+        imageView.imageScaling = .scaleAxesIndependently
+        imageView.wantsLayer = true
+        imageView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
+        imageView.layer?.shadowOpacity = 1
+        imageView.layer?.shadowRadius = 24
+        imageView.layer?.shadowOffset = CGSize(width: 0, height: -10)
+        container.addSubview(imageView)
+        context.coordinator.imageView = imageView
+        return container
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard let imageView = context.coordinator.imageView else { return }
+        imageView.image = preview
+
+        let localFrame = CGRect(
+            x: windowFrame.minX - screenFrame.minX,
+            y: windowFrame.minY - screenFrame.minY,
+            width: windowFrame.width,
+            height: windowFrame.height
+        ).integral
+
+        imageView.frame = localFrame
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var imageView: NSImageView?
+    }
+}
+
 struct SwitcherScreenBackdropView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
@@ -110,7 +166,11 @@ struct SwitcherScreenBackdropView: View {
         Group {
             if preferences.showSelectedPreviewBackdrop,
                let preview = selectedBackdropImage {
-                SelectedPreviewBackdrop(preview: preview)
+                SelectedPreviewBackdrop(
+                    preview: preview,
+                    windowFrame: selectedBackdropFrame,
+                    screenFrame: viewModel.backdropScreenFrame
+                )
                     .ignoresSafeArea()
                     .transition(.opacity)
             } else {
@@ -128,6 +188,10 @@ struct SwitcherScreenBackdropView: View {
 
     private var selectedBackdropImage: NSImage? {
         selectedItem?.backdropImage ?? selectedItem?.previewImage
+    }
+
+    private var selectedBackdropFrame: CGRect? {
+        selectedItem?.backdropFrame
     }
 
     private var selectedPreviewIdentity: String {
