@@ -16,6 +16,8 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
 - Both `⌘Tab` and `⌥Tab` now reveal the same app-window switcher immediately.
 - First-use cache priming is synchronous for the fast icon phase so the overlay does not stall on an empty cache.
 - Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
+- The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
+- Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
 
 ## Active Constraints / Non-Negotiables
 
@@ -52,6 +54,13 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
 - 2026-03-27: Preserved cached thumbnails across refreshes.
   - `AppSwitcher` now keeps a thumbnail cache keyed by switcher identity and reuses those previews during the fast refresh pass.
   - Forced refreshes no longer replace existing thumbnail tiles with icon-only placeholders while the new capture pass is still running.
+- 2026-03-27: Tightened MRU ordering for current-app windows.
+  - `SwitcherOrdering` now pushes any leading entries from the current frontmost app behind the most recent different app after the active window is rotated to the end.
+  - This keeps `⌘Tab` visibly ordered by last-used app instead of occasionally starting with another window from the same current app.
+- 2026-03-27: Hardened frontmost tracking after switch commits.
+  - Added `FrontmostResolution` so quick re-presses can still use a very short optimistic override, but failed activations no longer poison the next Alt-Tab ordering.
+  - `SwitcherWindowController` now resolves frontmost identity from the live system app plus the short override window, instead of eagerly rewriting the observed frontmost PID on every commit.
+  - `AppSwitcher` now times out stale `pendingActivationPID` values so failed app activations do not leave suppression state behind.
 - 2026-03-27: Fixed `⌘Tab` hold-to-show timing drift.
   - Replaced loose pending hotkey fields in `HotkeyManager` with `HotkeyTriggerState` and `PendingHotkeyTrigger`.
   - Hidden `⌘Tab` now schedules reveal from the first keydown and ignores repeated hidden `Tab` events, preventing auto-repeat from stretching the 100ms threshold.

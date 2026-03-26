@@ -445,22 +445,18 @@ final class AppSwitcher: NSObject {
 
     private func activateFallbackApplication(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity) {
         pendingActivationPID = app.processIdentifier
-        app.unhide()
-        let didActivate = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-        let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
-
-        if !didActivate {
-            if #available(macOS 14.0, *) { app.activate() }
-        }
+        schedulePendingActivationTimeout(for: app.processIdentifier)
+        activateApplication(app, activateAllWindows: true)
 
         var value: CFTypeRef?
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
         if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
            let windows = value as? [AXUIElement], let first = windows.first {
-            raiseWindow(first)
+            raiseWindow(first, ownerPID: app.processIdentifier)
         }
 
         history.noteActivation(identity)
+        ensureApplicationFrontmost(app, attempt: 0)
         // warmCache intentionally omitted: the NSWorkspace.didActivateApplication
         // notification fires after app.activate() and already calls warmCache(force: true)
         // via appActivated(_:). Calling it here too queues a redundant rebuild that
@@ -470,17 +466,10 @@ final class AppSwitcher: NSObject {
     private func activateWindow(_ candidate: WindowCandidate) {
         guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
         pendingActivationPID = candidate.ownerPID
-
-        app.unhide()
-        let didActivate = app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-        let axApp = AXUIElementCreateApplication(candidate.ownerPID)
-        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
-
-        if !didActivate {
-            if #available(macOS 14.0, *) { app.activate() }
-        }
+        schedulePendingActivationTimeout(for: candidate.ownerPID)
 
         history.noteActivation(candidate.historyIdentity)
+        activateApplication(app, activateAllWindows: false)
         focusBestMatchingWindow(candidate, attempt: 0)
         // warmCache intentionally omitted: NSWorkspace.didActivateApplication fires
         // after activate() and already triggers warmCache via appActivated(_:).
@@ -502,7 +491,8 @@ final class AppSwitcher: NSObject {
         // ── Strategy 1: Exact CGWindowID match (eliminates wrong-window bugs) ──
         for axWindow in windows {
             if let axWinID = AXWindowIDLookup.windowID(for: axWindow), axWinID == candidate.id {
-                raiseWindow(axWindow)
+                raiseWindow(axWindow, ownerPID: candidate.ownerPID)
+                ensureWindowFrontmost(candidate, attempt: attempt)
                 return
             }
         }
@@ -518,16 +508,23 @@ final class AppSwitcher: NSObject {
         }
 
         if bestWindow.1 > 0 {
-            raiseWindow(bestWindow.0)
+            raiseWindow(bestWindow.0, ownerPID: candidate.ownerPID)
+            ensureWindowFrontmost(candidate, attempt: attempt)
         } else if attempt < 2 {
             scheduleWindowFocusRetry(for: candidate, attempt: attempt)
         } else {
-            raiseWindow(windows[0])
+            raiseWindow(windows[0], ownerPID: candidate.ownerPID)
+            ensureWindowFrontmost(candidate, attempt: attempt)
         }
     }
 
-    private func raiseWindow(_ axWindow: AXUIElement) {
+    private func raiseWindow(_ axWindow: AXUIElement, ownerPID: pid_t) {
         let t = kCFBooleanTrue!
+        let axApp = AXUIElementCreateApplication(ownerPID)
+        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, t)
+        AXUIElementSetAttributeValue(axApp, kAXMainWindowAttribute as CFString, axWindow)
+        AXUIElementSetAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, axWindow)
+        AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
         AXUIElementSetAttributeValue(axWindow, kAXMainAttribute as CFString, t)
         AXUIElementSetAttributeValue(axWindow, kAXFocusedAttribute as CFString, t)
         AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
@@ -561,6 +558,102 @@ final class AppSwitcher: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: attempt + 1)
         }
+    }
+
+    private func activateApplication(_ app: NSRunningApplication, activateAllWindows: Bool) {
+        app.unhide()
+        let options: NSApplication.ActivationOptions = activateAllWindows
+            ? [.activateAllWindows, .activateIgnoringOtherApps]
+            : [.activateIgnoringOtherApps]
+        let didActivate = app.activate(options: options)
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+
+        if !didActivate, #available(macOS 14.0, *) {
+            app.activate()
+        }
+    }
+
+    private func ensureApplicationFrontmost(_ app: NSRunningApplication, attempt: Int) {
+        guard currentSystemFrontmostPID() != app.processIdentifier else {
+            pendingActivationPID = nil
+            return
+        }
+        guard attempt < 4 else { return }
+
+        let delay = 0.03 + Double(attempt) * 0.05
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            guard self.currentSystemFrontmostPID() != app.processIdentifier else {
+                self.pendingActivationPID = nil
+                return
+            }
+            self.activateApplication(app, activateAllWindows: true)
+            self.ensureApplicationFrontmost(app, attempt: attempt + 1)
+        }
+    }
+
+    private func ensureWindowFrontmost(_ candidate: WindowCandidate, attempt: Int) {
+        guard !isFrontmostWindow(candidate) else {
+            pendingActivationPID = nil
+            return
+        }
+        guard attempt < 4,
+              let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
+
+        let delay = 0.03 + Double(attempt) * 0.05
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            guard !self.isFrontmostWindow(candidate) else {
+                self.pendingActivationPID = nil
+                return
+            }
+            self.activateApplication(app, activateAllWindows: false)
+            self.focusBestMatchingWindow(candidate, attempt: attempt + 1)
+        }
+    }
+
+    private func schedulePendingActivationTimeout(for pid: pid_t) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self, self.pendingActivationPID == pid else { return }
+            self.pendingActivationPID = nil
+        }
+    }
+
+    private func isFrontmostWindow(_ candidate: WindowCandidate) -> Bool {
+        currentSystemFrontmostPID() == candidate.ownerPID &&
+        focusedWindowID(for: candidate.ownerPID) == candidate.id
+    }
+
+    private func currentSystemFrontmostPID() -> pid_t {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.activationPolicy == .regular,
+              app.bundleIdentifier != Bundle.main.bundleIdentifier else {
+            return 0
+        }
+        return app.processIdentifier
+    }
+
+    private func focusedWindowID(for pid: pid_t) -> CGWindowID? {
+        let axApp = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+
+        if AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &value) == .success,
+           let focusedWindow = value {
+            let axWindow = unsafeBitCast(focusedWindow, to: AXUIElement.self)
+            if let windowID = AXWindowIDLookup.windowID(for: axWindow) {
+                return windowID
+            }
+        }
+
+        value = nil
+        if AXUIElementCopyAttributeValue(axApp, kAXMainWindowAttribute as CFString, &value) == .success,
+           let mainWindow = value {
+            let axWindow = unsafeBitCast(mainWindow, to: AXUIElement.self)
+            return AXWindowIDLookup.windowID(for: axWindow)
+        }
+
+        return nil
     }
 
     private func matchScore(for axWindow: AXUIElement, candidate: WindowCandidate) -> CGFloat {

@@ -67,6 +67,26 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["Arc", "Finder W2", "Finder W1"])
     }
 
+    func testLeadingWindowsFromCurrentAppMoveBehindMostRecentDifferentApp() {
+        let notebookLM = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 21)
+        let arcWindow  = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 22)
+        let finder     = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 11)
+
+        let rawItems = [
+            makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: notebookLM),
+            makeItem(title: "Arc Window", appID: "company.thebrowser.Browser", identity: arcWindow),
+            makeItem(title: "Finder", appID: "com.apple.finder", identity: finder),
+        ]
+
+        let ordered = SwitcherOrdering.orderedItems(
+            rawItems,
+            historyEntries: [notebookLM, arcWindow, finder],
+            currentFrontmost: arcWindow
+        )
+
+        XCTAssertEqual(ordered.map(\.title), ["Finder", "NotebookLM", "Arc Window"])
+    }
+
     /// Items with no history entries keep their original array offset order
     /// (no implicit per-app grouping by score proximity).
     func testNoHistoryFallbackPreservesOffsetOrderNotAppGrouping() {
@@ -90,6 +110,29 @@ final class SwitcherOrderingTests: XCTestCase {
         )
 
         XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2", "Safari"])
+    }
+
+    func testWindowTilesDoNotUseAppLevelFallbackThatGroupsRepeatedApps() {
+        let finderW1 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 10)
+        let arcW1    = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 20)
+        let finderW2 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 30)
+
+        let rawItems = [
+            makeItem(title: "Finder W1", appID: "com.apple.finder", identity: finderW1),
+            makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: arcW1),
+            makeItem(title: "Finder W2", appID: "com.apple.finder", identity: finderW2),
+        ]
+
+        let ordered = SwitcherOrdering.orderedItems(
+            rawItems,
+            historyEntries: [
+                .appFallback(bundleID: "com.apple.finder", pid: 101),
+                .appFallback(bundleID: "company.thebrowser.Browser", pid: 202),
+            ],
+            currentFrontmost: nil
+        )
+
+        XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2"])
     }
 
     /// Simulate Finder → Arc → Finder usage pattern.

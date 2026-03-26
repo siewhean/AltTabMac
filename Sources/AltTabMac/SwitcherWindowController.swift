@@ -44,12 +44,11 @@ final class SwitcherWindowController {
     private let preferences = SwitcherPreferences.shared
     private var session: SwitcherCycleSession?
 
-    /// PID of the app we believe is currently frontmost. Updated BOTH when
-    /// we internally activate an app AND when the OS reports an external
-    /// activation (user clicked on a window). Using PID instead of exact
-    /// SwitcherHistoryIdentity avoids false negatives from window ID changes
-    /// across cache rebuilds — PIDs are stable for a process's lifetime.
+    /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
+    /// override is layered on top after switcher commits so quick re-presses
+    /// can still behave correctly before the system notification arrives.
     private var activeFrontmostPID: pid_t = 0
+    private var frontmostOverride: FrontmostOverrideState?
 
     var isVisible: Bool { viewModel.isVisible }
     var currentStyle: SwitcherStyle { preferences.switcherStyle }
@@ -241,6 +240,7 @@ final class SwitcherWindowController {
                 return
             }
             self.activeFrontmostPID = app.processIdentifier
+            self.frontmostOverride = nil
         }
 
         NotificationCenter.default.addObserver(
@@ -290,20 +290,19 @@ final class SwitcherWindowController {
     /// Determine which identity represents the "currently active" app/window
     /// so that `orderedItems` can move it to the end of the MRU list.
     ///
-    /// Pure PID-based lookup against `activeFrontmostPID`. No I/O.
+    /// Uses the live system frontmost app when available, with a very short
+    /// override window after a switcher commit so quick re-presses still
+    /// behave like Windows-style Alt-Tab even before NSWorkspace catches up.
     private func currentFrontmostIdentity(availableItems: [SwitcherItem]) -> SwitcherHistoryIdentity? {
-        let pid = activeFrontmostPID
-        guard pid != 0 else { return nil }
-
         let historyEntries = history.snapshot()
-        return availableItems
-            .filter { $0.historyIdentity.ownerPID == pid }
-            .min { lhs, rhs in
-                let lhsRank = historyEntries.firstIndex(of: lhs.historyIdentity) ?? Int.max
-                let rhsRank = historyEntries.firstIndex(of: rhs.historyIdentity) ?? Int.max
-                return lhsRank < rhsRank
-            }?
-            .historyIdentity
+        return FrontmostResolution.effectiveIdentity(
+            availableItems: availableItems,
+            historyEntries: historyEntries,
+            systemFrontmostPID: currentSystemFrontmostPID(),
+            observedFrontmostPID: activeFrontmostPID,
+            overrideState: frontmostOverride,
+            now: ProcessInfo.processInfo.systemUptime
+        )
     }
 
     /// - Parameter makeKey: Pass `true` when showing via menu-bar / standalone click so
@@ -407,14 +406,38 @@ final class SwitcherWindowController {
         history.noteActivation(selectedItem.historyIdentity)
 
         if let pid = selectedItem.historyIdentity.ownerPID {
-            activeFrontmostPID = pid
+            setFrontmostOverride(identity: selectedItem.historyIdentity, pid: pid)
         }
 
         hidePanel()
-        activateSelection(selectedItem)
+        DispatchQueue.main.async { [weak self] in
+            self?.activateSelection(selectedItem)
+        }
     }
 
     private func activateSelection(_ item: SwitcherItem) {
         item.activate()
+    }
+
+    private func currentSystemFrontmostPID() -> pid_t {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.activationPolicy == .regular,
+              app.bundleIdentifier != Bundle.main.bundleIdentifier else {
+            return 0
+        }
+        return app.processIdentifier
+    }
+
+    private func setFrontmostOverride(identity: SwitcherHistoryIdentity, pid: pid_t) {
+        let startedAt = ProcessInfo.processInfo.systemUptime
+        let override = FrontmostOverrideState(identity: identity, pid: pid, startedAtUptime: startedAt)
+        frontmostOverride = override
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + FrontmostResolution.overrideGraceInterval) { [weak self] in
+            guard let self, self.frontmostOverride == override else { return }
+            if self.currentSystemFrontmostPID() != pid {
+                self.frontmostOverride = nil
+            }
+        }
     }
 }

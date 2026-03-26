@@ -113,7 +113,7 @@ enum SwitcherOrdering {
             ordered.append(activeItem)
         }
 
-        return ordered
+        return normalizeLeadingCurrentAppItems(in: ordered, currentFrontmost: currentFrontmost)
     }
 
     static func orderedItems(
@@ -123,16 +123,16 @@ enum SwitcherOrdering {
     ) -> [SwitcherItem] {
         let historyEntries = history.snapshot()
 
-        // For each item, prefer an exact identity match in history; fall back to
-        // a PID/bundleID app-level rank. The fallback matters when a CGWindowID
-        // changed since the entry was recorded (minimize → restore recreates the
-        // window ID), which would otherwise force the item to sort by raw offset
-        // instead of recency, making recently-used apps appear at the bottom.
+        // For real window tiles, preserve exact window recency only. Falling back
+        // to an app-level rank for windows causes separate windows from the same
+        // application to collapse into the same recency bucket and appear grouped
+        // together. App-level fallback remains valid for true app fallback tiles.
         func rank(for item: SwitcherItem) -> Int? {
             if let exact = historyEntries.firstIndex(of: item.historyIdentity) {
                 return exact
             }
-            if let pid = item.historyIdentity.ownerPID {
+            if item.kind == .appFallback,
+               let pid = item.historyIdentity.ownerPID {
                 return history.rankForApp(bundleID: item.sourceAppIdentifier, pid: pid)
             }
             return nil
@@ -163,7 +163,29 @@ enum SwitcherOrdering {
             ordered.append(activeItem)
         }
 
-        return ordered
+        return normalizeLeadingCurrentAppItems(in: ordered, currentFrontmost: currentFrontmost)
+    }
+
+    private static func normalizeLeadingCurrentAppItems(
+        in ordered: [SwitcherItem],
+        currentFrontmost: SwitcherHistoryIdentity?
+    ) -> [SwitcherItem] {
+        guard let currentPID = currentFrontmost?.ownerPID else { return ordered }
+
+        let leadingCurrentCount = ordered.prefix { $0.historyIdentity.ownerPID == currentPID }.count
+        guard leadingCurrentCount > 0, leadingCurrentCount < ordered.count else { return ordered }
+
+        let leadingCurrentItems = Array(ordered.prefix(leadingCurrentCount))
+        var remainingItems = Array(ordered.dropFirst(leadingCurrentCount))
+
+        let insertionIndex: Int
+        if remainingItems.last?.historyIdentity.ownerPID == currentPID {
+            insertionIndex = max(0, remainingItems.count - 1)
+        } else {
+            insertionIndex = remainingItems.count
+        }
+
+        remainingItems.insert(contentsOf: leadingCurrentItems, at: insertionIndex)
+        return remainingItems
     }
 }
-
