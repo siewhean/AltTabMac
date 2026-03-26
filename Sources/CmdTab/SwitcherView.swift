@@ -70,3 +70,67 @@ struct VisualEffectBlur: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
+
+private struct SelectedPreviewBackdrop: View {
+    let preview: NSImage
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                Image(nsImage: preview)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
+                    .scaleEffect(1.01)
+                    .saturation(1.0)
+
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.28),
+                        Color.black.opacity(0.18),
+                        Color.black.opacity(0.34)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct SwitcherScreenBackdropView: View {
+    @ObservedObject var viewModel: SwitcherViewModel
+    @ObservedObject private var preferences = SwitcherPreferences.shared
+
+    var body: some View {
+        Group {
+            if preferences.showSelectedPreviewBackdrop,
+               let preview = selectedBackdropImage {
+                SelectedPreviewBackdrop(preview: preview)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+            } else {
+                Color.clear
+            }
+        }
+        .animation(.easeInOut(duration: 0.14), value: selectedPreviewIdentity)
+        .animation(.easeInOut(duration: 0.14), value: preferences.showSelectedPreviewBackdrop)
+    }
+
+    private var selectedItem: SwitcherItem? {
+        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < viewModel.items.count else { return nil }
+        return viewModel.items[viewModel.selectedIndex]
+    }
+
+    private var selectedBackdropImage: NSImage? {
+        selectedItem?.backdropImage ?? selectedItem?.previewImage
+    }
+
+    private var selectedPreviewIdentity: String {
+        selectedItem?.historyIdentity.stableKey ?? "none"
+    }
+}

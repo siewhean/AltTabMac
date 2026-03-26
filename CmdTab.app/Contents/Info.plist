@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>AltTabMac</string>
+    <string>CmdTab</string>
     <key>CFBundleDisplayName</key>
-    <string>AltTabMac</string>
+    <string>CmdTab</string>
     <key>CFBundleIdentifier</key>
-    <string>com.user.AltTabMac</string>
+    <string>com.user.CmdTab</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
     <key>CFBundleExecutable</key>
-    <string>AltTabMac</string>
+    <string>CmdTab</string>
     <key>CFBundleIconFile</key>
-    <string>AltTabMac</string>
+    <string>CmdTab</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -24,7 +24,7 @@
     <string>13.0</string>
     <!-- Accessibility (CGEventTap) -->
     <key>NSAccessibilityUsageDescription</key>
-    <string>AltTabMac needs Accessibility permission to intercept ⌘Tab and ⌥Tab globally.</string>
+    <string>CmdTab needs Accessibility permission to intercept ⌘Tab and ⌥Tab globally.</string>
     <!-- LSUIElement: false → show Dock icon so users can click to open Settings.
          The switcher panel itself is .nonactivatingPanel so it never steals focus
          during ⌘Tab; the app appearing in the Dock does not affect hotkey behaviour. -->

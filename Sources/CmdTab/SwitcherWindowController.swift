@@ -31,6 +31,11 @@ private final class SwitcherPanel: NSPanel {
     }
 }
 
+private final class SwitcherBackdropPanel: NSPanel {
+    override var canBecomeKey: Bool  { false }
+    override var canBecomeMain: Bool { false }
+}
+
 // MARK: - SwitcherWindowController
 
 /// Hosts the SwiftUI SwitcherView inside a borderless, non-activating NSPanel.
@@ -38,6 +43,7 @@ private final class SwitcherPanel: NSPanel {
 final class SwitcherWindowController {
 
     private var panel: SwitcherPanel!
+    private var backdropPanel: SwitcherBackdropPanel!
     private let viewModel = SwitcherViewModel()
     private let appSwitcher = AppSwitcher()
     private let history = SwitcherHistoryStore.shared
@@ -60,6 +66,7 @@ final class SwitcherWindowController {
 
     init() {
         buildPanel()
+        buildBackdropPanel()
         wireDataSources()
         _ = appSwitcher.primeCacheIfNeeded()
         appSwitcher.warmCache(force: true)
@@ -183,6 +190,27 @@ final class SwitcherWindowController {
         self.panel = panel
     }
 
+    private func buildBackdropPanel() {
+        let panel = SwitcherBackdropPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        panel.level = NSWindow.Level(rawValue: NSWindow.Level.popUpMenu.rawValue - 1)
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isMovable = false
+        panel.ignoresMouseEvents = true
+
+        let hosting = NSHostingView(rootView: SwitcherScreenBackdropView(viewModel: viewModel))
+        hosting.translatesAutoresizingMaskIntoConstraints = false
+        panel.contentView = hosting
+        self.backdropPanel = panel
+    }
+
     /// Activate whatever card the mouse is hovering over.
     /// Uses `viewModel.hoveredIndex` set by SwiftUI `.onHover` on each card —
     /// no coordinate math needed, works correctly with scrolled content.
@@ -252,6 +280,7 @@ final class SwitcherWindowController {
         ) { [weak self] _ in
             self?.appSwitcher.warmCache(force: true)
             self?.refreshVisibleItemsIfNeeded()
+            self?.updateBackdropPanelIfNeeded()
         }
     }
 
@@ -358,15 +387,18 @@ final class SwitcherWindowController {
                 oy = min(max(proposedY, safeFrame.minY), safeFrame.maxY - layout.contentHeight)
             }
             panel.setFrameOrigin(NSPoint(x: ox, y: oy))
+            updateBackdropFrame(for: screen)
         } else {
             viewModel.layout = .empty
         }
 
+        updateBackdropPanelIfNeeded()
         panel.alphaValue = 1
 
         if makeKey {
             NSApp.activate(ignoringOtherApps: true)
         }
+        backdropPanel.orderFrontRegardless()
         panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
         viewModel.isVisible = true
@@ -376,6 +408,7 @@ final class SwitcherWindowController {
         viewModel.isVisible = false
         panel.alphaValue = 0
         panel.orderOut(nil)
+        backdropPanel.orderOut(nil)
         resetSessionState()
     }
 
@@ -402,6 +435,26 @@ final class SwitcherWindowController {
                 ?? NSScreen.main
                 ?? NSScreen.screens.first
         }
+    }
+
+    private func updateBackdropFrame(for screen: NSScreen) {
+        backdropPanel.setFrame(screen.frame, display: false)
+    }
+
+    private func updateBackdropPanelIfNeeded() {
+        guard viewModel.isVisible || !viewModel.items.isEmpty else {
+            backdropPanel.orderOut(nil)
+            return
+        }
+
+        guard preferences.showSelectedPreviewBackdrop,
+              let screen = panel.screen ?? presentationScreen(for: preferences.switcherStyle) else {
+            backdropPanel.orderOut(nil)
+            return
+        }
+
+        updateBackdropFrame(for: screen)
+        backdropPanel.orderFrontRegardless()
     }
 
     /// Filter `viewModel.items` to rows matching `query`, then reset selection.

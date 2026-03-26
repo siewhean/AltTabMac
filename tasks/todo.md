@@ -10,6 +10,6 @@
 
 ## Review
 
-- `swift test --scratch-path /tmp/AltTabMac-test` passed with 38 tests.
+- `swift test --scratch-path /tmp/CmdTab-test` passed with 38 tests.
 - Follow-up fix anchored hidden `⌘Tab` timing to the event tap's original `CGEvent` timestamp instead of a later main-queue uptime sample.
 - Manual hotkey QA on a live macOS desktop is still pending.

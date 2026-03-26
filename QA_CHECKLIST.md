@@ -1,4 +1,4 @@
-# AltTabMac Manual QA Checklist
+# CmdTab Manual QA Checklist
 
 ## Switching reliability
 

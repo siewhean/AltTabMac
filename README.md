@@ -1,11 +1,11 @@
-# AltTabMac
+# CmdTab
 
 Last Updated: 2026-03-27
 Active Task: App-only switcher polish — instant reveal, cold-cache priming, and stale browser-tab metadata cleanup.
 
 ## Project Summary
 
-AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
+CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
 
 ## Current Status
 
@@ -50,7 +50,7 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
   - `scheduleReveal` now executes immediately when the deadline is already due.
   - `SwitcherWindowController` primes the fast icon cache before first reveal and no longer spins on a retry loop waiting for items.
   - Dock reopen now opens the live switcher instead of the settings window.
-  - Removed stale browser-tab Apple Events metadata from `Resources/Info.plist`, `Resources/AltTabMac.entitlements`, and `build.sh`.
+  - Removed stale browser-tab Apple Events metadata from `Resources/Info.plist`, `Resources/CmdTab.entitlements`, and `build.sh`.
 - 2026-03-27: Preserved cached thumbnails across refreshes.
   - `AppSwitcher` now keeps a thumbnail cache keyed by switcher identity and reuses those previews during the fast refresh pass.
   - Forced refreshes no longer replace existing thumbnail tiles with icon-only placeholders while the new capture pass is still running.
@@ -92,7 +92,7 @@ AltTabMac is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. 
   - Bug 2 (Double Escape): Added `keyDown(with:)` override in `SwitcherPanel` as backup Esc handler for when CGEventTap is momentarily disabled by system timeout.
   - Bug 1 (Quick Switch): Implemented fast-path in `handleModifierRelease` — early modifier release now calls `commitTriggerSession` for instant MRU[0] switch without showing UI.
   - Bug 3 (Ghost Window): Added 50ms post-show deferred hardware check in `scheduleReveal` to catch missed `flagsChanged` events when CGEventTap is disabled.
-- 2026-03-25: Added the agent context system scaffold and seeded the current AltTabMac project status.
+- 2026-03-25: Added the agent context system scaffold and seeded the current CmdTab project status.
 - 2026-03-25: Reverted the app behavior/UI changes to the previous iteration while keeping the agent context system files and shared README workflow.
 - 2026-03-26: Second bug-fix pass — 3 race-condition / latency bugs:
   - Bug 1 (Delay Bloat): Removed CGWindowListCopyWindowInfo + AppleScript fallbacks from `currentFrontmostIdentity`; pure PID-based lookup now, zero blocking I/O on main thread at render time.

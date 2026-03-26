@@ -1,5 +1,5 @@
 import XCTest
-@testable import AltTabMac
+@testable import CmdTab
 
 final class FrontmostResolutionTests: XCTestCase {
     func testActiveOverrideWinsDuringShortGraceWindow() {

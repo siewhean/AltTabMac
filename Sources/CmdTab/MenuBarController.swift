@@ -23,12 +23,12 @@ final class MenuBarController {
     private func build() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.image = NSImage(systemSymbolName: "arrow.right.arrow.left",
-                                           accessibilityDescription: "AltTabMac")
+                                           accessibilityDescription: "CmdTab")
         statusItem.button?.image?.isTemplate = true   // adapts to dark/light menu bar
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleStatusItemClick)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusItem.button?.toolTip = "Left click to open AltTabMac settings. Right click for quick controls."
+        statusItem.button?.toolTip = "Left click to open CmdTab settings. Right click for quick controls."
 
         updateMenu()
     }
@@ -61,13 +61,13 @@ final class MenuBarController {
         menu.addItem(settingsItem)
 
         // ── About / help ─────────────────────────────────────────────────────
-        let aboutItem = NSMenuItem(title: "About AltTabMac", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(title: "About CmdTab", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit AltTabMac", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit CmdTab", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
         self.contextMenu = menu
@@ -107,7 +107,7 @@ final class MenuBarController {
 
     @objc private func showAbout() {
         let alert = NSAlert()
-        alert.messageText    = "AltTabMac"
+        alert.messageText    = "CmdTab"
         alert.informativeText = """
         Windows-style Alt+Tab for macOS.
 

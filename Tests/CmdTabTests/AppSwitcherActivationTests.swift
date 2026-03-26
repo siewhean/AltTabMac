@@ -1,6 +1,6 @@
 import XCTest
 import AppKit
-@testable import AltTabMac
+@testable import CmdTab
 
 /// Tests for SwitcherHistoryStore and the activation/ordering logic that
 /// ensures subsequent app switches work correctly and windows are ordered in
@@ -256,7 +256,8 @@ final class AppSwitcherActivationTests: XCTestCase {
     func testPreviewlessWindowTilesAreDroppedInFinalThumbnailPass() {
         XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: NSImage(size: NSSize(width: 10, height: 10)), capturePreviews: true))
-        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
+        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
     }
 
     /// Empty items list returns empty.
@@ -404,6 +405,72 @@ final class AppSwitcherActivationTests: XCTestCase {
                        "Frontmost should be at the end")
     }
 
+    func testPreviewCacheKeyChangesWhenWindowMetadataChanges() {
+        let identity = SwitcherHistoryIdentity.appWindow(pid: 404, windowID: 77)
+        let firstKey = AppSwitcher.previewCacheKey(
+            for: identity,
+            title: "Calendar",
+            bounds: CGRect(x: 0, y: 0, width: 1200, height: 800),
+            sourceAppIdentifier: "com.apple.iCal"
+        )
+        let secondKey = AppSwitcher.previewCacheKey(
+            for: identity,
+            title: "Software Update",
+            bounds: CGRect(x: 0, y: 0, width: 1200, height: 800),
+            sourceAppIdentifier: "com.apple.iCal"
+        )
+
+        XCTAssertNotEqual(firstKey, secondKey, "Changing the window title should invalidate stale preview reuse")
+    }
+
+    func testAllowedWindowIDDefaultsToTrueWhenNoAXFilterExists() {
+        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: nil))
+    }
+
+    func testAllowedWindowIDRejectsNonDisplayWindowIDs() {
+        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: [77, 88]))
+        XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, allowedWindowIDs: [77, 88]))
+    }
+
+    func testSwitcherDisplaySubroleRejectsFloatingPanels() {
+        XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole(kAXStandardWindowSubrole as String))
+        XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole("AXFullScreenWindow"))
+        XCTAssertFalse(AppSwitcher.isSwitcherDisplaySubrole(kAXFloatingWindowSubrole as String))
+    }
+
+    func testShouldAllowAXWindowRejectsMissingSubroleForSwitcherDisplay() {
+        XCTAssertFalse(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: nil,
+                parentRole: nil,
+                isMinimized: false
+            )
+        )
+    }
+
+    func testShouldAllowAXWindowRejectsChildWindows() {
+        XCTAssertFalse(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: kAXStandardWindowSubrole as String,
+                parentRole: kAXWindowRole as String,
+                isMinimized: false
+            )
+        )
+    }
+
+    func testShouldAllowAXWindowRejectsMinimizedWindows() {
+        XCTAssertFalse(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: kAXStandardWindowSubrole as String,
+                parentRole: nil,
+                isMinimized: true
+            )
+        )
+    }
+
     /// With multiple windows for the same app, the most recently used window
     /// of the frontmost app should be used as the currentFrontmost identity.
     func testMultipleWindowsSameAppUsesCorrectFrontmostWindow() {
@@ -437,6 +504,7 @@ final class AppSwitcherActivationTests: XCTestCase {
             subtitle: "",
             icon: nil,
             previewImage: nil,
+            backdropImage: nil,
             historyIdentity: identity,
             sourceAppIdentifier: nil,
             kind: .appWindow

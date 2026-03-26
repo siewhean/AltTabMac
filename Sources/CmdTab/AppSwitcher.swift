@@ -65,26 +65,33 @@ private enum AXWindowIDLookup {
 
 // MARK: - AppSwitcher
 
-private let appSwitcherLog = OSLog(subsystem: "AltTabMac", category: "AppSwitcher")
+private let appSwitcherLog = OSLog(subsystem: "CmdTab", category: "AppSwitcher")
 
 /// Enumerates real application windows and captures thumbnails for the switcher.
 final class AppSwitcher: NSObject {
     private let preferences = SwitcherPreferences.shared
     private let history = SwitcherHistoryStore.shared
 
+    private struct PreviewCacheEntry {
+        let image: NSImage
+        let backdropImage: NSImage?
+        let capturedAt: Date
+    }
+
     // ── Non-blocking cache architecture ──────────────────────────────────────
     // The build queue runs thumbnail capture off the main thread.
     // The cacheLock protects reads/writes to _cachedItems so getItems() never
     // blocks on a pending thumbnail capture — it returns stale data instantly
     // and the UI updates when onItemsChanged fires.
-    private let buildQueue = DispatchQueue(label: "AltTabMac.AppSwitcher.Build", qos: .userInitiated)
+    private let buildQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Build", qos: .userInitiated)
     private var _cachedItems: [SwitcherItem] = []
-    private var previewCache: [String: NSImage] = [:]
+    private var previewCache: [String: PreviewCacheEntry] = [:]
     private let cacheLock = NSLock()
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
     private let refreshInterval: TimeInterval = 0.8
     private let maxPreviewCacheEntries = 512
+    private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     private var pendingActivationPIDs = Set<pid_t>()
@@ -150,7 +157,7 @@ final class AppSwitcher: NSObject {
         return cached
     }
 
-    /// Populate a fast icon-only cache synchronously when the app is first
+    /// Populate a fast provisional cache synchronously when the app is first
     /// invoked and the background builder has not produced anything yet.
     /// This keeps the first Alt-Tab reveal from stalling on the empty-cache path.
     @discardableResult
@@ -159,15 +166,16 @@ final class AppSwitcher: NSObject {
         guard existing.isEmpty else { return existing }
 
         let context = enumerateWindows()
-        let iconItems = assembleItems(
+        let provisionalItems = assembleItems(
             from: context,
             capturePreviews: false,
-            previewFallbacks: cachedPreviewSnapshot()
+            previewFallbacks: cachedPreviewSnapshot(),
+            allowPreviewlessItems: true
         )
 
         cacheLock.lock()
         if _cachedItems.isEmpty {
-            _cachedItems = iconItems
+            _cachedItems = provisionalItems
         }
         let snapshot = _cachedItems
         cacheLock.unlock()
@@ -199,7 +207,7 @@ final class AppSwitcher: NSObject {
         return items
     }
 
-    private func cachedPreviewSnapshot() -> [String: NSImage] {
+    private func cachedPreviewSnapshot() -> [String: PreviewCacheEntry] {
         cacheLock.lock()
         let snapshot = previewCache
         cacheLock.unlock()
@@ -230,20 +238,24 @@ final class AppSwitcher: NSObject {
         // ── Phase 1: Reuse cached previews immediately ──────────────────────
         let context = enumerateWindows()
         let preservedPreviews = cachedPreviewSnapshot()
-        let iconItems = assembleItems(
+        let shouldAllowPreviewlessItems = cachedItemsSnapshot().isEmpty
+        let provisionalItems = assembleItems(
             from: context,
             capturePreviews: false,
-            previewFallbacks: preservedPreviews
+            previewFallbacks: preservedPreviews,
+            allowPreviewlessItems: shouldAllowPreviewlessItems
         )
 
         cacheLock.lock()
-        _cachedItems = iconItems
+        _cachedItems = provisionalItems
         cacheLock.unlock()
 
         // Notify UI immediately — existing thumbnails stay in place while the
-        // fresh capture pass updates anything new or changed.
+        // fresh capture pass updates anything new or changed. Once the cache is
+        // warm, previewless windows are held back from this provisional pass so
+        // the grid does not regress to large icon-only tiles.
         DispatchQueue.main.async { [weak self] in
-            self?.onItemsChanged?(iconItems)
+            self?.onItemsChanged?(provisionalItems)
         }
 
         // ── Phase 2: Thumbnail pass (slow) ─────────────────────────────────
@@ -297,11 +309,17 @@ final class AppSwitcher: NSObject {
             runningApps.map { ($0.processIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
         )
+        let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: runningApps)
 
         let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let candidates = deduplicatedCandidates(
             from: allWindows.enumerated().compactMap { index, info in
-                makeCandidate(from: info, orderIndex: index, appsByPID: appsByPID)
+                makeCandidate(
+                    from: info,
+                    orderIndex: index,
+                    appsByPID: appsByPID,
+                    allowedWindowIDsByPID: allowedWindowIDsByPID
+                )
             }
         ).sorted(by: compareCandidates)
 
@@ -315,18 +333,27 @@ final class AppSwitcher: NSObject {
     private func assembleItems(
         from context: BuildContext,
         capturePreviews: Bool,
-        previewFallbacks: [String: NSImage]
+        previewFallbacks: [String: PreviewCacheEntry],
+        allowPreviewlessItems: Bool = false
     ) -> [SwitcherItem] {
         let windowItems: [SwitcherItem] = context.candidates.compactMap { candidate -> SwitcherItem? in
-            let previewKey = candidate.historyIdentity.stableKey
+            let previewKey = candidate.previewCacheKey
             let preview: NSImage?
+            let backdrop: NSImage?
             if capturePreviews {
-                preview = capturePreview(for: candidate) ?? previewFallbacks[previewKey]
+                let assets = capturePreviewAssets(for: candidate)
+                preview = assets?.thumbnail ?? reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
+                backdrop = assets?.backdrop ?? previewFallbacks[previewKey]?.backdropImage ?? preview
             } else {
-                preview = previewFallbacks[previewKey]
+                preview = previewFallbacks[previewKey]?.image
+                backdrop = previewFallbacks[previewKey]?.backdropImage ?? preview
             }
 
-            guard Self.shouldDisplayWindowItem(previewImage: preview, capturePreviews: capturePreviews) else {
+            guard Self.shouldDisplayWindowItem(
+                previewImage: preview,
+                capturePreviews: capturePreviews,
+                allowPreviewlessItems: allowPreviewlessItems
+            ) else {
                 return nil
             }
 
@@ -335,6 +362,8 @@ final class AppSwitcher: NSObject {
                 subtitle: candidate.appName,
                 icon: candidate.appIcon,
                 previewImage: preview,
+                backdropImage: backdrop,
+                previewCacheKey: previewKey,
                 historyIdentity: candidate.historyIdentity,
                 sourceAppIdentifier: candidate.sourceAppIdentifier,
                 kind: .appWindow
@@ -344,6 +373,12 @@ final class AppSwitcher: NSObject {
             }
 
         return windowItems
+    }
+
+    private func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {
+        guard let entry else { return nil }
+        guard Date().timeIntervalSince(entry.capturedAt) <= maximumPhaseTwoFallbackAge else { return nil }
+        return entry.image
     }
 
     static func shouldIncludeFallbackApp(
@@ -358,25 +393,37 @@ final class AppSwitcher: NSObject {
         return seenFallbackAppIdentifiers.insert(sourceAppIdentifier).inserted
     }
 
-    static func shouldDisplayWindowItem(previewImage: NSImage?, capturePreviews: Bool) -> Bool {
-        guard capturePreviews else { return true }
-        return previewImage != nil
+    static func shouldDisplayWindowItem(
+        previewImage: NSImage?,
+        capturePreviews: Bool,
+        allowPreviewlessItems: Bool = false
+    ) -> Bool {
+        if previewImage != nil { return true }
+        return !capturePreviews && allowPreviewlessItems
     }
 
     private func updatePreviewCacheLocked(with items: [SwitcherItem]) {
         for item in items {
-            guard let preview = item.previewImage else { continue }
-            previewCache[item.historyIdentity.stableKey] = preview
+            guard let preview = item.previewImage ?? item.backdropImage else { continue }
+            previewCache[item.previewCacheKey] = PreviewCacheEntry(
+                image: item.previewImage ?? preview,
+                backdropImage: item.backdropImage,
+                capturedAt: Date()
+            )
         }
 
         guard previewCache.count > maxPreviewCacheEntries else { return }
 
-        let activeKeys = Set(items.map { $0.historyIdentity.stableKey })
+        let activeKeys = Set(items.map(\.previewCacheKey))
         previewCache = previewCache.filter { activeKeys.contains($0.key) }
 
         if previewCache.count > maxPreviewCacheEntries {
             let overflow = previewCache.count - maxPreviewCacheEntries
-            for key in previewCache.keys.sorted().prefix(overflow) {
+            let oldestKeys = previewCache
+                .sorted { $0.value.capturedAt < $1.value.capturedAt }
+                .prefix(overflow)
+                .map(\.key)
+            for key in oldestKeys {
                 previewCache.removeValue(forKey: key)
             }
         }
@@ -400,10 +447,17 @@ final class AppSwitcher: NSObject {
     // MARK: - Identity helpers
 
     private func currentFrontmostIdentity(for app: NSRunningApplication) -> SwitcherHistoryIdentity? {
+        let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: [app])
         let onScreenWindows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let visibleCandidates = deduplicatedCandidates(
             from: onScreenWindows.enumerated().compactMap { index, info in
-                makeCandidate(from: info, orderIndex: index, includeBackgroundWindows: false, restrictToPID: app.processIdentifier)
+                makeCandidate(
+                    from: info,
+                    orderIndex: index,
+                    includeBackgroundWindows: false,
+                    restrictToPID: app.processIdentifier,
+                    allowedWindowIDsByPID: allowedWindowIDsByPID
+                )
             }
         ).sorted(by: compareCandidates)
 
@@ -411,7 +465,6 @@ final class AppSwitcher: NSObject {
             if let focusedCandidate = visibleCandidates.first(where: { $0.id == focusedWindowID }) {
                 return focusedCandidate.historyIdentity
             }
-            return .appWindow(pid: app.processIdentifier, windowID: focusedWindowID)
         }
 
         if let candidate = visibleCandidates.first {
@@ -541,22 +594,13 @@ final class AppSwitcher: NSObject {
     /// sheets, system dialogs, and other non-standard window types that should
     /// never be the target of an explicit user focus action.
     private func isStandardWindow(_ axWindow: AXUIElement) -> Bool {
-        var roleRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axWindow, kAXRoleAttribute as CFString, &roleRef) == .success,
-              let role = roleRef as? String, role == (kAXWindowRole as String) else {
-            return false
-        }
-        var subroleRef: CFTypeRef?
-        if AXUIElementCopyAttributeValue(axWindow, kAXSubroleAttribute as CFString, &subroleRef) == .success,
-           let subrole = subroleRef as? String {
-            let valid: Set<String> = [
-                kAXStandardWindowSubrole as String,
-                kAXFloatingWindowSubrole as String,
-                "AXFullScreenWindow"
-            ]
-            return valid.contains(subrole)
-        }
-        return true
+        Self.shouldAllowAXWindow(
+            role: axString(for: axWindow, attribute: kAXRoleAttribute as CFString),
+            subrole: axString(for: axWindow, attribute: kAXSubroleAttribute as CFString),
+            parentRole: parentRole(for: axWindow),
+            isMinimized: axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString),
+            allowFloating: true
+        )
     }
 
     private func scheduleWindowFocusRetry(for candidate: WindowCandidate, attempt: Int) {
@@ -695,7 +739,8 @@ final class AppSwitcher: NSObject {
         orderIndex: Int,
         includeBackgroundWindows: Bool? = nil,
         restrictToPID: pid_t? = nil,
-        appsByPID: [pid_t: NSRunningApplication]? = nil
+        appsByPID: [pid_t: NSRunningApplication]? = nil,
+        allowedWindowIDsByPID: [pid_t: Set<CGWindowID>] = [:]
     ) -> WindowCandidate? {
         guard let ownerPIDNumber = windowInfo[kCGWindowOwnerPID as String] as? NSNumber else { return nil }
         let ownerPID = ownerPIDNumber.int32Value
@@ -727,6 +772,7 @@ final class AppSwitcher: NSObject {
         let title = (windowInfo[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value ?? 0
         guard windowID != 0 else { return nil }
+        guard Self.isAllowedWindowID(windowID, allowedWindowIDs: allowedWindowIDsByPID[ownerPID]) else { return nil }
 
         let isOnScreen = (windowInfo[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
         let allowBackground = includeBackgroundWindows ?? preferences.includeBackgroundWindows
@@ -767,17 +813,95 @@ final class AppSwitcher: NSObject {
         }
     }
 
+    private func switcherDisplayWindowIDsByPID(for apps: [NSRunningApplication]) -> [pid_t: Set<CGWindowID>] {
+        var result: [pid_t: Set<CGWindowID>] = [:]
+        result.reserveCapacity(apps.count)
+        for app in apps {
+            guard let windowIDs = switcherDisplayWindowIDs(for: app) else { continue }
+            result[app.processIdentifier] = windowIDs
+        }
+        return result
+    }
+
+    private func switcherDisplayWindowIDs(for app: NSRunningApplication) -> Set<CGWindowID>? {
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+              let windows = value as? [AXUIElement], !windows.isEmpty else {
+            return nil
+        }
+
+        let ids = windows
+            .filter { isSwitcherDisplayWindow($0) }
+            .compactMap { AXWindowIDLookup.windowID(for: $0) }
+
+        guard !ids.isEmpty else { return nil }
+        return Set(ids)
+    }
+
+    private func isSwitcherDisplayWindow(_ axWindow: AXUIElement) -> Bool {
+        Self.shouldAllowAXWindow(
+            role: axString(for: axWindow, attribute: kAXRoleAttribute as CFString),
+            subrole: axString(for: axWindow, attribute: kAXSubroleAttribute as CFString),
+            parentRole: parentRole(for: axWindow),
+            isMinimized: axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString)
+        )
+    }
+
+    static func isAllowedWindowID(_ windowID: CGWindowID, allowedWindowIDs: Set<CGWindowID>?) -> Bool {
+        guard let allowedWindowIDs else { return true }
+        return allowedWindowIDs.contains(windowID)
+    }
+
+    static func isSwitcherDisplaySubrole(_ subrole: String) -> Bool {
+        let valid: Set<String> = [
+            kAXStandardWindowSubrole as String,
+            "AXFullScreenWindow"
+        ]
+        return valid.contains(subrole)
+    }
+
+    static func shouldAllowAXWindow(
+        role: String?,
+        subrole: String?,
+        parentRole: String?,
+        isMinimized: Bool,
+        allowFloating: Bool = false
+    ) -> Bool {
+        guard role == (kAXWindowRole as String) else { return false }
+        guard !isMinimized else { return false }
+        guard parentRole != (kAXWindowRole as String) else { return false }
+
+        guard let subrole else { return false }
+        if isSwitcherDisplaySubrole(subrole) { return true }
+        if allowFloating && subrole == (kAXFloatingWindowSubrole as String) { return true }
+        return false
+    }
+
     // MARK: - Multi-strategy window capture
 
-    private func capturePreview(for candidate: WindowCandidate) -> NSImage? {
+    private struct PreviewAssets {
+        let thumbnail: NSImage
+        let backdrop: NSImage
+    }
+
+    private func capturePreviewAssets(for candidate: WindowCandidate) -> PreviewAssets? {
+        guard let backdrop = captureBackdropImage(for: candidate) else { return nil }
+        return PreviewAssets(
+            thumbnail: downscaledPreview(backdrop),
+            backdrop: backdrop
+        )
+    }
+
+    private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
         let best: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
 
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return downscaledPreview(img) }
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return downscaledPreview(img) }
-        if let image = SkyLightCapture.captureWindow(candidate.id) { return downscaledPreview(image) }
+        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return img }
+        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return img }
+        if let image = SkyLightCapture.captureWindow(candidate.id) { return image }
 
         let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return downscaledPreview(img) }
+        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
 
         return nil
     }
@@ -849,6 +973,21 @@ final class AppSwitcher: NSObject {
         return value as? String
     }
 
+    private func axBool(for element: AXUIElement, attribute: CFString) -> Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
+              let number = value as? NSNumber else { return false }
+        return number.boolValue
+    }
+
+    private func parentRole(for element: AXUIElement) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &value) == .success,
+              let parent = value else { return nil }
+        let parentElement = unsafeBitCast(parent, to: AXUIElement.self)
+        return axString(for: parentElement, attribute: kAXRoleAttribute as CFString)
+    }
+
     private func axFrame(for element: AXUIElement) -> CGRect? {
         var pv: CFTypeRef?, sv: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &pv) == .success,
@@ -871,6 +1010,29 @@ final class AppSwitcher: NSObject {
     private func sourceAppIdentifier(for app: NSRunningApplication) -> String {
         app.bundleIdentifier ?? "app-\(app.processIdentifier)"
     }
+
+    static func previewCacheKey(
+        for historyIdentity: SwitcherHistoryIdentity,
+        title: String,
+        bounds: CGRect,
+        sourceAppIdentifier: String
+    ) -> String {
+        let normalizedTitle = title
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let normalizedBounds = [
+            Int(bounds.origin.x.rounded()),
+            Int(bounds.origin.y.rounded()),
+            Int(bounds.width.rounded()),
+            Int(bounds.height.rounded())
+        ]
+        return [
+            historyIdentity.stableKey,
+            sourceAppIdentifier.lowercased(),
+            normalizedTitle,
+            normalizedBounds.map(String.init).joined(separator: ",")
+        ].joined(separator: "|")
+    }
 }
 
 // MARK: - Data types
@@ -888,4 +1050,12 @@ private struct WindowCandidate {
 
     var historyIdentity: SwitcherHistoryIdentity { .appWindow(pid: ownerPID, windowID: id) }
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }
+    var previewCacheKey: String {
+        AppSwitcher.previewCacheKey(
+            for: historyIdentity,
+            title: windowTitle,
+            bounds: bounds,
+            sourceAppIdentifier: sourceAppIdentifier
+        )
+    }
 }

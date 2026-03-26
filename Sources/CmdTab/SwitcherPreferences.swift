@@ -8,6 +8,7 @@ final class SwitcherPreferences: ObservableObject {
     private let launchAtLoginKey = "launchAtLogin"
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
     private let enableVibrancyKey = "enableVibrancy"
+    private let showSelectedPreviewBackdropKey = "showSelectedPreviewBackdrop"
     private let switcherStyleKey = "switcherStyle"
 
     @Published var includeBackgroundWindows: Bool {
@@ -29,6 +30,11 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(enableVibrancy, forKey: enableVibrancyKey) }
     }
 
+    /// Show the selected window preview behind the switcher surface.
+    @Published var showSelectedPreviewBackdrop: Bool {
+        didSet { persist(showSelectedPreviewBackdrop, forKey: showSelectedPreviewBackdropKey) }
+    }
+
     /// Which UI presentation style to use for the switcher overlay.
     @Published var switcherStyle: SwitcherStyle {
         didSet { persist(switcherStyle.rawValue, forKey: switcherStyleKey) }
@@ -41,6 +47,7 @@ final class SwitcherPreferences: ObservableObject {
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
         self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 3
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
+        self.showSelectedPreviewBackdrop = defaults.object(forKey: showSelectedPreviewBackdropKey) as? Bool ?? false
         self.switcherStyle = defaults.string(forKey: switcherStyleKey)
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
     }

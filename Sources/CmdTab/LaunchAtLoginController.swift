@@ -22,7 +22,7 @@ final class LaunchAtLoginController {
                 break
             }
         } catch {
-            print("[AltTabMac] Failed to update launch-at-login status: \(error)")
+            print("[CmdTab] Failed to update launch-at-login status: \(error)")
         }
     }
 }

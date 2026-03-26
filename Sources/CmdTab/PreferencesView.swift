@@ -41,7 +41,7 @@ struct PreferencesView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("AltTabMac")
+            Text("CmdTab")
                 .font(.system(size: 30, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
 
@@ -72,14 +72,11 @@ struct PreferencesView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            Toggle(isOn: $preferences.includeBackgroundWindows) {
-                SettingsRowText(
-                    title: "Include background and minimized windows",
-                    subtitle: "Keep hidden windows in the switcher so apps running in the background still appear."
-                )
-            }
-            .toggleStyle(.switch)
-            .tint(.blue)
+            SettingsToggleRow(
+                title: "Include background and minimized windows",
+                subtitle: "Keep hidden windows in the switcher so apps running in the background still appear.",
+                isOn: $preferences.includeBackgroundWindows
+            )
 
             Divider().overlay(Color.white.opacity(0.08))
 
@@ -124,27 +121,29 @@ struct PreferencesView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            Toggle(isOn: $preferences.enableVibrancy) {
-                SettingsRowText(
-                    title: "Liquid Glass (vibrancy)",
-                    subtitle: "Use a more transparent frosted-glass background that lets more of the desktop show through behind the switcher."
-                )
-            }
-            .toggleStyle(.switch)
-            .tint(.blue)
+            SettingsToggleRow(
+                title: "Liquid Glass (vibrancy)",
+                subtitle: "Use a more transparent frosted-glass background that lets more of the desktop show through behind the switcher.",
+                isOn: $preferences.enableVibrancy
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsToggleRow(
+                title: "Show selected window behind the switcher",
+                subtitle: "Project the currently selected app window into the background of the Alt-Tab overlay so you can preview it before switching.",
+                isOn: $preferences.showSelectedPreviewBackdrop
+            )
         }
     }
 
     private var startupSection: some View {
         SettingsCard(title: "Startup", subtitle: "Keep the switcher ready every time you sign in.") {
-            Toggle(isOn: $preferences.launchAtLogin) {
-                SettingsRowText(
-                    title: "Launch AltTabMac at login",
-                    subtitle: "Start automatically when you log in so the switcher is always available."
-                )
-            }
-            .toggleStyle(.switch)
-            .tint(.blue)
+            SettingsToggleRow(
+                title: "Launch CmdTab at login",
+                subtitle: "Start automatically when you log in so the switcher is always available.",
+                isOn: $preferences.launchAtLogin
+            )
         }
     }
 
@@ -163,7 +162,7 @@ struct PreferencesView: View {
     }
 
     private var permissionsSection: some View {
-        SettingsCard(title: "Permissions", subtitle: "AltTabMac depends on Accessibility and Screen Recording.") {
+        SettingsCard(title: "Permissions", subtitle: "CmdTab depends on Accessibility and Screen Recording.") {
             SettingsButtonRow(
                 title: "Open Accessibility Settings",
                 subtitle: "Required for intercepting the global shortcut.",
@@ -255,6 +254,24 @@ private struct SettingsButtonRow: View {
             Spacer()
             Button(buttonTitle, action: action)
                 .buttonStyle(.borderedProminent)
+                .tint(.blue)
+        }
+    }
+}
+
+private struct SettingsToggleRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            SettingsRowText(title: title, subtitle: subtitle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
                 .tint(.blue)
         }
     }

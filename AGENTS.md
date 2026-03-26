@@ -1,4 +1,4 @@
-# AltTabMac Agent Instructions
+# CmdTab Agent Instructions
 
 ## Startup Sequence (required for every session)
 

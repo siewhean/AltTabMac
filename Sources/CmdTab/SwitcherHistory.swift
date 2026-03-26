@@ -49,7 +49,7 @@ enum SwitcherHistoryIdentity: Hashable {
 final class SwitcherHistoryStore {
     static let shared = SwitcherHistoryStore()
 
-    private let queue = DispatchQueue(label: "AltTabMac.SwitcherHistoryStore")
+    private let queue = DispatchQueue(label: "CmdTab.SwitcherHistoryStore")
     private var entries: [SwitcherHistoryIdentity] = []
     private let maxEntries = 256
 

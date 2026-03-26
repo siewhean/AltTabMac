@@ -158,19 +158,56 @@ struct ClassicItemCardView: View {
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
                     .allowsHitTesting(false)
-            } else if let icon = item.icon {
-                Image(nsImage: icon)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: min(96, layout.thumbnailHeight * 0.55),
-                           height: min(96, layout.thumbnailHeight * 0.55))
-                    .shadow(color: .black.opacity(0.4), radius: 8, x: 0, y: 4)
             } else {
-                Image(systemName: "app.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(.white.opacity(0.30))
+                previewPlaceholder
             }
         }
+    }
+
+    private var previewPlaceholder: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color.white.opacity(0.06),
+                    Color.white.opacity(0.025),
+                    Color.black.opacity(0.18)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.18))
+                        .frame(width: 46, height: 10)
+                    Capsule()
+                        .fill(Color.white.opacity(0.12))
+                        .frame(width: 84, height: 10)
+                    Spacer(minLength: 0)
+                }
+
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+                    .frame(height: max(48, layout.thumbnailHeight * 0.42))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    )
+
+                HStack(spacing: 8) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Capsule()
+                            .fill(Color.white.opacity(0.14))
+                            .frame(height: 8)
+                    }
+                }
+            }
+            .padding(14)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+        )
     }
 }

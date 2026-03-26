@@ -27,6 +27,8 @@ struct SwitcherItem: Identifiable {
     let subtitle: String
     let icon: NSImage?
     let previewImage: NSImage?
+    let backdropImage: NSImage?
+    let previewCacheKey: String
     let sourceAppIdentifier: String?
     let historyIdentity: SwitcherHistoryIdentity
     let kind: SwitcherItemKind
@@ -38,6 +40,8 @@ struct SwitcherItem: Identifiable {
         subtitle: String,
         icon: NSImage?,
         previewImage: NSImage?,
+        backdropImage: NSImage? = nil,
+        previewCacheKey: String? = nil,
         historyIdentity: SwitcherHistoryIdentity,
         sourceAppIdentifier: String? = nil,
         kind: SwitcherItemKind = .appWindow,
@@ -50,6 +54,8 @@ struct SwitcherItem: Identifiable {
         self.subtitle = subtitle
         self.icon = icon
         self.previewImage = previewImage
+        self.backdropImage = backdropImage
+        self.previewCacheKey = previewCacheKey ?? historyIdentity.stableKey
         self.sourceAppIdentifier = sourceAppIdentifier
         self.historyIdentity = historyIdentity
         self.kind = kind

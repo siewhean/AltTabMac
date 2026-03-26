@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 import os.log
 
-private let hotkeyLog = OSLog(subsystem: "AltTabMac", category: "HotkeyManager")
+private let hotkeyLog = OSLog(subsystem: "CmdTab", category: "HotkeyManager")
 
 /// Intercepts ⌘Tab and ⌥Tab globally via CGEventTap.
 /// Suppresses the default macOS switcher while the overlay is shown.
@@ -63,7 +63,7 @@ final class HotkeyManager {
             },
             userInfo: selfPtr
         ) else {
-            print("[AltTabMac] ⚠️  Failed to create CGEventTap. Grant Accessibility in System Settings > Privacy.")
+            print("[CmdTab] ⚠️  Failed to create CGEventTap. Grant Accessibility in System Settings > Privacy.")
             return
         }
 
@@ -272,6 +272,8 @@ final class HotkeyManager {
         case .keyDown:
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
             let shift = event.flags.contains(.maskShift)
+            let commandHeld = cmdDown || event.flags.contains(.maskCommand)
+            let optionHeld = optDown || event.flags.contains(.maskAlternate)
             let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
 
             if keyCode == 53 {
@@ -287,7 +289,7 @@ final class HotkeyManager {
 
             // Tab key — both ⌘Tab and ⌥Tab trigger the same app switcher.
             if keyCode == 48 {
-                if cmdDown && !optDown {
+                if commandHeld && !optionHeld {
                     if isAutorepeat && triggerState.hasPendingTrigger && switcher?.isVisible != true {
                         return nil
                     }
@@ -302,7 +304,7 @@ final class HotkeyManager {
                     return nil
                 }
 
-                if optDown && !cmdDown {
+                if optionHeld && !commandHeld {
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(modifier: .option, reverse: shift)
                     }

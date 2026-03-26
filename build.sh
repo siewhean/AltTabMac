@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# build.sh - Build AltTabMac and package as .app bundle
+# build.sh - Build CmdTab and package as .app bundle
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-APP_NAME="AltTabMac"
-SCRATCH="/tmp/AltTabMac_build"
+APP_NAME="CmdTab"
+SCRATCH="/tmp/CmdTab_build"
 BUILD_DIR="$SCRATCH/release"
 APP_BUNDLE="${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
@@ -44,7 +44,7 @@ xattr -cr "${APP_BUNDLE}" 2>/dev/null || true
 #                    network-deny clauses binding at the kernel level.
 # --entitlements     supplies the declared capability boundary for the process.
 # --sign -           ad-hoc identity; replace with a Developer ID for notarization.
-ENTITLEMENTS_FILE="${SCRIPT_DIR}/Resources/AltTabMac.entitlements"
+ENTITLEMENTS_FILE="${SCRIPT_DIR}/Resources/CmdTab.entitlements"
 if [ -f "$ENTITLEMENTS_FILE" ]; then
     codesign --sign - --force --deep --options runtime \
         --entitlements "$ENTITLEMENTS_FILE" \
@@ -61,7 +61,7 @@ echo "To launch:"
 echo "  open \"${APP_BUNDLE}\""
 echo ""
 echo "First-run checklist:"
-echo "  1. System Settings -> Privacy & Security -> Accessibility -> enable AltTabMac"
-echo "  2. System Settings -> Privacy & Security -> Screen Recording -> enable AltTabMac"
+echo "  1. System Settings -> Privacy & Security -> Accessibility -> enable CmdTab"
+echo "  2. System Settings -> Privacy & Security -> Screen Recording -> enable CmdTab"
 echo "  3. Click the Dock icon or menu-bar icon to open the switcher"
 echo "  4. Cmd+Tab or Option+Tab to switch application windows"

@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "AltTabMac",
+    name: "CmdTab",
     platforms: [
         .macOS(.v13)
     ],
     targets: [
         .executableTarget(
-            name: "AltTabMac",
-            path: "Sources/AltTabMac"
+            name: "CmdTab",
+            path: "Sources/CmdTab"
         ),
         .testTarget(
-            name: "AltTabMacTests",
-            dependencies: ["AltTabMac"],
-            path: "Tests/AltTabMacTests"
+            name: "CmdTabTests",
+            dependencies: ["CmdTab"],
+            path: "Tests/CmdTabTests"
         )
     ]
 )
