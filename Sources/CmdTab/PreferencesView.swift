@@ -4,6 +4,7 @@ import AppKit
 struct PreferencesView: View {
     @ObservedObject var preferences: SwitcherPreferences
     let onOpenApplications: () -> Void
+    let onRefreshPreviews: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -21,7 +22,9 @@ struct PreferencesView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         header
-                        quickActionsSection
+                        sessionToolsSection
+                        triggerSection
+                        workflowSection
                         switcherSection
                         appearanceSection
                         startupSection
@@ -52,14 +55,89 @@ struct PreferencesView: View {
         }
     }
 
-    private var quickActionsSection: some View {
-        SettingsCard(title: "Quick Actions", subtitle: "Open the live switcher directly from this control page.") {
-            Button(action: onOpenApplications) {
-                Label("Show Applications", systemImage: "square.stack.3d.up.fill")
-                    .frame(maxWidth: .infinity)
+    private var sessionToolsSection: some View {
+        SettingsCard(title: "Session Tools", subtitle: "Launch the switcher directly from Settings or warm the preview path before the next session.") {
+            HStack(spacing: 12) {
+                Button(action: onOpenApplications) {
+                    Label("Show Applications", systemImage: "square.stack.3d.up.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.blue)
+
+                Button(action: onRefreshPreviews) {
+                    Label("Preload Previews", systemImage: "sparkles.rectangle.stack.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.blue)
+
+            SettingsRowText(
+                title: "Preview Cache Readiness",
+                subtitle: "CmdTab already keeps a warm thumbnail cache in the background. Use preload when you want the next reveal to favor fresh captures immediately and reduce the chance of icon-only fallback frames."
+            )
+        }
+    }
+
+    private var triggerSection: some View {
+        SettingsCard(title: "Triggers", subtitle: "Keep ⌘Tab as the main path and add one optional secondary trigger for one-handed switching.") {
+            SettingsMenuPickerRow(
+                title: "Alternate Trigger",
+                subtitle: "A standalone trigger opens CmdTab without holding Tab. Tap it again while CmdTab is open to advance the selection.",
+                selection: $preferences.alternateTrigger,
+                options: AlternateTriggerMode.allCases.map { ($0, $0.title) }
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            HStack(alignment: .center, spacing: 16) {
+                SettingsRowText(
+                    title: "Current Alternate Trigger",
+                    subtitle: preferences.alternateTrigger.subtitle
+                )
+                Spacer()
+                Text(preferences.alternateTrigger.shortcutLabel)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                    )
+            }
+        }
+    }
+
+    private var workflowSection: some View {
+        SettingsCard(title: "Workflow Layer", subtitle: "These are the behaviors that make CmdTab feel like a premium switcher instead of a prettier app list.") {
+            SettingsRowText(
+                title: "Command Palette Memory",
+                subtitle: "Palette search now learns repeated short queries, matches acronyms, and keeps result ordering stable so the same query lands on the same target more often."
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            VStack(alignment: .leading, spacing: 12) {
+                SettingsRowText(
+                    title: "Selected-Item Quick Actions",
+                    subtitle: "While the switcher is visible, you can act on the highlighted item without switching into it first."
+                )
+
+                QuickActionFeatureGrid(actions: SwitcherQuickAction.allCases)
+
+                Text("Quick actions respond to `⌘ H`, `⌘ M`, `⌘ W`, and `⌘ Q`. In Classic Grid and Radial Menu, the bare `H`, `M`, `W`, and `Q` keys also work when you opened CmdTab from a standalone trigger.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.56))
+            }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsRowText(
+                title: "Selection Clarity",
+                subtitle: "CmdTab keeps the active result obvious across every mode. Radial Menu now pushes the selected item into the center label with a stronger ring and node emphasis."
+            )
         }
     }
 
@@ -68,6 +146,13 @@ struct PreferencesView: View {
             SettingsRowText(
                 title: "Strict separate-window recency",
                 subtitle: "Applications and windows stay in one global MRU list, so repeated apps remain interleaved instead of grouped together."
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsRowText(
+                title: "Display- and Space-Aware Placement",
+                subtitle: "CmdTab can stay focused on the current space, visible spaces, or all spaces, and it can open on the active-window display, cursor display, or every display at once."
             )
 
             Divider().overlay(Color.white.opacity(0.08))
@@ -105,6 +190,13 @@ struct PreferencesView: View {
                 .pickerStyle(.menu)
                 .frame(width: 80)
             }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsRowText(
+                title: "Decluttering Rules",
+                subtitle: "Use app exclusions and ignored title fragments to cut noisy utilities, floating panels, and windows that should never compete for your attention."
+            )
 
             Divider().overlay(Color.white.opacity(0.08))
 
@@ -149,6 +241,13 @@ struct PreferencesView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
+            SettingsRowText(
+                title: "Radial Focus Treatment",
+                subtitle: "Radial Menu is tuned to keep the selected item readable even in dense sets, with a louder selected state and a clearer center readout."
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
             SettingsToggleRow(
                 title: "Liquid Glass (vibrancy)",
                 subtitle: "Use a more transparent frosted-glass background that lets more of the desktop show through behind the switcher.",
@@ -176,10 +275,14 @@ struct PreferencesView: View {
     }
 
     private var shortcutsSection: some View {
-        SettingsCard(title: "Shortcuts", subtitle: "Current control surface.") {
+        SettingsCard(title: "Shortcuts", subtitle: "Current control surface. Quick actions fire while the switcher is visible.") {
             ShortcutRow(shortcut: "⌘ Tab", detail: "Open the primary switcher")
             Divider().overlay(Color.white.opacity(0.08))
             ShortcutRow(shortcut: "⌥ Tab", detail: "Open the same switcher with the alternate modifier")
+            if preferences.alternateTrigger != .disabled {
+                Divider().overlay(Color.white.opacity(0.08))
+                ShortcutRow(shortcut: preferences.alternateTrigger.shortcutLabel, detail: "Optional standalone trigger")
+            }
             Divider().overlay(Color.white.opacity(0.08))
             ShortcutRow(shortcut: "Arrow Keys", detail: "Move through the grid")
             Divider().overlay(Color.white.opacity(0.08))
@@ -190,7 +293,7 @@ struct PreferencesView: View {
             Divider().overlay(Color.white.opacity(0.08))
 
             ForEach(SwitcherQuickAction.allCases, id: \.rawValue) { action in
-                ShortcutRow(shortcut: action.shortcut, detail: action.title)
+                ShortcutRow(shortcut: action.shortcut, detail: "\(action.title) on the selected item")
                 if action != SwitcherQuickAction.allCases.last {
                     Divider().overlay(Color.white.opacity(0.08))
                 }
@@ -430,6 +533,54 @@ private struct ShortcutRow: View {
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundColor(.white.opacity(0.72))
             Spacer()
+        }
+    }
+}
+
+private struct QuickActionFeatureGrid: View {
+    let actions: [SwitcherQuickAction]
+
+    private let columns = [
+        GridItem(.flexible(minimum: 200), spacing: 12),
+        GridItem(.flexible(minimum: 200), spacing: 12),
+    ]
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+            ForEach(actions, id: \.rawValue) { action in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Text(action.shortcut)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color.white.opacity(0.09))
+                            )
+
+                        Text(action.title)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                    }
+
+                    Text(action.subtitle)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.58))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.white.opacity(0.045))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                )
+            }
         }
     }
 }

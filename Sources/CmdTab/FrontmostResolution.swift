@@ -65,6 +65,11 @@ enum FrontmostResolution {
         )
         guard pid != 0 else { return nil }
 
+        let samePIDItems = availableItems.filter { $0.historyIdentity.ownerPID == pid }
+        if samePIDItems.count == 1 {
+            return samePIDItems[0].historyIdentity
+        }
+
         return availableItems.first(where: {
             $0.kind == .appFallback && $0.historyIdentity.ownerPID == pid
         })?.historyIdentity

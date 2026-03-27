@@ -21,13 +21,24 @@ private final class SwitcherPanel: NSPanel {
     /// Backup dismiss handler — fires when Esc arrives via NSApp's event loop
     /// (i.e. when CGEventTap is momentarily disabled and can't suppress the keyDown).
     var onEscapePressed: (() -> Void)?
+    var onKeyEvent: ((NSEvent) -> Bool)?
 
     override func keyDown(with event: NSEvent) {
+        if onKeyEvent?(event) == true {
+            return
+        }
         if event.keyCode == 53 {
             onEscapePressed?()
             return
         }
         super.keyDown(with: event)
+    }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if onKeyEvent?(event) == true {
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
     }
 }
 
@@ -46,6 +57,17 @@ private final class SwitcherMirrorPanel: NSPanel {
 /// Hosts the SwiftUI SwitcherView inside a borderless, non-activating NSPanel.
 /// The panel is pre-created at launch and simply shown/hidden to eliminate latency.
 final class SwitcherWindowController {
+    private let itemMutationAnimation = Animation.spring(response: 0.24, dampingFraction: 0.84)
+    private let quickActionSuppressionInterval: TimeInterval = 1.4
+
+    private struct PendingItemSuppression {
+        let target: SwitcherItemSuppressionTarget
+        let expiresAtUptime: TimeInterval
+
+        func matches(_ item: SwitcherItem) -> Bool {
+            target.matches(item)
+        }
+    }
 
     private var panel: SwitcherPanel!
     private var backdropPanel: SwitcherBackdropPanel!
@@ -56,6 +78,7 @@ final class SwitcherWindowController {
     private let preferences = SwitcherPreferences.shared
     private var session: SwitcherCycleSession?
     private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
+    private var pendingItemSuppressions: [PendingItemSuppression] = []
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -137,11 +160,25 @@ final class SwitcherWindowController {
     func performQuickAction(_ action: SwitcherQuickAction) {
         guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < viewModel.items.count else { return }
         let selectedItem = viewModel.items[viewModel.selectedIndex]
-        appSwitcher.performQuickAction(action, on: selectedItem)
+        let execution = action.execution(for: selectedItem.kind)
+        guard appSwitcher.performQuickAction(action, on: selectedItem) else { return }
+
+        if let suppressionTarget = execution.suppressionTarget(for: selectedItem) {
+            registerPendingSuppression(for: suppressionTarget)
+        }
+
+        if execution.removesSelectedItem,
+           let suppressionTarget = execution.suppressionTarget(for: selectedItem) {
+            animateSuppression(suppressionTarget)
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
             self?.refreshVisibleItemsIfNeeded()
         }
+    }
+
+    func refreshPreviewCache() {
+        appSwitcher.warmCache(force: true)
     }
 
     // MARK: - Command Palette search API (called from HotkeyManager)
@@ -204,6 +241,9 @@ final class SwitcherWindowController {
         panel.onEscapePressed = { [weak self] in
             self?.cancelAndHide()
         }
+        panel.onKeyEvent = { [weak self] event in
+            self?.handlePanelKeyEvent(event) ?? false
+        }
         self.panel = panel
     }
 
@@ -245,6 +285,29 @@ final class SwitcherWindowController {
         // activate a different app.
         onClickCommit?()
         commitCurrentSelection()
+    }
+
+    private func handlePanelKeyEvent(_ event: NSEvent) -> Bool {
+        guard viewModel.isVisible else { return false }
+
+        let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        let commandHeld = modifierFlags.contains(.command)
+        let acceptsBareQuickAction = preferences.switcherStyle != .commandPalette &&
+            !commandHeld &&
+            !modifierFlags.contains(.option) &&
+            !modifierFlags.contains(.control)
+
+        guard let action = SwitcherQuickAction.action(
+            forKeyCode: Int64(event.keyCode),
+            keyEquivalent: event.charactersIgnoringModifiers,
+            commandHeld: commandHeld,
+            acceptsBareShortcut: acceptsBareQuickAction
+        ) else {
+            return false
+        }
+
+        performQuickAction(action)
+        return true
     }
 
     private func makeSession(reverse: Bool) -> SwitcherCycleSession? {
@@ -308,8 +371,9 @@ final class SwitcherWindowController {
 
     private func items() -> [SwitcherItem] {
         let rawItems = appSwitcher.getItems()
-        let currentFrontmost = currentFrontmostIdentity(availableItems: rawItems)
-        return SwitcherOrdering.orderedItems(rawItems, history: history, currentFrontmost: currentFrontmost)
+        let visibleItems = applyingPendingSuppressions(to: rawItems)
+        let currentFrontmost = currentFrontmostIdentity(availableItems: visibleItems)
+        return SwitcherOrdering.orderedItems(visibleItems, history: history, currentFrontmost: currentFrontmost)
     }
 
     private func refreshVisibleItemsIfNeeded() {
@@ -329,48 +393,97 @@ final class SwitcherWindowController {
                 rememberedStableKey: searchMemory.rememberedStableKey(for: viewModel.searchQuery)
             )
             if filteredItems.isEmpty && !viewModel.searchQuery.isEmpty {
-                viewModel.items = []
-                viewModel.selectedIndex = 0
+                withAnimation(itemMutationAnimation) {
+                    viewModel.items = []
+                    viewModel.selectedIndex = 0
+                }
             } else {
                 session.refreshItems(filteredItems)
                 self.session = session
-                syncViewModelFromSession()
+                syncViewModelFromSession(animated: true)
             }
         } else {
             session.refreshItems(refreshedItems)
             self.session = session
-            syncViewModelFromSession()
+            syncViewModelFromSession(animated: true)
         }
 
-        if let screen = presentationScreen(for: preferences.switcherStyle) {
-            let visibleCount = preferences.switcherStyle == .commandPalette
-                ? max(viewModel.items.count, 1)
-                : refreshedItems.count
-            switch preferences.switcherStyle {
-            case .classicGrid:
-                viewModel.layout = SwitcherLayoutMetrics.make(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
-            case .commandPalette:
-                viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
-            case .radialMenu:
-                viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: visibleCount)
-            }
-            if viewModel.isVisible {
-                applyPanelPlacement(on: screen, style: preferences.switcherStyle)
-            }
-        }
+        updateVisibleLayout()
     }
 
-    private func syncViewModelFromSession() {
+    private func syncViewModelFromSession(animated: Bool = false) {
         guard let session else { return }
-        viewModel.mode = session.mode
-        viewModel.items = session.items
-        viewModel.selectedIndex = session.selectedIndex
+        let applyState = {
+            self.viewModel.mode = session.mode
+            self.viewModel.items = session.items
+            self.viewModel.selectedIndex = session.selectedIndex
+        }
+
+        if animated {
+            withAnimation(itemMutationAnimation, applyState)
+        } else {
+            applyState()
+        }
     }
 
     private func syncViewModelSelection() {
         guard let session else { return }
         viewModel.selectedIndex = session.selectedIndex
         viewModel.items = session.items
+    }
+
+    private func animateSuppression(_ suppressionTarget: SwitcherItemSuppressionTarget) {
+        guard var session else { return }
+        guard session.removeItems(where: { suppressionTarget.matches($0) }) else { return }
+
+        if session.items.isEmpty {
+            hidePanel()
+            return
+        }
+
+        self.session = session
+        syncViewModelFromSession(animated: true)
+        updateVisibleLayout()
+        updateBackdropPanelIfNeeded()
+    }
+
+    private func updateVisibleLayout() {
+        guard let screen = presentationScreen(for: preferences.switcherStyle) else { return }
+
+        let visibleCount = max(viewModel.items.count, 1)
+        switch preferences.switcherStyle {
+        case .classicGrid:
+            viewModel.layout = SwitcherLayoutMetrics.make(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
+        case .commandPalette:
+            viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
+        case .radialMenu:
+            viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: visibleCount)
+        }
+
+        if viewModel.isVisible {
+            applyPanelPlacement(on: screen, style: preferences.switcherStyle)
+        }
+    }
+
+    private func registerPendingSuppression(for target: SwitcherItemSuppressionTarget) {
+        let expiresAt = ProcessInfo.processInfo.systemUptime + quickActionSuppressionInterval
+        pendingItemSuppressions.removeAll { $0.target == target }
+        pendingItemSuppressions.append(
+            PendingItemSuppression(target: target, expiresAtUptime: expiresAt)
+        )
+    }
+
+    private func applyingPendingSuppressions(to rawItems: [SwitcherItem]) -> [SwitcherItem] {
+        let now = ProcessInfo.processInfo.systemUptime
+        pendingItemSuppressions = pendingItemSuppressions.filter { suppression in
+            guard now <= suppression.expiresAtUptime else { return false }
+            return rawItems.contains(where: suppression.matches)
+        }
+
+        guard !pendingItemSuppressions.isEmpty else { return rawItems }
+        return rawItems.filter { item in
+            !pendingItemSuppressions.contains(where: { $0.matches(item) })
+        }
     }
 
     /// Determine which identity represents the "currently active" app/window

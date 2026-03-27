@@ -15,13 +15,17 @@ private let hotkeyLog = OSLog(subsystem: "CmdTab", category: "HotkeyManager")
 /// asynchronously to the main queue.
 final class HotkeyManager {
     private weak var switcher: SwitcherWindowController?
+    private let preferences = SwitcherPreferences.shared
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
     private var cmdDown = false
     private var optDown = false
+    private var rightCommandDown = false
+    private var rightOptionDown = false
     private var showUIWorkItem: DispatchWorkItem?
     private var triggerState = HotkeyTriggerState()
+    private var alternateTriggerState = AlternateModifierTriggerState()
     private let currentUptime: () -> TimeInterval
 
     init(
@@ -97,6 +101,19 @@ final class HotkeyManager {
     /// the CGEvent.tap callback returns immediately without blocking.
     private func dispatchToMain(_ work: @escaping () -> Void) {
         DispatchQueue.main.async(execute: work)
+    }
+
+    private func keyEquivalent(for event: CGEvent) -> String? {
+        var charCount: Int = 0
+        var charBuffer = [UniChar](repeating: 0, count: 4)
+        event.keyboardGetUnicodeString(
+            maxStringLength: charBuffer.count,
+            actualStringLength: &charCount,
+            unicodeString: &charBuffer
+        )
+
+        guard charCount > 0 else { return nil }
+        return String(utf16CodeUnits: charBuffer, count: charCount)
     }
 
     private func cancelScheduledReveal() {
@@ -186,6 +203,46 @@ final class HotkeyManager {
         }
     }
 
+    private func activateAlternateTrigger() {
+        guard let switcher else { return }
+        dispatchToMain {
+            if switcher.isVisible {
+                switcher.showOrAdvance(reverse: false)
+            } else {
+                switcher.showStandalone()
+            }
+        }
+    }
+
+    private func handleAlternateModifierFlagsChanged(
+        keyCode: Int64,
+        flags: CGEventFlags,
+        eventTimestamp: CGEventTimestamp
+    ) {
+        guard let physicalKey = PhysicalModifierTriggerKey(flagsChangedKeyCode: keyCode) else { return }
+
+        let isDown: Bool
+        switch physicalKey {
+        case .rightCommand:
+            isDown = !rightCommandDown && flags.contains(.maskCommand)
+            rightCommandDown = isDown
+        case .rightOption:
+            isDown = !rightOptionDown && flags.contains(.maskAlternate)
+            rightOptionDown = isDown
+        }
+
+        let triggerMode = preferences.alternateTrigger
+        let shouldActivate = alternateTriggerState.handleModifierChange(
+            physicalKey,
+            isDown: isDown,
+            mode: triggerMode,
+            now: uptime(for: eventTimestamp)
+        )
+        if shouldActivate {
+            activateAlternateTrigger()
+        }
+    }
+
     private func handleTabTrigger(
         modifier: HotkeyModifier,
         reverse: Bool,
@@ -251,10 +308,20 @@ final class HotkeyManager {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             os_log(.info, log: hotkeyLog, "Event tap re-enabled after system disable (type=%{public}d)", type.rawValue)
+            rightCommandDown = false
+            rightOptionDown = false
+            alternateTriggerState = AlternateModifierTriggerState()
             recoverEventTap()
             return nil
 
         case .flagsChanged:
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            handleAlternateModifierFlagsChanged(
+                keyCode: keyCode,
+                flags: event.flags,
+                eventTimestamp: event.timestamp
+            )
+
             let flags = event.flags
             let wasCmd = cmdDown
             let wasOpt = optDown
@@ -275,6 +342,7 @@ final class HotkeyManager {
             let commandHeld = cmdDown || event.flags.contains(.maskCommand)
             let optionHeld = optDown || event.flags.contains(.maskAlternate)
             let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+            alternateTriggerState.noteInterveningKeyDown(now: uptime(for: event.timestamp))
 
             if keyCode == 53 {
                 let wasPendingOrVisible = triggerState.hasPendingTrigger || switcher?.isVisible == true
@@ -313,23 +381,20 @@ final class HotkeyManager {
             }
 
             if let switcher, switcher.isVisible {
-                if commandHeld {
-                    switch keyCode {
-                    case 4:
-                        dispatchToMain { switcher.performQuickAction(.hideApp) }
-                        return nil
-                    case 12:
-                        dispatchToMain { switcher.performQuickAction(.quitApp) }
-                        return nil
-                    case 13:
-                        dispatchToMain { switcher.performQuickAction(.closeWindow) }
-                        return nil
-                    case 46:
-                        dispatchToMain { switcher.performQuickAction(.minimizeWindow) }
-                        return nil
-                    default:
-                        break
-                    }
+                let controlHeld = event.flags.contains(.maskControl)
+                let acceptsBareQuickAction = switcher.currentStyle != .commandPalette &&
+                    !commandHeld &&
+                    !optionHeld &&
+                    !controlHeld
+
+                if let action = SwitcherQuickAction.action(
+                    forKeyCode: keyCode,
+                    keyEquivalent: keyEquivalent(for: event),
+                    commandHeld: commandHeld,
+                    acceptsBareShortcut: acceptsBareQuickAction
+                ) {
+                    dispatchToMain { switcher.performQuickAction(action) }
+                    return nil
                 }
 
                 switch keyCode {
@@ -405,9 +470,145 @@ enum HotkeyModifier: Hashable {
     }
 }
 
+enum PhysicalModifierTriggerKey: Equatable {
+    case rightCommand
+    case rightOption
+
+    init?(flagsChangedKeyCode: Int64) {
+        switch flagsChangedKeyCode {
+        case 54:
+            self = .rightCommand
+        case 61:
+            self = .rightOption
+        default:
+            return nil
+        }
+    }
+}
+
 enum HotkeyEarlyReleaseAction: Equatable {
     case none
     case quickSwitch
+}
+
+enum AlternateTriggerTapStyle: Equatable {
+    case singleTap
+    case doubleTap
+}
+
+private extension AlternateTriggerMode {
+    var monitoredKey: PhysicalModifierTriggerKey? {
+        switch self {
+        case .disabled:
+            return nil
+        case .rightCommandTap, .rightCommandDoubleTap:
+            return .rightCommand
+        case .rightOptionTap, .rightOptionDoubleTap:
+            return .rightOption
+        }
+    }
+
+    var tapStyle: AlternateTriggerTapStyle? {
+        switch self {
+        case .disabled:
+            return nil
+        case .rightCommandTap, .rightOptionTap:
+            return .singleTap
+        case .rightCommandDoubleTap, .rightOptionDoubleTap:
+            return .doubleTap
+        }
+    }
+}
+
+private struct ActiveAlternateModifierPress: Equatable {
+    let key: PhysicalModifierTriggerKey
+    let pressedAtUptime: TimeInterval
+    var wasInterrupted: Bool
+}
+
+private struct PendingAlternateModifierTap: Equatable {
+    let key: PhysicalModifierTriggerKey
+    let releasedAtUptime: TimeInterval
+}
+
+struct AlternateModifierTriggerState {
+    private var activePress: ActiveAlternateModifierPress?
+    private var pendingDoubleTap: PendingAlternateModifierTap?
+    private let maximumTapDuration: TimeInterval = 0.28
+    private let maximumDoubleTapGap: TimeInterval = 0.40
+
+    mutating func handleModifierChange(
+        _ key: PhysicalModifierTriggerKey,
+        isDown: Bool,
+        mode: AlternateTriggerMode,
+        now: TimeInterval
+    ) -> Bool {
+        pruneExpiredState(now: now)
+
+        guard mode != .disabled,
+              mode.monitoredKey == key,
+              let tapStyle = mode.tapStyle else {
+            if !isDown, activePress?.key == key {
+                activePress = nil
+            }
+            return false
+        }
+
+        if isDown {
+            activePress = ActiveAlternateModifierPress(
+                key: key,
+                pressedAtUptime: now,
+                wasInterrupted: false
+            )
+            return false
+        }
+
+        guard let press = activePress, press.key == key else {
+            return false
+        }
+        activePress = nil
+
+        guard !press.wasInterrupted,
+              now - press.pressedAtUptime <= maximumTapDuration else {
+            pendingDoubleTap = nil
+            return false
+        }
+
+        switch tapStyle {
+        case .singleTap:
+            pendingDoubleTap = nil
+            return true
+
+        case .doubleTap:
+            if let pendingDoubleTap,
+               pendingDoubleTap.key == key,
+               now - pendingDoubleTap.releasedAtUptime <= maximumDoubleTapGap {
+                self.pendingDoubleTap = nil
+                return true
+            }
+
+            pendingDoubleTap = PendingAlternateModifierTap(
+                key: key,
+                releasedAtUptime: now
+            )
+            return false
+        }
+    }
+
+    mutating func noteInterveningKeyDown(now: TimeInterval) {
+        pruneExpiredState(now: now)
+        guard var activePress else { return }
+        activePress.wasInterrupted = true
+        self.activePress = activePress
+        pendingDoubleTap = nil
+    }
+
+    private mutating func pruneExpiredState(now: TimeInterval) {
+        if let pendingDoubleTap,
+           now - pendingDoubleTap.releasedAtUptime > maximumDoubleTapGap {
+            self.pendingDoubleTap = nil
+        }
+    }
 }
 
 struct HotkeyTriggerPolicy: Equatable {

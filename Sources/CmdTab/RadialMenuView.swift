@@ -85,6 +85,7 @@ struct RadialMenuView: View {
                 let centre = canvasSize / 2
 
                 RadialItemView(item: item, isSelected: isSelected, angle: angle)
+                    .transition(.switcherItemMutation)
                     .position(
                         x: centre + cos(angle) * ringRadius,
                         y: centre + sin(angle) * ringRadius
@@ -95,6 +96,7 @@ struct RadialMenuView: View {
             }
         }
         .frame(width: canvasSize, height: canvasSize)
+        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: visibleItems.map(\.id))
     }
 
     /// Distribute items evenly around the ring, starting at the top (12 o'clock).

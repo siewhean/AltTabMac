@@ -20,11 +20,11 @@ type NativeButtonProps = SharedProps & ButtonHTMLAttributes<HTMLButtonElement>;
 
 const variants = {
   primary:
-    "border border-accent/50 bg-accent text-slate-950 shadow-halo hover:bg-cyan hover:border-cyan",
+    "border border-accent/50 bg-accent text-slate-950 shadow-halo hover:-translate-y-0.5 hover:bg-cyan hover:border-cyan",
   secondary:
-    "border border-white/12 bg-white/6 text-text hover:border-white/22 hover:bg-white/10",
+    "border border-white/12 bg-white/6 text-text hover:-translate-y-0.5 hover:border-white/22 hover:bg-white/10",
   ghost:
-    "border border-transparent bg-transparent text-muted hover:text-text",
+    "border border-transparent bg-transparent text-muted hover:-translate-y-0.5 hover:text-text",
 } as const;
 
 const baseClassName =

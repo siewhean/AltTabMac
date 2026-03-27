@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { waitlistContent } from "@/content/waitlist";
 import { analyticsAttributes } from "@/lib/analytics";
@@ -93,7 +94,7 @@ export function WaitlistSection() {
       description={waitlistContent.summary}
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-        <div className="space-y-5">
+        <MotionReveal className="space-y-5" direction="left">
           <p className="max-w-lg text-base leading-8 text-muted">{waitlistContent.note}</p>
           <div className="space-y-4 border-t border-white/8 pt-6">
             {[
@@ -107,9 +108,13 @@ export function WaitlistSection() {
               </div>
             ))}
           </div>
-        </div>
+        </MotionReveal>
 
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
+        <MotionReveal
+          direction="right"
+          delay={120}
+          className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl"
+        >
           {state.kind === "success" ? (
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-success">
@@ -186,9 +191,8 @@ export function WaitlistSection() {
               ) : null}
             </form>
           )}
-        </div>
+        </MotionReveal>
       </div>
     </SectionShell>
   );
 }
-

@@ -12,6 +12,7 @@ final class SwitcherPreferences: ObservableObject {
     private let showSelectedPreviewBackdropKey = "showSelectedPreviewBackdrop"
     private let switcherStyleKey = "switcherStyle"
     private let displayPlacementKey = "displayPlacement"
+    private let alternateTriggerKey = "alternateTrigger"
     private let excludedAppsKey = "excludedAppsText"
     private let ignoredWindowTitlesKey = "ignoredWindowTitlesText"
 
@@ -52,6 +53,11 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(displayPlacement.rawValue, forKey: displayPlacementKey) }
     }
 
+    /// Optional secondary trigger for one-handed or modifier-tap switching.
+    @Published var alternateTrigger: AlternateTriggerMode {
+        didSet { persist(alternateTrigger.rawValue, forKey: alternateTriggerKey) }
+    }
+
     /// Comma or newline-separated app identifiers / names to keep out of the switcher.
     @Published var excludedAppsText: String {
         didSet { persist(excludedAppsText, forKey: excludedAppsKey) }
@@ -77,6 +83,8 @@ final class SwitcherPreferences: ObservableObject {
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
         self.displayPlacement = defaults.string(forKey: displayPlacementKey)
             .flatMap(SwitcherDisplayPreference.init(rawValue:)) ?? .activeWindowDisplay
+        self.alternateTrigger = defaults.string(forKey: alternateTriggerKey)
+            .flatMap(AlternateTriggerMode.init(rawValue:)) ?? .disabled
         self.excludedAppsText = defaults.string(forKey: excludedAppsKey) ?? ""
         self.ignoredWindowTitlesText = defaults.string(forKey: ignoredWindowTitlesKey) ?? ""
     }

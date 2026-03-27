@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +12,13 @@ export function HeroSection() {
   return (
     <section className="relative isolate min-h-[100svh] overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(105,214,255,0.14),transparent_30%),radial-gradient(circle_at_left,rgba(78,161,255,0.18),transparent_32%),linear-gradient(180deg,#05070C_0%,#08101C_44%,#05070C_100%)]" />
-      <div className="absolute inset-0 bg-grid-fade bg-[size:120px_120px] opacity-[0.08]" />
+      <div className="motion-grid-drift absolute inset-0 bg-grid-fade bg-[size:120px_120px] opacity-[0.08]" />
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-[1380px] flex-col px-5 pb-12 pt-5 sm:px-8 lg:px-10">
-        <header className="flex items-center justify-between gap-6 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl">
+        <header
+          className="hero-enter flex items-center justify-between gap-6 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl"
+          style={{ "--enter-delay": "60ms" } as CSSProperties}
+        >
           <a className="inline-flex items-center gap-3" href="/">
             <Image
               src="/brand/cmdtab.png"
@@ -53,7 +57,10 @@ export function HeroSection() {
         </header>
 
         <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:py-20">
-          <div className="max-w-[560px]">
+          <div
+            className="hero-enter max-w-[560px]"
+            style={{ "--enter-delay": "150ms" } as CSSProperties}
+          >
             <Badge tone="success">{heroContent.eyebrow}</Badge>
             <p className="mt-8 text-[clamp(2.75rem,7vw,5.8rem)] font-medium leading-[0.9] tracking-[-0.07em] text-text">
               CmdTab
@@ -89,19 +96,28 @@ export function HeroSection() {
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono">
                 ⌥Tab
               </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono">
+                Right ⌘ ×2
+              </span>
               <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
                 Real window previews
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                Hide · Minimize · Close · Quit
               </span>
             </div>
           </div>
 
-          <div className="relative ml-auto w-full max-w-[820px]">
-            <ScreenshotFrame assetId="heroMaster" className="relative z-10" priority />
+          <div
+            className="hero-enter relative ml-auto w-full max-w-[820px]"
+            style={{ "--enter-delay": "240ms" } as CSSProperties}
+          >
+            <ScreenshotFrame assetId="heroMaster" className="relative z-10 motion-drift-subtle" priority />
             <div className="pointer-events-none absolute -left-6 top-[12%] hidden w-[32%] lg:block">
-              <ScreenshotFrame assetId="commandPalette" className="rotate-[-4deg]" />
+              <ScreenshotFrame assetId="commandPalette" className="motion-drift-slow rotate-[-4deg]" />
             </div>
             <div className="pointer-events-none absolute -bottom-8 right-[-4%] hidden w-[34%] lg:block">
-              <ScreenshotFrame assetId="radialMenu" className="rotate-[5deg]" />
+              <ScreenshotFrame assetId="radialMenu" className="motion-drift-reverse rotate-[5deg]" />
             </div>
           </div>
         </div>
@@ -109,4 +125,3 @@ export function HeroSection() {
     </section>
   );
 }
-

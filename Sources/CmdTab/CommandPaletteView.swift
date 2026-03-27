@@ -96,11 +96,13 @@ struct CommandPaletteView: View {
                             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
                                 PaletteRowView(item: item, isSelected: idx == viewModel.selectedIndex)
                                     .id(idx)
+                                    .transition(.switcherItemMutation)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
                                     }
                             }
                         }
+                        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: viewModel.items.map(\.id))
                     }
                     .onChange(of: viewModel.selectedIndex) { idx in
                         withAnimation(.easeInOut(duration: 0.10)) {

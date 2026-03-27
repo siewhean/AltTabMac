@@ -135,6 +135,35 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2"])
     }
 
+    func testSingleVisibleTileCanUseAppLevelFallbackWhenWindowIdentityChanges() {
+        let pdfGearCurrent = SwitcherHistoryIdentity.appWindow(pid: 707, windowID: 71)
+        let notebookLMCurrent = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 21)
+        let telegramCurrent = SwitcherHistoryIdentity.appWindow(pid: 303, windowID: 31)
+
+        let staleHistoryInActivationOrder = [
+            SwitcherHistoryIdentity.appWindow(pid: 303, windowID: 3001),
+            SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 2001),
+            SwitcherHistoryIdentity.appWindow(pid: 707, windowID: 7001),
+        ]
+
+        let rawItems = [
+            makeItem(title: "Telegram", appID: "ru.keepcoder.Telegram", identity: telegramCurrent),
+            makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: notebookLMCurrent),
+            makeItem(title: "PDFgear", appID: "com.pdfgear.PDFgear", identity: pdfGearCurrent),
+        ]
+
+        let store = SwitcherHistoryStore()
+        staleHistoryInActivationOrder.forEach { store.noteActivation($0) }
+
+        let ordered = SwitcherOrdering.orderedItems(
+            rawItems,
+            history: store,
+            currentFrontmost: pdfGearCurrent
+        )
+
+        XCTAssertEqual(ordered.map(\.title), ["NotebookLM", "Telegram", "PDFgear"])
+    }
+
     /// Simulate Finder → Arc → Finder usage pattern.
     /// History = [Finder, Arc] (same window, deduplicated).
     /// Frontmost = Finder → moved to end.

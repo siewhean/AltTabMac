@@ -71,11 +71,13 @@ struct ClassicGridView: View {
                                         layout: viewModel.layout
                                     )
                                     .id(idx)
+                                    .transition(.switcherItemMutation)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
                                     }
                                 }
                             }
+                            .animation(.spring(response: 0.24, dampingFraction: 0.84), value: viewModel.items.map(\.id))
                             .padding(.horizontal, viewModel.layout.outerPadding)
                             .padding(.vertical, viewModel.layout.outerPadding)
                         }

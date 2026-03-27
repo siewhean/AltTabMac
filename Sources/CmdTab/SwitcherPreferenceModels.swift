@@ -56,11 +56,135 @@ enum SwitcherDisplayPreference: String, CaseIterable {
     }
 }
 
+enum AlternateTriggerMode: String, CaseIterable {
+    case disabled = "disabled"
+    case rightCommandTap = "rightCommandTap"
+    case rightCommandDoubleTap = "rightCommandDoubleTap"
+    case rightOptionTap = "rightOptionTap"
+    case rightOptionDoubleTap = "rightOptionDoubleTap"
+
+    var title: String {
+        switch self {
+        case .disabled:
+            return "Standard Only"
+        case .rightCommandTap:
+            return "Right Command Tap"
+        case .rightCommandDoubleTap:
+            return "Right Command Double Tap"
+        case .rightOptionTap:
+            return "Right Option Tap"
+        case .rightOptionDoubleTap:
+            return "Right Option Double Tap"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .disabled:
+            return "Keep CmdTab on the standard Cmd+Tab and Option+Tab triggers only."
+        case .rightCommandTap:
+            return "Tap the right Command key once to open a standalone CmdTab session."
+        case .rightCommandDoubleTap:
+            return "Double-tap the right Command key to open CmdTab without holding Tab."
+        case .rightOptionTap:
+            return "Tap the right Option key once to open a standalone CmdTab session."
+        case .rightOptionDoubleTap:
+            return "Double-tap the right Option key to open CmdTab without holding Tab."
+        }
+    }
+
+    var shortcutLabel: String {
+        switch self {
+        case .disabled:
+            return "Off"
+        case .rightCommandTap:
+            return "Right ⌘"
+        case .rightCommandDoubleTap:
+            return "Right ⌘ ×2"
+        case .rightOptionTap:
+            return "Right ⌥"
+        case .rightOptionDoubleTap:
+            return "Right ⌥ ×2"
+        }
+    }
+
+    var usesDoubleTap: Bool {
+        switch self {
+        case .rightCommandDoubleTap, .rightOptionDoubleTap:
+            return true
+        case .disabled, .rightCommandTap, .rightOptionTap:
+            return false
+        }
+    }
+}
+
 enum SwitcherQuickAction: String, CaseIterable {
     case hideApp = "hideApp"
     case minimizeWindow = "minimizeWindow"
     case closeWindow = "closeWindow"
     case quitApp = "quitApp"
+
+    static func action(
+        forKeyCode keyCode: Int64,
+        keyEquivalent: String? = nil,
+        commandHeld: Bool,
+        acceptsBareShortcut: Bool
+    ) -> SwitcherQuickAction? {
+        guard commandHeld || acceptsBareShortcut else { return nil }
+
+        if let keyEquivalent,
+           let action = action(forKeyEquivalent: keyEquivalent) {
+            return action
+        }
+
+        switch keyCode {
+        case 4:
+            return .hideApp
+        case 12:
+            return .quitApp
+        case 13:
+            return .closeWindow
+        case 46:
+            return .minimizeWindow
+        default:
+            return nil
+        }
+    }
+
+    static func action(forKeyEquivalent keyEquivalent: String) -> SwitcherQuickAction? {
+        guard let scalar = keyEquivalent
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .first else {
+            return nil
+        }
+
+        switch scalar {
+        case "h":
+            return .hideApp
+        case "m":
+            return .minimizeWindow
+        case "w":
+            return .closeWindow
+        case "q":
+            return .quitApp
+        default:
+            return nil
+        }
+    }
+
+    func execution(for itemKind: SwitcherItemKind) -> SwitcherQuickActionExecution {
+        switch self {
+        case .hideApp:
+            return .hideApp
+        case .minimizeWindow:
+            return .minimizeWindow
+        case .closeWindow:
+            return .closeWindow
+        case .quitApp:
+            return itemKind == .appWindow ? .closeWindow : .terminateApplication
+        }
+    }
 
     var title: String {
         switch self {
@@ -71,7 +195,7 @@ enum SwitcherQuickAction: String, CaseIterable {
         case .closeWindow:
             return "Close Window"
         case .quitApp:
-            return "Quit App"
+            return "Close Window / Quit App"
         }
     }
 
@@ -97,7 +221,57 @@ enum SwitcherQuickAction: String, CaseIterable {
         case .closeWindow:
             return "Close the selected window directly from the switcher."
         case .quitApp:
-            return "Quit the selected app without switching into it first."
+            return "Close the selected window when a window tile is highlighted, or quit the full app when only an app tile is available."
+        }
+    }
+}
+
+enum SwitcherQuickActionExecution: Equatable {
+    case hideApp
+    case minimizeWindow
+    case closeWindow
+    case terminateApplication
+
+    var removesSelectedItem: Bool {
+        switch self {
+        case .closeWindow, .terminateApplication:
+            return true
+        case .hideApp, .minimizeWindow:
+            return false
+        }
+    }
+
+    func suppressionTarget(for item: SwitcherItem) -> SwitcherItemSuppressionTarget? {
+        switch self {
+        case .closeWindow:
+            return .item(id: item.id)
+        case .terminateApplication:
+            return .application(
+                pid: item.historyIdentity.ownerPID,
+                sourceAppIdentifier: item.sourceAppIdentifier
+            )
+        case .hideApp, .minimizeWindow:
+            return nil
+        }
+    }
+}
+
+enum SwitcherItemSuppressionTarget: Equatable {
+    case item(id: String)
+    case application(pid: pid_t?, sourceAppIdentifier: String?)
+
+    func matches(_ item: SwitcherItem) -> Bool {
+        switch self {
+        case let .item(id):
+            return item.id == id
+        case let .application(pid, sourceAppIdentifier):
+            if let pid, item.historyIdentity.ownerPID == pid {
+                return true
+            }
+            if let sourceAppIdentifier, let itemSourceAppIdentifier = item.sourceAppIdentifier {
+                return sourceAppIdentifier.caseInsensitiveCompare(itemSourceAppIdentifier) == .orderedSame
+            }
+            return false
         }
     }
 }

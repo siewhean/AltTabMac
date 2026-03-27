@@ -1,0 +1,144 @@
+import XCTest
+@testable import CmdTab
+
+final class AlternateModifierTriggerStateTests: XCTestCase {
+    func testRightCommandSingleTapActivates() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandTap,
+                now: 10.0
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandTap,
+                now: 10.12
+            )
+        )
+    }
+
+    func testRightCommandDoubleTapRequiresSecondTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                now: 20.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                now: 20.08
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                now: 20.24
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                now: 20.32
+            )
+        )
+    }
+
+    func testLongHoldDoesNotActivateAlternateTrigger() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionTap,
+                now: 30.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: false,
+                mode: .rightOptionTap,
+                now: 30.5
+            )
+        )
+    }
+
+    func testInterveningKeyCancelsPendingTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandTap,
+                now: 40.0
+            )
+        )
+        state.noteInterveningKeyDown(now: 40.05)
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandTap,
+                now: 40.1
+            )
+        )
+    }
+
+    func testExpiredDoubleTapWindowDoesNotActivate() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                now: 50.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: false,
+                mode: .rightOptionDoubleTap,
+                now: 50.1
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                now: 50.8
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: false,
+                mode: .rightOptionDoubleTap,
+                now: 50.9
+            )
+        )
+    }
+}

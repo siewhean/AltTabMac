@@ -85,6 +85,46 @@ struct SwitcherCycleSession {
         syncSelection()
     }
 
+    mutating func removeItem(withID id: String) -> Bool {
+        guard let removalIndex = items.firstIndex(where: { $0.id == id }) else { return false }
+        items.remove(at: removalIndex)
+
+        guard !items.isEmpty else {
+            selectedIndex = 0
+            return true
+        }
+
+        if removalIndex < selectedIndex {
+            selectedIndex -= 1
+        } else if selectedIndex >= items.count {
+            selectedIndex = items.count - 1
+        }
+
+        syncSelection()
+        return true
+    }
+
+    mutating func removeItems(where shouldRemove: (SwitcherItem) -> Bool) -> Bool {
+        let remainingItems = items.filter { !shouldRemove($0) }
+        guard remainingItems.count != items.count else { return false }
+        guard !remainingItems.isEmpty else {
+            items = []
+            selectedIndex = 0
+            return true
+        }
+
+        let previousSelectionID = items[selectedIndex].id
+        items = remainingItems
+        if let persistedIndex = remainingItems.firstIndex(where: { $0.id == previousSelectionID }) {
+            selectedIndex = persistedIndex
+        } else {
+            selectedIndex = min(selectedIndex, remainingItems.count - 1)
+        }
+
+        syncSelection()
+        return true
+    }
+
     func commitSelection() -> SwitcherItem {
         selectedItem
     }

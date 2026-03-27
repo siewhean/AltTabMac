@@ -1,13 +1,14 @@
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
+import { MotionReveal } from "@/components/ui/motion-reveal";
 import { siteConfig } from "@/content/site";
 
 export function FooterSection() {
   return (
     <footer className="border-t border-white/8 px-5 py-10 sm:px-8 lg:px-10">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-4">
+        <MotionReveal className="space-y-4" direction="left">
           <div className="flex items-center gap-3">
             <Image
               src="/brand/cmdtab.png"
@@ -26,16 +27,15 @@ export function FooterSection() {
           <p className="max-w-xl text-sm leading-7 text-subdued">
             Private beta for macOS. The website is waitlist-only today so the product can stay focused on getting the core experience right before public launch.
           </p>
-        </div>
+        </MotionReveal>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
           <Button href="#waitlist">{siteConfig.ctas.primary}</Button>
           <Button href="/privacy" variant="ghost">
             {siteConfig.ctas.tertiary}
           </Button>
-        </div>
+        </MotionReveal>
       </div>
     </footer>
   );
 }
-

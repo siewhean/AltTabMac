@@ -182,6 +182,53 @@ final class SwitcherCycleSessionTests: XCTestCase {
         XCTAssertEqual(session.commitSelection().title, "Finder")
     }
 
+    func testRemovingSelectedItemMovesSelectionToNearestRemainingNeighbor() throws {
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [arc, safari, finder],
+                currentFrontmost: nil,
+                reverse: false,
+                pinsSnapshot: false
+            )
+        )
+
+        session.move(by: 1)
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+
+        XCTAssertTrue(session.removeItem(withID: safari.id))
+        XCTAssertEqual(session.commitSelection().title, "Finder")
+        XCTAssertEqual(session.selectedIndex, 1)
+    }
+
+    func testRemovingApplicationSuppressionDropsAllMatchingTiles() throws {
+        let finderWindowA = makeItem(title: "Finder A", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+        let finderWindowB = makeItem(title: "Finder B", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 12))
+        let safari = makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 303, windowID: 33))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [finderWindowA, safari, finderWindowB],
+                currentFrontmost: nil,
+                reverse: false,
+                pinsSnapshot: false
+            )
+        )
+
+        XCTAssertTrue(
+            session.removeItems { item in
+                item.historyIdentity.ownerPID == 101
+            }
+        )
+        XCTAssertEqual(session.items.map(\.title), ["Safari"])
+        XCTAssertEqual(session.commitSelection().title, "Safari")
+    }
+
     private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
         SwitcherItem(
             title: title,

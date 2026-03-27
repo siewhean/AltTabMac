@@ -22,7 +22,7 @@ final class FrontmostResolutionTests: XCTestCase {
         XCTAssertEqual(identity, arc.historyIdentity)
     }
 
-    func testExpiredOverrideDoesNotGuessBetweenSamePIDWindowsWithoutExactIdentity() {
+    func testExpiredOverrideUsesSingleVisibleTileForSystemFrontmostPID() {
         let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
         let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
         let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
@@ -39,7 +39,7 @@ final class FrontmostResolutionTests: XCTestCase {
             now: 10.5
         )
 
-        XCTAssertNil(identity)
+        XCTAssertEqual(identity, finder.historyIdentity)
     }
 
     func testExactSystemFrontmostIdentityWinsOverSamePIDHistoryFallback() {
@@ -77,6 +77,24 @@ final class FrontmostResolutionTests: XCTestCase {
         )
 
         XCTAssertEqual(identity, fallback.historyIdentity)
+    }
+
+    func testSingleVisibleTileForFrontmostPIDIsUsedWhenExactIdentityCannotBeResolved() {
+        let pdfGear = makeItem(title: "PDFgear", appID: "com.pdfgear.PDFgear", identity: .appWindow(pid: 707, windowID: 71))
+        let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
+        let telegram = makeItem(title: "Telegram", appID: "ru.keepcoder.Telegram", identity: .appWindow(pid: 303, windowID: 31))
+
+        let identity = FrontmostResolution.effectiveIdentity(
+            availableItems: [telegram, notebookLM, pdfGear],
+            historyEntries: [notebookLM.historyIdentity, telegram.historyIdentity, pdfGear.historyIdentity],
+            systemFrontmostIdentity: nil,
+            systemFrontmostPID: 707,
+            observedFrontmostPID: 707,
+            overrideState: nil,
+            now: 20.0
+        )
+
+        XCTAssertEqual(identity, pdfGear.historyIdentity)
     }
 
     private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity, kind: SwitcherItemKind = .appWindow) -> SwitcherItem {

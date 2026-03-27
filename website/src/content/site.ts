@@ -2,13 +2,13 @@ export const siteConfig = {
   name: "CmdTab",
   tagline: "Find the right Mac window in one move.",
   description:
-    "CmdTab is a faster Mac app switcher with real window previews, three visual modes, and a private beta waitlist for the upcoming 14-day trial and one-time license launch.",
+    "CmdTab is a faster Mac app switcher with real window previews, learned search, quick actions, space-aware placement, alternate triggers, and a private beta waitlist for the upcoming 14-day trial and one-time license launch.",
   defaultSiteUrl: "https://cmdtab.app",
   socialImagePath: "/og/cover.png",
   nav: [
     { label: "Modes", href: "#modes" },
     { label: "Walkthrough", href: "#walkthrough" },
-    { label: "Why it feels better", href: "#details" },
+    { label: "Features", href: "#details" },
     { label: "Privacy", href: "/privacy" },
   ],
   ctas: {
@@ -23,6 +23,9 @@ export const siteConfig = {
     "Cmd+Tab alternative",
     "window previews for Mac",
     "app switcher with thumbnails",
+    "Mac window switcher with quick actions",
+    "Mac app switcher with search memory",
+    "display-aware app switcher for Mac",
     "private beta Mac app",
   ],
   contactEmail: "privacy@cmdtab.app",

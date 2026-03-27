@@ -1,5 +1,55 @@
 # Todo
 
+## 2026-03-27 — Website Motion Pass
+
+- [x] Add a lightweight motion primitive for section reveals without introducing a new animation library.
+- [x] Add restrained hero movement and ambient linear drift to the key visuals.
+- [x] Apply reveal/stagger motion across the main website sections with reduced-motion safety.
+- [x] Verify the website still typechecks and builds, then update `README.md` and review notes.
+
+## Website Motion Review
+
+- Added a small `MotionReveal` primitive so sections can fade and translate into place on first scroll entry without pulling in a separate animation dependency.
+- Added CSS-first motion in `globals.css` for hero entrances, grid drift, and subtle linear screenshot movement, with `prefers-reduced-motion` handling baked into the same layer.
+- Applied staged reveal motion across the proof strip, mode cards, walkthrough, feature bands, permissions, FAQ, waitlist, and footer so the page now has visible structure instead of appearing all at once.
+- Added restrained movement to the hero screenshots and CTA surfaces so the first screen feels alive without turning into a noisy marketing animation.
+- `npm run typecheck` passed in `website/`.
+- `npx next build --webpack` passed in `website/`.
+
+## 2026-03-27 — Feature Visibility Pass (Website + Settings)
+
+- [x] Expose every shipped product-differentiation feature clearly in the macOS Settings window.
+- [x] Update the marketing site copy and structure so the same feature set is visible on the website.
+- [x] Verify the Swift package and website builds still pass after the visibility pass.
+- [x] Update `README.md` and record the review notes here.
+
+## Feature Visibility Review
+
+- Renamed the top Settings card from an overloaded quick-actions label to `Session Tools`, and added explicit surfaces for preview warmup, command-palette memory, quick actions, selection clarity, space/display awareness, and decluttering.
+- Added a dedicated workflow layer in Settings so quick actions are visible as first-class capabilities instead of being discoverable only through keyboard shortcuts.
+- Expanded the website copy to explicitly cover preview reliability, learned search, space/display targeting, quick actions, decluttering rules, alternate triggers, and radial selection clarity.
+- Added new website screenshot asset aliases and richer feature-band content so the landing page now presents the shipped differentiators as product features instead of leaving them implicit.
+- `swift test --scratch-path /tmp/CmdTab-test` passed with 67 tests.
+- `npm run typecheck` passed in `website/`.
+- `npx next build --webpack` passed in `website/`.
+
+## 2026-03-27 — CmdTab Trigger Flexibility And Preview Readiness
+
+- [x] Add a persisted alternate-trigger preference for modifier tap / double-tap flows.
+- [x] Extend the hotkey pipeline with a safe state machine for right-side modifier triggers without regressing `⌘Tab`.
+- [x] Expose the alternate trigger and preview warmup controls in Settings (and quick controls where appropriate).
+- [x] Add unit coverage for the new trigger-state behavior.
+- [x] Re-run Swift verification and update `README.md` plus review notes.
+
+## Trigger Flexibility Review
+
+- Added `AlternateTriggerMode` so CmdTab can optionally launch from right-command or right-option tap / double-tap flows while keeping `⌘Tab` and `⌥Tab` unchanged as the primary triggers.
+- Added `AlternateModifierTriggerState` in `HotkeyManager.swift` so standalone modifier taps are only recognized when no other key interrupted the press, which avoids corrupting the existing `⌘Tab` pipeline.
+- Exposed the new trigger setting in both the main Settings window and the menu-bar quick controls.
+- Added a visible `Preload Previews` control in Settings so the preview-speed work is surfaced as a user-facing feature instead of remaining entirely background behavior.
+- Added `AlternateModifierTriggerStateTests.swift` to cover single-tap activation, double-tap activation, long-hold rejection, interruption cancellation, and expired double-tap windows.
+- `swift test --scratch-path /tmp/CmdTab-test` passed with 67 tests.
+
 ## 2026-03-27 — CmdTab Product Differentiation Pass
 
 - [x] Add deterministic command-palette search scoring and persistent query memory.

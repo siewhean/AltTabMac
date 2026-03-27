@@ -1,3 +1,4 @@
+import { MotionReveal } from "@/components/ui/motion-reveal";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
 import { styleVariants } from "@/content/home";
@@ -11,8 +12,9 @@ export function StylesSection() {
       description="Instead of forcing everyone into one mental model, CmdTab lets you choose the interaction style that feels most natural."
     >
       <div className="grid gap-8 xl:grid-cols-3">
-        {styleVariants.map((variant) => (
-          <article key={variant.id} className="space-y-5">
+        {styleVariants.map((variant, index) => (
+          <MotionReveal key={variant.id} delay={index * 90} direction="up">
+            <article className="space-y-5">
             <ScreenshotFrame assetId={variant.screenshotId as never} />
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-4">
@@ -26,10 +28,10 @@ export function StylesSection() {
               <p className="text-base leading-7 text-muted">{variant.summary}</p>
               <p className="text-sm leading-6 text-subdued">{variant.bestFor}</p>
             </div>
-          </article>
+            </article>
+          </MotionReveal>
         ))}
       </div>
     </SectionShell>
   );
 }
-

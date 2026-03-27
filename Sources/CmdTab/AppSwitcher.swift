@@ -161,32 +161,40 @@ final class AppSwitcher: NSObject {
         return cached
     }
 
-    func performQuickAction(_ action: SwitcherQuickAction, on item: SwitcherItem) {
-        switch action {
+    @discardableResult
+    func performQuickAction(_ action: SwitcherQuickAction, on item: SwitcherItem) -> Bool {
+        let execution = action.execution(for: item.kind)
+        let didDispatch: Bool
+
+        switch execution {
         case .hideApp:
-            guard let app = application(for: item) else { return }
+            guard let app = application(for: item) else { return false }
             app.hide()
+            didDispatch = true
 
         case .minimizeWindow:
-            guard let window = windowElement(for: item) else { return }
-            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+            guard let window = windowElement(for: item) else { return false }
+            didDispatch = AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue) == .success
 
         case .closeWindow:
-            guard let window = windowElement(for: item) else { return }
+            guard let window = windowElement(for: item) else { return false }
             var closeButtonValue: CFTypeRef?
             guard AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &closeButtonValue) == .success,
                   let closeButton = closeButtonValue else {
-                return
+                return false
             }
             let closeElement = unsafeBitCast(closeButton, to: AXUIElement.self)
-            AXUIElementPerformAction(closeElement, kAXPressAction as CFString)
+            didDispatch = AXUIElementPerformAction(closeElement, kAXPressAction as CFString) == .success
 
-        case .quitApp:
-            guard let app = application(for: item) else { return }
-            app.terminate()
+        case .terminateApplication:
+            guard let app = application(for: item) else { return false }
+            didDispatch = app.terminate()
         }
 
-        warmCache(force: true)
+        if didDispatch {
+            warmCache(force: true)
+        }
+        return didDispatch
     }
 
     /// Populate a fast provisional cache synchronously when the app is first
@@ -780,20 +788,39 @@ final class AppSwitcher: NSObject {
     }
 
     private func windowElement(for item: SwitcherItem) -> AXUIElement? {
-        guard case let .appWindow(pid, windowID) = item.historyIdentity else { return nil }
-        let axApp = AXUIElementCreateApplication(pid)
+        guard let app = application(for: item) else { return nil }
+
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement] else {
+              let windows = value as? [AXUIElement],
+              !windows.isEmpty else {
             return nil
         }
 
-        if let exactWindow = windows.first(where: { AXWindowIDLookup.windowID(for: $0) == windowID }) {
+        if case let .appWindow(_, windowID) = item.historyIdentity,
+           let exactWindow = windows.first(where: { AXWindowIDLookup.windowID(for: $0) == windowID }) {
             return exactWindow
+        }
+
+        if let focusedWindow = preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString) {
+            return focusedWindow
+        }
+        if let mainWindow = preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString) {
+            return mainWindow
         }
 
         let standardWindow = windows.first(where: { isStandardWindow($0) })
         return standardWindow ?? windows.first
+    }
+
+    private func preferredWindow(for app: AXUIElement, attribute: CFString) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(app, attribute, &value) == .success,
+              let rawWindow = value else {
+            return nil
+        }
+        return unsafeBitCast(rawWindow, to: AXUIElement.self)
     }
 
     private func isFrontmostWindow(_ candidate: WindowCandidate) -> Bool {

@@ -44,6 +44,10 @@ final class MenuBarController {
         displayMenuItem.submenu = displaySubmenu()
         menu.addItem(displayMenuItem)
 
+        let alternateTriggerMenuItem = NSMenuItem(title: "Alternate Trigger", action: nil, keyEquivalent: "")
+        alternateTriggerMenuItem.submenu = alternateTriggerSubmenu()
+        menu.addItem(alternateTriggerMenuItem)
+
         let launchAtLogin = NSMenuItem(
             title: "Launch At Login",
             action: #selector(toggleLaunchAtLogin),
@@ -109,6 +113,24 @@ final class MenuBarController {
         return menu
     }
 
+    private func alternateTriggerSubmenu() -> NSMenu {
+        let menu = NSMenu()
+
+        for trigger in AlternateTriggerMode.allCases {
+            let item = NSMenuItem(
+                title: trigger.title,
+                action: #selector(setAlternateTrigger(_:)),
+                keyEquivalent: ""
+            )
+            item.state = preferences.alternateTrigger == trigger ? .on : .off
+            item.target = self
+            item.representedObject = trigger.rawValue
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
     @objc private func setWindowVisibilityScope(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String,
               let scope = WindowVisibilityScope(rawValue: rawValue) else {
@@ -123,6 +145,14 @@ final class MenuBarController {
             return
         }
         preferences.displayPlacement = displayPreference
+    }
+
+    @objc private func setAlternateTrigger(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let trigger = AlternateTriggerMode(rawValue: rawValue) else {
+            return
+        }
+        preferences.alternateTrigger = trigger
     }
 
     @objc private func toggleLaunchAtLogin() {
@@ -160,6 +190,7 @@ final class MenuBarController {
 
         ⌘ Tab  — Switch between application windows
         ⌥ Tab  — Same switcher, alternate modifier
+        Optional alternate trigger  — Configurable in Settings
         Left click  — Open settings
         Right click  — Open settings and quick controls
 

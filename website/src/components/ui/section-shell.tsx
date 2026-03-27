@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { MotionReveal } from "@/components/ui/motion-reveal";
+
 type SectionShellProps = {
   id?: string;
   eyebrow?: string;
@@ -21,7 +23,7 @@ export function SectionShell({
     <section id={id} className={`relative px-5 py-20 sm:px-8 lg:px-10 ${className}`}>
       <div className="mx-auto max-w-[1200px]">
         {(eyebrow || title || description) && (
-          <div className="mb-10 max-w-3xl">
+          <MotionReveal className="mb-10 max-w-3xl" direction="up">
             {eyebrow ? (
               <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
                 {eyebrow}
@@ -37,11 +39,10 @@ export function SectionShell({
                 {description}
               </p>
             ) : null}
-          </div>
+          </MotionReveal>
         )}
         {children}
       </div>
     </section>
   );
 }
-

@@ -1,3 +1,4 @@
+import { MotionReveal } from "@/components/ui/motion-reveal";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
 import { walkthroughSteps } from "@/content/home";
@@ -11,9 +12,11 @@ export function WalkthroughSection() {
       description="CmdTab keeps the interaction short: invoke it, see what is open, choose the right window, and keep moving."
     >
       <div className="grid gap-10 lg:grid-cols-2">
-        {walkthroughSteps.map((step) => (
-          <article
+        {walkthroughSteps.map((step, index) => (
+          <MotionReveal
             key={step.id}
+            delay={index * 80}
+            direction={index % 2 === 0 ? "left" : "right"}
             className="grid gap-5 border-t border-white/8 pt-6 lg:grid-cols-[92px_minmax(0,1fr)]"
           >
             <div>
@@ -30,10 +33,9 @@ export function WalkthroughSection() {
               </div>
               <ScreenshotFrame assetId={step.screenshotId as never} />
             </div>
-          </article>
+          </MotionReveal>
         ))}
       </div>
     </SectionShell>
   );
 }
-
