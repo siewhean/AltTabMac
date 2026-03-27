@@ -215,6 +215,29 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertEqual(ordered.first?.title, "Finder")
     }
 
+    func testTrimmedWindowCaptureRemovesTransparentBorder() {
+        let cgImage = makeCGImage(width: 6, height: 6) { x, y in
+            let isBorder = x == 0 || y == 0 || x == 5 || y == 5
+            return isBorder ? (255, 255, 255, 0) : (12, 12, 12, 255)
+        }
+
+        let trimmed = AppSwitcher.trimmedWindowCapture(cgImage, alphaThreshold: 20, maxInset: 4)
+        XCTAssertEqual(trimmed.width, 4)
+        XCTAssertEqual(trimmed.height, 4)
+    }
+
+    func testPresentationSafeWindowCaptureCropsTopAndSideFringe() {
+        let cgImage = makeCGImage(width: 1000, height: 700) { _, _ in
+            (32, 32, 32, 255)
+        }
+
+        let prepared = AppSwitcher.presentationSafeWindowCapture(cgImage)
+        XCTAssertLessThan(prepared.width, cgImage.width)
+        XCTAssertLessThan(prepared.height, cgImage.height)
+        XCTAssertEqual(prepared.width, 996)
+        XCTAssertEqual(prepared.height, 697)
+    }
+
     func testFallbackAppsAreDroppedWhenWindowsAlreadyRepresentThatApp() {
         var seen = Set<String>()
 
@@ -509,5 +532,39 @@ final class AppSwitcherActivationTests: XCTestCase {
             sourceAppIdentifier: nil,
             kind: .appWindow
         ) {}
+    }
+
+    private func makeCGImage(
+        width: Int,
+        height: Int,
+        pixel: (Int, Int) -> (UInt8, UInt8, UInt8, UInt8)
+    ) -> CGImage {
+        var bytes = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let (r, g, b, a) = pixel(x, y)
+                let offset = (y * width + x) * 4
+                bytes[offset + 0] = r
+                bytes[offset + 1] = g
+                bytes[offset + 2] = b
+                bytes[offset + 3] = a
+            }
+        }
+
+        let provider = CGDataProvider(data: Data(bytes) as CFData)!
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        return CGImage(
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bitsPerPixel: 32,
+            bytesPerRow: width * 4,
+            space: colorSpace,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil,
+            shouldInterpolate: false,
+            intent: .defaultIntent
+        )!
     }
 }

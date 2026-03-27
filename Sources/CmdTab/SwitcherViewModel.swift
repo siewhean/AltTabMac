@@ -9,6 +9,7 @@ final class SwitcherViewModel: ObservableObject {
     @Published var isVisible: Bool = false
     @Published var layout: SwitcherLayoutMetrics = .empty
     @Published var backdropScreenFrame: CGRect = .zero
+    @Published var backdropVisibleFrame: CGRect = .zero
 
     /// Index of the card currently under the mouse cursor.
     /// Updated by SwiftUI `.onHover` on each card, used by `handleCardClick`

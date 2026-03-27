@@ -65,13 +65,8 @@ enum FrontmostResolution {
         )
         guard pid != 0 else { return nil }
 
-        return availableItems
-            .filter { $0.historyIdentity.ownerPID == pid }
-            .min { lhs, rhs in
-                let lhsRank = historyEntries.firstIndex(of: lhs.historyIdentity) ?? Int.max
-                let rhsRank = historyEntries.firstIndex(of: rhs.historyIdentity) ?? Int.max
-                return lhsRank < rhsRank
-            }?
-            .historyIdentity
+        return availableItems.first(where: {
+            $0.kind == .appFallback && $0.historyIdentity.ownerPID == pid
+        })?.historyIdentity
     }
 }

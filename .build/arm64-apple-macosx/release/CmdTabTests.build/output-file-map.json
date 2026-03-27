@@ -1,0 +1,37 @@
+{
+  "": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/CmdTabTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/CmdTabTests.o",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/master.swiftdeps"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/AppSwitcherActivationTests.swift": {
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/AppSwitcherActivationTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/AppSwitcherActivationTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/AppSwitcherActivationTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/AppSwitcherActivationTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift": {
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/FrontmostResolutionTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/FrontmostResolutionTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/FrontmostResolutionTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/FrontmostResolutionTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift": {
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/HotkeyTriggerStateTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/HotkeyTriggerStateTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/HotkeyTriggerStateTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/HotkeyTriggerStateTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift": {
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherCycleSessionTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherCycleSessionTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherCycleSessionTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherCycleSessionTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift": {
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherOrderingTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherOrderingTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherOrderingTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/release/CmdTabTests.build/SwitcherOrderingTests.dia"
+  }
+}

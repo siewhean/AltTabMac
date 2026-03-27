@@ -253,6 +253,11 @@ final class SwitcherWindowController {
         appSwitcher.onItemsChanged = { [weak self] _ in
             self?.refreshVisibleItemsIfNeeded()
         }
+        appSwitcher.onActivationConfirmed = { [weak self] identity, pid in
+            guard let self else { return }
+            self.activeFrontmostPID = pid
+            self.setFrontmostOverride(identity: identity, pid: pid)
+        }
 
         // Track external app activations (user clicked on a window, Dock click, etc.)
         // so that activeFrontmostPID stays correct even between our own switches.
@@ -296,18 +301,37 @@ final class SwitcherWindowController {
 
         let refreshedItems = items()
         guard !refreshedItems.isEmpty else { return }
-        session.refreshItems(refreshedItems)
-        self.session = session
-        syncViewModelFromSession()
+
+        if preferences.switcherStyle == .commandPalette {
+            let filteredItems = Self.paletteFilteredItems(refreshedItems, query: viewModel.searchQuery)
+            if filteredItems.isEmpty && !viewModel.searchQuery.isEmpty {
+                viewModel.items = []
+                viewModel.selectedIndex = 0
+            } else {
+                session.refreshItems(filteredItems)
+                self.session = session
+                syncViewModelFromSession()
+            }
+        } else {
+            session.refreshItems(refreshedItems)
+            self.session = session
+            syncViewModelFromSession()
+        }
 
         if let screen = presentationScreen(for: preferences.switcherStyle) {
+            let visibleCount = preferences.switcherStyle == .commandPalette
+                ? max(viewModel.items.count, 1)
+                : refreshedItems.count
             switch preferences.switcherStyle {
             case .classicGrid:
-                viewModel.layout = SwitcherLayoutMetrics.make(itemCount: refreshedItems.count, visibleFrame: screen.visibleFrame)
+                viewModel.layout = SwitcherLayoutMetrics.make(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
             case .commandPalette:
-                viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: refreshedItems.count, visibleFrame: screen.visibleFrame)
+                viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
             case .radialMenu:
-                viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: refreshedItems.count)
+                viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: visibleCount)
+            }
+            if viewModel.isVisible {
+                applyPanelPlacement(on: screen, style: preferences.switcherStyle)
             }
         }
     }
@@ -358,36 +382,7 @@ final class SwitcherWindowController {
         let targetScreen = presentationScreen(for: preferences.switcherStyle)
 
         if let screen = targetScreen {
-            let visibleFrame = screen.visibleFrame
-            let style = preferences.switcherStyle
-
-            let layout: SwitcherLayoutMetrics
-            switch style {
-            case .classicGrid:
-                layout = SwitcherLayoutMetrics.make(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
-            case .commandPalette:
-                layout = SwitcherLayoutMetrics.makePalette(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
-            case .radialMenu:
-                layout = SwitcherLayoutMetrics.makeRadial(itemCount: viewModel.items.count)
-            }
-            viewModel.layout = layout
-            panel.setContentSize(NSSize(width: layout.contentWidth, height: layout.contentHeight))
-
-            let ox: CGFloat
-            let oy: CGFloat
-            switch style {
-            case .radialMenu:
-                ox = visibleFrame.midX - layout.contentWidth / 2
-                oy = visibleFrame.midY - layout.contentHeight / 2
-            default:
-                let safeFrame = visibleFrame.insetBy(dx: 18, dy: 18)
-                let proposedX = visibleFrame.midX - layout.contentWidth / 2
-                let proposedY = visibleFrame.midY - layout.contentHeight / 2
-                ox = min(max(proposedX, safeFrame.minX), safeFrame.maxX - layout.contentWidth)
-                oy = min(max(proposedY, safeFrame.minY), safeFrame.maxY - layout.contentHeight)
-            }
-            panel.setFrameOrigin(NSPoint(x: ox, y: oy))
-            updateBackdropFrame(for: screen)
+            applyPanelPlacement(on: screen, style: preferences.switcherStyle)
         } else {
             viewModel.layout = .empty
         }
@@ -422,24 +417,22 @@ final class SwitcherWindowController {
     }
 
     private func presentationScreen(for style: SwitcherStyle) -> NSScreen? {
+        if let activeScreen = activeWindowScreen(for: viewModel.items.isEmpty ? items() : viewModel.items) {
+            return activeScreen
+        }
+
         switch style {
         case .radialMenu:
-            if viewModel.isVisible {
-                return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
-            }
-            return NSScreen.main ?? panel.screen ?? NSScreen.screens.first
+            return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
         case .classicGrid, .commandPalette:
-            let mouseLocation = NSEvent.mouseLocation
-            return NSScreen.screens.first(where: { $0.visibleFrame.contains(mouseLocation) })
-                ?? panel.screen
-                ?? NSScreen.main
-                ?? NSScreen.screens.first
+            return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
         }
     }
 
     private func updateBackdropFrame(for screen: NSScreen) {
         backdropPanel.setFrame(screen.frame, display: false)
         viewModel.backdropScreenFrame = screen.frame
+        viewModel.backdropVisibleFrame = screen.visibleFrame
     }
 
     private func updateBackdropPanelIfNeeded() {
@@ -461,15 +454,7 @@ final class SwitcherWindowController {
     /// Filter `viewModel.items` to rows matching `query`, then reset selection.
     private func updatePaletteFilter(_ query: String) {
         let allItems = items()
-        let filtered: [SwitcherItem]
-        if query.isEmpty {
-            filtered = allItems
-        } else {
-            let q = query.lowercased()
-            filtered = allItems.filter {
-                $0.title.lowercased().contains(q) || $0.subtitle.lowercased().contains(q)
-            }
-        }
+        let filtered = Self.paletteFilteredItems(allItems, query: query)
         viewModel.items = filtered
         viewModel.selectedIndex = 0
         session?.refreshItems(filtered)
@@ -479,12 +464,6 @@ final class SwitcherWindowController {
         guard let selectedItem = session?.commitSelection() else {
             hidePanel()
             return
-        }
-
-        history.noteActivation(selectedItem.historyIdentity)
-
-        if let pid = selectedItem.historyIdentity.ownerPID {
-            setFrontmostOverride(identity: selectedItem.historyIdentity, pid: pid)
         }
 
         hidePanel()
@@ -517,5 +496,81 @@ final class SwitcherWindowController {
                 self.frontmostOverride = nil
             }
         }
+    }
+
+    private func applyPanelPlacement(on screen: NSScreen, style: SwitcherStyle) {
+        let visibleFrame = screen.visibleFrame
+
+        let layout: SwitcherLayoutMetrics
+        switch style {
+        case .classicGrid:
+            layout = SwitcherLayoutMetrics.make(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
+        case .commandPalette:
+            layout = SwitcherLayoutMetrics.makePalette(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
+        case .radialMenu:
+            layout = SwitcherLayoutMetrics.makeRadial(itemCount: viewModel.items.count)
+        }
+
+        viewModel.layout = layout
+        panel.setContentSize(NSSize(width: layout.contentWidth, height: layout.contentHeight))
+
+        let origin: NSPoint
+        switch style {
+        case .radialMenu:
+            origin = NSPoint(
+                x: visibleFrame.midX - layout.contentWidth / 2,
+                y: visibleFrame.midY - layout.contentHeight / 2
+            )
+        case .classicGrid, .commandPalette:
+            let safeFrame = visibleFrame.insetBy(dx: 18, dy: 18)
+            let proposedX = visibleFrame.midX - layout.contentWidth / 2
+            let proposedY = visibleFrame.midY - layout.contentHeight / 2
+            origin = NSPoint(
+                x: min(max(proposedX, safeFrame.minX), safeFrame.maxX - layout.contentWidth),
+                y: min(max(proposedY, safeFrame.minY), safeFrame.maxY - layout.contentHeight)
+            )
+        }
+
+        panel.setFrameOrigin(origin)
+        updateBackdropFrame(for: screen)
+    }
+
+    private func activeWindowScreen(for items: [SwitcherItem]) -> NSScreen? {
+        guard !items.isEmpty else { return nil }
+        let currentFrontmost = currentFrontmostIdentity(availableItems: items)
+        guard let currentFrontmost else { return nil }
+        guard let frame = items.first(where: { $0.historyIdentity == currentFrontmost })?.backdropFrame else {
+            return nil
+        }
+        let center = NSPoint(x: frame.midX, y: frame.midY)
+        return NSScreen.screens.first(where: { $0.frame.contains(center) })
+            ?? NSScreen.screens.first(where: { $0.visibleFrame.intersects(frame) })
+    }
+
+    static func paletteFilteredItems(_ items: [SwitcherItem], query: String) -> [SwitcherItem] {
+        let normalizedQuery = normalizeSearchText(query)
+        guard !normalizedQuery.isEmpty else { return items }
+
+        let queryTokens = normalizedQuery.split(separator: " ").map(String.init)
+        return items.filter { item in
+            let haystack = normalizeSearchText([
+                item.title,
+                item.subtitle,
+                item.sourceAppIdentifier ?? "",
+                item.previewCacheKey
+            ].joined(separator: " "))
+
+            return queryTokens.allSatisfy { haystack.contains($0) }
+        }
+    }
+
+    private static func normalizeSearchText(_ text: String) -> String {
+        let lowered = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        let scalars = lowered.unicodeScalars.map { scalar -> Character in
+            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
+        }
+        return String(scalars)
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
     }
 }

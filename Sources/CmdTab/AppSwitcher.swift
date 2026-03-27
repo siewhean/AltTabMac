@@ -92,8 +92,12 @@ final class AppSwitcher: NSObject {
     private let refreshInterval: TimeInterval = 0.8
     private let maxPreviewCacheEntries = 512
     private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
+    private let activationRetryLimit = 8
+    private let pendingActivationTimeout: TimeInterval = 1.8
+    private let initialWindowFocusDelay: TimeInterval = 0.08
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
+    var onActivationConfirmed: ((SwitcherHistoryIdentity, pid_t) -> Void)?
     private var pendingActivationPIDs = Set<pid_t>()
 
     override init() {
@@ -449,13 +453,13 @@ final class AppSwitcher: NSObject {
 
     private func currentFrontmostIdentity(for app: NSRunningApplication) -> SwitcherHistoryIdentity? {
         let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: [app])
-        let onScreenWindows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let visibleCandidates = deduplicatedCandidates(
-            from: onScreenWindows.enumerated().compactMap { index, info in
+        let windows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        let candidates = deduplicatedCandidates(
+            from: windows.enumerated().compactMap { index, info in
                 makeCandidate(
                     from: info,
                     orderIndex: index,
-                    includeBackgroundWindows: false,
+                    includeBackgroundWindows: true,
                     restrictToPID: app.processIdentifier,
                     allowedWindowIDsByPID: allowedWindowIDsByPID
                 )
@@ -463,15 +467,16 @@ final class AppSwitcher: NSObject {
         ).sorted(by: compareCandidates)
 
         if let focusedWindowID = focusedWindowID(for: app.processIdentifier) {
-            if let focusedCandidate = visibleCandidates.first(where: { $0.id == focusedWindowID }) {
+            if let focusedCandidate = candidates.first(where: { $0.id == focusedWindowID }) {
                 return focusedCandidate.historyIdentity
             }
+            return .appWindow(pid: app.processIdentifier, windowID: focusedWindowID)
         }
 
-        if let candidate = visibleCandidates.first {
+        if candidates.count == 1, let candidate = candidates.first {
             return candidate.historyIdentity
         }
-        return .appFallback(bundleID: sourceAppIdentifier(for: app), pid: app.processIdentifier)
+        return nil
     }
 
     // MARK: - Sorting
@@ -516,8 +521,7 @@ final class AppSwitcher: NSObject {
             raiseWindow(first, ownerPID: app.processIdentifier)
         }
 
-        history.noteActivation(identity)
-        ensureApplicationFrontmost(app, attempt: 0)
+        ensureApplicationFrontmost(app, identity: identity, attempt: 0)
         // warmCache intentionally omitted: the NSWorkspace.didActivateApplication
         // notification fires after app.activate() and already calls warmCache(force: true)
         // via appActivated(_:). Calling it here too queues a redundant rebuild that
@@ -529,9 +533,10 @@ final class AppSwitcher: NSObject {
         markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID)
 
-        history.noteActivation(candidate.historyIdentity)
-        activateApplication(app, activateAllWindows: false)
-        focusBestMatchingWindow(candidate, attempt: 0)
+        activateApplication(app, activateAllWindows: true)
+        DispatchQueue.main.asyncAfter(deadline: .now() + initialWindowFocusDelay) { [weak self] in
+            self?.focusBestMatchingWindow(candidate, attempt: 0)
+        }
         // warmCache intentionally omitted: NSWorkspace.didActivateApplication fires
         // after activate() and already triggers warmCache via appActivated(_:).
         // A second rebuild here races with the AX retry chain, doubling the work
@@ -605,8 +610,8 @@ final class AppSwitcher: NSObject {
     }
 
     private func scheduleWindowFocusRetry(for candidate: WindowCandidate, attempt: Int) {
-        guard attempt < 4 else { return }
-        let delay = 0.04 + Double(attempt) * 0.05
+        guard attempt < activationRetryLimit else { return }
+        let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: attempt + 1)
         }
@@ -626,47 +631,47 @@ final class AppSwitcher: NSObject {
         }
     }
 
-    private func ensureApplicationFrontmost(_ app: NSRunningApplication, attempt: Int) {
+    private func ensureApplicationFrontmost(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity, attempt: Int) {
         guard currentSystemFrontmostPID() != app.processIdentifier else {
-            _ = clearPendingActivation(app.processIdentifier)
+            confirmActivation(identity: identity, pid: app.processIdentifier)
             return
         }
-        guard attempt < 4 else { return }
+        guard attempt < activationRetryLimit else { return }
 
-        let delay = 0.03 + Double(attempt) * 0.05
+        let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard self.currentSystemFrontmostPID() != app.processIdentifier else {
-                _ = self.clearPendingActivation(app.processIdentifier)
+                self.confirmActivation(identity: identity, pid: app.processIdentifier)
                 return
             }
             self.activateApplication(app, activateAllWindows: true)
-            self.ensureApplicationFrontmost(app, attempt: attempt + 1)
+            self.ensureApplicationFrontmost(app, identity: identity, attempt: attempt + 1)
         }
     }
 
     private func ensureWindowFrontmost(_ candidate: WindowCandidate, attempt: Int) {
         guard !isFrontmostWindow(candidate) else {
-            _ = clearPendingActivation(candidate.ownerPID)
+            confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
             return
         }
-        guard attempt < 4,
+        guard attempt < activationRetryLimit,
               let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
 
-        let delay = 0.03 + Double(attempt) * 0.05
+        let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard !self.isFrontmostWindow(candidate) else {
-                _ = self.clearPendingActivation(candidate.ownerPID)
+                self.confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
                 return
             }
-            self.activateApplication(app, activateAllWindows: false)
+            self.activateApplication(app, activateAllWindows: true)
             self.focusBestMatchingWindow(candidate, attempt: attempt + 1)
         }
     }
 
     private func schedulePendingActivationTimeout(for pid: pid_t) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + pendingActivationTimeout) { [weak self] in
             guard let self else { return }
             _ = self.clearPendingActivation(pid)
         }
@@ -679,6 +684,12 @@ final class AppSwitcher: NSObject {
     @discardableResult
     private func clearPendingActivation(_ pid: pid_t) -> Bool {
         pendingActivationPIDs.remove(pid) != nil
+    }
+
+    private func confirmActivation(identity: SwitcherHistoryIdentity, pid: pid_t) {
+        guard clearPendingActivation(pid) else { return }
+        history.noteActivation(identity)
+        onActivationConfirmed?(identity, pid)
     }
 
     private func isFrontmostWindow(_ candidate: WindowCandidate) -> Bool {
@@ -806,7 +817,7 @@ final class AppSwitcher: NSObject {
         var seen = Set<String>()
         return candidates.filter { c in
             let key = [
-                String(c.ownerPID), c.windowTitle.lowercased(),
+                String(c.ownerPID), String(c.id), c.windowTitle.lowercased(),
                 String(Int(c.bounds.origin.x / 12)), String(Int(c.bounds.origin.y / 12)),
                 String(Int(c.bounds.width / 12)), String(Int(c.bounds.height / 12))
             ].joined(separator: "|")
@@ -895,11 +906,16 @@ final class AppSwitcher: NSObject {
     }
 
     private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
-        let best: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
+        let framedBest: CGWindowImageOption = [.bestResolution]
+        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
+        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
 
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return img }
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, best, minW: 80, minH: 60) { return img }
-        if let image = SkyLightCapture.captureWindow(candidate.id) { return image }
+        let croppedBest: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
+        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
+        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
+        if let image = SkyLightCapture.captureWindow(candidate.id) {
+            return trimmedWindowCaptureImage(image)
+        }
 
         let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
         if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
@@ -935,10 +951,121 @@ final class AppSwitcher: NSObject {
 
     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
-        guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption),
-              cgImage.width >= minW, cgImage.height >= minH,
-              !isImageEffectivelyBlank(cgImage) else { return nil }
-        return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+        guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+        let prepared = Self.presentationPreparedWindowCapture(cgImage)
+        guard prepared.width >= minW, prepared.height >= minH,
+              !isImageEffectivelyBlank(prepared) else { return nil }
+        return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
+    }
+
+    private func trimmedWindowCaptureImage(_ image: NSImage) -> NSImage {
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
+        let prepared = Self.presentationPreparedWindowCapture(cgImage)
+        guard prepared.width != cgImage.width || prepared.height != cgImage.height else { return image }
+        return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
+    }
+
+    static func presentationPreparedWindowCapture(_ cgImage: CGImage) -> CGImage {
+        let trimmed = trimmedWindowCapture(cgImage)
+        return presentationSafeWindowCapture(trimmed)
+    }
+
+    static func trimmedWindowCapture(_ cgImage: CGImage, alphaThreshold: UInt8 = 20, maxInset: Int = 48) -> CGImage {
+        guard let dp = cgImage.dataProvider, let data = dp.data else { return cgImage }
+        let ptr = CFDataGetBytePtr(data)!
+        let len = CFDataGetLength(data)
+        let bpp = cgImage.bitsPerPixel / 8
+        guard bpp >= 4 else { return cgImage }
+
+        let width = cgImage.width
+        let height = cgImage.height
+        let bytesPerRow = cgImage.bytesPerRow
+        let insetLimit = max(0, min(maxInset, min(width / 4, height / 4)))
+        guard insetLimit > 0 else { return cgImage }
+
+        func alphaOffset(for base: Int) -> Int {
+            switch cgImage.alphaInfo {
+            case .premultipliedFirst, .first, .noneSkipFirst:
+                return base
+            default:
+                return base + bpp - 1
+            }
+        }
+
+        func rowHasOpaquePixels(_ y: Int) -> Bool {
+            for x in 0..<width {
+                let base = y * bytesPerRow + x * bpp
+                let alphaIndex = alphaOffset(for: base)
+                if alphaIndex >= 0, alphaIndex < len, ptr[alphaIndex] >= alphaThreshold {
+                    return true
+                }
+            }
+            return false
+        }
+
+        func columnHasOpaquePixels(_ x: Int) -> Bool {
+            for y in 0..<height {
+                let base = y * bytesPerRow + x * bpp
+                let alphaIndex = alphaOffset(for: base)
+                if alphaIndex >= 0, alphaIndex < len, ptr[alphaIndex] >= alphaThreshold {
+                    return true
+                }
+            }
+            return false
+        }
+
+        var topInset = 0
+        while topInset < insetLimit && !rowHasOpaquePixels(topInset) {
+            topInset += 1
+        }
+
+        var bottomInset = 0
+        while bottomInset < insetLimit && !rowHasOpaquePixels(height - 1 - bottomInset) {
+            bottomInset += 1
+        }
+
+        var leftInset = 0
+        while leftInset < insetLimit && !columnHasOpaquePixels(leftInset) {
+            leftInset += 1
+        }
+
+        var rightInset = 0
+        while rightInset < insetLimit && !columnHasOpaquePixels(width - 1 - rightInset) {
+            rightInset += 1
+        }
+
+        guard topInset > 0 || bottomInset > 0 || leftInset > 0 || rightInset > 0 else {
+            return cgImage
+        }
+
+        let cropRect = CGRect(
+            x: leftInset,
+            y: bottomInset,
+            width: max(1, width - leftInset - rightInset),
+            height: max(1, height - topInset - bottomInset)
+        )
+
+        return cgImage.cropping(to: cropRect) ?? cgImage
+    }
+
+    static func presentationSafeWindowCapture(_ cgImage: CGImage) -> CGImage {
+        let width = cgImage.width
+        let height = cgImage.height
+        guard width > 40, height > 40 else { return cgImage }
+
+        let sideInset = min(4, max(1, width / 500))
+        let bottomInset = min(3, max(1, height / 700))
+        let topInset = min(8, max(2, height / 280))
+
+        let cropRect = CGRect(
+            x: sideInset,
+            y: bottomInset,
+            width: max(1, width - sideInset * 2),
+            height: max(1, height - topInset - bottomInset)
+        )
+
+        guard cropRect.width < CGFloat(width) || cropRect.height < CGFloat(height) else { return cgImage }
+        return cgImage.cropping(to: cropRect) ?? cgImage
     }
 
     private func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {

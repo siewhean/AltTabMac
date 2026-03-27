@@ -75,39 +75,63 @@ private struct SelectedPreviewBackdrop: View {
     let preview: NSImage
     let windowFrame: CGRect?
     let screenFrame: CGRect
+    let visibleFrame: CGRect
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                Color.black.opacity(0.34)
+                Color.black.opacity(0.16)
 
                 if let windowFrame, screenFrame != .zero {
+                    let targetFrame = promotedBackdropFrame(windowFrame: windowFrame, visibleFrame: visibleFrame) ?? windowFrame
                     ActualWindowBackdrop(
                         preview: preview,
-                        windowFrame: windowFrame,
+                        windowFrame: targetFrame,
                         screenFrame: screenFrame
                     )
                 } else {
-                    Image(nsImage: preview)
-                        .resizable()
-                        .interpolation(.high)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: proxy.size.width, height: proxy.size.height)
+                    fallbackPreview(in: proxy.size)
                 }
-
-                LinearGradient(
-                    colors: [
-                        Color.black.opacity(0.28),
-                        Color.black.opacity(0.18),
-                        Color.black.opacity(0.34)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .allowsHitTesting(false)
+    }
+
+    private func promotedBackdropFrame(windowFrame: CGRect, visibleFrame: CGRect) -> CGRect? {
+        guard visibleFrame != .zero, visibleFrame.width > 0, visibleFrame.height > 0 else { return nil }
+
+        let edgeTolerance: CGFloat = 18
+        let widthRatio = windowFrame.width / visibleFrame.width
+        let heightRatio = windowFrame.height / visibleFrame.height
+
+        let leftGap = abs(windowFrame.minX - visibleFrame.minX)
+        let rightGap = abs(windowFrame.maxX - visibleFrame.maxX)
+        let bottomGap = abs(windowFrame.minY - visibleFrame.minY)
+        let topGap = abs(windowFrame.maxY - visibleFrame.maxY)
+
+        let fillsVisibleDesktop =
+            leftGap <= edgeTolerance &&
+            rightGap <= edgeTolerance &&
+            bottomGap <= edgeTolerance &&
+            topGap <= edgeTolerance &&
+            widthRatio >= 0.97 &&
+            heightRatio >= 0.93
+
+        return fillsVisibleDesktop ? visibleFrame : nil
+    }
+
+    @ViewBuilder
+    private func fallbackPreview(in size: CGSize) -> some View {
+        let imageSize = preview.size
+        let width = min(max(imageSize.width, 0), size.width)
+        let height = min(max(imageSize.height, 0), size.height)
+
+        Image(nsImage: preview)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: width, height: height)
+            .position(x: size.width / 2, y: size.height / 2)
     }
 }
 
@@ -120,33 +144,30 @@ private struct ActualWindowBackdrop: NSViewRepresentable {
         let container = NSView()
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor.clear.cgColor
+        container.layer?.masksToBounds = true
 
-        let imageView = NSImageView()
-        imageView.translatesAutoresizingMaskIntoConstraints = true
-        imageView.imageAlignment = .alignCenter
-        imageView.imageScaling = .scaleAxesIndependently
-        imageView.wantsLayer = true
-        imageView.layer?.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
-        imageView.layer?.shadowOpacity = 1
-        imageView.layer?.shadowRadius = 24
-        imageView.layer?.shadowOffset = CGSize(width: 0, height: -10)
-        container.addSubview(imageView)
-        context.coordinator.imageView = imageView
+        let imageLayer = CALayer()
+        imageLayer.contentsGravity = .resize
+        imageLayer.magnificationFilter = .trilinear
+        imageLayer.minificationFilter = .trilinear
+        imageLayer.backgroundColor = NSColor.black.cgColor
+        imageLayer.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
+        imageLayer.shadowOpacity = 1
+        imageLayer.shadowRadius = 24
+        imageLayer.shadowOffset = CGSize(width: 0, height: -10)
+        imageLayer.masksToBounds = true
+        container.layer?.addSublayer(imageLayer)
+        context.coordinator.imageLayer = imageLayer
         return container
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        guard let imageView = context.coordinator.imageView else { return }
-        imageView.image = preview
-
-        let localFrame = CGRect(
-            x: windowFrame.minX - screenFrame.minX,
-            y: windowFrame.minY - screenFrame.minY,
-            width: windowFrame.width,
-            height: windowFrame.height
-        ).integral
-
-        imageView.frame = localFrame
+        guard let imageLayer = context.coordinator.imageLayer else { return }
+        imageLayer.contents = preview.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        imageLayer.frame = resolvedBackdropFrame(
+            windowFrame: windowFrame,
+            screenFrame: screenFrame
+        )
     }
 
     func makeCoordinator() -> Coordinator {
@@ -154,7 +175,28 @@ private struct ActualWindowBackdrop: NSViewRepresentable {
     }
 
     final class Coordinator {
-        var imageView: NSImageView?
+        var imageLayer: CALayer?
+    }
+
+    private func resolvedBackdropFrame(windowFrame: CGRect, screenFrame: CGRect) -> CGRect {
+        guard screenFrame != .zero else { return windowFrame.integral }
+
+        let screenBounds = CGRect(origin: .zero, size: screenFrame.size)
+        let localFrame = CGRect(
+            x: windowFrame.minX - screenFrame.minX,
+            y: windowFrame.minY - screenFrame.minY,
+            width: windowFrame.width,
+            height: windowFrame.height
+        )
+        let fittedFrame = localFrame.intersection(screenBounds)
+
+        guard !fittedFrame.isNull, !fittedFrame.isEmpty else { return screenBounds }
+        return CGRect(
+            x: floor(fittedFrame.minX),
+            y: floor(fittedFrame.minY),
+            width: ceil(fittedFrame.width),
+            height: ceil(fittedFrame.height)
+        )
     }
 }
 
@@ -169,7 +211,8 @@ struct SwitcherScreenBackdropView: View {
                 SelectedPreviewBackdrop(
                     preview: preview,
                     windowFrame: selectedBackdropFrame,
-                    screenFrame: viewModel.backdropScreenFrame
+                    screenFrame: viewModel.backdropScreenFrame,
+                    visibleFrame: viewModel.backdropVisibleFrame
                 )
                     .ignoresSafeArea()
                     .transition(.opacity)

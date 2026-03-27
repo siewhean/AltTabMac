@@ -45,6 +45,12 @@
 - **Document results** — add a review section to `tasks/todo.md`.
 - **Capture lessons** — update `tasks/lessons.md` after any correction.
 
+### Repo Commands
+- Use SwiftPM for day-to-day verification: `swift build` and `swift test`.
+- Prefer a dedicated scratch path when running tests locally: `swift test --scratch-path /tmp/CmdTab-test`.
+- Use `./build.sh` to package the release `.app` bundle at `CmdTab.app`.
+- Launch the packaged app with `open "CmdTab.app"` for manual validation.
+
 ---
 
 ## Core Principles

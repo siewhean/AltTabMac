@@ -14,20 +14,18 @@ struct ClassicGridView: View {
         ZStack {
             // Panel background — vibrancy (liquid glass) or solid dark
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(0.05))
+                .fill(Color.black.opacity(preferences.enableVibrancy ? 0.45 : 0.0))
                 .background(
                     ZStack {
                         if preferences.enableVibrancy {
-                            // Full-opacity vibrancy so the desktop/content beneath
-                            // bleeds through maximally — the "liquid glass" effect.
                             VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
 
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color.white.opacity(0.08),
-                                            Color.white.opacity(0.03),
+                                            Color.white.opacity(0.06),
+                                            Color.white.opacity(0.02),
                                             Color.white.opacity(0.01)
                                         ],
                                         startPoint: .topLeading,
@@ -161,6 +159,14 @@ struct ClassicItemCardView: View {
             } else {
                 previewPlaceholder
             }
+
+            // Stronger top-edge fade that covers the title-bar zone.
+            LinearGradient(
+                colors: [Color.black.opacity(0.65), Color.clear],
+                startPoint: .top,
+                endPoint: UnitPoint(x: 0.5, y: 0.30)
+            )
+            .allowsHitTesting(false)
         }
     }
 

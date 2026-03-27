@@ -1,11 +1,13 @@
 # CmdTab
 
 Last Updated: 2026-03-27
-Active Task: App-only switcher polish — instant reveal, cold-cache priming, and stale browser-tab metadata cleanup.
+Active Task: CmdTab website launch — standalone Next.js marketing site, private-beta waitlist flow, and screenshot-led product story.
 
 ## Project Summary
 
 CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
+
+The repo now also contains a standalone Next.js marketing site under `website/` for the private beta waitlist and public product story.
 
 ## Current Status
 
@@ -18,6 +20,10 @@ CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It 
 - Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
 - The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
 - Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
+- A standalone `website/` Next.js App Router project now exists for the marketing homepage, privacy page, OG assets, and waitlist API.
+- The website ships a screenshot-led landing page with generated product visuals for Classic Grid, Command Palette, Radial Menu, walkthrough steps, and permissions guidance.
+- The website waitlist flow is implemented as a hardened `POST /api/waitlist` route with strict validation, rate limiting, same-origin checks, honeypot handling, and Resend server-side delivery hooks.
+- Local verification for the website passed with `npm run typecheck` and `npx next build --webpack`.
 
 ## Active Constraints / Non-Negotiables
 
@@ -36,15 +42,26 @@ CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It 
 - Browser tab feature intentionally removed to reduce overhead and eliminate AppleScript latency.
 - Both ⌘Tab and ⌥Tab now trigger the same app switcher (no separate tab mode).
 - Browser-tab Apple Events permissions and messaging should stay removed from the bundle.
+- The marketing site lives in `website/` and stays waitlist-only for private beta; no pricing, checkout, testimonials, or public download flow in v1.
+- The website targets broad Mac users with a premium, screenshot-first presentation and Mac-native system typography instead of a generic SaaS treatment.
+- The waitlist inbox is the source of truth for v1; there is no database dependency for the website launch.
 
 ## Open Issues / Next Steps
 
 - Rebuild and manually validate after each change set.
+- Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
+- Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
 - Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
 - Keep this file current whenever the active task or implementation status changes.
 
 ## Recent Changes Log
 
+- 2026-03-27: Added the standalone marketing site under `website/`.
+  - Scaffolded a Next.js App Router project with a private-beta homepage, privacy page, sitemap, robots, and generated social cards.
+  - Built typed content/config modules plus reusable section/UI components for the hero, mode comparison, walkthrough, feature bands, permissions, FAQ, and footer.
+  - Implemented `POST /api/waitlist` with strict payload validation, same-origin checks, honeypot handling, in-memory duplicate suppression, rate limiting, and Resend integration via env vars.
+  - Added the first website asset pack under `website/public/screenshots/` plus the copied app icon in `website/public/brand/`.
+  - Verified the site with `npm run typecheck` and `npx next build --webpack`; plain Turbopack build panicked in the sandbox while processing PostCSS, so local production verification currently uses the Webpack path.
 - 2026-03-27: Removed the fixed hold-to-show delay from the hotkey path and kept the switcher app-only.
   - `HotkeyTriggerPolicy` reveal delay is now zero for both `⌘Tab` and `⌥Tab`.
   - `scheduleReveal` now executes immediately when the deadline is already due.

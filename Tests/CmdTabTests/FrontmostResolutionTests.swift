@@ -22,7 +22,7 @@ final class FrontmostResolutionTests: XCTestCase {
         XCTAssertEqual(identity, arc.historyIdentity)
     }
 
-    func testExpiredOverrideFallsBackToObservedSystemFrontmost() {
+    func testExpiredOverrideDoesNotGuessBetweenSamePIDWindowsWithoutExactIdentity() {
         let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
         let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
         let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
@@ -39,7 +39,7 @@ final class FrontmostResolutionTests: XCTestCase {
             now: 10.5
         )
 
-        XCTAssertEqual(identity, finder.historyIdentity)
+        XCTAssertNil(identity)
     }
 
     func testExactSystemFrontmostIdentityWinsOverSamePIDHistoryFallback() {
@@ -61,7 +61,25 @@ final class FrontmostResolutionTests: XCTestCase {
         XCTAssertEqual(identity, arc.historyIdentity)
     }
 
-    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
+    func testAppFallbackIsUsedWhenOnlyPidLevelIdentityExists() {
+        let fallback = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appFallback(bundleID: "company.thebrowser.Browser", pid: 202), kind: .appFallback)
+        let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
+        let history = [notebookLM.historyIdentity, fallback.historyIdentity]
+
+        let identity = FrontmostResolution.effectiveIdentity(
+            availableItems: [notebookLM, fallback],
+            historyEntries: history,
+            systemFrontmostIdentity: nil,
+            systemFrontmostPID: 202,
+            observedFrontmostPID: 202,
+            overrideState: nil,
+            now: 12.0
+        )
+
+        XCTAssertEqual(identity, fallback.historyIdentity)
+    }
+
+    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity, kind: SwitcherItemKind = .appWindow) -> SwitcherItem {
         SwitcherItem(
             title: title,
             subtitle: appID,
@@ -69,7 +87,7 @@ final class FrontmostResolutionTests: XCTestCase {
             previewImage: nil,
             historyIdentity: identity,
             sourceAppIdentifier: appID,
-            kind: .appWindow
+            kind: kind
         ) {}
     }
 }
