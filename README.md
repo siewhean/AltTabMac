@@ -41,6 +41,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 - Read this file before planning or coding.
 - Update this file whenever task context, progress, decisions, or blockers change.
+- Do not refactor or redesign working core switcher internals unless the user explicitly asks for it or there is a proven bug with a reproducible case.
+- Treat these paths as protected: hotkey event routing, modifier-release quick switch behavior, MRU/history ordering, frontmost resolution, activation confirmation, quick-action dispatch, and visible-item removal/suppression animations.
+- When touching protected core paths, prefer the smallest possible patch, preserve current behavior by default, and verify with tests plus a rebuilt app.
 - Settings interactions must be safe and avoid crash-prone force unwraps.
 - Early modifier release must still quick-switch cleanly if the overlay has not committed yet.
 - Hidden hotkey handling must remain instant; do not reintroduce fixed hold-to-show latency.
@@ -76,6 +79,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-03-27: Added protected-core guidance for future agents.
+  - `README.md` and `AGENTS.md` now explicitly mark the working switcher core as protected.
+  - Agents should avoid casual refactors in hotkey routing, MRU/history ordering, frontmost resolution, activation confirmation, quick actions, and removal animations unless there is a proven bug or an explicit user request.
 - 2026-03-27: Added the standalone marketing site under `website/`.
   - Scaffolded a Next.js App Router project with a private-beta homepage, privacy page, sitemap, robots, and generated social cards.
   - Built typed content/config modules plus reusable section/UI components for the hero, mode comparison, walkthrough, feature bands, permissions, FAQ, and footer.

@@ -93,8 +93,10 @@ final class AppSwitcher: NSObject {
     private let maxPreviewCacheEntries = 512
     private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
     private let activationRetryLimit = 8
-    private let pendingActivationTimeout: TimeInterval = 1.8
+    private let pendingActivationTimeout: TimeInterval = 4.0
     private let initialWindowFocusDelay: TimeInterval = 0.08
+    private let observedActivationRetryLimit = 3
+    private let observedActivationRetryDelay: TimeInterval = 0.05
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     var onActivationConfirmed: ((SwitcherHistoryIdentity, pid_t) -> Void)?
@@ -131,19 +133,43 @@ final class AppSwitcher: NSObject {
               app.activationPolicy == .regular,
               app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
 
-        if clearPendingActivation(app.processIdentifier) {
+        if pendingActivationPIDs.contains(app.processIdentifier) {
             warmCache(force: true)
             return
         }
 
-        if let identity = currentFrontmostIdentity(for: app) {
-            history.noteActivation(identity)
-        }
+        noteObservedActivation(for: app)
         warmCache(force: true)
     }
 
     @objc private func workspaceChanged() { warmCache(force: true) }
     @objc private func preferencesChanged() { warmCache(force: true) }
+
+    private func noteObservedActivation(for app: NSRunningApplication, attempt: Int = 0) {
+        let delay = observedActivationRetryDelay * Double(attempt + 1)
+        let pid = app.processIdentifier
+        let fallbackIdentity = SwitcherHistoryIdentity.appFallback(
+            bundleID: sourceAppIdentifier(for: app),
+            pid: pid
+        )
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            guard let frontmost = NSWorkspace.shared.frontmostApplication,
+                  frontmost.processIdentifier == pid,
+                  frontmost.activationPolicy == .regular,
+                  frontmost.bundleIdentifier != Bundle.main.bundleIdentifier else {
+                return
+            }
+
+            let identity = self.currentFrontmostIdentity(for: frontmost) ?? fallbackIdentity
+            self.history.noteActivation(identity)
+
+            if case .appFallback = identity, attempt < self.observedActivationRetryLimit {
+                self.noteObservedActivation(for: frontmost, attempt: attempt + 1)
+            }
+        }
+    }
 
     /// Non-blocking. Returns cached items immediately — never waits for a
     /// pending thumbnail capture. Kicks off a background refresh if stale.
@@ -559,6 +585,9 @@ final class AppSwitcher: NSObject {
         if candidates.count == 1, let candidate = candidates.first {
             return candidate.historyIdentity
         }
+        if let bundleID = app.bundleIdentifier {
+            return .appFallback(bundleID: bundleID, pid: app.processIdentifier)
+        }
         return nil
     }
 
@@ -719,7 +748,12 @@ final class AppSwitcher: NSObject {
             confirmActivation(identity: identity, pid: app.processIdentifier)
             return
         }
-        guard attempt < activationRetryLimit else { return }
+        guard attempt < activationRetryLimit else {
+            // Retries exhausted — record the history anyway so recency ordering
+            // stays correct even when the app was slow to become frontmost.
+            confirmActivation(identity: identity, pid: app.processIdentifier)
+            return
+        }
 
         let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
@@ -739,7 +773,14 @@ final class AppSwitcher: NSObject {
             return
         }
         guard attempt < activationRetryLimit,
-              let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
+              let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
+            // Retries exhausted — if the app is at least frontmost, confirm with
+            // whatever identity we have so the history still gets updated.
+            if currentSystemFrontmostPID() == candidate.ownerPID {
+                confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
+            }
+            return
+        }
 
         let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in

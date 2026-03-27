@@ -58,3 +58,5 @@
 - **Simplicity first** — make every change as small as possible; impact minimal code.
 - **No laziness** — find root causes; no temporary fixes; senior-developer standards.
 - **Minimal impact** — changes should only touch what is necessary; avoid introducing new bugs.
+- **Protect working core paths** — do not casually refactor working switcher internals. Treat hotkey routing, modifier-release quick switch, MRU/history ordering, frontmost resolution, activation confirmation, quick actions, and removal animations as protected unless the user explicitly requests a redesign or a reproducible bug requires a targeted fix.
+- **Patch, do not churn** — when changing protected core paths, use the smallest viable fix and keep existing behavior unless the task explicitly calls for behavior change.

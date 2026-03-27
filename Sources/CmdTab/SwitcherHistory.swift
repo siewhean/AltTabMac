@@ -55,7 +55,9 @@ final class SwitcherHistoryStore {
 
     func noteActivation(_ identity: SwitcherHistoryIdentity) {
         queue.sync {
-            entries.removeAll { $0 == identity }
+            entries.removeAll {
+                $0 == identity || Self.isSupersededHistoryEntry($0, by: identity)
+            }
             entries.insert(identity, at: 0)
             if entries.count > maxEntries {
                 entries.removeLast(entries.count - maxEntries)
@@ -77,6 +79,24 @@ final class SwitcherHistoryStore {
 
     func snapshot() -> [SwitcherHistoryIdentity] {
         queue.sync { entries }
+    }
+
+    private static func isSupersededHistoryEntry(
+        _ existing: SwitcherHistoryIdentity,
+        by activated: SwitcherHistoryIdentity
+    ) -> Bool {
+        switch activated {
+        case let .appWindow(pid, _):
+            guard case let .appFallback(_, fallbackPID) = existing else { return false }
+            return fallbackPID == pid
+
+        case let .appFallback(bundleID, pid):
+            guard case let .appFallback(existingBundleID, existingPID) = existing else { return false }
+            if let pid, existingPID == pid {
+                return true
+            }
+            return existingBundleID.caseInsensitiveCompare(bundleID) == .orderedSame
+        }
     }
 }
 
