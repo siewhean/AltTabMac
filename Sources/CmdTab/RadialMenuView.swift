@@ -21,6 +21,11 @@ struct RadialMenuView: View {
         Array(viewModel.items.prefix(Self.maxVisible))
     }
 
+    private var selectedItem: SwitcherItem? {
+        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < visibleItems.count else { return nil }
+        return visibleItems[viewModel.selectedIndex]
+    }
+
     var body: some View {
         ZStack {
             // Subtle circular frosted panel so the background shows through
@@ -52,6 +57,20 @@ struct RadialMenuView: View {
                 Text(viewModel.mode.title)
                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                     .foregroundColor(.white.opacity(0.38))
+                if let selectedItem {
+                    Text(selectedItem.title)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .frame(maxWidth: 190)
+                    if !selectedItem.subtitle.isEmpty {
+                        Text(selectedItem.subtitle)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.48))
+                            .lineLimit(1)
+                            .frame(maxWidth: 190)
+                    }
+                }
                 if viewModel.items.count > Self.maxVisible {
                     Text("+\(viewModel.items.count - Self.maxVisible) more")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
@@ -65,7 +84,7 @@ struct RadialMenuView: View {
                 let isSelected = idx == viewModel.selectedIndex
                 let centre = canvasSize / 2
 
-                RadialItemView(item: item, isSelected: isSelected)
+                RadialItemView(item: item, isSelected: isSelected, angle: angle)
                     .position(
                         x: centre + cos(angle) * ringRadius,
                         y: centre + sin(angle) * ringRadius
@@ -91,12 +110,24 @@ struct RadialMenuView: View {
 private struct RadialItemView: View {
     let item: SwitcherItem
     let isSelected: Bool
+    let angle: Double
 
     private let circleSize: CGFloat = 62
 
     var body: some View {
         VStack(spacing: 5) {
             ZStack {
+                if isSelected {
+                    Circle()
+                        .stroke(Color(red: 0.25, green: 0.57, blue: 1.0).opacity(0.75), lineWidth: 2)
+                        .frame(width: circleSize + 22, height: circleSize + 22)
+                        .overlay(
+                            Circle()
+                                .fill(Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.12))
+                        )
+                        .blur(radius: 0.3)
+                }
+
                 Circle()
                     .fill(isSelected
                           ? Color(red: 0.18, green: 0.38, blue: 0.82).opacity(0.38)
@@ -120,6 +151,14 @@ private struct RadialItemView: View {
                         radius: isSelected ? 60 : 0, x: 0, y: 0
                     )
 
+                if isSelected {
+                    Image(systemName: "arrowtriangle.down.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Color(red: 0.74, green: 0.86, blue: 1.0))
+                        .rotationEffect(.degrees(angle * 180 / .pi + 180))
+                        .offset(y: -(circleSize / 2 + 12))
+                }
+
                 if let icon = item.icon {
                     Image(nsImage: icon)
                         .resizable()
@@ -131,7 +170,7 @@ private struct RadialItemView: View {
                         .foregroundColor(.white.opacity(0.40))
                 }
             }
-            .scaleEffect(isSelected ? 1.12 : 1.0)
+            .scaleEffect(isSelected ? 1.18 : 1.0)
             .animation(.spring(response: 0.18, dampingFraction: 0.72), value: isSelected)
 
             Text(item.title)

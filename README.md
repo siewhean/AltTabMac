@@ -1,7 +1,7 @@
 # CmdTab
 
 Last Updated: 2026-03-27
-Active Task: CmdTab website launch — standalone Next.js marketing site, private-beta waitlist flow, and screenshot-led product story.
+Active Task: CmdTab product differentiation pass — deterministic switching, space/display targeting, decluttering controls, permission trust, and founder-launch positioning.
 
 ## Project Summary
 
@@ -20,10 +20,17 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
 - The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
 - Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
+- Command Palette search now uses deterministic ranking with acronym matching, token matching, and remembered selections for repeated short queries.
+- Switcher preferences now support scoped window visibility (`current space`, `visible spaces`, `all spaces`) plus display targeting (`active window display`, `cursor display`, `all displays`).
+- The switcher now supports inline quick actions on the selected item: hide app, minimize window, close window, and quit app.
+- Preferences now support decluttering rules for excluded apps and ignored window-title patterns.
+- Settings now surface live permission diagnostics for Accessibility, Screen Recording, and secure-input interference.
+- Radial Menu selection emphasis is stronger, with a clearer selected state and center detail label.
 - A standalone `website/` Next.js App Router project now exists for the marketing homepage, privacy page, OG assets, and waitlist API.
 - The website ships a screenshot-led landing page with generated product visuals for Classic Grid, Command Palette, Radial Menu, walkthrough steps, and permissions guidance.
 - The website waitlist flow is implemented as a hardened `POST /api/waitlist` route with strict validation, rate limiting, same-origin checks, honeypot handling, and Resend server-side delivery hooks.
-- Local verification for the website passed with `npm run typecheck` and `npx next build --webpack`.
+- The website copy now positions the launch around a private beta, founder pricing, a planned 14-day trial, and a one-time license rather than a subscription.
+- Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
 
 ## Active Constraints / Non-Negotiables
 
@@ -42,13 +49,19 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Browser tab feature intentionally removed to reduce overhead and eliminate AppleScript latency.
 - Both ⌘Tab and ⌥Tab now trigger the same app switcher (no separate tab mode).
 - Browser-tab Apple Events permissions and messaging should stay removed from the bundle.
-- The marketing site lives in `website/` and stays waitlist-only for private beta; no pricing, checkout, testimonials, or public download flow in v1.
+- The product should optimize for the fastest path to the correct window, not expand into a broad launcher or browser-tab automation tool.
+- The marketing site lives in `website/` and stays waitlist-only for private beta; there is still no checkout, testimonials, or public download flow in v1.
 - The website targets broad Mac users with a premium, screenshot-first presentation and Mac-native system typography instead of a generic SaaS treatment.
 - The waitlist inbox is the source of truth for v1; there is no database dependency for the website launch.
+- The commercial direction is `14-day free trial -> one-time perpetual license`, with founder pricing communicated in copy before any live commerce flow exists.
 
 ## Open Issues / Next Steps
 
 - Rebuild and manually validate after each change set.
+- Manually validate the new space/display placement behavior on single-display and multi-display setups, especially mirrored overlay behavior for `All Displays`.
+- Manually validate quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`) while the switcher is visible to confirm AX close/minimize behavior across common apps.
+- Decide whether trigger-flexibility work (right-command / modifier tap / mouse button / gesture triggers) should be a follow-up implementation or remain deferred.
+- Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
 - Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
 - Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
@@ -62,6 +75,15 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
   - Implemented `POST /api/waitlist` with strict payload validation, same-origin checks, honeypot handling, in-memory duplicate suppression, rate limiting, and Resend integration via env vars.
   - Added the first website asset pack under `website/public/screenshots/` plus the copied app icon in `website/public/brand/`.
   - Verified the site with `npm run typecheck` and `npx next build --webpack`; plain Turbopack build panicked in the sandbox while processing PostCSS, so local production verification currently uses the Webpack path.
+- 2026-03-27: Applied the product differentiation pass from the launch strategy.
+  - Added deterministic Command Palette ranking with acronym matching, token scoring, and query memory via `PaletteSearch.swift` and `SearchMemoryStore.swift`.
+  - Added scoped window visibility and display placement preferences, including passive mirrored overlay panels for `All Displays`.
+  - Added quick actions on the selected switcher item and wired keyboard shortcuts while the switcher is visible: `⌘H`, `⌘M`, `⌘W`, `⌘Q`.
+  - Added decluttering controls for excluded apps and ignored window-title patterns, plus a shared exclusion matcher model.
+  - Added live permission diagnostics in Settings for Accessibility, Screen Recording, and secure-input status.
+  - Increased Radial Menu selection clarity with stronger emphasis, a clearer selected node treatment, and richer center labeling.
+  - Updated website copy to support the planned founder-price / one-time-license launch story without adding checkout or trial delivery yet.
+  - Verified the app with `swift test --scratch-path /tmp/CmdTab-test` and added coverage for palette search memory and exclusion matching.
 - 2026-03-27: Removed the fixed hold-to-show delay from the hotkey path and kept the switcher app-only.
   - `HotkeyTriggerPolicy` reveal delay is now zero for both `⌘Tab` and `⌥Tab`.
   - `scheduleReveal` now executes immediately when the deadline is already due.

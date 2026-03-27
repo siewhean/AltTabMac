@@ -72,10 +72,20 @@ struct PreferencesView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            SettingsToggleRow(
-                title: "Include background and minimized windows",
-                subtitle: "Keep hidden windows in the switcher so apps running in the background still appear.",
-                isOn: $preferences.includeBackgroundWindows
+            SettingsMenuPickerRow(
+                title: "Window Visibility",
+                subtitle: "Choose whether CmdTab focuses on the current space, visible spaces, or every space.",
+                selection: $preferences.windowVisibilityScope,
+                options: WindowVisibilityScope.allCases.map { ($0, $0.title) }
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsMenuPickerRow(
+                title: "Display Target",
+                subtitle: "Choose where the switcher should appear when multiple displays are connected.",
+                selection: $preferences.displayPlacement,
+                options: SwitcherDisplayPreference.allCases.map { ($0, $0.title) }
             )
 
             Divider().overlay(Color.white.opacity(0.08))
@@ -95,6 +105,24 @@ struct PreferencesView: View {
                 .pickerStyle(.menu)
                 .frame(width: 80)
             }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsTextEditorRow(
+                title: "Exclude Apps",
+                subtitle: "Comma or newline-separated bundle IDs or app names to hide from CmdTab.",
+                text: $preferences.excludedAppsText,
+                placeholder: "com.apple.finder\nMusic"
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsTextEditorRow(
+                title: "Ignore Window Titles",
+                subtitle: "Comma or newline-separated title fragments used to drop utility windows and noisy panels.",
+                text: $preferences.ignoredWindowTitlesText,
+                placeholder: "Picture in Picture\nColor Picker"
+            )
         }
     }
 
@@ -158,11 +186,31 @@ struct PreferencesView: View {
             ShortcutRow(shortcut: "Return", detail: "Activate the selected item")
             Divider().overlay(Color.white.opacity(0.08))
             ShortcutRow(shortcut: "Esc", detail: "Cancel the current switcher session")
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            ForEach(SwitcherQuickAction.allCases, id: \.rawValue) { action in
+                ShortcutRow(shortcut: action.shortcut, detail: action.title)
+                if action != SwitcherQuickAction.allCases.last {
+                    Divider().overlay(Color.white.opacity(0.08))
+                }
+            }
         }
     }
 
     private var permissionsSection: some View {
         SettingsCard(title: "Permissions", subtitle: "CmdTab depends on Accessibility and Screen Recording.") {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(PermissionDiagnostics.allStatuses().enumerated()), id: \.offset) { index, status in
+                    PermissionStatusRow(status: status)
+                    if index != PermissionDiagnostics.allStatuses().count - 1 {
+                        Divider().overlay(Color.white.opacity(0.08))
+                    }
+                }
+            }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
             SettingsButtonRow(
                 title: "Open Accessibility Settings",
                 subtitle: "Required for intercepting the global shortcut.",
@@ -259,6 +307,66 @@ private struct SettingsButtonRow: View {
     }
 }
 
+private struct SettingsMenuPickerRow<Value: Hashable>: View {
+    let title: String
+    let subtitle: String
+    @Binding var selection: Value
+    let options: [(Value, String)]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            SettingsRowText(title: title, subtitle: subtitle)
+            Spacer()
+            Picker("", selection: $selection) {
+                ForEach(options, id: \.1) { option in
+                    Text(option.1).tag(option.0)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 170)
+        }
+    }
+}
+
+private struct SettingsTextEditorRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var text: String
+    let placeholder: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SettingsRowText(title: title, subtitle: subtitle)
+
+            ZStack(alignment: .topLeading) {
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(placeholder)
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.24))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                }
+
+                TextEditor(text: $text)
+                    .font(.system(size: 12.5, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white)
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+                    .frame(minHeight: 88)
+                    .background(Color.clear)
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.045))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            )
+        }
+    }
+}
+
 private struct SettingsToggleRow: View {
     let title: String
     let subtitle: String
@@ -323,6 +431,47 @@ private struct ShortcutRow: View {
                 .foregroundColor(.white.opacity(0.72))
             Spacer()
         }
+    }
+}
+
+private struct PermissionStatusRow: View {
+    let status: PermissionStatusDescriptor
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            SettingsRowText(title: status.name, subtitle: status.detail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            StatusBadge(title: status.state.title, state: status.state)
+        }
+    }
+}
+
+private struct StatusBadge: View {
+    let title: String
+    let state: PermissionHealthState
+
+    private var fillColor: Color {
+        switch state {
+        case .ready:
+            return Color(red: 0.14, green: 0.44, blue: 0.30)
+        case .warning:
+            return Color(red: 0.52, green: 0.35, blue: 0.08)
+        case .blocked:
+            return Color(red: 0.58, green: 0.19, blue: 0.18)
+        }
+    }
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .foregroundColor(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(fillColor.opacity(0.92))
+            )
     }
 }
 

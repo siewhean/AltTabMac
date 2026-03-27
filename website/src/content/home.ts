@@ -2,7 +2,7 @@ export const heroContent = {
   eyebrow: "Private beta for macOS",
   title: "Find the right Mac window in one move.",
   summary:
-    "CmdTab gives you instant app switching, real window previews, and three visual modes so you can move faster without guessing.",
+    "CmdTab gives you instant app switching, real window previews, and three visual modes so you can move faster without guessing. Waitlist members get first access to the 14-day trial and founder pricing.",
   status: "Built for people who keep too many apps and windows open.",
 };
 
@@ -11,6 +11,7 @@ export const proofPoints = [
   "Real window previews before you commit.",
   "Classic Grid, Command Palette, and Radial Menu.",
   "Launch at login and stay ready all day.",
+  "Waitlist members get first access to the trial and founder launch price.",
 ];
 
 export const styleVariants = [
@@ -113,7 +114,7 @@ export const faqItems = [
   {
     question: "Do I need to pay to try it?",
     answer:
-      "Not yet. A free trial and paid license are planned for a future release, but the beta site only collects interest today.",
+      "Not during the private beta. The public launch is planned as a 14-day free trial, with founder pricing at US$14.99 for early adopters and a standard one-time license at US$24.99 after launch.",
   },
   {
     question: "Why does CmdTab need Accessibility and Screen Recording permissions?",
@@ -129,5 +130,9 @@ export const faqItems = [
     answer:
       "Anyone who uses a Mac and wants a faster, clearer way to switch apps and windows without relying on guesswork.",
   },
+  {
+    question: "Will CmdTab be a subscription?",
+    answer:
+      "No. CmdTab is being positioned as a direct-sold Mac utility with a one-time license, not a recurring subscription.",
+  },
 ];
-

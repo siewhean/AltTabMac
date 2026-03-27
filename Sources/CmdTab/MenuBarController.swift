@@ -36,14 +36,13 @@ final class MenuBarController {
     func updateMenu() {
         let menu = NSMenu()
 
-        let showBackgroundWindows = NSMenuItem(
-            title: "Include Background Windows",
-            action: #selector(toggleBackgroundWindows),
-            keyEquivalent: ""
-        )
-        showBackgroundWindows.state = preferences.includeBackgroundWindows ? .on : .off
-        showBackgroundWindows.target = self
-        menu.addItem(showBackgroundWindows)
+        let visibilityMenuItem = NSMenuItem(title: "Window Visibility", action: nil, keyEquivalent: "")
+        visibilityMenuItem.submenu = visibilitySubmenu()
+        menu.addItem(visibilityMenuItem)
+
+        let displayMenuItem = NSMenuItem(title: "Display Target", action: nil, keyEquivalent: "")
+        displayMenuItem.submenu = displaySubmenu()
+        menu.addItem(displayMenuItem)
 
         let launchAtLogin = NSMenuItem(
             title: "Launch At Login",
@@ -74,8 +73,56 @@ final class MenuBarController {
         self.statusItem.menu = nil
     }
 
-    @objc private func toggleBackgroundWindows() {
-        preferences.includeBackgroundWindows.toggle()
+    private func visibilitySubmenu() -> NSMenu {
+        let menu = NSMenu()
+
+        for scope in WindowVisibilityScope.allCases {
+            let item = NSMenuItem(
+                title: scope.title,
+                action: #selector(setWindowVisibilityScope(_:)),
+                keyEquivalent: ""
+            )
+            item.state = preferences.windowVisibilityScope == scope ? .on : .off
+            item.target = self
+            item.representedObject = scope.rawValue
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    private func displaySubmenu() -> NSMenu {
+        let menu = NSMenu()
+
+        for displayPreference in SwitcherDisplayPreference.allCases {
+            let item = NSMenuItem(
+                title: displayPreference.title,
+                action: #selector(setDisplayPreference(_:)),
+                keyEquivalent: ""
+            )
+            item.state = preferences.displayPlacement == displayPreference ? .on : .off
+            item.target = self
+            item.representedObject = displayPreference.rawValue
+            menu.addItem(item)
+        }
+
+        return menu
+    }
+
+    @objc private func setWindowVisibilityScope(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let scope = WindowVisibilityScope(rawValue: rawValue) else {
+            return
+        }
+        preferences.windowVisibilityScope = scope
+    }
+
+    @objc private func setDisplayPreference(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String,
+              let displayPreference = SwitcherDisplayPreference(rawValue: rawValue) else {
+            return
+        }
+        preferences.displayPlacement = displayPreference
     }
 
     @objc private func toggleLaunchAtLogin() {

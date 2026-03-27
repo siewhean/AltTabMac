@@ -5,14 +5,21 @@ final class SwitcherPreferences: ObservableObject {
     static let didChangeNotification = Notification.Name("SwitcherPreferences.didChange")
 
     private let includeBackgroundWindowsKey = "includeBackgroundWindows"
+    private let windowVisibilityScopeKey = "windowVisibilityScope"
     private let launchAtLoginKey = "launchAtLogin"
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
     private let enableVibrancyKey = "enableVibrancy"
     private let showSelectedPreviewBackdropKey = "showSelectedPreviewBackdrop"
     private let switcherStyleKey = "switcherStyle"
+    private let displayPlacementKey = "displayPlacement"
+    private let excludedAppsKey = "excludedAppsText"
+    private let ignoredWindowTitlesKey = "ignoredWindowTitlesText"
 
-    @Published var includeBackgroundWindows: Bool {
-        didSet { persist(includeBackgroundWindows, forKey: includeBackgroundWindowsKey) }
+    @Published var windowVisibilityScope: WindowVisibilityScope {
+        didSet {
+            persist(windowVisibilityScope.rawValue, forKey: windowVisibilityScopeKey)
+            persist(windowVisibilityScope == .allSpaces, forKey: includeBackgroundWindowsKey)
+        }
     }
 
     @Published var launchAtLogin: Bool {
@@ -40,20 +47,62 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(switcherStyle.rawValue, forKey: switcherStyleKey) }
     }
 
+    /// Which display the switcher should appear on.
+    @Published var displayPlacement: SwitcherDisplayPreference {
+        didSet { persist(displayPlacement.rawValue, forKey: displayPlacementKey) }
+    }
+
+    /// Comma or newline-separated app identifiers / names to keep out of the switcher.
+    @Published var excludedAppsText: String {
+        didSet { persist(excludedAppsText, forKey: excludedAppsKey) }
+    }
+
+    /// Comma or newline-separated title fragments used to declutter utility windows.
+    @Published var ignoredWindowTitlesText: String {
+        didSet { persist(ignoredWindowTitlesText, forKey: ignoredWindowTitlesKey) }
+    }
+
     private init() {
         let defaults = UserDefaults.standard
+        let legacyIncludeBackgroundWindows = defaults.object(forKey: includeBackgroundWindowsKey) as? Bool ?? true
 
-        self.includeBackgroundWindows = defaults.object(forKey: includeBackgroundWindowsKey) as? Bool ?? true
+        self.windowVisibilityScope = defaults.string(forKey: windowVisibilityScopeKey)
+            .flatMap(WindowVisibilityScope.init(rawValue:))
+            ?? (legacyIncludeBackgroundWindows ? .allSpaces : .visibleSpaces)
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
         self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 3
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
         self.showSelectedPreviewBackdrop = defaults.object(forKey: showSelectedPreviewBackdropKey) as? Bool ?? false
         self.switcherStyle = defaults.string(forKey: switcherStyleKey)
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
+        self.displayPlacement = defaults.string(forKey: displayPlacementKey)
+            .flatMap(SwitcherDisplayPreference.init(rawValue:)) ?? .activeWindowDisplay
+        self.excludedAppsText = defaults.string(forKey: excludedAppsKey) ?? ""
+        self.ignoredWindowTitlesText = defaults.string(forKey: ignoredWindowTitlesKey) ?? ""
     }
 
     private func persist(_ value: Any, forKey key: String) {
         UserDefaults.standard.set(value, forKey: key)
         NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+    }
+
+    var excludedAppEntries: [String] {
+        WindowExclusionRules.normalizedEntries(from: excludedAppsText)
+    }
+
+    var ignoredWindowTitleEntries: [String] {
+        WindowExclusionRules.normalizedEntries(from: ignoredWindowTitlesText)
+    }
+
+    func excludesApp(identifier: String, appName: String) -> Bool {
+        WindowExclusionRules.matchesApp(
+            identifier: identifier,
+            appName: appName,
+            entries: excludedAppEntries
+        )
+    }
+
+    func excludesWindowTitle(_ title: String) -> Bool {
+        WindowExclusionRules.matchesWindowTitle(title, entries: ignoredWindowTitleEntries)
     }
 }

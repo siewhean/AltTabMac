@@ -36,6 +36,11 @@ private final class SwitcherBackdropPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+private final class SwitcherMirrorPanel: NSPanel {
+    override var canBecomeKey: Bool  { false }
+    override var canBecomeMain: Bool { false }
+}
+
 // MARK: - SwitcherWindowController
 
 /// Hosts the SwiftUI SwitcherView inside a borderless, non-activating NSPanel.
@@ -47,8 +52,10 @@ final class SwitcherWindowController {
     private let viewModel = SwitcherViewModel()
     private let appSwitcher = AppSwitcher()
     private let history = SwitcherHistoryStore.shared
+    private let searchMemory = SearchMemoryStore.shared
     private let preferences = SwitcherPreferences.shared
     private var session: SwitcherCycleSession?
+    private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -125,6 +132,16 @@ final class SwitcherWindowController {
     /// Escape → hide without activating.
     func cancelAndHide() {
         hidePanel()
+    }
+
+    func performQuickAction(_ action: SwitcherQuickAction) {
+        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < viewModel.items.count else { return }
+        let selectedItem = viewModel.items[viewModel.selectedIndex]
+        appSwitcher.performQuickAction(action, on: selectedItem)
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            self?.refreshVisibleItemsIfNeeded()
+        }
     }
 
     // MARK: - Command Palette search API (called from HotkeyManager)
@@ -300,10 +317,17 @@ final class SwitcherWindowController {
         guard !session.pinsSnapshot else { return }
 
         let refreshedItems = items()
-        guard !refreshedItems.isEmpty else { return }
+        guard !refreshedItems.isEmpty else {
+            hidePanel()
+            return
+        }
 
         if preferences.switcherStyle == .commandPalette {
-            let filteredItems = Self.paletteFilteredItems(refreshedItems, query: viewModel.searchQuery)
+            let filteredItems = Self.paletteFilteredItems(
+                refreshedItems,
+                query: viewModel.searchQuery,
+                rememberedStableKey: searchMemory.rememberedStableKey(for: viewModel.searchQuery)
+            )
             if filteredItems.isEmpty && !viewModel.searchQuery.isEmpty {
                 viewModel.items = []
                 viewModel.selectedIndex = 0
@@ -388,6 +412,7 @@ final class SwitcherWindowController {
         }
 
         updateBackdropPanelIfNeeded()
+        updateMirroredPanelsIfNeeded(primaryScreen: targetScreen, style: preferences.switcherStyle)
         panel.alphaValue = 1
 
         if makeKey {
@@ -404,6 +429,7 @@ final class SwitcherWindowController {
         panel.alphaValue = 0
         panel.orderOut(nil)
         backdropPanel.orderOut(nil)
+        tearDownMirroredPanels()
         resetSessionState()
     }
 
@@ -417,15 +443,16 @@ final class SwitcherWindowController {
     }
 
     private func presentationScreen(for style: SwitcherStyle) -> NSScreen? {
-        if let activeScreen = activeWindowScreen(for: viewModel.items.isEmpty ? items() : viewModel.items) {
-            return activeScreen
-        }
+        let activeScreen = activeWindowScreen(for: viewModel.items.isEmpty ? items() : viewModel.items)
+        let cursorScreen = cursorScreen()
 
-        switch style {
-        case .radialMenu:
-            return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
-        case .classicGrid, .commandPalette:
-            return panel.screen ?? NSScreen.main ?? NSScreen.screens.first
+        switch preferences.displayPlacement {
+        case .activeWindowDisplay:
+            return activeScreen ?? cursorScreen ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first
+        case .cursorDisplay:
+            return cursorScreen ?? activeScreen ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first
+        case .allDisplays:
+            return activeScreen ?? cursorScreen ?? panel.screen ?? NSScreen.main ?? NSScreen.screens.first
         }
     }
 
@@ -454,7 +481,12 @@ final class SwitcherWindowController {
     /// Filter `viewModel.items` to rows matching `query`, then reset selection.
     private func updatePaletteFilter(_ query: String) {
         let allItems = items()
-        let filtered = Self.paletteFilteredItems(allItems, query: query)
+        let rememberedStableKey = searchMemory.rememberedStableKey(for: query)
+        let filtered = Self.paletteFilteredItems(
+            allItems,
+            query: query,
+            rememberedStableKey: rememberedStableKey
+        )
         viewModel.items = filtered
         viewModel.selectedIndex = 0
         session?.refreshItems(filtered)
@@ -464,6 +496,11 @@ final class SwitcherWindowController {
         guard let selectedItem = session?.commitSelection() else {
             hidePanel()
             return
+        }
+
+        let rememberedQuery = preferences.switcherStyle == .commandPalette ? viewModel.searchQuery : ""
+        if !rememberedQuery.isEmpty {
+            searchMemory.noteSelection(query: rememberedQuery, identity: selectedItem.historyIdentity)
         }
 
         hidePanel()
@@ -513,11 +550,15 @@ final class SwitcherWindowController {
 
         viewModel.layout = layout
         panel.setContentSize(NSSize(width: layout.contentWidth, height: layout.contentHeight))
+        panel.setFrameOrigin(panelOrigin(on: screen, layout: layout, style: style))
+        updateBackdropFrame(for: screen)
+    }
 
-        let origin: NSPoint
+    private func panelOrigin(on screen: NSScreen, layout: SwitcherLayoutMetrics, style: SwitcherStyle) -> NSPoint {
+        let visibleFrame = screen.visibleFrame
         switch style {
         case .radialMenu:
-            origin = NSPoint(
+            return NSPoint(
                 x: visibleFrame.midX - layout.contentWidth / 2,
                 y: visibleFrame.midY - layout.contentHeight / 2
             )
@@ -525,14 +566,11 @@ final class SwitcherWindowController {
             let safeFrame = visibleFrame.insetBy(dx: 18, dy: 18)
             let proposedX = visibleFrame.midX - layout.contentWidth / 2
             let proposedY = visibleFrame.midY - layout.contentHeight / 2
-            origin = NSPoint(
+            return NSPoint(
                 x: min(max(proposedX, safeFrame.minX), safeFrame.maxX - layout.contentWidth),
                 y: min(max(proposedY, safeFrame.minY), safeFrame.maxY - layout.contentHeight)
             )
         }
-
-        panel.setFrameOrigin(origin)
-        updateBackdropFrame(for: screen)
     }
 
     private func activeWindowScreen(for items: [SwitcherItem]) -> NSScreen? {
@@ -547,30 +585,68 @@ final class SwitcherWindowController {
             ?? NSScreen.screens.first(where: { $0.visibleFrame.intersects(frame) })
     }
 
-    static func paletteFilteredItems(_ items: [SwitcherItem], query: String) -> [SwitcherItem] {
-        let normalizedQuery = normalizeSearchText(query)
-        guard !normalizedQuery.isEmpty else { return items }
+    static func paletteFilteredItems(
+        _ items: [SwitcherItem],
+        query: String,
+        rememberedStableKey: String? = nil
+    ) -> [SwitcherItem] {
+        PaletteSearch.rankedItems(items, query: query, rememberedStableKey: rememberedStableKey)
+    }
 
-        let queryTokens = normalizedQuery.split(separator: " ").map(String.init)
-        return items.filter { item in
-            let haystack = normalizeSearchText([
-                item.title,
-                item.subtitle,
-                item.sourceAppIdentifier ?? "",
-                item.previewCacheKey
-            ].joined(separator: " "))
+    private func cursorScreen() -> NSScreen? {
+        let mouseLocation = NSEvent.mouseLocation
+        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) })
+    }
 
-            return queryTokens.allSatisfy { haystack.contains($0) }
+    private func updateMirroredPanelsIfNeeded(primaryScreen: NSScreen?, style: SwitcherStyle) {
+        guard preferences.displayPlacement == .allDisplays,
+              let primaryScreen,
+              NSScreen.screens.count > 1 else {
+            tearDownMirroredPanels()
+            return
+        }
+
+        var activeKeys = Set<ObjectIdentifier>()
+
+        for screen in NSScreen.screens where screen != primaryScreen {
+            let key = ObjectIdentifier(screen)
+            activeKeys.insert(key)
+
+            let mirrorPanel = mirroredPanels[key] ?? buildMirrorPanel()
+            mirroredPanels[key] = mirrorPanel
+            mirrorPanel.setContentSize(NSSize(width: viewModel.layout.contentWidth, height: viewModel.layout.contentHeight))
+            mirrorPanel.setFrameOrigin(panelOrigin(on: screen, layout: viewModel.layout, style: style))
+            mirrorPanel.orderFrontRegardless()
+        }
+
+        for (key, panel) in mirroredPanels where !activeKeys.contains(key) {
+            panel.orderOut(nil)
+            mirroredPanels.removeValue(forKey: key)
         }
     }
 
-    private static func normalizeSearchText(_ text: String) -> String {
-        let lowered = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        let scalars = lowered.unicodeScalars.map { scalar -> Character in
-            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
+    private func buildMirrorPanel() -> SwitcherMirrorPanel {
+        let panel = SwitcherMirrorPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 500, height: 130),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        panel.level = .popUpMenu
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isMovable = false
+        panel.ignoresMouseEvents = true
+        panel.contentView = NSHostingView(rootView: SwitcherView(viewModel: viewModel))
+        return panel
+    }
+
+    private func tearDownMirroredPanels() {
+        for panel in mirroredPanels.values {
+            panel.orderOut(nil)
         }
-        return String(scalars)
-            .split(whereSeparator: \.isWhitespace)
-            .joined(separator: " ")
+        mirroredPanels.removeAll()
     }
 }

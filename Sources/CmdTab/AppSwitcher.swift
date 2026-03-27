@@ -161,6 +161,34 @@ final class AppSwitcher: NSObject {
         return cached
     }
 
+    func performQuickAction(_ action: SwitcherQuickAction, on item: SwitcherItem) {
+        switch action {
+        case .hideApp:
+            guard let app = application(for: item) else { return }
+            app.hide()
+
+        case .minimizeWindow:
+            guard let window = windowElement(for: item) else { return }
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanTrue)
+
+        case .closeWindow:
+            guard let window = windowElement(for: item) else { return }
+            var closeButtonValue: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &closeButtonValue) == .success,
+                  let closeButton = closeButtonValue else {
+                return
+            }
+            let closeElement = unsafeBitCast(closeButton, to: AXUIElement.self)
+            AXUIElementPerformAction(closeElement, kAXPressAction as CFString)
+
+        case .quitApp:
+            guard let app = application(for: item) else { return }
+            app.terminate()
+        }
+
+        warmCache(force: true)
+    }
+
     /// Populate a fast provisional cache synchronously when the app is first
     /// invoked and the background builder has not produced anything yet.
     /// This keeps the first Alt-Tab reveal from stalling on the empty-cache path.
@@ -327,7 +355,8 @@ final class AppSwitcher: NSObject {
             }
         ).sorted(by: compareCandidates)
 
-        return BuildContext(candidates: limitedByApp(candidates), runningApps: runningApps)
+        let scopedCandidates = visibilityScopedCandidates(candidates)
+        return BuildContext(candidates: limitedByApp(scopedCandidates), runningApps: runningApps)
     }
 
     /// Create SwitcherItem arrays from a BuildContext. When `capturePreviews`
@@ -447,6 +476,52 @@ final class AppSwitcher: NSObject {
             countByApp[key] = current + 1
             return true
         }
+    }
+
+    private func visibilityScopedCandidates(_ candidates: [WindowCandidate]) -> [WindowCandidate] {
+        switch preferences.windowVisibilityScope {
+        case .allSpaces:
+            return candidates
+
+        case .visibleSpaces:
+            return candidates.filter(\.isOnScreen)
+
+        case .currentSpaceOnly:
+            let onScreenCandidates = candidates.filter(\.isOnScreen)
+            guard let activeScreenFrame = activeScreenFrame(for: onScreenCandidates) else {
+                return onScreenCandidates
+            }
+            return onScreenCandidates.filter { $0.bounds.intersects(activeScreenFrame) }
+        }
+    }
+
+    private func activeScreenFrame(for candidates: [WindowCandidate]) -> CGRect? {
+        if let frontmostApp = NSWorkspace.shared.frontmostApplication,
+           frontmostApp.activationPolicy == .regular,
+           frontmostApp.bundleIdentifier != Bundle.main.bundleIdentifier {
+            let focusedWindowID = focusedWindowID(for: frontmostApp.processIdentifier)
+            if let focusedWindowID,
+               let focusedCandidate = candidates.first(where: {
+                   $0.ownerPID == frontmostApp.processIdentifier && $0.id == focusedWindowID
+               }) {
+                return screenFrame(containing: focusedCandidate.bounds)
+            }
+
+            if let appCandidate = candidates.first(where: { $0.ownerPID == frontmostApp.processIdentifier }) {
+                return screenFrame(containing: appCandidate.bounds)
+            }
+        }
+
+        return screenFrame(containing: CGRect(origin: NSEvent.mouseLocation, size: .zero))
+    }
+
+    private func screenFrame(containing rect: CGRect) -> CGRect? {
+        let point = NSPoint(x: rect.midX, y: rect.midY)
+        if let containing = NSScreen.screens.first(where: { $0.frame.contains(point) }) {
+            return containing.visibleFrame
+        }
+
+        return NSScreen.screens.first(where: { $0.visibleFrame.intersects(rect) })?.visibleFrame
     }
 
     // MARK: - Identity helpers
@@ -692,6 +767,35 @@ final class AppSwitcher: NSObject {
         onActivationConfirmed?(identity, pid)
     }
 
+    private func application(for item: SwitcherItem) -> NSRunningApplication? {
+        if let pid = item.historyIdentity.ownerPID,
+           let app = NSRunningApplication(processIdentifier: pid) {
+            return app
+        }
+
+        guard let sourceAppIdentifier = item.sourceAppIdentifier else { return nil }
+        return NSWorkspace.shared.runningApplications.first {
+            sourceAppIdentifier.caseInsensitiveCompare(self.sourceAppIdentifier(for: $0)) == .orderedSame
+        }
+    }
+
+    private func windowElement(for item: SwitcherItem) -> AXUIElement? {
+        guard case let .appWindow(pid, windowID) = item.historyIdentity else { return nil }
+        let axApp = AXUIElementCreateApplication(pid)
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+              let windows = value as? [AXUIElement] else {
+            return nil
+        }
+
+        if let exactWindow = windows.first(where: { AXWindowIDLookup.windowID(for: $0) == windowID }) {
+            return exactWindow
+        }
+
+        let standardWindow = windows.first(where: { isStandardWindow($0) })
+        return standardWindow ?? windows.first
+    }
+
     private func isFrontmostWindow(_ candidate: WindowCandidate) -> Bool {
         currentSystemFrontmostPID() == candidate.ownerPID &&
         focusedWindowID(for: candidate.ownerPID) == candidate.id
@@ -787,7 +891,7 @@ final class AppSwitcher: NSObject {
         guard Self.isAllowedWindowID(windowID, allowedWindowIDs: allowedWindowIDsByPID[ownerPID]) else { return nil }
 
         let isOnScreen = (windowInfo[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
-        let allowBackground = includeBackgroundWindows ?? preferences.includeBackgroundWindows
+        let allowBackground = includeBackgroundWindows ?? (preferences.windowVisibilityScope == .allSpaces)
         if !allowBackground && !isOnScreen { return nil }
 
         let sharingState = (windowInfo[kCGWindowSharingState as String] as? NSNumber)?.intValue ?? 1
@@ -796,6 +900,9 @@ final class AppSwitcher: NSObject {
         let area = bounds.width * bounds.height
         let appName = app.localizedName ?? (windowInfo[kCGWindowOwnerName as String] as? String) ?? "Application"
         let windowTitle = title.isEmpty ? appName : title
+        let sourceIdentifier = sourceAppIdentifier(for: app)
+        guard !preferences.excludesApp(identifier: sourceIdentifier, appName: appName) else { return nil }
+        guard !preferences.excludesWindowTitle(title) else { return nil }
         let historyIdentity = SwitcherHistoryIdentity.appWindow(pid: ownerPID, windowID: windowID)
 
         var sortScore = CGFloat(max(0, 1000 - orderIndex * 10))
@@ -809,7 +916,7 @@ final class AppSwitcher: NSObject {
         return WindowCandidate(
             id: windowID, ownerPID: ownerPID, bundleIdentifier: app.bundleIdentifier,
             appName: appName, appIcon: app.icon, windowTitle: windowTitle,
-            bounds: bounds, orderIndex: orderIndex, sortScore: sortScore
+            bounds: bounds, orderIndex: orderIndex, sortScore: sortScore, isOnScreen: isOnScreen
         )
     }
 
@@ -1175,6 +1282,7 @@ private struct WindowCandidate {
     let bounds: CGRect
     let orderIndex: Int
     let sortScore: CGFloat
+    let isOnScreen: Bool
 
     var historyIdentity: SwitcherHistoryIdentity { .appWindow(pid: ownerPID, windowID: id) }
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }

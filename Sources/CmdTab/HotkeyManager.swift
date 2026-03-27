@@ -313,6 +313,25 @@ final class HotkeyManager {
             }
 
             if let switcher, switcher.isVisible {
+                if commandHeld {
+                    switch keyCode {
+                    case 4:
+                        dispatchToMain { switcher.performQuickAction(.hideApp) }
+                        return nil
+                    case 12:
+                        dispatchToMain { switcher.performQuickAction(.quitApp) }
+                        return nil
+                    case 13:
+                        dispatchToMain { switcher.performQuickAction(.closeWindow) }
+                        return nil
+                    case 46:
+                        dispatchToMain { switcher.performQuickAction(.minimizeWindow) }
+                        return nil
+                    default:
+                        break
+                    }
+                }
+
                 switch keyCode {
                 case 123:
                     dispatchToMain { switcher.moveSelection(by: -1) }

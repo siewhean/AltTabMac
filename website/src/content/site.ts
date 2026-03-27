@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "CmdTab",
   tagline: "Find the right Mac window in one move.",
   description:
-    "CmdTab is a faster Mac app switcher with real window previews, three visual modes, and a private beta waitlist.",
+    "CmdTab is a faster Mac app switcher with real window previews, three visual modes, and a private beta waitlist for the upcoming 14-day trial and one-time license launch.",
   defaultSiteUrl: "https://cmdtab.app",
   socialImagePath: "/og/cover.png",
   nav: [
@@ -27,4 +27,3 @@ export const siteConfig = {
   ],
   contactEmail: "privacy@cmdtab.app",
 } as const;
-
