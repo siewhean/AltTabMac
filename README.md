@@ -1,7 +1,7 @@
 # CmdTab
 
 Last Updated: 2026-03-28
-Active Task: CmdTab product differentiation pass — deterministic switching, space/display targeting, decluttering controls, permission trust, and founder-launch positioning.
+Active Task: Website and launch security hardening against the 2026 checklist, while preserving the protected CmdTab core paths.
 
 ## Project Summary
 
@@ -37,6 +37,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - The website now includes restrained motion: hero entrance choreography, ambient linear drift on supporting visuals, and scroll-reveal movement across the main content sections.
 - The website now includes Vercel Web Analytics / Speed Insights wiring plus client-side CTA event tracking using the existing `data-analytics-*` markers.
 - A launch handoff file now exists at `LAUNCH.md`, and `website/.env.example` documents the required website env vars for waitlist delivery and deployment.
+- A root `SECURITY.md`, a website security page, and `/.well-known/security.txt` now document disclosure contact, security controls, and launch-stage operational requirements.
+- Security verification now includes repeatable repo automation through `.github/workflows/security.yml`, Dependabot updates, and `npm run security:check`.
 - Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
 - Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
@@ -76,7 +78,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Manually validate the new alternate trigger options (`Right ⌘`, `Right ⌘ ×2`, `Right ⌥`, `Right ⌥ ×2`) in real apps to confirm they never misfire during ordinary modifier shortcuts.
 - Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
+- Provision and monitor `security@cmdtab.app` before public launch so security reports do not depend on the privacy inbox alone.
 - Authenticate Vercel on the owner side or install/configure the Vercel CLI before attempting a real deployment from this machine.
+- Enable Vercel edge protections or an equivalent shared rate-limit layer before public launch; the in-repo limiter is intentionally lightweight and process-local.
 - Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
 - Tune the new website motion against a real browser session to confirm the reveal cadence and ambient drift feel polished rather than decorative.
 - Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
@@ -84,6 +88,11 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-03-28: Added a documented website security pass and disclosure surface.
+  - Hardened `POST /api/waitlist` with request-size enforcement, malformed-JSON handling, and explicit HEAD/OPTIONS rejection while preserving the existing response shape.
+  - Added stronger browser isolation headers in `website/next.config.ts`.
+  - Added `SECURITY.md`, a public `/security` page, and `/.well-known/security.txt`.
+  - Added `npm run security:deps` / `npm run security:check`, a dedicated security workflow, and Dependabot config for recurring dependency review.
 - 2026-03-28: Added website launch handoff and real analytics plumbing.
   - Added `@vercel/analytics` and `@vercel/speed-insights` to `website/`.
   - Wired page tracking in `website/src/app/layout.tsx` and CTA event tracking through a new `SiteEventTracker`.

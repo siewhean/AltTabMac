@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "security:deps": "npm audit --omit=dev --audit-level=high",
+    "security:check": "npm run security:deps && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

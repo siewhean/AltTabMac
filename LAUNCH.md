@@ -37,7 +37,18 @@ This file separates what is already prepared in the repo from what still require
    - `WAITLIST_REPLY_TO_EMAIL`
 3. Connect your real domain to the Vercel project.
 4. Confirm live waitlist submissions reach your inbox.
-5. Replace the remaining static walkthrough SVGs with actual product GIFs or MP4 clips.
+5. Provision and monitor:
+   - `security@cmdtab.app`
+   - `privacy@cmdtab.app`
+6. Enable Vercel edge protections and production abuse controls:
+   - WAF / attack challenge mode where appropriate
+   - request throttling / bot protection
+   - deployment access controls
+7. Replace the remaining static walkthrough SVGs with actual product GIFs or MP4 clips.
+8. Keep secrets production-only:
+   - do not commit live env values
+   - use separate preview and production keys
+   - rotate `RESEND_API_KEY` immediately if exposure is suspected
 
 ## Commerce Steps
 
@@ -88,3 +99,4 @@ This file separates what is already prepared in the repo from what still require
   - download click
   - trial start
   - purchase complete
+- Add `npm run security:check` to your deploy gate or CI before production releases.

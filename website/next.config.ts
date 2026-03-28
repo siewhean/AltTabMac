@@ -7,12 +7,16 @@ const contentSecurityPolicy = [
   "base-uri 'self'",
   `connect-src 'self'${isProduction ? "" : " ws: wss:"}`,
   "font-src 'self' data:",
+  "frame-src 'none'",
   "form-action 'self'",
   "frame-ancestors 'none'",
   "img-src 'self' data: blob:",
+  "manifest-src 'self'",
+  "media-src 'self' blob:",
   "object-src 'none'",
   `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
+  "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join("; ");
 
@@ -24,6 +28,9 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "Content-Security-Policy", value: contentSecurityPolicy },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          { key: "Origin-Agent-Cluster", value: "?1" },
           {
             key: "Permissions-Policy",
             value: "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
@@ -32,6 +39,8 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
           ...(isProduction
             ? [
                 {

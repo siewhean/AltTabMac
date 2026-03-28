@@ -16,6 +16,29 @@ import { waitlistPayloadSchema } from "@/lib/validation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const MAX_REQUEST_BODY_BYTES = 4 * 1024;
+
+class PayloadTooLargeError extends Error {
+  constructor() {
+    super("Payload too large.");
+    this.name = "PayloadTooLargeError";
+  }
+}
+
+class InvalidJsonError extends Error {
+  constructor() {
+    super("Invalid JSON.");
+    this.name = "InvalidJsonError";
+  }
+}
+
+class EmptyBodyError extends Error {
+  constructor() {
+    super("Request body is required.");
+    this.name = "EmptyBodyError";
+  }
+}
+
 function jsonResponse(
   body: Record<string, unknown>,
   status = 200,
@@ -25,8 +48,13 @@ function jsonResponse(
     status,
     headers: {
       "Cache-Control": "no-store, max-age=0",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "Origin-Agent-Cluster": "?1",
       Pragma: "no-cache",
       "X-Content-Type-Options": "nosniff",
+      "X-DNS-Prefetch-Control": "off",
+      "X-Permitted-Cross-Domain-Policies": "none",
       ...headers,
     },
   });
@@ -43,6 +71,24 @@ function methodNotAllowed() {
     405,
     { Allow: "POST" },
   );
+}
+
+function optionsResponse() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      Allow: "POST, OPTIONS",
+      "Accept-Post": "application/json",
+      "Cache-Control": "no-store, max-age=0",
+      "Cross-Origin-Opener-Policy": "same-origin",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "Origin-Agent-Cluster": "?1",
+      Pragma: "no-cache",
+      "X-Content-Type-Options": "nosniff",
+      "X-DNS-Prefetch-Control": "off",
+      "X-Permitted-Cross-Domain-Policies": "none",
+    },
+  });
 }
 
 function isSameOrigin(request: Request) {
@@ -65,17 +111,34 @@ function isSameOrigin(request: Request) {
   return true;
 }
 
+function passesFetchSiteProtection(request: Request) {
+  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+  if (!fetchSite) return true;
+  return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
+}
+
 function getClientIp(request: Request) {
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
   const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
+  if (request.headers.has("x-vercel-id") && forwardedFor) {
     return forwardedFor.split(",")[0]?.trim() ?? "unknown";
   }
 
-  return request.headers.get("x-real-ip")?.trim() ?? "unknown";
+  return "unknown";
 }
 
 function getUserAgent(request: Request) {
   return request.headers.get("user-agent")?.trim() ?? "unknown";
+}
+
+function getContentLength(request: Request) {
+  const value = request.headers.get("content-length");
+  if (!value) return null;
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function formatMetadata(metadata?: Record<string, string>) {
@@ -117,10 +180,29 @@ async function submitWaitlistNotification(payload: {
   });
 }
 
+async function parseRequestBody(request: Request) {
+  const rawBody = await request.text();
+  const bodyBytes = Buffer.byteLength(rawBody, "utf8");
+
+  if (bodyBytes === 0) {
+    throw new EmptyBodyError();
+  }
+
+  if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
+    throw new PayloadTooLargeError();
+  }
+
+  try {
+    return JSON.parse(rawBody) as unknown;
+  } catch {
+    throw new InvalidJsonError();
+  }
+}
+
 export async function POST(request: Request) {
   const requestId = randomUUID();
 
-  if (!isSameOrigin(request)) {
+  if (!isSameOrigin(request) || !passesFetchSiteProtection(request)) {
     return jsonResponse(
       {
         ok: false,
@@ -145,8 +227,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const declaredLength = getContentLength(request);
+  if (declaredLength !== null && declaredLength > MAX_REQUEST_BODY_BYTES) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: "validation_error",
+        message: "Submission too large.",
+        requestId,
+      },
+      413,
+    );
+  }
+
   try {
-    const body = await request.json();
+    const body = await parseRequestBody(request);
     const payload = waitlistPayloadSchema.parse(body);
 
     if (payload.honeypot) {
@@ -235,6 +330,18 @@ export async function POST(request: Request) {
       submittedAt: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof PayloadTooLargeError) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: "validation_error",
+          message: "Submission too large.",
+          requestId,
+        },
+        413,
+      );
+    }
+
     if (error instanceof ZodError) {
       const fieldErrors = error.flatten().fieldErrors;
       return jsonResponse(
@@ -243,6 +350,30 @@ export async function POST(request: Request) {
           code: "validation_error",
           message: "Please check the highlighted fields and try again.",
           fieldErrors,
+          requestId,
+        },
+        400,
+      );
+    }
+
+    if (error instanceof InvalidJsonError) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: "validation_error",
+          message: "Malformed JSON payload.",
+          requestId,
+        },
+        400,
+      );
+    }
+
+    if (error instanceof EmptyBodyError) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: "validation_error",
+          message: "Request body is required.",
           requestId,
         },
         400,
@@ -280,4 +411,12 @@ export async function PATCH() {
 
 export async function DELETE() {
   return methodNotAllowed();
+}
+
+export async function HEAD() {
+  return methodNotAllowed();
+}
+
+export async function OPTIONS() {
+  return optionsResponse();
 }

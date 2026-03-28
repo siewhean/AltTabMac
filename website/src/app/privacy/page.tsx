@@ -42,10 +42,12 @@ export default function PrivacyPage() {
             <Button href="mailto:privacy@cmdtab.app" variant="secondary">
               Contact privacy@cmdtab.app
             </Button>
+            <Button href="/security" variant="secondary">
+              View security policy
+            </Button>
           </div>
         </div>
       </SectionShell>
     </main>
   );
 }
-

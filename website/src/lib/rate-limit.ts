@@ -22,6 +22,7 @@ type DuplicateStore = Map<string, number>;
 const globalState = globalThis as typeof globalThis & {
   __cmdtabWaitlistBuckets?: BucketStore;
   __cmdtabWaitlistDuplicates?: DuplicateStore;
+  __cmdtabWaitlistLastCleanupAt?: number;
 };
 
 const buckets = globalState.__cmdtabWaitlistBuckets ?? new Map<string, number[]>();
@@ -36,6 +37,9 @@ const RATE_LIMITS: Bucket[] = [
 ];
 
 const DUPLICATE_WINDOW_MS = 24 * 60 * 60_000;
+const CLEANUP_INTERVAL_MS = 5 * 60_000;
+const MAX_BUCKET_KEYS = 2_048;
+const MAX_DUPLICATE_KEYS = 2_048;
 
 function remember(bucketKey: string, now: number, config: Bucket) {
   const entries = buckets.get(bucketKey) ?? [];
@@ -54,11 +58,52 @@ function sha(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+function maybeCleanup(now: number) {
+  const lastCleanupAt = globalState.__cmdtabWaitlistLastCleanupAt ?? 0;
+  if (now - lastCleanupAt < CLEANUP_INTERVAL_MS) return;
+
+  for (const [bucketKey, entries] of buckets) {
+    const windowMs = Number.parseInt(bucketKey.split(":").at(-1) ?? "", 10);
+    if (!Number.isFinite(windowMs) || windowMs <= 0) {
+      buckets.delete(bucketKey);
+      continue;
+    }
+
+    const fresh = entries.filter((entry) => now - entry < windowMs);
+    if (fresh.length === 0) {
+      buckets.delete(bucketKey);
+    } else {
+      buckets.set(bucketKey, fresh);
+    }
+  }
+
+  for (const [fingerprint, lastSeen] of duplicates) {
+    if (now - lastSeen > DUPLICATE_WINDOW_MS) {
+      duplicates.delete(fingerprint);
+    }
+  }
+
+  while (buckets.size > MAX_BUCKET_KEYS) {
+    const oldestKey = buckets.keys().next().value;
+    if (!oldestKey) break;
+    buckets.delete(oldestKey);
+  }
+
+  while (duplicates.size > MAX_DUPLICATE_KEYS) {
+    const oldestKey = duplicates.keys().next().value;
+    if (!oldestKey) break;
+    duplicates.delete(oldestKey);
+  }
+
+  globalState.__cmdtabWaitlistLastCleanupAt = now;
+}
+
 export function createFingerprint(value: string) {
   return sha(value);
 }
 
 export function recentlySubmitted(fingerprint: string) {
+  maybeCleanup(Date.now());
   const lastSeen = duplicates.get(fingerprint);
   if (!lastSeen) return false;
   if (Date.now() - lastSeen > DUPLICATE_WINDOW_MS) {
@@ -69,11 +114,13 @@ export function recentlySubmitted(fingerprint: string) {
 }
 
 export function markSubmitted(fingerprint: string) {
+  maybeCleanup(Date.now());
   duplicates.set(fingerprint, Date.now());
 }
 
 export function checkRateLimit(input: RateLimitInput): RateLimitResult {
   const now = Date.now();
+  maybeCleanup(now);
   const emailKey = `email:${sha(input.email)}`;
   const ipKey = `ip:${sha(input.ip)}`;
   const uaKey = `ua:${sha(input.userAgent || "unknown")}`;
@@ -93,4 +140,3 @@ export function checkRateLimit(input: RateLimitInput): RateLimitResult {
 
   return { allowed: true, fingerprint };
 }
-

@@ -21,6 +21,7 @@ export const privacyContent = {
       body: [
         "Waitlist submissions are delivered using Resend so the CmdTab team can review signups and coordinate beta access.",
         "Hosting and edge protections are provided through Vercel. Both services may process the minimum operational data required to deliver the website and its submission flow.",
+        "The website also uses Vercel Web Analytics and Speed Insights for aggregate traffic and performance measurement.",
       ],
     },
     {
@@ -28,6 +29,13 @@ export const privacyContent = {
       body: [
         "Waitlist data is kept only as long as it is useful for the private beta, launch communication, and reasonable operational follow-up.",
         "If you want your waitlist information removed, contact the CmdTab team at privacy@cmdtab.app.",
+      ],
+    },
+    {
+      title: "Security contact",
+      body: [
+        "If you believe you found a security issue in the website or app, report it to security@cmdtab.app.",
+        "CmdTab publishes a disclosure contact and policy at /.well-known/security.txt and on the website security page.",
       ],
     },
     {
