@@ -99,8 +99,8 @@ export function WaitlistSection() {
           <div className="space-y-4 border-t border-white/8 pt-6">
             {[
               "Private beta updates only.",
-              "Minimal data collection and no public download yet.",
-              "Future pricing will wait until the product is ready for public launch.",
+              "Minimal data collection and a clean beta signup flow.",
+              "Waitlist members get first access to the trial and founder launch price.",
             ].map((item) => (
               <div key={item} className="flex items-start gap-3 text-sm leading-7 text-subdued">
                 <span className="mt-2 h-2 w-2 rounded-full bg-success" />

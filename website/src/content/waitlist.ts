@@ -18,6 +18,5 @@ export const waitlistContent = {
   errorMessage:
     "We couldn’t save your spot right now. Please try again in a moment.",
   footnote:
-    "No public download. No pricing page. No spammy drip campaign. Just beta access updates and launch news.",
+    "No spammy drip campaign. Just beta access updates, launch news, and first access to the trial and founder price.",
 };
-

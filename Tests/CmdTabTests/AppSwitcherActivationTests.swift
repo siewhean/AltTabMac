@@ -525,6 +525,33 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, allowedWindowIDs: [77, 88]))
     }
 
+    func testResolvedAllowedWindowIDsPreservesDisplayWindowsAndIncludesPreferredWindow() {
+        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
+            displayWindowIDs: [11, 22],
+            preferredWindowIDs: [33]
+        )
+
+        XCTAssertEqual(resolved, [11, 22, 33])
+    }
+
+    func testResolvedAllowedWindowIDsFallsBackToPreferredWindowWhenDisplayFilterIsEmpty() {
+        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
+            displayWindowIDs: [],
+            preferredWindowIDs: [77]
+        )
+
+        XCTAssertEqual(resolved, [77])
+    }
+
+    func testResolvedAllowedWindowIDsReturnsNilWhenNoEligibleWindowsExist() {
+        XCTAssertNil(
+            AppSwitcher.resolvedAllowedWindowIDs(
+                displayWindowIDs: [],
+                preferredWindowIDs: []
+            )
+        )
+    }
+
     func testSwitcherDisplaySubroleRejectsFloatingPanels() {
         XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole(kAXStandardWindowSubrole as String))
         XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole("AXFullScreenWindow"))

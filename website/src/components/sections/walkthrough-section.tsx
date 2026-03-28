@@ -1,6 +1,7 @@
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
+import { SwitcherLiveDemo } from "@/components/ui/switcher-live-demo";
 import { walkthroughSteps } from "@/content/home";
 
 export function WalkthroughSection() {
@@ -11,30 +12,36 @@ export function WalkthroughSection() {
       title="See how the modes work in actual use."
       description="Open it, move fast, and commit. Each mode gives you a different path to the same result."
     >
-      <div className="grid gap-10 lg:grid-cols-2">
-        {walkthroughSteps.map((step, index) => (
-          <MotionReveal
-            key={step.id}
-            delay={index * 80}
-            direction={index % 2 === 0 ? "left" : "right"}
-            className="grid gap-5 border-t border-white/8 pt-6 lg:grid-cols-[92px_minmax(0,1fr)]"
-          >
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                {step.eyebrow}
-              </p>
-            </div>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
-                  {step.title}
-                </h3>
-                <p className="max-w-xl text-base leading-7 text-muted">{step.body}</p>
+      <div className="space-y-12">
+        <div className="grid gap-10 lg:grid-cols-2">
+          {walkthroughSteps.map((step, index) => (
+            <MotionReveal
+              key={step.id}
+              delay={index * 80}
+              direction={index % 2 === 0 ? "left" : "right"}
+              className="grid gap-5 border-t border-white/8 pt-6 lg:grid-cols-[92px_minmax(0,1fr)]"
+            >
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                  {step.eyebrow}
+                </p>
               </div>
-              <ScreenshotFrame assetId={step.screenshotId as never} />
-            </div>
-          </MotionReveal>
-        ))}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
+                    {step.title}
+                  </h3>
+                  <p className="max-w-xl text-base leading-7 text-muted">{step.body}</p>
+                </div>
+                <ScreenshotFrame assetId={step.screenshotId as never} />
+              </div>
+            </MotionReveal>
+          ))}
+        </div>
+
+        <MotionReveal direction="up" delay={140}>
+          <SwitcherLiveDemo />
+        </MotionReveal>
       </div>
     </SectionShell>
   );

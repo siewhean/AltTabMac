@@ -1,7 +1,7 @@
 # CmdTab
 
 Last Updated: 2026-03-28
-Active Task: Website and launch security hardening against the 2026 checklist, while preserving the protected CmdTab core paths.
+Active Task: Website launch polish — interactive live walkthroughs plus security-hardened waitlist and launch docs.
 
 ## Project Summary
 
@@ -36,6 +36,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - The website feature layer now explicitly presents the shipped app differentiators instead of relying on vague “better switcher” language.
 - The website now includes restrained motion: hero entrance choreography, ambient linear drift on supporting visuals, and scroll-reveal movement across the main content sections.
 - The website now includes Vercel Web Analytics / Speed Insights wiring plus client-side CTA event tracking using the existing `data-analytics-*` markers.
+- The walkthrough section now includes a browser-based interactive switcher demo for Classic Grid, Command Palette, and Radial Menu so visitors can click, search, and step through the modes directly on the site.
+- The website now includes a launch/checkout section that can be activated with hosted provider URLs for checkout and trial download.
+- A website owner dashboard now exists at `/dashboard` to summarize the live offer, launch configuration state, and the traffic / funnel / preference metrics that are being tracked.
 - A launch handoff file now exists at `LAUNCH.md`, and `website/.env.example` documents the required website env vars for waitlist delivery and deployment.
 - A root `SECURITY.md`, a website security page, and `/.well-known/security.txt` now document disclosure contact, security controls, and launch-stage operational requirements.
 - Security verification now includes repeatable repo automation through `.github/workflows/security.yml`, Dependabot updates, and `npm run security:check`.
@@ -78,7 +81,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Manually validate the new alternate trigger options (`Right ⌘`, `Right ⌘ ×2`, `Right ⌥`, `Right ⌥ ×2`) in real apps to confirm they never misfire during ordinary modifier shortcuts.
 - Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
-- Provision and monitor `security@cmdtab.app` before public launch so security reports do not depend on the privacy inbox alone.
+- Configure the launch env vars (`NEXT_PUBLIC_CHECKOUT_PROVIDER`, `NEXT_PUBLIC_CHECKOUT_URL`, `NEXT_PUBLIC_TRIAL_URL`, `NEXT_PUBLIC_SUPPORT_EMAIL`) before turning on paid traffic.
+- Provision and monitor `security@cmdtab.net` before public launch so security reports do not depend on the privacy inbox alone.
+- Repair Vercel CLI auth on this machine with `vercel login`; the installed CLI currently has an invalid saved token.
 - Authenticate Vercel on the owner side or install/configure the Vercel CLI before attempting a real deployment from this machine.
 - Enable Vercel edge protections or an equivalent shared rate-limit layer before public launch; the in-repo limiter is intentionally lightweight and process-local.
 - Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
@@ -88,6 +93,15 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-03-28: Added an interactive switcher simulator to the website walkthrough.
+  - The walkthrough section now includes a live browser demo where visitors can click through Classic Grid, search inside Command Palette, and step around Radial Menu.
+  - The demo uses the same concise product framing as the rest of the site, so it adds hands-on interaction without bringing back low-signal sections.
+- 2026-03-28: Added launch conversion plumbing for checkout and distribution.
+  - Added a launch section to the website with founder-price / trial messaging and hosted checkout/download CTA support driven by public environment variables.
+  - Added `scripts/release_notarization_checklist.sh` so release packaging, signing, notarization, stapling, and clean-machine validation have one script-based checklist entrypoint.
+- 2026-03-28: Added an owner-facing website dashboard and preference metrics instrumentation.
+  - Added `/dashboard` to summarize the active offer, website launch config state, and which metrics are tracked through Vercel Analytics and Speed Insights.
+  - Added aggregate-safe preference metrics to the live demo: mode selection, navigation, demo target selection, and bucketed Command Palette search usage without storing raw queries.
 - 2026-03-28: Added a documented website security pass and disclosure surface.
   - Hardened `POST /api/waitlist` with request-size enforcement, malformed-JSON handling, and explicit HEAD/OPTIONS rejection while preserving the existing response shape.
   - Added stronger browser isolation headers in `website/next.config.ts`.

@@ -9,13 +9,14 @@ This file separates what is already prepared in the repo from what still require
 - The site now includes Vercel Analytics page tracking and CTA event tracking.
 - `.env.example` exists in `website/` for the waitlist email setup.
 - The macOS app already builds into `CmdTab.app` via `./build.sh`.
+- `./scripts/build_release_dmg.sh` packages a signed + notarized DMG once Apple credentials are configured.
 
 ## You Need To Decide
 
 - Final offer:
-  - private beta only, or public trial now
-  - founder price
-  - standard one-time license price
+  - public 14-day trial
+  - founder price: `$5`
+  - standard one-time license price: `$9.99`
 - Commerce stack:
   - Lemon Squeezy or Paddle
 - Support inbox:
@@ -35,11 +36,15 @@ This file separates what is already prepared in the repo from what still require
    - `WAITLIST_FROM_EMAIL`
    - `WAITLIST_TO_EMAIL`
    - `WAITLIST_REPLY_TO_EMAIL`
+   - `NEXT_PUBLIC_CHECKOUT_PROVIDER`
+   - `NEXT_PUBLIC_CHECKOUT_URL`
+   - `NEXT_PUBLIC_TRIAL_URL`
+   - `NEXT_PUBLIC_SUPPORT_EMAIL`
 3. Connect your real domain to the Vercel project.
-4. Confirm live waitlist submissions reach your inbox.
+4. Confirm the direct purchase flow opens the Lemon Squeezy checkout.
 5. Provision and monitor:
-   - `security@cmdtab.app`
-   - `privacy@cmdtab.app`
+   - `security@cmdtab.net`
+   - `privacy@cmdtab.net`
 6. Enable Vercel edge protections and production abuse controls:
    - WAF / attack challenge mode where appropriate
    - request throttling / bot protection
@@ -57,6 +62,7 @@ This file separates what is already prepared in the repo from what still require
    - founder price
    - standard price
    - trial/download delivery flow
+   - hosted checkout URL for the site launch section
 3. Decide license model:
    - device count
    - trial duration
@@ -65,11 +71,18 @@ This file separates what is already prepared in the repo from what still require
 
 ## macOS Distribution Steps
 
-1. Build the release app with `./build.sh`.
-2. Sign the app with your Developer ID certificate.
-3. Notarize the app with Apple.
-4. Staple the notarization ticket.
-5. Test on a clean Mac:
+1. Export release credentials:
+   - `export CMDTAB_DEVELOPER_ID='Developer ID Application: Your Name (TEAMID)'`
+   - `export CMDTAB_NOTARY_PROFILE='cmdtab-notary-profile'`
+2. Optionally set release metadata overrides:
+   - `export CMDTAB_BUNDLE_ID='net.cmdtab.app'`
+   - `export CMDTAB_VERSION='1.0.0'`
+   - `export CMDTAB_BUILD_NUMBER='1'`
+3. Run `./scripts/release_notarization_checklist.sh` for a human-readable preflight.
+4. Build the signed, notarized DMG with `./scripts/build_release_dmg.sh`.
+5. Upload the DMG from `dist/` and set that public file URL as `NEXT_PUBLIC_TRIAL_URL`.
+6. Redeploy the website after the trial URL is live.
+7. Test on a clean Mac:
    - install
    - Accessibility permission
    - Screen Recording permission
@@ -95,7 +108,6 @@ This file separates what is already prepared in the repo from what still require
   - Hot Swap
 - Short onboarding screen inside the app for permissions and first use.
 - Event tracking for:
-  - waitlist submit
   - download click
   - trial start
   - purchase complete

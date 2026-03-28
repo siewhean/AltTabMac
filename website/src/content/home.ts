@@ -1,9 +1,9 @@
 export const heroContent = {
-  eyebrow: "Private beta for macOS",
+  eyebrow: "14-day free trial for macOS",
   title: "Find the right Mac window in one move.",
   summary:
     "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open.",
+  status: "Built for people who keep too many apps and windows open. Try it free for 14 days, then buy it once.",
 };
 
 export const proofPoints = [
@@ -13,7 +13,7 @@ export const proofPoints = [
   "Hide, minimize, close, or quit the selected item without leaving the switcher.",
   "Alternate right-side modifier triggers for one-handed sessions.",
   "Exclusions and ignored-title rules to keep noisy windows out of the way.",
-  "Waitlist members get first access to the trial and founder launch price.",
+  "Start with a 14-day free trial, then keep it with a one-time purchase.",
 ];
 
 export const styleVariants = [
@@ -70,6 +70,89 @@ export const walkthroughSteps = [
     screenshotId: "featureQuickActions",
   },
 ];
+
+export const interactiveDemoContent = {
+  eyebrow: "Interactive demo",
+  title: "Try the switcher in the browser before you download.",
+  body:
+    "Click through the same three modes, move the selection, type into the palette, and see how each style feels when you are choosing a real target.",
+  modes: [
+    {
+      id: "classicGrid",
+      label: "Classic Grid",
+      hint: "Click tiles or step through the selection.",
+    },
+    {
+      id: "commandPalette",
+      label: "Command Palette",
+      hint: "Type a few letters and select the result you want.",
+    },
+    {
+      id: "radialMenu",
+      label: "Radial Menu",
+      hint: "Run the selector around the ring without losing your place.",
+    },
+  ],
+} as const;
+
+export const interactiveDemoWindows = [
+  {
+    id: "claude",
+    app: "Claude",
+    title: "Security checklist review",
+    accent: "from-amber-300/25 via-slate-950 to-slate-950",
+    pill: "Recent",
+  },
+  {
+    id: "telegram",
+    app: "Telegram",
+    title: "Founder launch feedback",
+    accent: "from-sky-400/25 via-slate-950 to-slate-950",
+    pill: "Messages",
+  },
+  {
+    id: "vscode",
+    app: "VS Code",
+    title: "CmdTab Website",
+    accent: "from-cyan/25 via-slate-950 to-slate-950",
+    pill: "Code",
+  },
+  {
+    id: "pdfgear",
+    app: "PDFGear",
+    title: "Launch pricing notes",
+    accent: "from-rose-400/25 via-slate-950 to-slate-950",
+    pill: "PDF",
+  },
+  {
+    id: "mimestream",
+    app: "Mimestream",
+    title: "Launch support replies",
+    accent: "from-indigo-400/20 via-slate-950 to-slate-950",
+    pill: "Mail",
+  },
+  {
+    id: "spotify",
+    app: "Spotify",
+    title: "Deep work mix",
+    accent: "from-emerald-400/20 via-slate-950 to-slate-950",
+    pill: "Audio",
+  },
+  {
+    id: "notebooklm",
+    app: "NotebookLM",
+    title: "Research synthesis",
+    accent: "from-violet-400/20 via-slate-950 to-slate-950",
+    pill: "Notes",
+  },
+  {
+    id: "calendar",
+    app: "Calendar",
+    title: "Founder launch week",
+    accent: "from-orange-400/20 via-slate-950 to-slate-950",
+    pill: "Plan",
+  },
+] as const;
 
 export const detailBands = [
   {
@@ -143,6 +226,6 @@ export const permissionsContent = {
 export const faqItems = [
   {
     question: "Is CmdTab available now?",
-    answer: "CmdTab is private beta and waitlist-only right now.",
+    answer: "Yes. CmdTab is being sold with a 14-day free trial and a one-time purchase option.",
   },
 ];

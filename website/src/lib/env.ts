@@ -1,4 +1,4 @@
-const DEFAULT_SITE_URL = "https://cmdtab.app";
+const DEFAULT_SITE_URL = "https://cmdtab.net";
 
 type ServerEnv = {
   resendApiKey: string;

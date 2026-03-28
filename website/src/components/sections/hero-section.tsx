@@ -7,8 +7,12 @@ import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { heroContent } from "@/content/home";
 import { siteConfig } from "@/content/site";
 import { analyticsAttributes } from "@/lib/analytics";
+import { getCommerceConfig } from "@/lib/commerce";
 
 export function HeroSection() {
+  const commerce = getCommerceConfig();
+  const primaryHref = commerce.trialDownloadUrl ?? "#launch";
+
   return (
     <section className="relative isolate min-h-[100svh] overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(105,214,255,0.14),transparent_30%),radial-gradient(circle_at_left,rgba(78,161,255,0.18),transparent_32%),linear-gradient(180deg,#05070C_0%,#08101C_44%,#05070C_100%)]" />
@@ -30,7 +34,7 @@ export function HeroSection() {
             />
             <div>
               <p className="text-sm font-semibold tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-xs text-subdued">macOS private beta</p>
+              <p className="text-xs text-subdued">macOS trial and one-time license</p>
             </div>
           </a>
 
@@ -47,10 +51,10 @@ export function HeroSection() {
           </nav>
 
           <Button
-            href="#waitlist"
+            href={primaryHref}
             variant="secondary"
             className="hidden lg:inline-flex"
-            {...analyticsAttributes("hero_nav_waitlist", "header")}
+            {...analyticsAttributes("hero_nav_primary", "header")}
           >
             {siteConfig.ctas.primary}
           </Button>
@@ -75,7 +79,7 @@ export function HeroSection() {
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <Button
-                href="#waitlist"
+                href={primaryHref}
                 {...analyticsAttributes("hero_primary_cta", "hero")}
               >
                 {siteConfig.ctas.primary}

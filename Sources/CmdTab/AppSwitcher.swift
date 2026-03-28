@@ -1107,17 +1107,29 @@ final class AppSwitcher: NSObject {
     private func switcherDisplayWindowIDs(for app: NSRunningApplication) -> Set<CGWindowID>? {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement], !windows.isEmpty else {
-            return nil
+        let windows: [AXUIElement]
+        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+           let resolvedWindows = value as? [AXUIElement] {
+            windows = resolvedWindows
+        } else {
+            windows = []
         }
 
-        let ids = windows
+        let displayIDs = windows
             .filter { isSwitcherDisplayWindow($0) }
             .compactMap { AXWindowIDLookup.windowID(for: $0) }
 
-        guard !ids.isEmpty else { return nil }
-        return Set(ids)
+        let preferredIDs = [
+            preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString),
+            preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
+        ]
+        .compactMap { $0 }
+        .compactMap { AXWindowIDLookup.windowID(for: $0) }
+
+        return Self.resolvedAllowedWindowIDs(
+            displayWindowIDs: Set(displayIDs),
+            preferredWindowIDs: preferredIDs
+        )
     }
 
     private func isSwitcherDisplayWindow(_ axWindow: AXUIElement) -> Bool {
@@ -1132,6 +1144,22 @@ final class AppSwitcher: NSObject {
     static func isAllowedWindowID(_ windowID: CGWindowID, allowedWindowIDs: Set<CGWindowID>?) -> Bool {
         guard let allowedWindowIDs else { return true }
         return allowedWindowIDs.contains(windowID)
+    }
+
+    static func resolvedAllowedWindowIDs(
+        displayWindowIDs: Set<CGWindowID>,
+        preferredWindowIDs: [CGWindowID]
+    ) -> Set<CGWindowID>? {
+        let preferredSet = Set(preferredWindowIDs)
+        if !displayWindowIDs.isEmpty {
+            return displayWindowIDs.union(preferredSet)
+        }
+
+        if !preferredSet.isEmpty {
+            return preferredSet
+        }
+
+        return nil
     }
 
     static func isSwitcherDisplaySubrole(_ subrole: String) -> Bool {

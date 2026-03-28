@@ -1,40 +1,40 @@
 export const privacyContent = {
   intro:
-    "CmdTab is in private beta. This page explains what the website collects when you join the waitlist and how that information is used.",
+    "This page explains what the CmdTab website collects and how that information is used while you browse the site, start a trial, or follow external purchase links.",
   sections: [
     {
       title: "What we collect",
       body: [
-        "The waitlist form collects your email address and, if you choose to provide it, your name.",
-        "The website may also store limited technical metadata tied to the submission, such as source or campaign context, to understand how people discovered the beta.",
+        "The website may collect limited technical metadata such as page path, performance metrics, and aggregate campaign context to understand how people discover and use the site.",
+        "CmdTab does not create a product account on this marketing site before you start a trial or complete a purchase through an external provider.",
       ],
     },
     {
       title: "How we use it",
       body: [
-        "We use waitlist data to manage private beta access, send relevant product updates, and understand interest in CmdTab before public launch.",
-        "We do not use the waitlist to create public user profiles or to expose whether a specific email address is already registered.",
+        "We use website analytics to understand traffic, measure performance, and improve how the product is presented.",
+        "If you start a trial or purchase through an external provider, their service will handle the transaction or download flow according to their own policies.",
       ],
     },
     {
       title: "Third-party services",
       body: [
-        "Waitlist submissions are delivered using Resend so the CmdTab team can review signups and coordinate beta access.",
         "Hosting and edge protections are provided through Vercel. Both services may process the minimum operational data required to deliver the website and its submission flow.",
         "The website also uses Vercel Web Analytics and Speed Insights for aggregate traffic and performance measurement.",
+        "Hosted checkout and download links may point to external providers such as Lemon Squeezy or other launch infrastructure chosen by the CmdTab team.",
       ],
     },
     {
       title: "Retention and deletion",
       body: [
-        "Waitlist data is kept only as long as it is useful for the private beta, launch communication, and reasonable operational follow-up.",
-        "If you want your waitlist information removed, contact the CmdTab team at privacy@cmdtab.app.",
+        "CmdTab keeps only the operational data that is reasonably needed for site analytics, support, and launch operations.",
+        "If you have a privacy-related request about the website, contact the CmdTab team at privacy@cmdtab.net.",
       ],
     },
     {
       title: "Security contact",
       body: [
-        "If you believe you found a security issue in the website or app, report it to security@cmdtab.app.",
+        "If you believe you found a security issue in the website or app, report it to security@cmdtab.net.",
         "CmdTab publishes a disclosure contact and policy at /.well-known/security.txt and on the website security page.",
       ],
     },

@@ -6,7 +6,7 @@ import { privacyContent } from "@/content/legal";
 
 export const metadata: Metadata = {
   title: "Privacy | CmdTab",
-  description: "Privacy details for the CmdTab private beta waitlist.",
+  description: "Privacy details for the CmdTab website, trial flow, and hosted purchase links.",
   alternates: {
     canonical: "/privacy",
   },
@@ -17,7 +17,7 @@ export default function PrivacyPage() {
     <main>
       <SectionShell
         eyebrow="Privacy"
-        title="CmdTab private beta privacy"
+        title="CmdTab website privacy"
         description={privacyContent.intro}
         className="pt-24"
       >
@@ -39,8 +39,8 @@ export default function PrivacyPage() {
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
             <Button href="/">Back to the site</Button>
-            <Button href="mailto:privacy@cmdtab.app" variant="secondary">
-              Contact privacy@cmdtab.app
+            <Button href="mailto:privacy@cmdtab.net" variant="secondary">
+              Contact privacy@cmdtab.net
             </Button>
             <Button href="/security" variant="secondary">
               View security policy

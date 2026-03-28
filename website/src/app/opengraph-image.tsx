@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "CmdTab private beta website";
+export const alt = "CmdTab website";
 export const size = {
   width: 1200,
   height: 630,
@@ -51,7 +51,7 @@ export default function OpenGraphImage() {
                 textTransform: "uppercase",
               }}
             >
-              Private beta
+              14-day free trial
             </div>
             <div style={{ fontSize: 86, fontWeight: 600, letterSpacing: "-0.08em" }}>
               CmdTab
@@ -80,7 +80,7 @@ export default function OpenGraphImage() {
             <span>•</span>
             <span>Three switcher modes</span>
             <span>•</span>
-            <span>Waitlist-only launch</span>
+            <span>One-time purchase</span>
           </div>
         </div>
       </div>
