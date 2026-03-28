@@ -16,6 +16,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesWindowController.onRefreshPreviews = { [weak self] in
             self?.switcher?.refreshPreviewCache()
         }
+        preferencesWindowController.onApplySwitcherStyle = { [weak self] in
+            self?.switcher?.applyCurrentStyleImmediately()
+        }
         menuBar = MenuBarController(preferencesWindowController: preferencesWindowController)
         hotkeyManager = HotkeyManager(switcher: switcher)
         switcher.onClickCommit = { [weak self] in

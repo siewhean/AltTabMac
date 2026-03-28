@@ -1,186 +1,335 @@
 import Foundation
 
 enum PaletteSearch {
-    private struct SearchFields {
-        let normalizedTitle: String
-        let normalizedSubtitle: String
-        let normalizedSourceIdentifier: String
-        let sourceIdentifierTail: String
-        let combinedNormalized: String
-        let combinedTokens: [String]
-        let acronyms: [String]
-    }
+    private static let minSimilarity = 0.4
+    private static let rememberedPromotionTolerance = 0.05
 
     static func rankedItems(
         _ items: [SwitcherItem],
         query: String,
         rememberedStableKey: String? = nil
     ) -> [SwitcherItem] {
-        let normalizedQuery = normalizedQuery(query)
-        guard !normalizedQuery.isEmpty else { return items }
+        let normalized = normalizedQuery(query)
+        guard !normalized.isEmpty else { return items }
 
-        let queryTokens = tokenize(normalizedQuery)
-        return items
+        var ranked = items
             .enumerated()
-            .compactMap { index, item -> (item: SwitcherItem, score: Int, index: Int)? in
-                guard let score = score(
-                    for: item,
-                    normalizedQuery: normalizedQuery,
-                    queryTokens: queryTokens,
-                    rememberedStableKey: rememberedStableKey
-                ) else {
-                    return nil
-                }
-                return (item, score, index)
+            .compactMap { index, item -> (item: SwitcherItem, similarity: Double, index: Int)? in
+                let similarity = relevance(for: item, normalizedQuery: normalized)
+                guard similarity >= minSimilarity else { return nil }
+                return (item, similarity, index)
             }
             .sorted {
-                if $0.score != $1.score {
-                    return $0.score > $1.score
+                if $0.similarity != $1.similarity {
+                    return $0.similarity > $1.similarity
                 }
                 return $0.index < $1.index
             }
-            .map(\.item)
+
+        if let rememberedStableKey,
+           let strongestSimilarity = ranked.first?.similarity,
+           let rememberedIndex = ranked.firstIndex(where: { $0.item.historyIdentity.stableKey == rememberedStableKey }),
+           strongestSimilarity - ranked[rememberedIndex].similarity <= rememberedPromotionTolerance {
+            let rememberedItem = ranked.remove(at: rememberedIndex)
+            ranked.insert(rememberedItem, at: 0)
+        }
+
+        return ranked.map(\.item)
     }
 
-    static func normalizedQuery(_ text: String) -> String {
-        let lowered = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-        let scalars = lowered.unicodeScalars.map { scalar -> Character in
-            CharacterSet.alphanumerics.contains(scalar) ? Character(scalar) : " "
-        }
-        return String(scalars)
-            .split(whereSeparator: \.isWhitespace)
-            .joined(separator: " ")
+    static func normalizedQuery(_ query: String) -> String {
+        normalizeForSpaceInsensitiveSearch(query).text
     }
 
-    private static func tokenize(_ text: String) -> [String] {
-        text.split(whereSeparator: \.isWhitespace).map(String.init)
+    private static func relevance(for item: SwitcherItem, normalizedQuery: String) -> Double {
+        let appName = item.subtitle
+        let title = item.title
+
+        let appResults = smithWatermanHighlightsIgnoringSpaces(query: normalizedQuery, text: appName, topK: 3, allowOverlaps: false)
+        let titleResults = smithWatermanHighlightsIgnoringSpaces(query: normalizedQuery, text: title, topK: 3, allowOverlaps: false)
+
+        let appSimilarity = appResults.first?.similarity ?? 0.0
+        let titleSimilarity = titleResults.first?.similarity ?? 0.0
+
+        var similarity = max(appSimilarity * 1.02, titleSimilarity)
+        similarity += max(acronymBonus(query: normalizedQuery, text: appName), acronymBonus(query: normalizedQuery, text: title))
+
+        return similarity
     }
 
-    private static func score(
-        for item: SwitcherItem,
-        normalizedQuery: String,
-        queryTokens: [String],
-        rememberedStableKey: String?
-    ) -> Int? {
-        let fields = searchFields(for: item)
-        var score = 0
-        var matched = false
+    private static func normalizeForSpaceInsensitiveSearch(_ text: String) -> (text: String, normalizedToOriginal: [Int]) {
+        let chars = Array(text)
+        var normalizedChars = [Character]()
+        var normalizedToOriginal = [Int]()
 
-        if rememberedStableKey == item.historyIdentity.stableKey {
-            score += 4_500
-            matched = true
+        normalizedChars.reserveCapacity(chars.count)
+        normalizedToOriginal.reserveCapacity(chars.count)
+
+        for (idx, char) in chars.enumerated() {
+            if char.unicodeScalars.allSatisfy({ CharacterSet.whitespacesAndNewlines.contains($0) }) {
+                continue
+            }
+            normalizedChars.append(Character(String(char).lowercased()))
+            normalizedToOriginal.append(idx)
         }
 
-        if fields.normalizedTitle == normalizedQuery {
-            score += 3_400
-            matched = true
-        }
-
-        if fields.normalizedSubtitle == normalizedQuery || fields.sourceIdentifierTail == normalizedQuery {
-            score += 3_000
-            matched = true
-        }
-
-        if fields.normalizedTitle.hasPrefix(normalizedQuery) {
-            score += 2_500
-            matched = true
-        }
-
-        if fields.normalizedSubtitle.hasPrefix(normalizedQuery) || fields.sourceIdentifierTail.hasPrefix(normalizedQuery) {
-            score += 2_200
-            matched = true
-        }
-
-        if fields.acronyms.contains(normalizedQuery) {
-            score += 2_600
-            matched = true
-        } else if fields.acronyms.contains(where: { $0.hasPrefix(normalizedQuery) }) {
-            score += 2_100
-            matched = true
-        }
-
-        if fields.combinedNormalized.contains(normalizedQuery) {
-            score += 1_300
-            matched = true
-        }
-
-        if allQueryTokensMatch(queryTokens, combinedTokens: fields.combinedTokens) {
-            score += 1_700
-            matched = true
-        } else if allQueryTokensContained(queryTokens, haystack: fields.combinedNormalized) {
-            score += 1_100
-            matched = true
-        }
-
-        if !matched {
-            return nil
-        }
-
-        score += max(0, 60 - min(item.title.count, 60))
-        return score
+        return (String(normalizedChars), normalizedToOriginal)
     }
 
-    private static func allQueryTokensMatch(_ queryTokens: [String], combinedTokens: [String]) -> Bool {
-        guard !queryTokens.isEmpty else { return false }
-        return queryTokens.allSatisfy { queryToken in
-            combinedTokens.contains(where: { token in
-                token == queryToken || token.hasPrefix(queryToken)
-            })
-        }
-    }
+    private static func smithWatermanHighlightsIgnoringSpaces(
+        query: String,
+        text: String,
+        topK: Int = 1,
+        allowOverlaps: Bool = false
+    ) -> [SWResult] {
+        let normalized = normalizedQuery(query)
+        if normalized.isEmpty { return [] }
 
-    private static func allQueryTokensContained(_ queryTokens: [String], haystack: String) -> Bool {
-        guard !queryTokens.isEmpty else { return false }
-        return queryTokens.allSatisfy { haystack.contains($0) }
-    }
+        let normalizedText = normalizeForSpaceInsensitiveSearch(text)
+        if normalizedText.text.isEmpty { return [] }
 
-    private static func searchFields(for item: SwitcherItem) -> SearchFields {
-        let normalizedTitle = normalizedQuery(item.title)
-        let normalizedSubtitle = normalizedQuery(item.subtitle)
-        let normalizedSourceIdentifier = normalizedQuery(item.sourceAppIdentifier ?? "")
-        let sourceIdentifierTail = item.sourceAppIdentifier?
-            .split(separator: ".")
-            .last
-            .map(String.init)
-            .map(normalizedQuery) ?? ""
-
-        let combinedPieces = [
-            normalizedTitle,
-            normalizedSubtitle,
-            normalizedSourceIdentifier,
-            sourceIdentifierTail
-        ].filter { !$0.isEmpty }
-
-        let combinedNormalized = combinedPieces.joined(separator: " ")
-        let combinedTokens = tokenize(combinedNormalized)
-        let acronyms = [
-            acronym(from: item.title),
-            acronym(from: item.subtitle),
-            acronym(from: item.sourceAppIdentifier ?? "")
-        ].filter { !$0.isEmpty }
-
-        return SearchFields(
-            normalizedTitle: normalizedTitle,
-            normalizedSubtitle: normalizedSubtitle,
-            normalizedSourceIdentifier: normalizedSourceIdentifier,
-            sourceIdentifierTail: sourceIdentifierTail,
-            combinedNormalized: combinedNormalized,
-            combinedTokens: combinedTokens,
-            acronyms: acronyms
+        let normalizedResults = smithWatermanHighlights(
+            query: normalized,
+            text: normalizedText.text,
+            topK: topK,
+            allowOverlaps: allowOverlaps
         )
+
+        return normalizedResults.compactMap { mapNormalizedResultToOriginal($0, normalizedText.normalizedToOriginal) }
     }
 
-    private static func acronym(from text: String) -> String {
-        let separators = CharacterSet.alphanumerics.inverted
-        let words = text
-            .components(separatedBy: separators)
-            .filter { !$0.isEmpty }
+    private static func mapNormalizedResultToOriginal(_ result: SWResult, _ normalizedToOriginal: [Int]) -> SWResult? {
+        guard let span = mapNormalizedRangeToOriginal(result.span, normalizedToOriginal) else { return nil }
+        let subspans = result.subspans.compactMap { mapNormalizedRangeToOriginal($0, normalizedToOriginal) }
+        let ops = result.ops.compactMap { mapNormalizedOpToOriginal($0, normalizedToOriginal) }
+        return SWResult(score: result.score, similarity: result.similarity, span: span, subspans: subspans, ops: ops)
+    }
 
-        let initials = words.compactMap { $0.first?.lowercased() }.joined()
-        if !initials.isEmpty {
-            return initials
+    private static func mapNormalizedRangeToOriginal(_ range: Range<Int>, _ normalizedToOriginal: [Int]) -> Range<Int>? {
+        if range.isEmpty { return nil }
+        guard range.lowerBound >= 0, range.upperBound <= normalizedToOriginal.count else { return nil }
+        let start = normalizedToOriginal[range.lowerBound]
+        let end = normalizedToOriginal[range.upperBound - 1] + 1
+        return start..<end
+    }
+
+    private static func mapNormalizedOpToOriginal(_ op: SWOp, _ normalizedToOriginal: [Int]) -> SWOp? {
+        if op.op == "D" {
+            if normalizedToOriginal.isEmpty { return SWOp(op: op.op, qi: op.qi, tj: 0) }
+            if op.tj <= 0 { return SWOp(op: op.op, qi: op.qi, tj: normalizedToOriginal[0]) }
+            if op.tj >= normalizedToOriginal.count {
+                return SWOp(op: op.op, qi: op.qi, tj: normalizedToOriginal[normalizedToOriginal.count - 1] + 1)
+            }
+            return SWOp(op: op.op, qi: op.qi, tj: normalizedToOriginal[op.tj])
         }
 
-        return normalizedQuery(text)
+        guard op.tj >= 0, op.tj < normalizedToOriginal.count else { return nil }
+        return SWOp(op: op.op, qi: op.qi, tj: normalizedToOriginal[op.tj])
     }
+
+    private static func smithWatermanHighlights(
+        query: String,
+        text: String,
+        match: Int = 2,
+        mismatch: Int = -1,
+        gap: Int = -2,
+        topK: Int = 1,
+        minScore: Int = 1,
+        allowOverlaps: Bool = false
+    ) -> [SWResult] {
+        let queryChars = Array(query.lowercased())
+        let textChars = Array(text.lowercased())
+        let queryCount = queryChars.count
+        let textCount = textChars.count
+
+        if queryCount == 0 || textCount == 0 { return [] }
+
+        var scores = Array(repeating: Array(repeating: 0, count: textCount + 1), count: queryCount + 1)
+        var backtrack = Array(repeating: Array(repeating: Character("\0"), count: textCount + 1), count: queryCount + 1)
+
+        for i in 1...queryCount {
+            for j in 1...textCount {
+                let diagonal = scores[i - 1][j - 1] + (queryChars[i - 1] == textChars[j - 1] ? match : mismatch)
+                let up = scores[i - 1][j] + gap
+                let left = scores[i][j - 1] + gap
+
+                var value = diagonal
+                var pointer: Character = "D"
+                if up > value { value = up; pointer = "U" }
+                if left > value { value = left; pointer = "L" }
+                if value < 0 { value = 0; pointer = "\0" }
+
+                scores[i][j] = value
+                backtrack[i][j] = pointer
+            }
+        }
+
+        var candidates: [(score: Int, i: Int, j: Int)] = []
+        for i in 1...queryCount {
+            for j in 1...textCount {
+                let score = scores[i][j]
+                if score > 0 { candidates.append((score, i, j)) }
+            }
+        }
+
+        if candidates.isEmpty { return [] }
+        candidates.sort { $0.score > $1.score }
+
+        var results: [SWResult] = []
+        var usedSpans: [Range<Int>] = []
+
+        func rangesOverlap(_ lhs: Range<Int>, _ rhs: Range<Int>) -> Bool {
+            lhs.lowerBound < rhs.upperBound && rhs.lowerBound < lhs.upperBound
+        }
+
+        func backtrackResult(_ iStart: Int, _ jStart: Int) -> (ops: [SWOp], span: Range<Int>, subspans: [Range<Int>], score: Int) {
+            var reversedOps: [SWOp] = []
+            var consumedTextIndexes: [Int] = []
+            var i = iStart
+            var j = jStart
+
+            while i > 0 && j > 0 && scores[i][j] > 0 {
+                let pointer = backtrack[i][j]
+                if pointer == "D" {
+                    reversedOps.append(SWOp(op: queryChars[i - 1] == textChars[j - 1] ? "M" : "S", qi: i - 1, tj: j - 1))
+                    consumedTextIndexes.append(j - 1)
+                    i -= 1
+                    j -= 1
+                } else if pointer == "U" {
+                    reversedOps.append(SWOp(op: "D", qi: i - 1, tj: j))
+                    i -= 1
+                } else if pointer == "L" {
+                    reversedOps.append(SWOp(op: "I", qi: i, tj: j - 1))
+                    consumedTextIndexes.append(j - 1)
+                    j -= 1
+                } else {
+                    break
+                }
+            }
+
+            let ops = Array(reversedOps.reversed())
+            let spanStart = consumedTextIndexes.min() ?? jStart
+            let spanEnd = (consumedTextIndexes.max() ?? (jStart - 1)) + 1
+            let span = spanStart..<spanEnd
+
+            var subspans: [Range<Int>] = []
+            var runStart: Int?
+            var cursor = spanStart
+
+            for op in ops {
+                switch op.op {
+                case "M":
+                    if runStart == nil { runStart = cursor }
+                    cursor += 1
+                case "S", "I":
+                    if let runStart { subspans.append(runStart..<cursor) }
+                    runStart = nil
+                    cursor += 1
+                case "D":
+                    if let runStart { subspans.append(runStart..<cursor) }
+                    runStart = nil
+                default:
+                    break
+                }
+            }
+
+            if let runStart { subspans.append(runStart..<cursor) }
+            return (ops, span, subspans, scores[iStart][jStart])
+        }
+
+        for (score, i, j) in candidates {
+            if results.count >= topK || score < minScore { break }
+            let result = backtrackResult(i, j)
+            if !allowOverlaps && usedSpans.contains(where: { rangesOverlap($0, result.span) }) {
+                continue
+            }
+
+            let similarity = Double(result.score) / Double(max(1, match * queryCount))
+            results.append(
+                SWResult(
+                    score: result.score,
+                    similarity: similarity,
+                    span: result.span,
+                    subspans: result.subspans,
+                    ops: result.ops
+                )
+            )
+            usedSpans.append(result.span)
+        }
+
+        return results
+    }
+
+    static func acronymBonus(query: String, text: String) -> Double {
+        let normalized = normalizedQuery(query)
+        if normalized.isEmpty { return 0 }
+
+        let lowercasedText = text.lowercased()
+        if lowercasedText.hasPrefix(normalized) {
+            return 6.0 + min(2.0, Double(normalized.count) * 0.25)
+        }
+
+        let starts = wordStarts(in: text)
+        if starts.isEmpty { return 0 }
+
+        let queryChars = Array(normalized)
+        var queryIndex = 0
+        var firstMatch: Int?
+
+        for (index, char) in starts.enumerated() {
+            if queryIndex >= queryChars.count { break }
+            if char == queryChars[queryIndex] {
+                if firstMatch == nil { firstMatch = index }
+                queryIndex += 1
+            }
+        }
+
+        guard queryIndex == queryChars.count else { return 0 }
+        let position = firstMatch ?? 0
+        return 4.0 + min(2.0, Double(normalized.count) * 0.2) + (position == 0 ? 1.0 : max(0.0, 0.6 - Double(position) * 0.15))
+    }
+
+    private static func wordStarts(in text: String) -> [Character] {
+        let chars = Array(text)
+        if chars.isEmpty { return [] }
+
+        var starts: [Character] = []
+        starts.reserveCapacity(min(16, chars.count))
+
+        for index in 0..<chars.count {
+            let char = chars[index]
+            if !isAlphaNumeric(char) { continue }
+            if index == 0 || !isAlphaNumeric(chars[index - 1]) || (isLowercase(chars[index - 1]) && isUppercase(char)) {
+                starts.append(Character(String(char).lowercased()))
+            }
+        }
+
+        return starts
+    }
+
+    private static func isAlphaNumeric(_ char: Character) -> Bool {
+        char.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) }
+    }
+
+    private static func isLowercase(_ char: Character) -> Bool {
+        char.unicodeScalars.allSatisfy { CharacterSet.lowercaseLetters.contains($0) }
+    }
+
+    private static func isUppercase(_ char: Character) -> Bool {
+        char.unicodeScalars.allSatisfy { CharacterSet.uppercaseLetters.contains($0) }
+    }
+}
+
+private struct SWOp {
+    let op: Character
+    let qi: Int
+    let tj: Int
+}
+
+private struct SWResult {
+    let score: Int
+    let similarity: Double
+    let span: Range<Int>
+    let subspans: [Range<Int>]
+    let ops: [SWOp]
 }

@@ -85,7 +85,6 @@ struct SwitcherLayoutMetrics {
     /// Row height is fixed at 44pt; the panel grows with item count up to 60% of
     /// screen height, then the list scrolls.
     static func makePalette(itemCount: Int, visibleFrame: CGRect) -> SwitcherLayoutMetrics {
-        guard itemCount > 0 else { return .empty }
         let panelWidth: CGFloat  = 520
         let rowHeight: CGFloat   = 44
         let searchBarHeight: CGFloat = 48

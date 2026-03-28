@@ -213,28 +213,29 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(secondOrdered.first?.title, "Finder")
     }
 
-    func testPaletteFilteringMatchesTitleAndSubtitle() {
+    func testPaletteFilteringMatchesAppName() {
+        // subtitle = app name; title = window title. Filtering matches on app name (subtitle).
         let items = [
-            makeItem(title: "Calendar", appID: "com.apple.iCal", identity: .appWindow(pid: 101, windowID: 1)),
-            makeItem(title: "System Settings", appID: "com.apple.systempreferences", identity: .appWindow(pid: 202, windowID: 2)),
-            makeItem(title: "Notes", appID: "com.apple.Notes", identity: .appWindow(pid: 303, windowID: 3)),
+            makeItem(title: "Calendar", appName: "Calendar", appID: "com.apple.iCal", identity: .appWindow(pid: 101, windowID: 1)),
+            makeItem(title: "System Settings", appName: "System Settings", appID: "com.apple.systempreferences", identity: .appWindow(pid: 202, windowID: 2)),
+            makeItem(title: "Notes", appName: "Notes", appID: "com.apple.Notes", identity: .appWindow(pid: 303, windowID: 3)),
         ]
 
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "calendar").map(\.title),
-            ["Calendar"]
+            SwitcherWindowController.paletteFilteredItems(items, query: "calendar").first?.title,
+            "Calendar"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "systempreferences").map(\.title),
-            ["System Settings"]
+            SwitcherWindowController.paletteFilteredItems(items, query: "system").first?.title,
+            "System Settings"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "system preferences").map(\.title),
-            ["System Settings"]
+            SwitcherWindowController.paletteFilteredItems(items, query: "settings").first?.title,
+            "System Settings"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "notes").map(\.title),
-            ["Notes"]
+            SwitcherWindowController.paletteFilteredItems(items, query: "notes").first?.title,
+            "Notes"
         )
         XCTAssertEqual(
             SwitcherWindowController.paletteFilteredItems(items, query: "").map(\.title),
@@ -242,10 +243,10 @@ final class SwitcherOrderingTests: XCTestCase {
         )
     }
 
-    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
+    private func makeItem(title: String, appName: String? = nil, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
         SwitcherItem(
             title: title,
-            subtitle: appID,
+            subtitle: appName ?? appID,
             icon: nil,
             previewImage: nil,
             historyIdentity: identity,

@@ -474,6 +474,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift"
         },
         {
@@ -487,6 +491,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift"
         },
         {
           "kind" : "file",
@@ -515,10 +523,12 @@
       "objects" : [
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/AlternateModifierTriggerStateTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/AppSwitcherActivationTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/HotkeyTriggerStateTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/PaletteSearchTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherOrderingTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests.swift.o"
       ],
@@ -588,6 +598,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.swift.o"
         },
         {
@@ -601,6 +615,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swift.o"
         },
         {
           "kind" : "file",
@@ -619,10 +637,12 @@
       "sources" : [
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/AlternateModifierTriggerStateTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/AppSwitcherActivationTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift"
       ],
@@ -799,10 +819,12 @@
       "-c",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/AlternateModifierTriggerStateTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/AppSwitcherActivationTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift",
       "-I",
@@ -1266,6 +1288,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.swift.o"
         },
         {
@@ -1279,6 +1305,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swift.o"
         },
         {
           "kind" : "file",
@@ -1308,6 +1338,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift"
         },
         {
@@ -1321,6 +1355,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift"
         },
         {
           "kind" : "file",

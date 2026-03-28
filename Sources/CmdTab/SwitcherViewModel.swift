@@ -21,6 +21,7 @@ final class SwitcherViewModel: ObservableObject {
     /// here by HotkeyManager; SwitcherWindowController filters `items` accordingly.
     /// Cleared automatically when the overlay is dismissed.
     @Published var searchQuery: String = ""
+    @Published var radialViewportState = RadialMenuViewportState()
 
     // Move selection left/right, wrapping around
     func move(by delta: Int) {

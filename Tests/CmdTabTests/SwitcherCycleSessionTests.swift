@@ -229,6 +229,29 @@ final class SwitcherCycleSessionTests: XCTestCase {
         XCTAssertEqual(session.commitSelection().title, "Safari")
     }
 
+    func testReplacingItemsResetsSelectionToFilteredIndex() throws {
+        let mimestream = makeItem(title: "Mimestream", appID: "com.mimestream.Mimestream", identity: .appWindow(pid: 101, windowID: 11))
+        let codex = makeItem(title: "Codex", appID: "com.openai.codex", identity: .appWindow(pid: 202, windowID: 22))
+        let claude = makeItem(title: "Claude", appID: "com.anthropic.claude", identity: .appWindow(pid: 303, windowID: 33))
+
+        var session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [mimestream, codex, claude],
+                currentFrontmost: nil,
+                reverse: false,
+                pinsSnapshot: false
+            )
+        )
+
+        session.move(by: 2)
+        XCTAssertEqual(session.commitSelection().title, "Claude")
+
+        session.replaceItems([codex], selectedIndex: 0)
+        XCTAssertEqual(session.selectedIndex, 0)
+        XCTAssertEqual(session.commitSelection().title, "Codex")
+    }
+
     private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
         SwitcherItem(
             title: title,

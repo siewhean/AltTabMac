@@ -77,8 +77,12 @@ final class SwitcherWindowController {
     private let searchMemory = SearchMemoryStore.shared
     private let preferences = SwitcherPreferences.shared
     private var session: SwitcherCycleSession?
+    /// Total number of apps available when the palette session started.
+    /// Used to keep the panel height fixed while the user filters.
+    private var paletteFullItemCount: Int = 0
     private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
+    private var lastObservedStyle: SwitcherStyle
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -95,6 +99,7 @@ final class SwitcherWindowController {
     var onClickCommit: (() -> Void)?
 
     init() {
+        self.lastObservedStyle = SwitcherPreferences.shared.switcherStyle
         buildPanel()
         buildBackdropPanel()
         wireDataSources()
@@ -132,7 +137,25 @@ final class SwitcherWindowController {
         showPanel(makeKey: true)
     }
 
+    func applyCurrentStyleImmediately() {
+        refreshPanelContentRoots()
+
+        if viewModel.isVisible {
+            refreshVisibleItemsIfNeeded()
+            showPanel(makeKey: false)
+            return
+        }
+
+        guard startSession(reverse: false) else { return }
+        showPanel(makeKey: false)
+    }
+
     func moveSelection(by delta: Int) {
+        if preferences.switcherStyle == .radialMenu {
+            moveSelectionInRadialMenu(by: delta)
+            return
+        }
+
         session?.move(by: delta)
         syncViewModelSelection()
     }
@@ -275,9 +298,9 @@ final class SwitcherWindowController {
         guard let idx = viewModel.hoveredIndex,
               idx >= 0, idx < viewModel.items.count else { return }
 
-        let currentIdx = session?.selectedIndex ?? 0
-        let delta = idx - currentIdx
-        if delta != 0 { session?.move(by: delta) }
+        // Use selectIndex so session.selectedIdentity is updated to match the
+        // clicked item before commitCurrentSelection reads it.
+        session?.selectIndex(idx)
         viewModel.selectedIndex = idx
 
         // Clear HotkeyManager's trigger state BEFORE committing, so the
@@ -289,6 +312,20 @@ final class SwitcherWindowController {
 
     private func handlePanelKeyEvent(_ event: NSEvent) -> Bool {
         guard viewModel.isVisible else { return false }
+
+        if preferences.switcherStyle == .commandPalette {
+            if event.keyCode == 51 {
+                deleteSearchCharacter()
+                return true
+            }
+
+            if let searchableCharacter = searchableCharacter(from: event) {
+                appendSearchCharacter(searchableCharacter)
+                return true
+            }
+
+            return false
+        }
 
         let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let commandHeld = modifierFlags.contains(.command)
@@ -310,9 +347,30 @@ final class SwitcherWindowController {
         return true
     }
 
+    private func searchableCharacter(from event: NSEvent) -> String? {
+        let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .function])
+        guard !modifierFlags.contains(.option),
+              !modifierFlags.contains(.control),
+              !modifierFlags.contains(.function) else {
+            return nil
+        }
+
+        guard let characters = event.charactersIgnoringModifiers,
+              characters.count == 1,
+              let scalar = characters.unicodeScalars.first,
+              scalar.value >= 32,
+              scalar.value != 127 else {
+            return nil
+        }
+
+        return String(scalar)
+    }
+
     private func makeSession(reverse: Bool) -> SwitcherCycleSession? {
         let snapshot = items()
-        let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
+        let currentFrontmost = preferences.switcherStyle == .commandPalette
+            ? nil
+            : currentFrontmostIdentity(availableItems: snapshot)
         return SwitcherCycleSession(
             mode: .app,
             items: snapshot,
@@ -325,6 +383,9 @@ final class SwitcherWindowController {
     private func startSession(reverse: Bool) -> Bool {
         guard let newSession = makeSession(reverse: reverse) else { return false }
         session = newSession
+        if preferences.switcherStyle == .commandPalette {
+            paletteFullItemCount = newSession.items.count
+        }
         syncViewModelFromSession()
         return true
     }
@@ -363,9 +424,27 @@ final class SwitcherWindowController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.appSwitcher.warmCache(force: true)
-            self?.refreshVisibleItemsIfNeeded()
-            self?.updateBackdropPanelIfNeeded()
+            self?.handlePreferencesDidChange()
+        }
+    }
+
+    private func handlePreferencesDidChange() {
+        appSwitcher.warmCache(force: true)
+
+        let currentStyle = preferences.switcherStyle
+        let styleDidChange = currentStyle != lastObservedStyle
+        lastObservedStyle = currentStyle
+
+        if styleDidChange {
+            refreshPanelContentRoots()
+        }
+
+        refreshVisibleItemsIfNeeded()
+
+        if styleDidChange, viewModel.isVisible {
+            showPanel(makeKey: false)
+        } else {
+            updateBackdropPanelIfNeeded()
         }
     }
 
@@ -393,14 +472,13 @@ final class SwitcherWindowController {
                 rememberedStableKey: searchMemory.rememberedStableKey(for: viewModel.searchQuery)
             )
             if filteredItems.isEmpty && !viewModel.searchQuery.isEmpty {
-                withAnimation(itemMutationAnimation) {
-                    viewModel.items = []
-                    viewModel.selectedIndex = 0
-                }
+                self.session = nil
+                viewModel.items = []
+                viewModel.selectedIndex = 0
             } else {
                 session.refreshItems(filteredItems)
                 self.session = session
-                syncViewModelFromSession(animated: true)
+                syncViewModelFromSession(animated: false)
             }
         } else {
             session.refreshItems(refreshedItems)
@@ -417,6 +495,12 @@ final class SwitcherWindowController {
             self.viewModel.mode = session.mode
             self.viewModel.items = session.items
             self.viewModel.selectedIndex = session.selectedIndex
+            if self.preferences.switcherStyle == .radialMenu {
+                self.viewModel.radialViewportState.reset(
+                    itemCount: session.items.count,
+                    selectedIndex: session.selectedIndex
+                )
+            }
         }
 
         if animated {
@@ -428,6 +512,23 @@ final class SwitcherWindowController {
 
     private func syncViewModelSelection() {
         guard let session else { return }
+        viewModel.selectedIndex = session.selectedIndex
+        viewModel.items = session.items
+    }
+
+    private func moveSelectionInRadialMenu(by delta: Int) {
+        guard var session else { return }
+        guard !session.items.isEmpty else { return }
+
+        var viewport = viewModel.radialViewportState
+        if viewport.visibleIndices.count != min(RadialMenuViewportState.maxVisible, session.items.count) {
+            viewport.reset(itemCount: session.items.count, selectedIndex: session.selectedIndex)
+        }
+
+        let nextIndex = viewport.advance(direction: delta, itemCount: session.items.count)
+        session.selectIndex(nextIndex)
+        self.session = session
+        viewModel.radialViewportState = viewport
         viewModel.selectedIndex = session.selectedIndex
         viewModel.items = session.items
     }
@@ -455,7 +556,8 @@ final class SwitcherWindowController {
         case .classicGrid:
             viewModel.layout = SwitcherLayoutMetrics.make(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
         case .commandPalette:
-            viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: visibleCount, visibleFrame: screen.visibleFrame)
+            let paletteCount = max(paletteFullItemCount, visibleCount)
+            viewModel.layout = SwitcherLayoutMetrics.makePalette(itemCount: paletteCount, visibleFrame: screen.visibleFrame)
         case .radialMenu:
             viewModel.layout = SwitcherLayoutMetrics.makeRadial(itemCount: visibleCount)
         }
@@ -516,6 +618,8 @@ final class SwitcherWindowController {
             syncViewModelFromSession()
         }
 
+        refreshPanelContentRoots()
+
         let targetScreen = presentationScreen(for: preferences.switcherStyle)
 
         if let screen = targetScreen {
@@ -548,8 +652,10 @@ final class SwitcherWindowController {
 
     private func resetSessionState() {
         session = nil
+        paletteFullItemCount = 0
         viewModel.items = []
         viewModel.selectedIndex = 0
+        viewModel.radialViewportState = RadialMenuViewportState()
         viewModel.layout = .empty
         viewModel.hoveredIndex = nil
         viewModel.searchQuery = ""
@@ -600,16 +706,42 @@ final class SwitcherWindowController {
             query: query,
             rememberedStableKey: rememberedStableKey
         )
-        viewModel.items = filtered
-        viewModel.selectedIndex = 0
-        session?.refreshItems(filtered)
+
+        guard !filtered.isEmpty else {
+            session = nil
+            viewModel.items = []
+            viewModel.selectedIndex = 0
+            updateVisibleLayout()
+            return
+        }
+
+        if var session {
+            session.replaceItems(filtered, selectedIndex: 0)
+            self.session = session
+        } else {
+            self.session = SwitcherCycleSession(
+                mode: .app,
+                items: filtered,
+                currentFrontmost: nil,
+                reverse: false,
+                pinsSnapshot: false
+            )
+        }
+
+        syncViewModelFromSession(animated: false)
+        updateVisibleLayout()
     }
 
     private func commitCurrentSelection() {
-        guard let selectedItem = session?.commitSelection() else {
+        guard var session else {
             hidePanel()
             return
         }
+
+        session.selectIndex(viewModel.selectedIndex)
+        self.session = session
+
+        let selectedItem = session.commitSelection()
 
         let rememberedQuery = preferences.switcherStyle == .commandPalette ? viewModel.searchQuery : ""
         if !rememberedQuery.isEmpty {
@@ -656,7 +788,8 @@ final class SwitcherWindowController {
         case .classicGrid:
             layout = SwitcherLayoutMetrics.make(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
         case .commandPalette:
-            layout = SwitcherLayoutMetrics.makePalette(itemCount: viewModel.items.count, visibleFrame: visibleFrame)
+            let paletteCount = max(paletteFullItemCount, viewModel.items.count)
+            layout = SwitcherLayoutMetrics.makePalette(itemCount: paletteCount, visibleFrame: visibleFrame)
         case .radialMenu:
             layout = SwitcherLayoutMetrics.makeRadial(itemCount: viewModel.items.count)
         }
@@ -754,6 +887,25 @@ final class SwitcherWindowController {
         panel.ignoresMouseEvents = true
         panel.contentView = NSHostingView(rootView: SwitcherView(viewModel: viewModel))
         return panel
+    }
+
+    private func refreshPanelContentRoots() {
+        if let hosting = panel.contentView as? ClickableHostingView<SwitcherView> {
+            hosting.rootView = SwitcherView(viewModel: viewModel)
+            hosting.onCardClick = { [weak self] _ in
+                self?.handleCardClick()
+            }
+        }
+
+        if let hosting = backdropPanel.contentView as? NSHostingView<SwitcherScreenBackdropView> {
+            hosting.rootView = SwitcherScreenBackdropView(viewModel: viewModel)
+        }
+
+        for mirrorPanel in mirroredPanels.values {
+            if let hosting = mirrorPanel.contentView as? NSHostingView<SwitcherView> {
+                hosting.rootView = SwitcherView(viewModel: viewModel)
+            }
+        }
     }
 
     private func tearDownMirroredPanels() {

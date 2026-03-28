@@ -5,6 +5,7 @@ struct PreferencesView: View {
     @ObservedObject var preferences: SwitcherPreferences
     let onOpenApplications: () -> Void
     let onRefreshPreviews: () -> Void
+    let onApplySwitcherStyle: () -> Void
 
     var body: some View {
         GeometryReader { proxy in
@@ -232,7 +233,9 @@ struct PreferencesView: View {
                             style: style,
                             isSelected: preferences.switcherStyle == style
                         ) {
+                            guard preferences.switcherStyle != style else { return }
                             preferences.switcherStyle = style
+                            onApplySwitcherStyle()
                         }
                     }
                 }

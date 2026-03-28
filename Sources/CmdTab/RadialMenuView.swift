@@ -1,34 +1,132 @@
 import SwiftUI
 import AppKit
 
+struct RadialMenuViewportState {
+    static let maxVisible = 8
+    static let replacementThreshold = 4
+
+    var visibleIndices: [Int] = []
+    var selectedSlot: Int = 0
+    var lastDirection: Int = 0
+    var consecutiveMoves: Int = 0
+    var nextRightIndex: Int?
+    var nextLeftIndex: Int?
+
+    mutating func reset(itemCount: Int, selectedIndex: Int) {
+        let visibleCount = min(Self.maxVisible, max(0, itemCount))
+        visibleIndices = Array(0..<visibleCount)
+        selectedSlot = visibleCount == 0 ? 0 : min(max(0, selectedIndex), visibleCount - 1)
+        lastDirection = 0
+        consecutiveMoves = 0
+        nextRightIndex = itemCount > visibleCount ? visibleCount % itemCount : nil
+        nextLeftIndex = itemCount > visibleCount ? itemCount - 1 : nil
+    }
+
+    mutating func advance(direction: Int, itemCount: Int) -> Int {
+        guard itemCount > 0 else {
+            reset(itemCount: 0, selectedIndex: 0)
+            return 0
+        }
+
+        let visibleCount = min(Self.maxVisible, itemCount)
+        if visibleIndices.count != visibleCount || visibleIndices.contains(where: { $0 < 0 || $0 >= itemCount }) {
+            reset(itemCount: itemCount, selectedIndex: min(selectedSlot, visibleCount - 1))
+        }
+
+        let stepDirection = direction >= 0 ? 1 : -1
+        for _ in 0..<max(1, abs(direction)) {
+            advanceOne(direction: stepDirection, itemCount: itemCount)
+        }
+        return visibleIndices[selectedSlot]
+    }
+
+    private mutating func advanceOne(direction: Int, itemCount: Int) {
+        let visibleCount = visibleIndices.count
+        guard visibleCount > 0 else { return }
+
+        selectedSlot = (selectedSlot + direction + visibleCount) % visibleCount
+
+        if lastDirection == direction {
+            consecutiveMoves += 1
+        } else {
+            lastDirection = direction
+            consecutiveMoves = 1
+        }
+
+        guard itemCount > visibleCount, consecutiveMoves >= Self.replacementThreshold else { return }
+
+        let replacementSlot = (selectedSlot + (visibleCount / 2)) % visibleCount
+        if direction > 0 {
+            if let next = takeNextRight(itemCount: itemCount) {
+                visibleIndices[replacementSlot] = next
+            }
+        } else {
+            if let next = takeNextLeft(itemCount: itemCount) {
+                visibleIndices[replacementSlot] = next
+            }
+        }
+    }
+
+    private mutating func takeNextRight(itemCount: Int) -> Int? {
+        guard itemCount > visibleIndices.count, let start = nextRightIndex else { return nil }
+
+        var candidate = start
+        for _ in 0..<itemCount {
+            if !visibleIndices.contains(candidate) {
+                nextRightIndex = (candidate + 1) % itemCount
+                return candidate
+            }
+            candidate = (candidate + 1) % itemCount
+        }
+
+        return nil
+    }
+
+    private mutating func takeNextLeft(itemCount: Int) -> Int? {
+        guard itemCount > visibleIndices.count, let start = nextLeftIndex else { return nil }
+
+        var candidate = start
+        for _ in 0..<itemCount {
+            if !visibleIndices.contains(candidate) {
+                nextLeftIndex = (candidate - 1 + itemCount) % itemCount
+                return candidate
+            }
+            candidate = (candidate - 1 + itemCount) % itemCount
+        }
+
+        return nil
+    }
+}
+
 // MARK: - Radial Menu Style
 
 /// Circular arrangement of app icons around the centre of the panel.
 /// The panel itself is centred on the cursor at show time (see SwitcherWindowController).
-///
-/// Up to maxVisible items are shown; items beyond that are hidden.
-/// Arrow keys cycle around the ring: left/right advance one step,
-/// up/down jump half-way across the circle.
 struct RadialMenuView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
-    private static let maxVisible = 8
     private let canvasSize: CGFloat = 560
     private let ringRadius: CGFloat = 188
 
-    private var visibleItems: [SwitcherItem] {
-        Array(viewModel.items.prefix(Self.maxVisible))
+    private var visibleSlots: [(slot: Int, absoluteIndex: Int, item: SwitcherItem)] {
+        viewModel.radialViewportState.visibleIndices.enumerated().compactMap { slot, absoluteIndex in
+            guard absoluteIndex >= 0, absoluteIndex < viewModel.items.count else { return nil }
+            return (slot, absoluteIndex, viewModel.items[absoluteIndex])
+        }
     }
 
     private var selectedItem: SwitcherItem? {
-        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < visibleItems.count else { return nil }
-        return visibleItems[viewModel.selectedIndex]
+        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < viewModel.items.count else { return nil }
+        return viewModel.items[viewModel.selectedIndex]
+    }
+
+    private var localSelectedIndex: Int {
+        min(max(0, viewModel.radialViewportState.selectedSlot), max(0, visibleSlots.count - 1))
     }
 
     var body: some View {
         ZStack {
-            // Subtle circular frosted panel so the background shows through
             Circle()
                 .fill(Color.white.opacity(0.03))
                 .background(
@@ -49,7 +147,6 @@ struct RadialMenuView: View {
                 )
                 .shadow(color: Color.black.opacity(0.45), radius: 40, x: 0, y: 20)
 
-            // Centre label
             VStack(spacing: 5) {
                 Image(systemName: viewModel.mode.systemImage)
                     .font(.system(size: 22, weight: .medium))
@@ -71,35 +168,34 @@ struct RadialMenuView: View {
                             .frame(maxWidth: 190)
                     }
                 }
-                if viewModel.items.count > Self.maxVisible {
-                    Text("+\(viewModel.items.count - Self.maxVisible) more")
+                if viewModel.items.count > RadialMenuViewportState.maxVisible {
+                    Text("+\(viewModel.items.count - RadialMenuViewportState.maxVisible) more")
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.28))
                 }
             }
 
-            // Ring items
-            ForEach(Array(visibleItems.enumerated()), id: \.element.id) { idx, item in
-                let angle = itemAngle(index: idx, total: visibleItems.count)
-                let isSelected = idx == viewModel.selectedIndex
+            ForEach(visibleSlots, id: \.item.id) { slot in
+                let angle = itemAngle(index: slot.slot, total: visibleSlots.count)
+                let isSelected = slot.slot == localSelectedIndex
                 let centre = canvasSize / 2
 
-                RadialItemView(item: item, isSelected: isSelected, angle: angle)
+                RadialItemView(item: slot.item, isSelected: isSelected, angle: angle)
                     .transition(.switcherItemMutation)
                     .position(
                         x: centre + cos(angle) * ringRadius,
                         y: centre + sin(angle) * ringRadius
                     )
                     .onHover { hovering in
-                        viewModel.hoveredIndex = hovering ? idx : nil
+                        viewModel.hoveredIndex = hovering ? slot.absoluteIndex : nil
                     }
             }
         }
         .frame(width: canvasSize, height: canvasSize)
-        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: visibleItems.map(\.id))
+        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: visibleSlots.map(\.item.id))
+        .animation(.spring(response: 0.18, dampingFraction: 0.78), value: localSelectedIndex)
     }
 
-    /// Distribute items evenly around the ring, starting at the top (12 o'clock).
     private func itemAngle(index: Int, total: Int) -> Double {
         guard total > 0 else { return 0 }
         let step = (2 * .pi) / Double(total)
@@ -107,14 +203,12 @@ struct RadialMenuView: View {
     }
 }
 
-// MARK: - Radial Item Node
-
 private struct RadialItemView: View {
     let item: SwitcherItem
     let isSelected: Bool
     let angle: Double
 
-    private let circleSize: CGFloat = 62
+    private let circleSize: CGFloat = 70
 
     var body: some View {
         VStack(spacing: 5) {
@@ -165,10 +259,10 @@ private struct RadialItemView: View {
                     Image(nsImage: icon)
                         .resizable()
                         .interpolation(.high)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 42, height: 42)
                 } else {
                     Image(systemName: "app.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: 26))
                         .foregroundColor(.white.opacity(0.40))
                 }
             }

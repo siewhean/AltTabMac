@@ -1,0 +1,180 @@
+{
+  "": {
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/master.swiftdeps"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FrontmostResolution.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/HotkeyManager.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LaunchAtLoginController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PaletteSearch.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PermissionDiagnostics.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesView.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesWindowController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/RadialMenuView.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SearchMemoryStore.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherHistory.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherItem.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherLayout.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherLayout.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherLayout.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherLayout~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherLayout.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherLayout.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherPreferenceModels.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferenceModels.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferenceModels.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferenceModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferenceModels.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferenceModels.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherPreferences.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferences.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferences.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferences~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferences.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherPreferences.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherStyle.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherStyle.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherStyle.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherStyle~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherStyle.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherStyle.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherView.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherView.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherView.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherView~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherView.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherViewModel.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherViewModel.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherViewModel.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherViewModel~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherViewModel.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherViewModel.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherWindowController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherWindowController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherWindowController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherWindowController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherWindowController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherWindowController.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/main.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/main.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/main.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/main.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/main.dia"
+  }
+}

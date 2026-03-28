@@ -31,7 +31,7 @@ final class SearchMemoryStore {
     }
 
     func rememberedStableKey(for query: String) -> String? {
-        let normalizedQuery = PaletteSearch.normalizedQuery(query)
+        let normalizedQuery = normalizedMemoryQuery(query)
         guard !normalizedQuery.isEmpty else { return nil }
 
         return queue.sync {
@@ -40,7 +40,7 @@ final class SearchMemoryStore {
     }
 
     func noteSelection(query: String, identity: SwitcherHistoryIdentity) {
-        let normalizedQuery = PaletteSearch.normalizedQuery(query)
+        let normalizedQuery = normalizedMemoryQuery(query)
         guard !normalizedQuery.isEmpty else { return }
 
         queue.sync {
@@ -77,5 +77,10 @@ final class SearchMemoryStore {
     private func persistLocked() {
         guard let data = try? JSONEncoder().encode(entries) else { return }
         defaults.set(data, forKey: defaultsKey)
+    }
+
+    private func normalizedMemoryQuery(_ query: String) -> String {
+        let filteredScalars = query.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        return String(String.UnicodeScalarView(filteredScalars)).lowercased()
     }
 }

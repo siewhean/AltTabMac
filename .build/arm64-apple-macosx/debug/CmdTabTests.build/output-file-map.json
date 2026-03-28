@@ -16,6 +16,13 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/AppSwitcherActivationTests.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/AppSwitcherActivationTests.dia"
   },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.dia"
+  },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.d",
     "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.swift.o",
@@ -43,6 +50,13 @@
     "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests~partial.swiftmodule",
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.dia"
   },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherOrderingTests.d",

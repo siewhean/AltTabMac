@@ -381,6 +381,18 @@ final class HotkeyManager {
             }
 
             if let switcher, switcher.isVisible {
+                if switcher.currentStyle == .commandPalette {
+                    if keyCode == 51 {
+                        dispatchToMain { switcher.deleteSearchCharacter() }
+                        return nil
+                    }
+
+                    if let searchableCharacter = Self.searchablePaletteCharacter(from: event) {
+                        dispatchToMain { switcher.appendSearchCharacter(searchableCharacter) }
+                        return nil
+                    }
+                }
+
                 let controlHeld = event.flags.contains(.maskControl)
                 let acceptsBareQuickAction = switcher.currentStyle != .commandPalette &&
                     !commandHeld &&
@@ -417,29 +429,6 @@ final class HotkeyManager {
                 default:
                     break
                 }
-
-                if switcher.currentStyle == .commandPalette {
-                    if keyCode == 51 {
-                        dispatchToMain { switcher.deleteSearchCharacter() }
-                        return nil
-                    }
-
-                    var charCount: Int = 0
-                    var charBuffer = [UniChar](repeating: 0, count: 4)
-                    event.keyboardGetUnicodeString(
-                        maxStringLength: 4,
-                        actualStringLength: &charCount,
-                        unicodeString: &charBuffer
-                    )
-                    if charCount > 0,
-                       let scalar = Unicode.Scalar(charBuffer[0]),
-                       scalar.value >= 32,
-                       scalar.value != 127 {
-                        let safeChar = String(scalar)
-                        dispatchToMain { switcher.appendSearchCharacter(safeChar) }
-                        return nil
-                    }
-                }
             }
 
         case .keyUp:
@@ -453,6 +442,33 @@ final class HotkeyManager {
         }
 
         return Unmanaged.passRetained(event)
+    }
+}
+
+private extension HotkeyManager {
+    static func searchablePaletteCharacter(from event: CGEvent) -> String? {
+        let flags = event.flags
+        guard !flags.contains(.maskAlternate),
+              !flags.contains(.maskControl) else {
+            return nil
+        }
+
+        var charCount: Int = 0
+        var charBuffer = [UniChar](repeating: 0, count: 4)
+        event.keyboardGetUnicodeString(
+            maxStringLength: 4,
+            actualStringLength: &charCount,
+            unicodeString: &charBuffer
+        )
+
+        guard charCount > 0,
+              let scalar = Unicode.Scalar(charBuffer[0]),
+              scalar.value >= 32,
+              scalar.value != 127 else {
+            return nil
+        }
+
+        return String(scalar)
     }
 }
 

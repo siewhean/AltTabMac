@@ -85,6 +85,19 @@ struct SwitcherCycleSession {
         syncSelection()
     }
 
+    mutating func replaceItems(_ refreshedItems: [SwitcherItem], selectedIndex: Int = 0) {
+        guard !refreshedItems.isEmpty else { return }
+        items = refreshedItems
+        self.selectedIndex = min(max(0, selectedIndex), refreshedItems.count - 1)
+        syncSelection()
+    }
+
+    mutating func selectIndex(_ index: Int) {
+        guard !items.isEmpty else { return }
+        selectedIndex = min(max(0, index), items.count - 1)
+        syncSelection()
+    }
+
     mutating func removeItem(withID id: String) -> Bool {
         guard let removalIndex = items.firstIndex(where: { $0.id == id }) else { return false }
         items.remove(at: removalIndex)

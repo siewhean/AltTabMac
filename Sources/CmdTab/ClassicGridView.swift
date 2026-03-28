@@ -130,7 +130,7 @@ struct ClassicItemCardView: View {
                     Image(nsImage: icon)
                         .resizable()
                         .interpolation(.high)
-                        .frame(width: 16, height: 16)
+                        .frame(width: 20, height: 20)
                 }
                 Text(item.title)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular, design: .rounded))

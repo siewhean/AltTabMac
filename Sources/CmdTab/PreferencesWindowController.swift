@@ -4,12 +4,14 @@ import SwiftUI
 final class PreferencesWindowController: NSWindowController {
     var onOpenApplications: (() -> Void)?
     var onRefreshPreviews: (() -> Void)?
+    var onApplySwitcherStyle: (() -> Void)?
 
     init() {
         let rootView = PreferencesView(
             preferences: SwitcherPreferences.shared,
             onOpenApplications: { },
-            onRefreshPreviews: { }
+            onRefreshPreviews: { },
+            onApplySwitcherStyle: { }
         )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
@@ -46,7 +48,8 @@ final class PreferencesWindowController: NSWindowController {
         hostingController.rootView = PreferencesView(
             preferences: SwitcherPreferences.shared,
             onOpenApplications: { [weak self] in self?.onOpenApplications?() },
-            onRefreshPreviews: { [weak self] in self?.onRefreshPreviews?() }
+            onRefreshPreviews: { [weak self] in self?.onRefreshPreviews?() },
+            onApplySwitcherStyle: { [weak self] in self?.onApplySwitcherStyle?() }
         )
     }
 }

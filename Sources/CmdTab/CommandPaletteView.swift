@@ -16,6 +16,11 @@ struct CommandPaletteView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
+    private var paletteListIdentity: String {
+        let itemSignature = viewModel.items.map { "\($0.id)|\($0.title)|\($0.subtitle)" }.joined(separator: ",")
+        return "\(viewModel.searchQuery)||\(itemSignature)"
+    }
+
     var body: some View {
         ZStack {
             // Background
@@ -43,8 +48,14 @@ struct CommandPaletteView: View {
                 Divider().overlay(Color.white.opacity(0.10))
                 itemList
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+        .frame(
+            width: max(viewModel.layout.contentWidth, 520),
+            height: max(viewModel.layout.contentHeight, 120),
+            alignment: .top
+        )
     }
 
     // MARK: Search bar
@@ -77,6 +88,7 @@ struct CommandPaletteView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
     }
 
     // MARK: Item list
@@ -96,13 +108,12 @@ struct CommandPaletteView: View {
                             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
                                 PaletteRowView(item: item, isSelected: idx == viewModel.selectedIndex)
                                     .id(idx)
-                                    .transition(.switcherItemMutation)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
                                     }
                             }
                         }
-                        .animation(.spring(response: 0.24, dampingFraction: 0.84), value: viewModel.items.map(\.id))
+                        .id(paletteListIdentity)
                     }
                     .onChange(of: viewModel.selectedIndex) { idx in
                         withAnimation(.easeInOut(duration: 0.10)) {
@@ -116,6 +127,7 @@ struct CommandPaletteView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -125,27 +137,36 @@ private struct PaletteRowView: View {
     let item: SwitcherItem
     let isSelected: Bool
 
+    private var primaryText: String {
+        item.subtitle.isEmpty ? item.title : item.subtitle
+    }
+
+    private var secondaryText: String? {
+        guard !item.subtitle.isEmpty, item.title != item.subtitle else { return nil }
+        return item.title
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             if let icon = item.icon {
                 Image(nsImage: icon)
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 22, height: 22)
+                    .frame(width: 28, height: 28)
             } else {
                 Image(systemName: "app")
-                    .frame(width: 22, height: 22)
+                    .frame(width: 28, height: 28)
                     .foregroundColor(.white.opacity(0.35))
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
+                Text(primaryText)
                     .font(.system(size: 14, weight: isSelected ? .semibold : .regular, design: .rounded))
                     .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.88))
                     .lineLimit(1)
 
-                if !item.subtitle.isEmpty {
-                    Text(item.subtitle)
+                if let secondaryText {
+                    Text(secondaryText)
                         .font(.system(size: 11, weight: .regular, design: .rounded))
                         .foregroundColor(.white.opacity(0.42))
                         .lineLimit(1)

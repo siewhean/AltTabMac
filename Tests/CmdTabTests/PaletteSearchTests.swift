@@ -2,42 +2,102 @@ import XCTest
 @testable import CmdTab
 
 final class PaletteSearchTests: XCTestCase {
-    func testPaletteSearchMatchesAcronym() {
+    func testPaletteSearchMatchesAcronymLikeAltTab() {
         let items = [
-            makeItem(title: "System Settings", appID: "com.apple.systempreferences", identity: .appWindow(pid: 101, windowID: 1)),
-            makeItem(title: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 202, windowID: 2)),
-            makeItem(title: "Slack", appID: "com.tinyspeck.slackmacgap", identity: .appWindow(pid: 303, windowID: 3)),
+            makeItem(windowTitle: "System Settings", appName: "System Settings", appID: "com.apple.systempreferences", identity: .appWindow(pid: 101, windowID: 1)),
+            makeItem(windowTitle: "Safari", appName: "Safari", appID: "com.apple.Safari", identity: .appWindow(pid: 202, windowID: 2)),
+            makeItem(windowTitle: "Slack", appName: "Slack", appID: "com.tinyspeck.slackmacgap", identity: .appWindow(pid: 303, windowID: 3)),
         ]
 
-        XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "ss").map(\.title),
-            ["System Settings"]
+        let ssResults = SwitcherWindowController.paletteFilteredItems(items, query: "ss").map(\.subtitle)
+        XCTAssertEqual(ssResults.first, "System Settings")
+        XCTAssertTrue(ssResults.contains("Safari"))
+
+        let slResults = SwitcherWindowController.paletteFilteredItems(items, query: "sl").map(\.subtitle)
+        XCTAssertEqual(slResults.first, "Slack")
+    }
+
+    func testPaletteSearchIncludesCurrentAppWhenItMatchesQuery() {
+        let codex = makeItem(
+            windowTitle: "Workspace",
+            appName: "OpenAI Codex",
+            appID: "com.openai.codex",
+            identity: .appWindow(pid: 404, windowID: 4)
         )
+        let mimestream = makeItem(
+            windowTitle: "Inbox",
+            appName: "Mimestream",
+            appID: "com.mimestream.Mimestream",
+            identity: .appWindow(pid: 505, windowID: 5)
+        )
+
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "sl").map(\.title),
-            ["Slack"]
+            SwitcherWindowController.paletteFilteredItems([mimestream, codex], query: "codex").map(\.subtitle),
+            ["OpenAI Codex"]
         )
     }
 
-    func testPaletteSearchUsesRememberedSelection() {
-        let calendar = makeItem(
-            title: "Calendar",
-            appID: "com.apple.iCal",
+    func testPaletteSearchMatchesJoinedWordQueryAgainstSpacedAppName() {
+        let antiGravity = makeItem(
+            windowTitle: "With reference to my code…",
+            appName: "Anti Gravity Agent",
+            appID: "com.antigravity.agent",
+            identity: .appWindow(pid: 404, windowID: 4)
+        )
+        let notebook = makeItem(
+            windowTitle: "NotebookLM",
+            appName: "Google NotebookLM",
+            appID: "com.google.notebooklm",
+            identity: .appWindow(pid: 505, windowID: 5)
+        )
+
+        XCTAssertEqual(
+            SwitcherWindowController.paletteFilteredItems([antiGravity, notebook], query: "AntiGravity").first?.subtitle,
+            "Anti Gravity Agent"
+        )
+    }
+
+    func testPaletteSearchUsesRecencyAsTieBreakerWhenScoresMatch() {
+        let chrome = makeItem(
+            windowTitle: "Chrome",
+            appName: "Google Chrome",
+            appID: "com.google.Chrome",
             identity: .appWindow(pid: 101, windowID: 1)
         )
-        let calculator = makeItem(
-            title: "Calculator",
-            appID: "com.apple.calculator",
+        let chat = makeItem(
+            windowTitle: "Chat",
+            appName: "Chat",
+            appID: "com.openai.chat",
             identity: .appWindow(pid: 202, windowID: 2)
         )
 
-        let ranked = SwitcherWindowController.paletteFilteredItems(
-            [calendar, calculator],
-            query: "cal",
-            rememberedStableKey: calculator.historyIdentity.stableKey
+        XCTAssertEqual(
+            SwitcherWindowController.paletteFilteredItems([chrome, chat], query: "ch").map(\.subtitle),
+            ["Google Chrome", "Chat"]
+        )
+    }
+
+    func testPaletteSearchPrioritizesRememberedSelection() {
+        let chrome = makeItem(
+            windowTitle: "Chrome",
+            appName: "Google Chrome",
+            appID: "com.google.Chrome",
+            identity: .appWindow(pid: 101, windowID: 1)
+        )
+        let chat = makeItem(
+            windowTitle: "Chat",
+            appName: "Chat",
+            appID: "com.openai.chat",
+            identity: .appWindow(pid: 202, windowID: 2)
         )
 
-        XCTAssertEqual(ranked.first?.title, "Calculator")
+        let remembered = SwitcherWindowController.paletteFilteredItems(
+            [chrome, chat],
+            query: "ch",
+            rememberedStableKey: chat.historyIdentity.stableKey
+        )
+
+        XCTAssertEqual(remembered.first?.historyIdentity.stableKey, chat.historyIdentity.stableKey)
     }
 
     func testSearchMemoryStoreNormalizesQueries() {
@@ -83,10 +143,15 @@ final class PaletteSearchTests: XCTestCase {
         XCTAssertFalse(WindowExclusionRules.matchesWindowTitle("Inbox", entries: titleEntries))
     }
 
-    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
+    private func makeItem(
+        windowTitle: String,
+        appName: String,
+        appID: String,
+        identity: SwitcherHistoryIdentity
+    ) -> SwitcherItem {
         SwitcherItem(
-            title: title,
-            subtitle: appID,
+            title: windowTitle,
+            subtitle: appName,
             icon: nil,
             previewImage: nil,
             historyIdentity: identity,

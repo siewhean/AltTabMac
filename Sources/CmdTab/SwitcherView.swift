@@ -41,14 +41,17 @@ struct SwitcherView: View {
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
     var body: some View {
-        switch preferences.switcherStyle {
-        case .classicGrid:
-            ClassicGridView(viewModel: viewModel)
-        case .commandPalette:
-            CommandPaletteView(viewModel: viewModel)
-        case .radialMenu:
-            RadialMenuView(viewModel: viewModel)
+        Group {
+            switch preferences.switcherStyle {
+            case .classicGrid:
+                ClassicGridView(viewModel: viewModel)
+            case .commandPalette:
+                CommandPaletteView(viewModel: viewModel)
+            case .radialMenu:
+                RadialMenuView(viewModel: viewModel)
+            }
         }
+        .id(preferences.switcherStyle)
     }
 }
 
