@@ -83,8 +83,8 @@ struct VisualEffectBlur: NSViewRepresentable {
 private struct SelectedPreviewBackdrop: View {
     let preview: NSImage
     let windowFrame: CGRect?
+    let sourceScreenFrame: CGRect?
     let screenFrame: CGRect
-    let visibleFrame: CGRect
 
     var body: some View {
         GeometryReader { proxy in
@@ -92,7 +92,15 @@ private struct SelectedPreviewBackdrop: View {
                 Color.black.opacity(0.16)
 
                 if let windowFrame, screenFrame != .zero {
-                    let targetFrame = promotedBackdropFrame(windowFrame: windowFrame, visibleFrame: visibleFrame) ?? windowFrame
+                    let remappedFrame = BackdropGeometry.remappedFrame(
+                        windowFrame: windowFrame,
+                        sourceScreenFrame: sourceScreenFrame,
+                        destinationScreenFrame: screenFrame
+                    )
+                    let targetFrame = BackdropGeometry.promotedFrame(
+                        windowFrame: remappedFrame,
+                        screenFrame: screenFrame
+                    ) ?? remappedFrame
                     ActualWindowBackdrop(
                         preview: preview,
                         windowFrame: targetFrame,
@@ -105,29 +113,6 @@ private struct SelectedPreviewBackdrop: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .allowsHitTesting(false)
-    }
-
-    private func promotedBackdropFrame(windowFrame: CGRect, visibleFrame: CGRect) -> CGRect? {
-        guard visibleFrame != .zero, visibleFrame.width > 0, visibleFrame.height > 0 else { return nil }
-
-        let edgeTolerance: CGFloat = 18
-        let widthRatio = windowFrame.width / visibleFrame.width
-        let heightRatio = windowFrame.height / visibleFrame.height
-
-        let leftGap = abs(windowFrame.minX - visibleFrame.minX)
-        let rightGap = abs(windowFrame.maxX - visibleFrame.maxX)
-        let bottomGap = abs(windowFrame.minY - visibleFrame.minY)
-        let topGap = abs(windowFrame.maxY - visibleFrame.maxY)
-
-        let fillsVisibleDesktop =
-            leftGap <= edgeTolerance &&
-            rightGap <= edgeTolerance &&
-            bottomGap <= edgeTolerance &&
-            topGap <= edgeTolerance &&
-            widthRatio >= 0.97 &&
-            heightRatio >= 0.93
-
-        return fillsVisibleDesktop ? visibleFrame : nil
     }
 
     @ViewBuilder
@@ -156,10 +141,13 @@ private struct ActualWindowBackdrop: NSViewRepresentable {
         container.layer?.masksToBounds = true
 
         let imageLayer = CALayer()
-        imageLayer.contentsGravity = .resize
+        // The backdrop should adopt the switcher display's geometry without
+        // distorting the captured window contents. Fill the remapped frame and
+        // crop overflow instead of stretching the image.
+        imageLayer.contentsGravity = .resizeAspectFill
         imageLayer.magnificationFilter = .trilinear
         imageLayer.minificationFilter = .trilinear
-        imageLayer.backgroundColor = NSColor.black.cgColor
+        imageLayer.backgroundColor = NSColor.clear.cgColor
         imageLayer.shadowColor = NSColor.black.withAlphaComponent(0.22).cgColor
         imageLayer.shadowOpacity = 1
         imageLayer.shadowRadius = 24
@@ -209,6 +197,63 @@ private struct ActualWindowBackdrop: NSViewRepresentable {
     }
 }
 
+enum BackdropGeometry {
+    static func remappedFrame(
+        windowFrame: CGRect,
+        sourceScreenFrame: CGRect?,
+        destinationScreenFrame: CGRect
+    ) -> CGRect {
+        guard let sourceScreenFrame,
+              sourceScreenFrame != .zero,
+              destinationScreenFrame != .zero,
+              sourceScreenFrame.width > 0,
+              sourceScreenFrame.height > 0,
+              destinationScreenFrame.width > 0,
+              destinationScreenFrame.height > 0 else {
+            return windowFrame
+        }
+
+        let xScale = destinationScreenFrame.width / sourceScreenFrame.width
+        let yScale = destinationScreenFrame.height / sourceScreenFrame.height
+        let localWindowFrame = CGRect(
+            x: windowFrame.minX - sourceScreenFrame.minX,
+            y: windowFrame.minY - sourceScreenFrame.minY,
+            width: windowFrame.width,
+            height: windowFrame.height
+        )
+
+        return CGRect(
+            x: destinationScreenFrame.minX + localWindowFrame.minX * xScale,
+            y: destinationScreenFrame.minY + localWindowFrame.minY * yScale,
+            width: localWindowFrame.width * xScale,
+            height: localWindowFrame.height * yScale
+        )
+    }
+
+    static func promotedFrame(windowFrame: CGRect, screenFrame: CGRect) -> CGRect? {
+        guard screenFrame != .zero, screenFrame.width > 0, screenFrame.height > 0 else { return nil }
+
+        let edgeTolerance: CGFloat = 18
+        let widthRatio = windowFrame.width / screenFrame.width
+        let heightRatio = windowFrame.height / screenFrame.height
+
+        let leftGap = abs(windowFrame.minX - screenFrame.minX)
+        let rightGap = abs(windowFrame.maxX - screenFrame.maxX)
+        let bottomGap = abs(windowFrame.minY - screenFrame.minY)
+        let topGap = abs(windowFrame.maxY - screenFrame.maxY)
+
+        let fillsVisibleDesktop =
+            leftGap <= edgeTolerance &&
+            rightGap <= edgeTolerance &&
+            bottomGap <= edgeTolerance &&
+            topGap <= edgeTolerance &&
+            widthRatio >= 0.97 &&
+            heightRatio >= 0.93
+
+        return fillsVisibleDesktop ? screenFrame : nil
+    }
+}
+
 struct SwitcherScreenBackdropView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
@@ -220,8 +265,8 @@ struct SwitcherScreenBackdropView: View {
                 SelectedPreviewBackdrop(
                     preview: preview,
                     windowFrame: selectedBackdropFrame,
-                    screenFrame: viewModel.backdropScreenFrame,
-                    visibleFrame: viewModel.backdropVisibleFrame
+                    sourceScreenFrame: selectedBackdropSourceScreenFrame,
+                    screenFrame: viewModel.backdropScreenFrame
                 )
                     .ignoresSafeArea()
                     .transition(.opacity)
@@ -244,6 +289,10 @@ struct SwitcherScreenBackdropView: View {
 
     private var selectedBackdropFrame: CGRect? {
         selectedItem?.backdropFrame
+    }
+
+    private var selectedBackdropSourceScreenFrame: CGRect? {
+        selectedItem?.backdropSourceScreenFrame
     }
 
     private var selectedPreviewIdentity: String {

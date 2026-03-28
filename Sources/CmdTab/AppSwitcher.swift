@@ -6,17 +6,25 @@ import os.log
 // MARK: - SkyLight private API (window capture for minimized / off-screen windows)
 
 private enum SkyLightCapture {
+    private struct WindowCaptureOptions: OptionSet {
+        let rawValue: UInt32
+
+        static let ignoreGlobalClipShape = WindowCaptureOptions(rawValue: 1 << 11)
+        static let bestResolution = WindowCaptureOptions(rawValue: 1 << 8)
+        static let fullSize = WindowCaptureOptions(rawValue: 1 << 19)
+    }
+
     private typealias MainConnectionFn = @convention(c) () -> UInt32
     private typealias HWCaptureListFn  = @convention(c) (
-        UInt32, UnsafeMutablePointer<CGWindowID>, Int32, UInt32
+        UInt32, UnsafeMutablePointer<CGWindowID>, UInt32, UInt32
     ) -> Unmanaged<CFArray>?
 
     private static let resolved: (mainConn: MainConnectionFn, hwCapture: HWCaptureListFn)? = {
         guard let handle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", 0x1) else {
             return nil
         }
-        guard let mainSym    = dlsym(handle, "SLSMainConnectionID"),
-              let captureSym = dlsym(handle, "SLSHWCaptureWindowList") else {
+        guard let mainSym = dlsym(handle, "CGSMainConnectionID") ?? dlsym(handle, "SLSMainConnectionID"),
+              let captureSym = dlsym(handle, "CGSHWCaptureWindowList") ?? dlsym(handle, "SLSHWCaptureWindowList") else {
             return nil
         }
         return (
@@ -29,7 +37,8 @@ private enum SkyLightCapture {
         guard let fns = resolved else { return nil }
         let cid = fns.mainConn()
         var wid = windowID
-        guard let cfArrayRef = fns.hwCapture(cid, &wid, 1, 3) else { return nil }
+        let options: WindowCaptureOptions = [.ignoreGlobalClipShape, .bestResolution, .fullSize]
+        guard let cfArrayRef = fns.hwCapture(cid, &wid, 1, options.rawValue) else { return nil }
         let cfArray = cfArrayRef.takeRetainedValue()
         guard CFArrayGetCount(cfArray) > 0,
               let rawPtr = CFArrayGetValueAtIndex(cfArray, 0) else { return nil }
@@ -60,6 +69,73 @@ private enum AXWindowIDLookup {
         var wid: CGWindowID = 0
         guard fn(element, &wid) == 0 else { return nil }  // 0 = kAXErrorSuccess
         return wid
+    }
+}
+
+private enum WindowServerFocus {
+    private enum Mode: UInt32 {
+        case allWindows = 0x100
+        case userGenerated = 0x200
+        case noWindows = 0x400
+    }
+
+    private typealias GetProcessForPIDFn = @convention(c) (
+        pid_t,
+        UnsafeMutablePointer<ProcessSerialNumber>
+    ) -> OSStatus
+    private typealias SetFrontProcessWithOptionsFn = @convention(c) (
+        UnsafeMutablePointer<ProcessSerialNumber>,
+        CGWindowID,
+        Mode.RawValue
+    ) -> CGError
+    private typealias PostEventRecordToFn = @convention(c) (
+        UnsafeMutablePointer<ProcessSerialNumber>,
+        UnsafeMutablePointer<UInt8>
+    ) -> CGError
+
+    private static let resolved: (
+        getProcessForPID: GetProcessForPIDFn,
+        setFrontProcessWithOptions: SetFrontProcessWithOptionsFn,
+        postEventRecordTo: PostEventRecordToFn
+    )? = {
+        let globalHandle = UnsafeMutableRawPointer(bitPattern: -2)
+        guard let getProcessSym = dlsym(globalHandle, "GetProcessForPID"),
+              let skyLightHandle = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", 0x1),
+              let setFrontSym = dlsym(skyLightHandle, "_SLPSSetFrontProcessWithOptions"),
+              let postEventSym = dlsym(skyLightHandle, "SLPSPostEventRecordTo") else {
+            return nil
+        }
+        return (
+            unsafeBitCast(getProcessSym, to: GetProcessForPIDFn.self),
+            unsafeBitCast(setFrontSym, to: SetFrontProcessWithOptionsFn.self),
+            unsafeBitCast(postEventSym, to: PostEventRecordToFn.self)
+        )
+    }()
+
+    static func focusWindow(ownerPID: pid_t, windowID: CGWindowID) {
+        guard windowID != 0 else { return }
+        guard let fns = resolved else { return }
+        var psn = ProcessSerialNumber()
+        guard fns.getProcessForPID(ownerPID, &psn) == 0 else { return }
+        _ = fns.setFrontProcessWithOptions(&psn, windowID, Mode.userGenerated.rawValue)
+        makeKeyWindow(&psn, windowID: windowID, postEventRecordTo: fns.postEventRecordTo)
+    }
+
+    private static func makeKeyWindow(
+        _ psn: inout ProcessSerialNumber,
+        windowID: CGWindowID,
+        postEventRecordTo: PostEventRecordToFn
+    ) {
+        var bytes = [UInt8](repeating: 0, count: 0xf8)
+        bytes[0x04] = 0xf8
+        bytes[0x3a] = 0x10
+        var mutableWindowID = windowID
+        memcpy(&bytes[0x3c], &mutableWindowID, MemoryLayout<UInt32>.size)
+        memset(&bytes[0x20], 0xff, 0x10)
+        bytes[0x08] = 0x01
+        _ = postEventRecordTo(&psn, &bytes)
+        bytes[0x08] = 0x02
+        _ = postEventRecordTo(&psn, &bytes)
     }
 }
 
@@ -431,6 +507,7 @@ final class AppSwitcher: NSObject {
                 previewImage: preview,
                 backdropImage: backdrop,
                 backdropFrame: candidate.bounds,
+                backdropSourceScreenFrame: candidate.screenFrame,
                 previewCacheKey: previewKey,
                 historyIdentity: candidate.historyIdentity,
                 sourceAppIdentifier: candidate.sourceAppIdentifier,
@@ -552,10 +629,10 @@ final class AppSwitcher: NSObject {
     private func screenFrame(containing rect: CGRect) -> CGRect? {
         let point = NSPoint(x: rect.midX, y: rect.midY)
         if let containing = NSScreen.screens.first(where: { $0.frame.contains(point) }) {
-            return containing.visibleFrame
+            return containing.frame
         }
 
-        return NSScreen.screens.first(where: { $0.visibleFrame.intersects(rect) })?.visibleFrame
+        return NSScreen.screens.first(where: { $0.frame.intersects(rect) })?.frame
     }
 
     // MARK: - Identity helpers
@@ -645,6 +722,7 @@ final class AppSwitcher: NSObject {
         markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID)
 
+        WindowServerFocus.focusWindow(ownerPID: candidate.ownerPID, windowID: candidate.id)
         activateApplication(app, activateAllWindows: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + initialWindowFocusDelay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: 0)
@@ -699,6 +777,9 @@ final class AppSwitcher: NSObject {
     private func raiseWindow(_ axWindow: AXUIElement, ownerPID: pid_t) {
         let t = kCFBooleanTrue!
         let axApp = AXUIElementCreateApplication(ownerPID)
+        if let axWindowID = AXWindowIDLookup.windowID(for: axWindow) {
+            WindowServerFocus.focusWindow(ownerPID: ownerPID, windowID: axWindowID)
+        }
         AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, t)
         AXUIElementSetAttributeValue(axApp, kAXMainWindowAttribute as CFString, axWindow)
         AXUIElementSetAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, axWindow)
@@ -984,20 +1065,33 @@ final class AppSwitcher: NSObject {
         return WindowCandidate(
             id: windowID, ownerPID: ownerPID, bundleIdentifier: app.bundleIdentifier,
             appName: appName, appIcon: app.icon, windowTitle: windowTitle,
-            bounds: bounds, orderIndex: orderIndex, sortScore: sortScore, isOnScreen: isOnScreen
+            bounds: bounds,
+            screenFrame: screenFrame(containing: bounds),
+            orderIndex: orderIndex,
+            sortScore: sortScore,
+            isOnScreen: isOnScreen
         )
     }
 
     private func deduplicatedCandidates(from candidates: [WindowCandidate]) -> [WindowCandidate] {
-        var seen = Set<String>()
-        return candidates.filter { c in
-            let key = [
-                String(c.ownerPID), String(c.id), c.windowTitle.lowercased(),
-                String(Int(c.bounds.origin.x / 12)), String(Int(c.bounds.origin.y / 12)),
-                String(Int(c.bounds.width / 12)), String(Int(c.bounds.height / 12))
-            ].joined(separator: "|")
-            return seen.insert(key).inserted
-        }
+        Self.deduplicateCandidates(
+            candidates,
+            identityKey: { .init(ownerPID: $0.ownerPID, windowID: $0.id) },
+            prefersReplacement: { lhs, rhs in
+                Self.prefersReplacementCandidate(
+                    isOnScreen: lhs.isOnScreen,
+                    title: lhs.windowTitle,
+                    bounds: lhs.bounds,
+                    sortScore: lhs.sortScore,
+                    orderIndex: lhs.orderIndex,
+                    overIsOnScreen: rhs.isOnScreen,
+                    overTitle: rhs.windowTitle,
+                    overBounds: rhs.bounds,
+                    overSortScore: rhs.sortScore,
+                    overOrderIndex: rhs.orderIndex
+                )
+            }
+        )
     }
 
     private func switcherDisplayWindowIDsByPID(for apps: [NSRunningApplication]) -> [pid_t: Set<CGWindowID>] {
@@ -1081,6 +1175,14 @@ final class AppSwitcher: NSObject {
     }
 
     private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
+        // AltTab prefers the WindowServer hardware capture path with explicit
+        // full-size / best-resolution flags because it produces cleaner edges
+        // and avoids the white gutter artifacts that CGWindowListCreateImage
+        // can introduce around some windows.
+        if let image = SkyLightCapture.captureWindow(candidate.id) {
+            return trimmedWindowCaptureImage(image)
+        }
+
         let framedBest: CGWindowImageOption = [.bestResolution]
         if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
         if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
@@ -1088,10 +1190,6 @@ final class AppSwitcher: NSObject {
         let croppedBest: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
         if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
         if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
-        if let image = SkyLightCapture.captureWindow(candidate.id) {
-            return trimmedWindowCaptureImage(image)
-        }
-
         let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
         if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
 
@@ -1336,6 +1434,86 @@ final class AppSwitcher: NSObject {
             normalizedBounds.map(String.init).joined(separator: ",")
         ].joined(separator: "|")
     }
+
+    static func deduplicateCandidateProbes(_ candidates: [WindowCandidateDeduplicationProbe]) -> [WindowCandidateDeduplicationProbe] {
+        deduplicateCandidates(
+            candidates,
+            identityKey: { .init(ownerPID: $0.ownerPID, windowID: $0.windowID) },
+            prefersReplacement: { lhs, rhs in
+                prefersReplacementCandidate(
+                    isOnScreen: lhs.isOnScreen,
+                    title: lhs.title,
+                    bounds: lhs.bounds,
+                    sortScore: lhs.sortScore,
+                    orderIndex: lhs.orderIndex,
+                    overIsOnScreen: rhs.isOnScreen,
+                    overTitle: rhs.title,
+                    overBounds: rhs.bounds,
+                    overSortScore: rhs.sortScore,
+                    overOrderIndex: rhs.orderIndex
+                )
+            }
+        )
+    }
+
+    private static func deduplicateCandidates<T>(
+        _ candidates: [T],
+        identityKey: (T) -> WindowCandidateIdentityKey,
+        prefersReplacement: (T, T) -> Bool
+    ) -> [T] {
+        var bestByIdentity: [WindowCandidateIdentityKey: T] = [:]
+
+        for candidate in candidates {
+            let key = identityKey(candidate)
+            if let existing = bestByIdentity[key] {
+                if prefersReplacement(candidate, existing) {
+                    bestByIdentity[key] = candidate
+                }
+            } else {
+                bestByIdentity[key] = candidate
+            }
+        }
+
+        return candidates.compactMap { candidate in
+            let key = identityKey(candidate)
+            return bestByIdentity.removeValue(forKey: key)
+        }
+    }
+
+    private static func prefersReplacementCandidate(
+        isOnScreen lhsIsOnScreen: Bool,
+        title lhsTitle: String,
+        bounds lhsBounds: CGRect,
+        sortScore lhsSortScore: CGFloat,
+        orderIndex lhsOrderIndex: Int,
+        overIsOnScreen rhsIsOnScreen: Bool,
+        overTitle rhsTitle: String,
+        overBounds rhsBounds: CGRect,
+        overSortScore rhsSortScore: CGFloat,
+        overOrderIndex rhsOrderIndex: Int
+    ) -> Bool {
+        if lhsIsOnScreen != rhsIsOnScreen {
+            return lhsIsOnScreen
+        }
+
+        let lhsHasSpecificTitle = !lhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let rhsHasSpecificTitle = !rhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if lhsHasSpecificTitle != rhsHasSpecificTitle {
+            return lhsHasSpecificTitle
+        }
+
+        let lhsArea = lhsBounds.width * lhsBounds.height
+        let rhsArea = rhsBounds.width * rhsBounds.height
+        if lhsArea != rhsArea {
+            return lhsArea > rhsArea
+        }
+
+        if lhsSortScore != rhsSortScore {
+            return lhsSortScore > rhsSortScore
+        }
+
+        return lhsOrderIndex < rhsOrderIndex
+    }
 }
 
 // MARK: - Data types
@@ -1348,6 +1526,7 @@ private struct WindowCandidate {
     let appIcon: NSImage?
     let windowTitle: String
     let bounds: CGRect
+    let screenFrame: CGRect?
     let orderIndex: Int
     let sortScore: CGFloat
     let isOnScreen: Bool
@@ -1362,4 +1541,19 @@ private struct WindowCandidate {
             sourceAppIdentifier: sourceAppIdentifier
         )
     }
+}
+
+private struct WindowCandidateIdentityKey: Hashable {
+    let ownerPID: pid_t
+    let windowID: CGWindowID
+}
+
+struct WindowCandidateDeduplicationProbe: Equatable {
+    let ownerPID: pid_t
+    let windowID: CGWindowID
+    let title: String
+    let bounds: CGRect
+    let orderIndex: Int
+    let sortScore: CGFloat
+    let isOnScreen: Bool
 }

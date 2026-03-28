@@ -29,6 +29,7 @@ struct SwitcherItem: Identifiable {
     let previewImage: NSImage?
     let backdropImage: NSImage?
     let backdropFrame: CGRect?
+    let backdropSourceScreenFrame: CGRect?
     let previewCacheKey: String
     let sourceAppIdentifier: String?
     let historyIdentity: SwitcherHistoryIdentity
@@ -43,6 +44,7 @@ struct SwitcherItem: Identifiable {
         previewImage: NSImage?,
         backdropImage: NSImage? = nil,
         backdropFrame: CGRect? = nil,
+        backdropSourceScreenFrame: CGRect? = nil,
         previewCacheKey: String? = nil,
         historyIdentity: SwitcherHistoryIdentity,
         sourceAppIdentifier: String? = nil,
@@ -58,6 +60,7 @@ struct SwitcherItem: Identifiable {
         self.previewImage = previewImage
         self.backdropImage = backdropImage
         self.backdropFrame = backdropFrame
+        self.backdropSourceScreenFrame = backdropSourceScreenFrame
         self.previewCacheKey = previewCacheKey ?? historyIdentity.stableKey
         self.sourceAppIdentifier = sourceAppIdentifier
         self.historyIdentity = historyIdentity

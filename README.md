@@ -35,6 +35,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - The website copy now positions the launch around a private beta, founder pricing, a planned 14-day trial, and a one-time license rather than a subscription.
 - The website feature layer now explicitly presents the shipped app differentiators instead of relying on vague “better switcher” language.
 - The website now includes restrained motion: hero entrance choreography, ambient linear drift on supporting visuals, and scroll-reveal movement across the main content sections.
+- Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
+- Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
 - Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
 
 ## Active Constraints / Non-Negotiables
@@ -79,6 +81,12 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-03-27: Tightened duplicate-window suppression in switcher enumeration.
+  - `AppSwitcher` now deduplicates CGWindow candidates by `(ownerPID, windowID)` and keeps the best-quality candidate instead of allowing multiple CG entries for the same real window through.
+  - Added regression coverage proving duplicate entries for one underlying window collapse while distinct windows with different IDs remain visible.
+- 2026-03-27: Aligned window capture with AltTab’s cleaner thumbnail path.
+  - `AppSwitcher` now prefers the SkyLight / WindowServer hardware capture path earlier in the screenshot pipeline and uses explicit capture flags equivalent to AltTab’s `ignoreGlobalClipShape + bestResolution + fullSize`.
+  - `SwitcherView` no longer paints an opaque fill behind the selected-window backdrop layer, reducing visible edge gutters when a captured image still has transparent margins.
 - 2026-03-27: Added protected-core guidance for future agents.
   - `README.md` and `AGENTS.md` now explicitly mark the working switcher core as protected.
   - Agents should avoid casual refactors in hotkey routing, MRU/history ordering, frontmost resolution, activation confirmation, quick actions, and removal animations unless there is a proven bug or an explicit user request.

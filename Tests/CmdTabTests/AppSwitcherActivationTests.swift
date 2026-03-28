@@ -283,6 +283,57 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
     }
 
+    func testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID() {
+        let duplicateOffscreen = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 77,
+            title: "ChatGPT",
+            bounds: CGRect(x: 10, y: 10, width: 900, height: 600),
+            orderIndex: 8,
+            sortScore: 120,
+            isOnScreen: false
+        )
+        let preferredOnscreen = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 77,
+            title: "ChatGPT",
+            bounds: CGRect(x: 10, y: 10, width: 1280, height: 820),
+            orderIndex: 2,
+            sortScore: 420,
+            isOnScreen: true
+        )
+
+        let deduplicated = AppSwitcher.deduplicateCandidateProbes([duplicateOffscreen, preferredOnscreen])
+
+        XCTAssertEqual(deduplicated.count, 1)
+        XCTAssertEqual(deduplicated.first, preferredOnscreen)
+    }
+
+    func testDeduplicateCandidateProbesPreservesDistinctWindowIDs() {
+        let first = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 77,
+            title: "ChatGPT",
+            bounds: CGRect(x: 10, y: 10, width: 1280, height: 820),
+            orderIndex: 2,
+            sortScore: 420,
+            isOnScreen: true
+        )
+        let second = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 78,
+            title: "ChatGPT",
+            bounds: CGRect(x: 60, y: 40, width: 1280, height: 820),
+            orderIndex: 3,
+            sortScore: 415,
+            isOnScreen: true
+        )
+
+        let deduplicated = AppSwitcher.deduplicateCandidateProbes([first, second])
+
+        XCTAssertEqual(deduplicated, [first, second])
+    }
+
     /// Empty items list returns empty.
     func testEmptyItemsReturnsEmpty() {
         let store   = SwitcherHistoryStore()
