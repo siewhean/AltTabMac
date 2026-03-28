@@ -1180,7 +1180,7 @@ final class AppSwitcher: NSObject {
         // and avoids the white gutter artifacts that CGWindowListCreateImage
         // can introduce around some windows.
         if let image = SkyLightCapture.captureWindow(candidate.id) {
-            return trimmedWindowCaptureImage(image)
+            return preparedWindowCaptureImage(image)
         }
 
         let framedBest: CGWindowImageOption = [.bestResolution]
@@ -1227,13 +1227,14 @@ final class AppSwitcher: NSObject {
         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
         let prepared = Self.presentationPreparedWindowCapture(cgImage)
         guard prepared.width >= minW, prepared.height >= minH,
-              !isImageEffectivelyBlank(prepared) else { return nil }
+              Self.isPresentationUsefulWindowCapture(prepared) else { return nil }
         return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
     }
 
-    private func trimmedWindowCaptureImage(_ image: NSImage) -> NSImage {
+    private func preparedWindowCaptureImage(_ image: NSImage) -> NSImage? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+        guard Self.isPresentationUsefulWindowCapture(prepared) else { return nil }
         guard prepared.width != cgImage.width || prepared.height != cgImage.height else { return image }
         return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
     }
@@ -1341,7 +1342,11 @@ final class AppSwitcher: NSObject {
         return cgImage.cropping(to: cropRect) ?? cgImage
     }
 
-    private func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
+    static func isPresentationUsefulWindowCapture(_ cgImage: CGImage) -> Bool {
+        !isImageEffectivelyBlank(cgImage) && !isImageEffectivelyBlack(cgImage)
+    }
+
+    private static func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
         guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
         let ptr = CFDataGetBytePtr(data)!
         let len = CFDataGetLength(data)
@@ -1364,6 +1369,67 @@ final class AppSwitcher: NSObject {
             }
         }
         return opaque < 2
+    }
+
+    private static func isImageEffectivelyBlack(_ cgImage: CGImage) -> Bool {
+        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
+        let ptr = CFDataGetBytePtr(data)!
+        let len = CFDataGetLength(data)
+        let bpp = cgImage.bitsPerPixel / 8
+        guard bpp >= 4 else { return false }
+
+        let bpr = cgImage.bytesPerRow
+        let w = cgImage.width
+        let h = cgImage.height
+        guard w > 0, h > 0 else { return true }
+
+        var luminances: [Double] = []
+        luminances.reserveCapacity(16)
+
+        func alphaIndex(for base: Int) -> Int {
+            switch cgImage.alphaInfo {
+            case .premultipliedFirst, .first, .noneSkipFirst:
+                return base
+            default:
+                return base + bpp - 1
+            }
+        }
+
+        func colorIndices(for base: Int) -> (Int, Int, Int) {
+            switch cgImage.alphaInfo {
+            case .premultipliedFirst, .first, .noneSkipFirst:
+                return (base + 1, base + 2, base + 3)
+            default:
+                return (base, base + 1, base + 2)
+            }
+        }
+
+        for r in 0..<4 {
+            for c in 0..<4 {
+                let x = max(0, min(w - 1, (c + 1) * w / 5))
+                let y = max(0, min(h - 1, (r + 1) * h / 5))
+                let base = y * bpr + x * bpp
+                let alpha = alphaIndex(for: base)
+                guard alpha >= 0, alpha < len, ptr[alpha] > 10 else { continue }
+
+                let (rIndex, gIndex, bIndex) = colorIndices(for: base)
+                guard rIndex < len, gIndex < len, bIndex < len else { continue }
+
+                let red = Double(ptr[rIndex]) / 255.0
+                let green = Double(ptr[gIndex]) / 255.0
+                let blue = Double(ptr[bIndex]) / 255.0
+                let luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+                luminances.append(luminance)
+            }
+        }
+
+        guard !luminances.isEmpty else { return true }
+
+        let minLuminance = luminances.min() ?? 0
+        let maxLuminance = luminances.max() ?? 0
+        let averageLuminance = luminances.reduce(0, +) / Double(luminances.count)
+
+        return averageLuminance < 0.07 && (maxLuminance - minLuminance) < 0.035
     }
 
     // MARK: - AX helpers

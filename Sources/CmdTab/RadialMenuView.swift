@@ -117,8 +117,8 @@ struct RadialMenuView: View {
     }
 
     private var selectedItem: SwitcherItem? {
-        guard viewModel.selectedIndex >= 0, viewModel.selectedIndex < viewModel.items.count else { return nil }
-        return viewModel.items[viewModel.selectedIndex]
+        guard let resolvedSelectedIndex = viewModel.resolvedSelectedIndex else { return nil }
+        return viewModel.items[resolvedSelectedIndex]
     }
 
     private var localSelectedIndex: Int {

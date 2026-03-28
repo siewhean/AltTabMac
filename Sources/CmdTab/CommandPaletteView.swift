@@ -16,6 +16,10 @@ struct CommandPaletteView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
+    private var resolvedSelectedIndex: Int {
+        viewModel.resolvedSelectedIndex ?? 0
+    }
+
     private var paletteListIdentity: String {
         let itemSignature = viewModel.items.map { "\($0.id)|\($0.title)|\($0.subtitle)" }.joined(separator: ",")
         return "\(viewModel.searchQuery)||\(itemSignature)"
@@ -106,7 +110,7 @@ struct CommandPaletteView: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
-                                PaletteRowView(item: item, isSelected: idx == viewModel.selectedIndex)
+                                PaletteRowView(item: item, isSelected: idx == resolvedSelectedIndex)
                                     .id(idx)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
@@ -115,7 +119,7 @@ struct CommandPaletteView: View {
                         }
                         .id(paletteListIdentity)
                     }
-                    .onChange(of: viewModel.selectedIndex) { idx in
+                    .onChange(of: resolvedSelectedIndex) { idx in
                         withAnimation(.easeInOut(duration: 0.10)) {
                             proxy.scrollTo(idx, anchor: .center)
                         }

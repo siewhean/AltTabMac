@@ -7,9 +7,9 @@ export function StylesSection() {
   return (
     <SectionShell
       id="modes"
-      eyebrow="Three ways to switch"
-      title="CmdTab is one product with three distinct visual modes."
-      description="Instead of forcing everyone into one mental model, CmdTab lets you choose the interaction style that feels most natural."
+      eyebrow="Three modes"
+      title="Pick the switcher style that matches how you already work."
+      description="Every mode solves the same problem: get to the right app or window faster."
     >
       <div className="grid gap-8 xl:grid-cols-3">
         {styleVariants.map((variant, index) => (

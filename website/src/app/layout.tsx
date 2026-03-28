@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
+import { SiteEventTracker } from "@/components/site-event-tracker";
 import { siteConfig } from "@/content/site";
 import { getSiteUrl } from "@/lib/env";
 
@@ -47,7 +50,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <SiteEventTracker />
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }

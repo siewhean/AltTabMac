@@ -10,6 +10,10 @@ struct ClassicGridView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
+    private var resolvedSelectedIndex: Int {
+        viewModel.resolvedSelectedIndex ?? 0
+    }
+
     var body: some View {
         ZStack {
             // Panel background — vibrancy (liquid glass) or solid dark
@@ -66,7 +70,7 @@ struct ClassicGridView: View {
                                 ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
                                     ClassicItemCardView(
                                         item: item,
-                                        isSelected: idx == viewModel.selectedIndex,
+                                        isSelected: idx == resolvedSelectedIndex,
                                         mode: viewModel.mode,
                                         layout: viewModel.layout
                                     )
@@ -82,7 +86,7 @@ struct ClassicGridView: View {
                             .padding(.vertical, viewModel.layout.outerPadding)
                         }
                         .frame(maxHeight: viewModel.layout.contentHeight)
-                        .onChange(of: viewModel.selectedIndex) { idx in
+                        .onChange(of: resolvedSelectedIndex) { idx in
                             withAnimation(.easeInOut(duration: 0.12)) {
                                 proxy.scrollTo(idx, anchor: .center)
                             }

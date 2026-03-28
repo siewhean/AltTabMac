@@ -78,5 +78,12 @@
     "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests~partial.swiftmodule",
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherViewModelTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests.dia"
   }
 }

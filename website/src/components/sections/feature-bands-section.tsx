@@ -1,17 +1,31 @@
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
-import { detailBands } from "@/content/home";
+import { detailBands, featureHighlights } from "@/content/home";
 
 export function FeatureBandsSection() {
   return (
     <SectionShell
       id="details"
-      eyebrow="Shipped features"
-      title="CmdTab earns its place by making the switch faster, clearer, and more controllable after the first shortcut."
-      description="The app already ships the workflow layer that turns a visual switcher into something you can use all day."
+      eyebrow="Key features"
+      title="The app stays useful after the first shortcut."
+      description="These are the features that make CmdTab feel faster in daily use, not just different in screenshots."
       className="pt-12"
     >
+      <div className="mb-10 grid gap-4 lg:grid-cols-3">
+        {featureHighlights.map((item, index) => (
+          <MotionReveal
+            key={item.title}
+            delay={index * 70}
+            direction="up"
+            className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5"
+          >
+            <h3 className="text-lg font-medium tracking-[-0.03em] text-text">{item.title}</h3>
+            <p className="mt-2 text-sm leading-7 text-muted">{item.body}</p>
+          </MotionReveal>
+        ))}
+      </div>
+
       <div className="space-y-20">
         {detailBands.map((band, index) => (
           <MotionReveal

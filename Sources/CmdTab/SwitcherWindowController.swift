@@ -123,6 +123,11 @@ final class SwitcherWindowController {
             return
         }
 
+        if preferences.switcherStyle == .radialMenu {
+            moveSelectionInRadialMenu(by: reverse ? -1 : 1)
+            return
+        }
+
         session?.advance(reverse: reverse)
         syncViewModelSelection()
     }
@@ -135,6 +140,20 @@ final class SwitcherWindowController {
     func showStandalone() {
         guard startSession(reverse: false) else { return }
         showPanel(makeKey: true)
+    }
+
+    func applyStyleChangeFromSettings() {
+        let currentStyle = preferences.switcherStyle
+        lastObservedStyle = currentStyle
+        refreshPanelContentRoots()
+
+        if viewModel.isVisible {
+            refreshVisibleItemsIfNeeded()
+            showPanel(makeKey: false)
+        } else {
+            updateBackdropPanelIfNeeded()
+            tearDownMirroredPanels()
+        }
     }
 
     func applyCurrentStyleImmediately() {
@@ -368,9 +387,7 @@ final class SwitcherWindowController {
 
     private func makeSession(reverse: Bool) -> SwitcherCycleSession? {
         let snapshot = items()
-        let currentFrontmost = preferences.switcherStyle == .commandPalette
-            ? nil
-            : currentFrontmostIdentity(availableItems: snapshot)
+        let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
         return SwitcherCycleSession(
             mode: .app,
             items: snapshot,
@@ -495,6 +512,10 @@ final class SwitcherWindowController {
             self.viewModel.mode = session.mode
             self.viewModel.items = session.items
             self.viewModel.selectedIndex = session.selectedIndex
+            if let hoveredIndex = self.viewModel.hoveredIndex,
+               hoveredIndex >= session.items.count {
+                self.viewModel.hoveredIndex = nil
+            }
             if self.preferences.switcherStyle == .radialMenu {
                 self.viewModel.radialViewportState.reset(
                     itemCount: session.items.count,
@@ -514,6 +535,10 @@ final class SwitcherWindowController {
         guard let session else { return }
         viewModel.selectedIndex = session.selectedIndex
         viewModel.items = session.items
+        if let hoveredIndex = viewModel.hoveredIndex,
+           hoveredIndex >= session.items.count {
+            viewModel.hoveredIndex = nil
+        }
     }
 
     private func moveSelectionInRadialMenu(by delta: Int) {
@@ -722,7 +747,7 @@ final class SwitcherWindowController {
             self.session = SwitcherCycleSession(
                 mode: .app,
                 items: filtered,
-                currentFrontmost: nil,
+                currentFrontmost: currentFrontmostIdentity(availableItems: filtered),
                 reverse: false,
                 pinsSnapshot: false
             )

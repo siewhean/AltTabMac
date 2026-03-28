@@ -84,6 +84,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/StyleChangeHUDController.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift"
         },
         {
@@ -153,6 +157,7 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherHistory.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherItem.swift.o",
@@ -171,8 +176,6 @@
         "-incremental",
         "-enable-batch-mode",
         "-serialize-diagnostics",
-        "-index-store-path",
-        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
         "-j12",
@@ -182,6 +185,10 @@
         "-module-cache-path",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
         "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "CmdTab_main",
         "-swift-version",
         "5",
         "-Xfrontend",
@@ -247,6 +254,7 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesWindowController.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/RadialMenuView.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SearchMemoryStore.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/StyleChangeHUDController.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherHistory.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherItem.swift",
@@ -296,8 +304,6 @@
         "-incremental",
         "-enable-batch-mode",
         "-serialize-diagnostics",
-        "-index-store-path",
-        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
         "-Xfrontend",
@@ -418,6 +424,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherViewModelTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
         },
         {
@@ -443,7 +453,8 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherHistoryStoreTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherOrderingTests.swift.o",
-        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests.swift.o"
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherQuickActionShortcutTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherViewModelTests.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -451,8 +462,6 @@
         "-incremental",
         "-enable-batch-mode",
         "-serialize-diagnostics",
-        "-index-store-path",
-        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
         "-Onone",
         "-enable-testing",
         "-Xfrontend",
@@ -526,7 +535,8 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift",
-        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift"
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherViewModelTests.swift"
       ],
       "tempsPath" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build",
       "wholeModuleOptimization" : false
@@ -557,6 +567,7 @@
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesWindowController.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/RadialMenuView.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SearchMemoryStore.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/StyleChangeHUDController.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherHistory.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherItem.swift",
@@ -575,8 +586,6 @@
       "-incremental",
       "-enable-batch-mode",
       "-serialize-diagnostics",
-      "-index-store-path",
-      "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
       "-j12",
@@ -586,6 +595,10 @@
       "-module-cache-path",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/ModuleCache",
       "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "CmdTab_main",
       "-swift-version",
       "5",
       "-Xfrontend",
@@ -645,8 +658,6 @@
       "-incremental",
       "-enable-batch-mode",
       "-serialize-diagnostics",
-      "-index-store-path",
-      "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
       "-Xfrontend",
@@ -722,6 +733,7 @@
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherHistoryStoreTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherOrderingTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherViewModelTests.swift",
       "-I",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -729,8 +741,6 @@
       "-incremental",
       "-enable-batch-mode",
       "-serialize-diagnostics",
-      "-index-store-path",
-      "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/index/store",
       "-Onone",
       "-enable-testing",
       "-Xfrontend",
@@ -877,6 +887,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/StyleChangeHUDController.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift"
         },
         {
@@ -986,6 +1000,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherQuickActionShortcutTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherViewModelTests.swift"
         }
       ],
       "outputFilePath" : "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/sources"

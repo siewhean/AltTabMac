@@ -25,11 +25,10 @@
     <!-- Accessibility (CGEventTap) -->
     <key>NSAccessibilityUsageDescription</key>
     <string>CmdTab needs Accessibility permission to intercept ⌘Tab and ⌥Tab globally.</string>
-    <!-- LSUIElement: false → show Dock icon so users can click to open Settings.
-         The switcher panel itself is .nonactivatingPanel so it never steals focus
-         during ⌘Tab; the app appearing in the Dock does not affect hotkey behaviour. -->
+    <!-- LSUIElement: true keeps CmdTab out of the Dock and app switcher.
+         Settings remain available from the menu-bar item. -->
     <key>LSUIElement</key>
-    <false/>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSSupportsAutomaticTermination</key>

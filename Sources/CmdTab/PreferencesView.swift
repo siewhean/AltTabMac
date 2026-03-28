@@ -2,10 +2,49 @@ import SwiftUI
 import AppKit
 
 struct PreferencesView: View {
+    private enum SettingsPane: String, CaseIterable, Identifiable {
+        case general
+        case switcher
+        case shortcuts
+        case system
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .general:
+                return "General"
+            case .switcher:
+                return "Switcher"
+            case .shortcuts:
+                return "Shortcuts"
+            case .system:
+                return "System"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .general:
+                return "slider.horizontal.3"
+            case .switcher:
+                return "square.grid.2x2"
+            case .shortcuts:
+                return "command"
+            case .system:
+                return "lock.shield"
+            }
+        }
+    }
+
     @ObservedObject var preferences: SwitcherPreferences
     let onOpenApplications: () -> Void
     let onRefreshPreviews: () -> Void
-    let onApplySwitcherStyle: () -> Void
+    let onApplySwitcherStyle: (SwitcherStyle) -> Void
+    @State private var selectedPane: SettingsPane = .general
+    @StateObject private var appExclusionCatalog = AppExclusionCatalog()
+    @State private var isAppExclusionPickerPresented = false
+    private let headerLogo = PreferencesAssets.headerLogo
 
     var body: some View {
         GeometryReader { proxy in
@@ -20,39 +59,111 @@ struct PreferencesView: View {
                 )
                 .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        header
-                        sessionToolsSection
-                        triggerSection
-                        workflowSection
-                        switcherSection
-                        appearanceSection
-                        startupSection
-                        shortcutsSection
-                        permissionsSection
+                VStack(alignment: .leading, spacing: 20) {
+                    header(availableWidth: max(0, proxy.size.width - 48))
+                    settingsPanePicker
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            paneContent
+                        }
+                        .frame(width: max(0, proxy.size.width - 48), alignment: .leading)
+                        .padding(.bottom, 24)
                     }
-                    .frame(width: max(0, proxy.size.width - 48), alignment: .leading)
-                    .padding(.top, 28)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .scrollIndicators(.hidden)
                 }
-                .scrollIndicators(.hidden)
+                .frame(width: max(0, proxy.size.width - 48), alignment: .leading)
+                .padding(.top, 28)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
         }
         .frame(minWidth: 720, minHeight: 760)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("CmdTab")
-                .font(.system(size: 30, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+    private func header(availableWidth: CGFloat) -> some View {
+        let logoSize = max(0, min(availableWidth * 0.25, 180))
 
-            Text("Tune how applications and windows appear in the switcher. The settings below prioritize stability, recency ordering, and fast previews of each visual style.")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundColor(.white.opacity(0.66))
-                .fixedSize(horizontal: false, vertical: true)
+        return HStack(alignment: .center, spacing: 18) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("CmdTab")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+
+                Text("Tune how applications and windows appear in the switcher. The settings below prioritize stability, recency ordering, and fast previews of each visual style.")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.66))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            Image(nsImage: headerLogo)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: logoSize, height: logoSize)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 14, y: 8)
+        }
+    }
+
+    private var settingsPanePicker: some View {
+        HStack(spacing: 10) {
+            ForEach(SettingsPane.allCases) { pane in
+                Button {
+                    selectedPane = pane
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: pane.systemImage)
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(pane.title)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.white.opacity(selectedPane == pane ? 0.96 : 0.64))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(
+                                selectedPane == pane
+                                    ? Color(red: 0.20, green: 0.42, blue: 0.90).opacity(0.28)
+                                    : Color.white.opacity(0.05)
+                            )
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(
+                                selectedPane == pane
+                                    ? Color(red: 0.31, green: 0.60, blue: 1.0).opacity(0.78)
+                                    : Color.white.opacity(0.08),
+                                lineWidth: 1
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var paneContent: some View {
+        switch selectedPane {
+        case .general:
+            sessionToolsSection
+            appearanceSection
+            triggerSection
+        case .switcher:
+            switcherSection
+        case .shortcuts:
+            shortcutsSection
+        case .system:
+            startupSection
+            permissionsSection
         }
     }
 
@@ -73,28 +184,23 @@ struct PreferencesView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
             }
-
-            SettingsRowText(
-                title: "Preview Cache Readiness",
-                subtitle: "CmdTab already keeps a warm thumbnail cache in the background. Use preload when you want the next reveal to favor fresh captures immediately and reduce the chance of icon-only fallback frames."
-            )
         }
     }
 
     private var triggerSection: some View {
-        SettingsCard(title: "Triggers", subtitle: "Keep ⌘Tab as the main path and add one optional secondary trigger for one-handed switching.") {
+        SettingsCard(title: "Hot Swap Shortcut", subtitle: "Set an optional double-tap shortcut for one-handed switching. The normal `⌘Tab` path still works exactly the same.") {
             SettingsMenuPickerRow(
-                title: "Alternate Trigger",
-                subtitle: "A standalone trigger opens CmdTab without holding Tab. Tap it again while CmdTab is open to advance the selection.",
+                title: "Shortcut",
+                subtitle: "Choose whether hot swap should listen for a left or right modifier key, then double-tap that key to jump straight to the most recent app or window without opening the switcher.",
                 selection: $preferences.alternateTrigger,
-                options: AlternateTriggerMode.allCases.map { ($0, $0.title) }
+                options: hotSwapShortcutOptions
             )
 
             Divider().overlay(Color.white.opacity(0.08))
 
             HStack(alignment: .center, spacing: 16) {
                 SettingsRowText(
-                    title: "Current Alternate Trigger",
+                    title: "Current Hot Swap Shortcut",
                     subtitle: preferences.alternateTrigger.subtitle
                 )
                 Spacer()
@@ -111,53 +217,18 @@ struct PreferencesView: View {
         }
     }
 
-    private var workflowSection: some View {
-        SettingsCard(title: "Workflow Layer", subtitle: "These are the behaviors that make CmdTab feel like a premium switcher instead of a prettier app list.") {
-            SettingsRowText(
-                title: "Command Palette Memory",
-                subtitle: "Palette search now learns repeated short queries, matches acronyms, and keeps result ordering stable so the same query lands on the same target more often."
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            VStack(alignment: .leading, spacing: 12) {
-                SettingsRowText(
-                    title: "Selected-Item Quick Actions",
-                    subtitle: "While the switcher is visible, you can act on the highlighted item without switching into it first."
-                )
-
-                QuickActionFeatureGrid(actions: SwitcherQuickAction.allCases)
-
-                Text("Quick actions respond to `⌘ H`, `⌘ M`, `⌘ W`, and `⌘ Q`. In Classic Grid and Radial Menu, the bare `H`, `M`, `W`, and `Q` keys also work when you opened CmdTab from a standalone trigger.")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.56))
-            }
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsRowText(
-                title: "Selection Clarity",
-                subtitle: "CmdTab keeps the active result obvious across every mode. Radial Menu now pushes the selected item into the center label with a stronger ring and node emphasis."
-            )
-        }
+    private var hotSwapShortcutOptions: [(AlternateTriggerMode, String)] {
+        [
+            (.disabled, AlternateTriggerMode.disabled.title),
+            (.leftCommandDoubleTap, AlternateTriggerMode.leftCommandDoubleTap.title),
+            (.leftOptionDoubleTap, AlternateTriggerMode.leftOptionDoubleTap.title),
+            (.rightCommandDoubleTap, AlternateTriggerMode.rightCommandDoubleTap.title),
+            (.rightOptionDoubleTap, AlternateTriggerMode.rightOptionDoubleTap.title)
+        ]
     }
 
     private var switcherSection: some View {
         SettingsCard(title: "Switcher", subtitle: "Control what shows up when you press the shortcut.") {
-            SettingsRowText(
-                title: "Strict separate-window recency",
-                subtitle: "Applications and windows stay in one global MRU list, so repeated apps remain interleaved instead of grouped together."
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsRowText(
-                title: "Display- and Space-Aware Placement",
-                subtitle: "CmdTab can stay focused on the current space, visible spaces, or all spaces, and it can open on the active-window display, cursor display, or every display at once."
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
             SettingsMenuPickerRow(
                 title: "Window Visibility",
                 subtitle: "Choose whether CmdTab focuses on the current space, visible spaces, or every space.",
@@ -194,28 +265,22 @@ struct PreferencesView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            SettingsRowText(
-                title: "Decluttering Rules",
-                subtitle: "Use app exclusions and ignored title fragments to cut noisy utilities, floating panels, and windows that should never compete for your attention."
-            )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsTextEditorRow(
+            SettingsSelectableAppsRow(
                 title: "Exclude Apps",
-                subtitle: "Comma or newline-separated bundle IDs or app names to hide from CmdTab.",
-                text: $preferences.excludedAppsText,
-                placeholder: "com.apple.finder\nMusic"
+                subtitle: "Select the applications you want CmdTab to hide from the switcher.",
+                selectedApps: selectedExcludedApps,
+                hasUnresolvedEntries: hasUnresolvedExcludedApps,
+                onSelectApps: { isAppExclusionPickerPresented = true }
             )
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsTextEditorRow(
-                title: "Ignore Window Titles",
-                subtitle: "Comma or newline-separated title fragments used to drop utility windows and noisy panels.",
-                text: $preferences.ignoredWindowTitlesText,
-                placeholder: "Picture in Picture\nColor Picker"
-            )
+            .sheet(isPresented: $isAppExclusionPickerPresented) {
+                AppExclusionPickerSheet(
+                    catalog: appExclusionCatalog,
+                    selectedBundleIdentifiers: Binding(
+                        get: { selectedExcludedAppBundleIdentifiers },
+                        set: { updateExcludedApps(using: $0) }
+                    )
+                )
+            }
         }
     }
 
@@ -235,19 +300,12 @@ struct PreferencesView: View {
                         ) {
                             guard preferences.switcherStyle != style else { return }
                             preferences.switcherStyle = style
-                            onApplySwitcherStyle()
+                            onApplySwitcherStyle(style)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            Divider().overlay(Color.white.opacity(0.08))
-
-            SettingsRowText(
-                title: "Radial Focus Treatment",
-                subtitle: "Radial Menu is tuned to keep the selected item readable even in dense sets, with a louder selected state and a clearer center readout."
-            )
 
             Divider().overlay(Color.white.opacity(0.08))
 
@@ -284,7 +342,7 @@ struct PreferencesView: View {
             ShortcutRow(shortcut: "⌥ Tab", detail: "Open the same switcher with the alternate modifier")
             if preferences.alternateTrigger != .disabled {
                 Divider().overlay(Color.white.opacity(0.08))
-                ShortcutRow(shortcut: preferences.alternateTrigger.shortcutLabel, detail: "Optional standalone trigger")
+                ShortcutRow(shortcut: preferences.alternateTrigger.shortcutLabel, detail: "Immediate hot swap to the most recent item")
             }
             Divider().overlay(Color.white.opacity(0.08))
             ShortcutRow(shortcut: "Arrow Keys", detail: "Move through the grid")
@@ -341,6 +399,39 @@ struct PreferencesView: View {
         guard let url = URL(string: rawValue) else { return }
         NSWorkspace.shared.open(url)
     }
+
+    private var selectedExcludedApps: [AppExclusionOption] {
+        appExclusionCatalog.selectedOptions(for: preferences.excludedAppEntries)
+    }
+
+    private var selectedExcludedAppBundleIdentifiers: Set<String> {
+        Set(selectedExcludedApps.map(\.bundleIdentifier))
+    }
+
+    private var hasUnresolvedExcludedApps: Bool {
+        let resolvedBundleIdentifiers = selectedExcludedAppBundleIdentifiers
+        return preferences.excludedAppEntries.contains { entry in
+            !resolvedBundleIdentifiers.contains(where: { $0.caseInsensitiveCompare(entry) == .orderedSame })
+        }
+    }
+
+    private func updateExcludedApps(using selectedBundleIdentifiers: Set<String>) {
+        let orderedBundleIdentifiers = appExclusionCatalog.options
+            .map(\.bundleIdentifier)
+            .filter { selectedBundleIdentifiers.contains($0) }
+        preferences.excludedAppsText = orderedBundleIdentifiers.joined(separator: "\n")
+    }
+}
+
+private enum PreferencesAssets {
+    static let headerLogo: NSImage = {
+        if let url = Bundle.main.url(forResource: "CmdTab", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            image.size = NSSize(width: 1024, height: 1024)
+            return image
+        }
+        return NSApp.applicationIconImage
+    }()
 }
 
 private struct SettingsCard<Content: View>: View {
@@ -473,6 +564,50 @@ private struct SettingsTextEditorRow: View {
     }
 }
 
+private struct SettingsSelectableAppsRow: View {
+    let title: String
+    let subtitle: String
+    let selectedApps: [AppExclusionOption]
+    let hasUnresolvedEntries: Bool
+    let onSelectApps: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
+                SettingsRowText(title: title, subtitle: subtitle)
+                Spacer()
+                Button("Select Apps", action: onSelectApps)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+            }
+
+            if selectedApps.isEmpty {
+                Text("No excluded apps selected.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.46))
+            } else {
+                FlexibleChipCloud(items: selectedApps) { app in
+                    HStack(spacing: 6) {
+                        if let icon = app.icon {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .interpolation(.high)
+                                .frame(width: 14, height: 14)
+                        }
+                        Text(app.displayName)
+                    }
+                }
+            }
+
+            if hasUnresolvedEntries {
+                Text("Some older manual exclusion entries could not be matched to installed apps. Re-select them from the picker if you still want to keep them.")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.40))
+            }
+        }
+    }
+}
+
 private struct SettingsToggleRow: View {
     let title: String
     let subtitle: String
@@ -487,6 +622,28 @@ private struct SettingsToggleRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(.blue)
+        }
+    }
+}
+
+private struct FlexibleChipCloud<Data: RandomAccessCollection, Content: View>: View where Data.Element: Identifiable {
+    let items: Data
+    @ViewBuilder let content: (Data.Element) -> Content
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], alignment: .leading, spacing: 10) {
+            ForEach(items) { item in
+                content(item)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color.white.opacity(0.08))
+                    )
+            }
         }
     }
 }
@@ -813,6 +970,234 @@ private struct StyleMockPreview: View {
                 }
                 .padding(10)
             }
+        }
+    }
+}
+
+private struct AppExclusionPickerSheet: View {
+    @ObservedObject var catalog: AppExclusionCatalog
+    @Binding var selectedBundleIdentifiers: Set<String>
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+
+    private var filteredApps: [AppExclusionOption] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalizedQuery.isEmpty else { return catalog.options }
+        return catalog.options.filter {
+            $0.displayName.lowercased().contains(normalizedQuery) ||
+            $0.bundleIdentifier.lowercased().contains(normalizedQuery)
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Exclude Apps")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("Choose which applications CmdTab should hide from the switcher.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.58))
+                }
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+            }
+
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.white.opacity(0.42))
+                TextField("Search apps…", text: $query)
+                    .textFieldStyle(.plain)
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                    )
+            )
+
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(filteredApps) { app in
+                        Button {
+                            toggle(app.bundleIdentifier)
+                        } label: {
+                            HStack(spacing: 12) {
+                                if let icon = app.icon {
+                                    Image(nsImage: icon)
+                                        .resizable()
+                                        .interpolation(.high)
+                                        .frame(width: 26, height: 26)
+                                } else {
+                                    Image(systemName: "app")
+                                        .frame(width: 26, height: 26)
+                                        .foregroundColor(.white.opacity(0.35))
+                                }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(app.displayName)
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.white)
+                                    Text(app.bundleIdentifier)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .foregroundColor(.white.opacity(0.42))
+                                        .lineLimit(1)
+                                }
+
+                                Spacer()
+
+                                Image(systemName: selectedBundleIdentifiers.contains(app.bundleIdentifier) ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(selectedBundleIdentifiers.contains(app.bundleIdentifier) ? .blue : .white.opacity(0.24))
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color.white.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                                    )
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+
+            if filteredApps.isEmpty {
+                Text("No matching apps found.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.46))
+            }
+        }
+        .padding(20)
+        .frame(width: 620, height: 620, alignment: .topLeading)
+        .background(
+            LinearGradient(
+                colors: [
+                    Color(red: 0.11, green: 0.13, blue: 0.17),
+                    Color(red: 0.08, green: 0.09, blue: 0.12)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+    }
+
+    private func toggle(_ bundleIdentifier: String) {
+        if selectedBundleIdentifiers.contains(bundleIdentifier) {
+            selectedBundleIdentifiers.remove(bundleIdentifier)
+        } else {
+            selectedBundleIdentifiers.insert(bundleIdentifier)
+        }
+    }
+}
+
+private struct AppExclusionOption: Identifiable, Hashable {
+    let bundleIdentifier: String
+    let displayName: String
+    let icon: NSImage?
+
+    var id: String { bundleIdentifier }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(bundleIdentifier)
+    }
+
+    static func == (lhs: AppExclusionOption, rhs: AppExclusionOption) -> Bool {
+        lhs.bundleIdentifier == rhs.bundleIdentifier
+    }
+}
+
+private final class AppExclusionCatalog: ObservableObject {
+    @Published private(set) var options: [AppExclusionOption] = []
+
+    init() {
+        reload()
+    }
+
+    func selectedOptions(for entries: [String]) -> [AppExclusionOption] {
+        options.filter { option in
+            WindowExclusionRules.matchesApp(
+                identifier: option.bundleIdentifier,
+                appName: option.displayName,
+                entries: entries
+            )
+        }
+    }
+
+    private func reload() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let discovered = Self.discoverApps()
+            DispatchQueue.main.async {
+                self.options = discovered
+            }
+        }
+    }
+
+    private static func discoverApps() -> [AppExclusionOption] {
+        let fileManager = FileManager.default
+        let roots = [
+            URL(fileURLWithPath: "/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Applications", isDirectory: true),
+            URL(fileURLWithPath: "/Applications/Setapp", isDirectory: true)
+        ]
+
+        var seenBundleIdentifiers = Set<String>()
+        var discovered: [AppExclusionOption] = []
+
+        for root in roots where fileManager.fileExists(atPath: root.path) {
+            guard let enumerator = fileManager.enumerator(
+                at: root,
+                includingPropertiesForKeys: [.isApplicationKey, .isDirectoryKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+            ) else {
+                continue
+            }
+
+            for case let url as URL in enumerator {
+                guard url.pathExtension == "app" else { continue }
+                guard let bundle = Bundle(url: url),
+                      let bundleIdentifier = bundle.bundleIdentifier,
+                      seenBundleIdentifiers.insert(bundleIdentifier).inserted else {
+                    continue
+                }
+
+                let displayName =
+                    (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    ?? url.deletingPathExtension().lastPathComponent
+
+                discovered.append(
+                    AppExclusionOption(
+                        bundleIdentifier: bundleIdentifier,
+                        displayName: displayName,
+                        icon: NSWorkspace.shared.icon(forFile: url.path)
+                    )
+                )
+            }
+        }
+
+        return discovered.sorted {
+            if $0.displayName.caseInsensitiveCompare($1.displayName) != .orderedSame {
+                return $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
+            return $0.bundleIdentifier.localizedCaseInsensitiveCompare($1.bundleIdentifier) == .orderedAscending
         }
     }
 }

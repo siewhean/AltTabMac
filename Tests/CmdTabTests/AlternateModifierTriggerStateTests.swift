@@ -141,4 +141,80 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
     }
+
+    func testLeftCommandDoubleTapRequiresSecondTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 60.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 60.08
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 60.24
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 60.32
+            )
+        )
+    }
+
+    func testLeftOptionDoubleTapRequiresSecondTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftOption,
+                isDown: true,
+                mode: .leftOptionDoubleTap,
+                now: 70.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftOption,
+                isDown: false,
+                mode: .leftOptionDoubleTap,
+                now: 70.09
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftOption,
+                isDown: true,
+                mode: .leftOptionDoubleTap,
+                now: 70.24
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .leftOption,
+                isDown: false,
+                mode: .leftOptionDoubleTap,
+                now: 70.31
+            )
+        )
+    }
 }

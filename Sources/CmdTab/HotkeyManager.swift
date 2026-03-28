@@ -21,6 +21,8 @@ final class HotkeyManager {
 
     private var cmdDown = false
     private var optDown = false
+    private var leftCommandDown = false
+    private var leftOptionDown = false
     private var rightCommandDown = false
     private var rightOptionDown = false
     private var showUIWorkItem: DispatchWorkItem?
@@ -207,9 +209,9 @@ final class HotkeyManager {
         guard let switcher else { return }
         dispatchToMain {
             if switcher.isVisible {
-                switcher.showOrAdvance(reverse: false)
+                switcher.confirmAndHide()
             } else {
-                switcher.showStandalone()
+                switcher.commitTriggerSession(reverse: false)
             }
         }
     }
@@ -220,16 +222,7 @@ final class HotkeyManager {
         eventTimestamp: CGEventTimestamp
     ) {
         guard let physicalKey = PhysicalModifierTriggerKey(flagsChangedKeyCode: keyCode) else { return }
-
-        let isDown: Bool
-        switch physicalKey {
-        case .rightCommand:
-            isDown = !rightCommandDown && flags.contains(.maskCommand)
-            rightCommandDown = isDown
-        case .rightOption:
-            isDown = !rightOptionDown && flags.contains(.maskAlternate)
-            rightOptionDown = isDown
-        }
+        let isDown = toggleModifierState(for: physicalKey)
 
         let triggerMode = preferences.alternateTrigger
         let shouldActivate = alternateTriggerState.handleModifierChange(
@@ -240,6 +233,23 @@ final class HotkeyManager {
         )
         if shouldActivate {
             activateAlternateTrigger()
+        }
+    }
+
+    private func toggleModifierState(for physicalKey: PhysicalModifierTriggerKey) -> Bool {
+        switch physicalKey {
+        case .leftCommand:
+            leftCommandDown.toggle()
+            return leftCommandDown
+        case .rightCommand:
+            rightCommandDown.toggle()
+            return rightCommandDown
+        case .leftOption:
+            leftOptionDown.toggle()
+            return leftOptionDown
+        case .rightOption:
+            rightOptionDown.toggle()
+            return rightOptionDown
         }
     }
 
@@ -308,6 +318,8 @@ final class HotkeyManager {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             os_log(.info, log: hotkeyLog, "Event tap re-enabled after system disable (type=%{public}d)", type.rawValue)
+            leftCommandDown = false
+            leftOptionDown = false
             rightCommandDown = false
             rightOptionDown = false
             alternateTriggerState = AlternateModifierTriggerState()
@@ -487,13 +499,19 @@ enum HotkeyModifier: Hashable {
 }
 
 enum PhysicalModifierTriggerKey: Equatable {
+    case leftCommand
     case rightCommand
+    case leftOption
     case rightOption
 
     init?(flagsChangedKeyCode: Int64) {
         switch flagsChangedKeyCode {
+        case 55:
+            self = .leftCommand
         case 54:
             self = .rightCommand
+        case 58:
+            self = .leftOption
         case 61:
             self = .rightOption
         default:
@@ -517,6 +535,10 @@ private extension AlternateTriggerMode {
         switch self {
         case .disabled:
             return nil
+        case .leftCommandDoubleTap:
+            return .leftCommand
+        case .leftOptionDoubleTap:
+            return .leftOption
         case .rightCommandTap, .rightCommandDoubleTap:
             return .rightCommand
         case .rightOptionTap, .rightOptionDoubleTap:
@@ -530,7 +552,7 @@ private extension AlternateTriggerMode {
             return nil
         case .rightCommandTap, .rightOptionTap:
             return .singleTap
-        case .rightCommandDoubleTap, .rightOptionDoubleTap:
+        case .rightCommandDoubleTap, .rightOptionDoubleTap, .leftCommandDoubleTap, .leftOptionDoubleTap:
             return .doubleTap
         }
     }

@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var preferencesWindowController: PreferencesWindowController!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+
         switcher = SwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
         preferencesWindowController.onOpenApplications = { [weak self] in
@@ -16,8 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         preferencesWindowController.onRefreshPreviews = { [weak self] in
             self?.switcher?.refreshPreviewCache()
         }
-        preferencesWindowController.onApplySwitcherStyle = { [weak self] in
-            self?.switcher?.applyCurrentStyleImmediately()
+        preferencesWindowController.onApplySwitcherStyle = { [weak self] style in
+            self?.switcher?.applyStyleChangeFromSettings()
+            self?.preferencesWindowController?.showStyleChangeHUD(for: style)
         }
         menuBar = MenuBarController(preferencesWindowController: preferencesWindowController)
         hotkeyManager = HotkeyManager(switcher: switcher)

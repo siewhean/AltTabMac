@@ -283,6 +283,25 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
     }
 
+    func testPresentationUsefulWindowCaptureRejectsSolidBlackImage() {
+        let image = makeCGImage(width: 120, height: 80) { _, _ in
+            (0, 0, 0, 255)
+        }
+
+        XCTAssertFalse(AppSwitcher.isPresentationUsefulWindowCapture(image))
+    }
+
+    func testPresentationUsefulWindowCaptureKeepsDarkImageWithVisibleContent() {
+        let image = makeCGImage(width: 120, height: 80) { x, y in
+            if x > 20 && x < 100 && y > 20 && y < 60 {
+                return (80, 80, 80, 255)
+            }
+            return (8, 8, 8, 255)
+        }
+
+        XCTAssertTrue(AppSwitcher.isPresentationUsefulWindowCapture(image))
+    }
+
     func testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID() {
         let duplicateOffscreen = WindowCandidateDeduplicationProbe(
             ownerPID: 101,

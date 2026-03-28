@@ -9,7 +9,7 @@ export const siteConfig = {
     { label: "Modes", href: "#modes" },
     { label: "Walkthrough", href: "#walkthrough" },
     { label: "Features", href: "#details" },
-    { label: "Privacy", href: "/privacy" },
+    { label: "Beta", href: "#waitlist" },
   ],
   ctas: {
     primary: "Join the private beta",

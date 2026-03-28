@@ -7,9 +7,9 @@ export function WalkthroughSection() {
   return (
     <SectionShell
       id="walkthrough"
-      eyebrow="See the flow"
-      title="A better switcher should explain itself in seconds."
-      description="CmdTab keeps the interaction short: invoke it, see what is open, choose the right window, and keep moving."
+      eyebrow="Live walkthroughs"
+      title="See how the modes work in actual use."
+      description="Open it, move fast, and commit. Each mode gives you a different path to the same result."
     >
       <div className="grid gap-10 lg:grid-cols-2">
         {walkthroughSteps.map((step, index) => (

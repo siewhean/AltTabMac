@@ -100,6 +100,13 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SearchMemoryStore.dia"
   },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/StyleChangeHUDController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/StyleChangeHUDController.dia"
+  },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherCycleSession.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.d",
     "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/SwitcherCycleSession.swift.o",

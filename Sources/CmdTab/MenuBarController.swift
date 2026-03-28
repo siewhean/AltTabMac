@@ -44,7 +44,7 @@ final class MenuBarController {
         displayMenuItem.submenu = displaySubmenu()
         menu.addItem(displayMenuItem)
 
-        let alternateTriggerMenuItem = NSMenuItem(title: "Alternate Trigger", action: nil, keyEquivalent: "")
+        let alternateTriggerMenuItem = NSMenuItem(title: "Hot Swap Shortcut", action: nil, keyEquivalent: "")
         alternateTriggerMenuItem.submenu = alternateTriggerSubmenu()
         menu.addItem(alternateTriggerMenuItem)
 
@@ -116,7 +116,7 @@ final class MenuBarController {
     private func alternateTriggerSubmenu() -> NSMenu {
         let menu = NSMenu()
 
-        for trigger in AlternateTriggerMode.allCases {
+        for trigger in hotSwapShortcutModes {
             let item = NSMenuItem(
                 title: trigger.title,
                 action: #selector(setAlternateTrigger(_:)),
@@ -129,6 +129,16 @@ final class MenuBarController {
         }
 
         return menu
+    }
+
+    private var hotSwapShortcutModes: [AlternateTriggerMode] {
+        [
+            .disabled,
+            .leftCommandDoubleTap,
+            .leftOptionDoubleTap,
+            .rightCommandDoubleTap,
+            .rightOptionDoubleTap
+        ]
     }
 
     @objc private func setWindowVisibilityScope(_ sender: NSMenuItem) {
@@ -190,7 +200,7 @@ final class MenuBarController {
 
         ⌘ Tab  — Switch between application windows
         ⌥ Tab  — Same switcher, alternate modifier
-        Optional alternate trigger  — Configurable in Settings
+        Optional hot swap shortcut  — Instantly switches to the latest item
         Left click  — Open settings
         Right click  — Open settings and quick controls
 

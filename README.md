@@ -1,6 +1,6 @@
 # CmdTab
 
-Last Updated: 2026-03-27
+Last Updated: 2026-03-28
 Active Task: CmdTab product differentiation pass — deterministic switching, space/display targeting, decluttering controls, permission trust, and founder-launch positioning.
 
 ## Project Summary
@@ -35,6 +35,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - The website copy now positions the launch around a private beta, founder pricing, a planned 14-day trial, and a one-time license rather than a subscription.
 - The website feature layer now explicitly presents the shipped app differentiators instead of relying on vague “better switcher” language.
 - The website now includes restrained motion: hero entrance choreography, ambient linear drift on supporting visuals, and scroll-reveal movement across the main content sections.
+- The website now includes Vercel Web Analytics / Speed Insights wiring plus client-side CTA event tracking using the existing `data-analytics-*` markers.
+- A launch handoff file now exists at `LAUNCH.md`, and `website/.env.example` documents the required website env vars for waitlist delivery and deployment.
 - Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
 - Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
@@ -74,6 +76,7 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Manually validate the new alternate trigger options (`Right ⌘`, `Right ⌘ ×2`, `Right ⌥`, `Right ⌥ ×2`) in real apps to confirm they never misfire during ordinary modifier shortcuts.
 - Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
+- Authenticate Vercel on the owner side or install/configure the Vercel CLI before attempting a real deployment from this machine.
 - Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
 - Tune the new website motion against a real browser session to confirm the reveal cadence and ambient drift feel polished rather than decorative.
 - Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
@@ -81,6 +84,11 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-03-28: Added website launch handoff and real analytics plumbing.
+  - Added `@vercel/analytics` and `@vercel/speed-insights` to `website/`.
+  - Wired page tracking in `website/src/app/layout.tsx` and CTA event tracking through a new `SiteEventTracker`.
+  - Added `website/.env.example` for the waitlist email env vars and created `LAUNCH.md` with the launch checklist covering website deployment, commerce, and notarized macOS distribution.
+  - Confirmed the Vercel connector is not authenticated in this environment and the Vercel CLI is not installed locally, so final deploy/auth steps still need the owner side.
 - 2026-03-27: Tightened duplicate-window suppression in switcher enumeration.
   - `AppSwitcher` now deduplicates CGWindow candidates by `(ownerPID, windowID)` and keeps the best-quality candidate instead of allowing multiple CG entries for the same real window through.
   - Added regression coverage proving duplicate entries for one underlying window collapse while distinct windows with different IDs remain visible.

@@ -23,6 +23,11 @@ final class SwitcherViewModel: ObservableObject {
     @Published var searchQuery: String = ""
     @Published var radialViewportState = RadialMenuViewportState()
 
+    var resolvedSelectedIndex: Int? {
+        guard !items.isEmpty else { return nil }
+        return min(max(0, selectedIndex), items.count - 1)
+    }
+
     // Move selection left/right, wrapping around
     func move(by delta: Int) {
         guard !items.isEmpty else { return }
