@@ -2,8 +2,8 @@
 
 ## Reporting a Vulnerability
 
-- Report vulnerabilities privately to `security@cmdtab.net`.
-- Until `security@cmdtab.net` is actively monitored in production, use `privacy@cmdtab.net` as the fallback disclosure channel.
+- Report vulnerabilities privately to `tohsh17@gmail.com`.
+- Until dedicated domain inboxes are provisioned in production, use `tohsh17@gmail.com` as the disclosure channel.
 - Include the affected feature, reproduction steps, impact, and supporting artifacts.
 - Do not publish exploit details until the CmdTab team confirms the issue is resolved.
 
@@ -35,7 +35,7 @@
 
 ## Owner Responsibilities Before Public Launch
 
-- Provision and monitor `security@cmdtab.net`.
+- Replace `tohsh17@gmail.com` with dedicated domain inboxes before public launch scale.
 - Enable Vercel Firewall / bot protection and review request logs for the waitlist endpoint.
 - Verify the Resend sender domain and keep secrets only in deployment environment variables.
 - Code-sign, notarize, and staple the macOS app before public distribution.

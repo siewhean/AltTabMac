@@ -7,11 +7,9 @@ import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { heroContent } from "@/content/home";
 import { siteConfig } from "@/content/site";
 import { analyticsAttributes } from "@/lib/analytics";
-import { getCommerceConfig } from "@/lib/commerce";
 
 export function HeroSection() {
-  const commerce = getCommerceConfig();
-  const primaryHref = commerce.trialDownloadUrl ?? "#launch";
+  const primaryHref = "#waitlist";
 
   return (
     <section className="relative isolate min-h-[100svh] overflow-hidden">
@@ -34,7 +32,7 @@ export function HeroSection() {
             />
             <div>
               <p className="text-sm font-semibold tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-xs text-subdued">macOS trial and one-time license</p>
+              <p className="text-xs text-subdued">macOS private beta waitlist</p>
             </div>
           </a>
 
@@ -91,24 +89,6 @@ export function HeroSection() {
               >
                 {siteConfig.ctas.secondary}
               </Button>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-3 text-sm text-subdued">
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono">
-                ⌘Tab
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono">
-                ⌥Tab
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 font-mono">
-                Right ⌘ ×2
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Real window previews
-              </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2">
-                Hide · Minimize · Close · Quit
-              </span>
             </div>
           </div>
 

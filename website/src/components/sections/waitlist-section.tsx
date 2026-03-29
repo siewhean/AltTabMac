@@ -73,7 +73,7 @@ export function WaitlistSection() {
 
       setState({
         kind: "success",
-        message: waitlistContent.successMessage,
+        message: data.message ?? waitlistContent.successMessage,
       });
       setName("");
       setEmail("");
@@ -94,7 +94,7 @@ export function WaitlistSection() {
       description={waitlistContent.summary}
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-        <MotionReveal className="space-y-5" direction="left">
+        <MotionReveal className="space-y-5 lg:pt-6" direction="left">
           <p className="max-w-lg text-base leading-8 text-muted">{waitlistContent.note}</p>
           <div className="space-y-4 border-t border-white/8 pt-6">
             {[

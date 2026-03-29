@@ -3,12 +3,8 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { siteConfig } from "@/content/site";
-import { getCommerceConfig } from "@/lib/commerce";
 
 export function FooterSection() {
-  const commerce = getCommerceConfig();
-  const hasLaunchFlow = Boolean(commerce.checkoutUrl || commerce.trialDownloadUrl);
-
   return (
     <footer className="border-t border-white/8 px-5 py-10 sm:px-8 lg:px-10">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
@@ -29,14 +25,13 @@ export function FooterSection() {
             </div>
           </div>
           <p className="max-w-xl text-sm leading-7 text-subdued">
-            {hasLaunchFlow
-              ? "CmdTab is live with a direct launch path: a 14-day free trial and a one-time founder purchase."
-              : "CmdTab is set up for a direct launch flow with a free trial and one-time purchase, even if one of the hosted URLs is not live yet."}
+            CmdTab is currently running a waitlist-first launch. Join the list to get beta updates,
+            first access to the trial, and the next release announcement.
           </p>
         </MotionReveal>
 
         <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
-          <Button href="#launch">{siteConfig.ctas.primary}</Button>
+          <Button href="#waitlist">{siteConfig.ctas.primary}</Button>
           <Button href="/privacy" variant="ghost">
             {siteConfig.ctas.tertiary}
           </Button>

@@ -2,17 +2,17 @@ export const siteConfig = {
   name: "CmdTab",
   tagline: "Find the right Mac window in one move.",
   description:
-    "CmdTab is a faster Mac app switcher with real window previews, learned search, quick actions, space-aware placement, alternate triggers, a 14-day free trial, and a one-time license.",
+    "CmdTab is a faster Mac app switcher with real window previews, learned search, quick actions, space-aware placement, alternate triggers, and a waitlist for upcoming beta access.",
   defaultSiteUrl: "https://cmdtab.net",
   socialImagePath: "/og/cover.png",
   nav: [
     { label: "Modes", href: "#modes" },
     { label: "Walkthrough", href: "#walkthrough" },
     { label: "Features", href: "#details" },
-    { label: "Launch", href: "#launch" },
+    { label: "Waitlist", href: "#waitlist" },
   ],
   ctas: {
-    primary: "Start the 14-day trial",
+    primary: "Join the waitlist",
     secondary: "See the walkthrough",
     tertiary: "Read the privacy policy",
   },
@@ -26,8 +26,8 @@ export const siteConfig = {
     "Mac window switcher with quick actions",
     "Mac app switcher with search memory",
     "display-aware app switcher for Mac",
-    "14 day free trial Mac app",
-    "one-time purchase Mac utility",
+    "Mac app beta waitlist",
+    "macOS productivity beta",
   ],
-  contactEmail: "privacy@cmdtab.net",
+  contactEmail: "tohsh17@gmail.com",
 } as const;

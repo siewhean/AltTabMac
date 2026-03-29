@@ -1,9 +1,9 @@
 export const heroContent = {
-  eyebrow: "14-day free trial for macOS",
+  eyebrow: "Private beta waitlist for macOS",
   title: "Find the right Mac window in one move.",
   summary:
     "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open. Try it free for 14 days, then buy it once.",
+  status: "Built for people who keep too many apps and windows open. Join the waitlist to get beta updates and first access when the next public build is ready.",
 };
 
 export const proofPoints = [
@@ -13,7 +13,7 @@ export const proofPoints = [
   "Hide, minimize, close, or quit the selected item without leaving the switcher.",
   "Alternate right-side modifier triggers for one-handed sessions.",
   "Exclusions and ignored-title rules to keep noisy windows out of the way.",
-  "Start with a 14-day free trial, then keep it with a one-time purchase.",
+  "Join the waitlist to get the next beta build and release updates.",
 ];
 
 export const styleVariants = [
@@ -226,6 +226,6 @@ export const permissionsContent = {
 export const faqItems = [
   {
     question: "Is CmdTab available now?",
-    answer: "Yes. CmdTab is being sold with a 14-day free trial and a one-time purchase option.",
+    answer: "CmdTab is currently in a waitlist-first phase while the next release is being prepared.",
   },
 ];

@@ -15,7 +15,7 @@ const disclosureSections = [
   {
     title: "How to report a vulnerability",
     body: [
-      "Report suspected security issues privately to security@cmdtab.net.",
+      "Report suspected security issues privately to tohsh17@gmail.com.",
       "Include the affected URL or feature, clear reproduction steps, impact, and any proof-of-concept details that help the CmdTab team validate the issue quickly.",
     ],
   },
@@ -61,7 +61,7 @@ export default function SecurityPage() {
           ))}
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="mailto:security@cmdtab.net">Contact security@cmdtab.net</Button>
+            <Button href="mailto:tohsh17@gmail.com">Contact tohsh17@gmail.com</Button>
             <Button href="/privacy" variant="secondary">
               Read the privacy policy
             </Button>

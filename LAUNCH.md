@@ -15,10 +15,9 @@ This file separates what is already prepared in the repo from what still require
 
 - Final offer:
   - public 14-day trial
-  - founder price: `$5`
   - standard one-time license price: `$9.99`
 - Commerce stack:
-  - Lemon Squeezy or Paddle
+  - Lemon Squeezy
 - Support inbox:
   - beta/support email
   - refund/contact email
@@ -43,8 +42,7 @@ This file separates what is already prepared in the repo from what still require
 3. Connect your real domain to the Vercel project.
 4. Confirm the direct purchase flow opens the Lemon Squeezy checkout.
 5. Provision and monitor:
-   - `security@cmdtab.net`
-   - `privacy@cmdtab.net`
+   - `tohsh17@gmail.com`
 6. Enable Vercel edge protections and production abuse controls:
    - WAF / attack challenge mode where appropriate
    - request throttling / bot protection
@@ -59,7 +57,6 @@ This file separates what is already prepared in the repo from what still require
 
 1. Pick a merchant-of-record provider.
 2. Create:
-   - founder price
    - standard price
    - trial/download delivery flow
    - hosted checkout URL for the site launch section

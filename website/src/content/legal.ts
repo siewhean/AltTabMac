@@ -28,13 +28,13 @@ export const privacyContent = {
       title: "Retention and deletion",
       body: [
         "CmdTab keeps only the operational data that is reasonably needed for site analytics, support, and launch operations.",
-        "If you have a privacy-related request about the website, contact the CmdTab team at privacy@cmdtab.net.",
+        "If you have a privacy-related request about the website, contact the CmdTab team at tohsh17@gmail.com.",
       ],
     },
     {
       title: "Security contact",
       body: [
-        "If you believe you found a security issue in the website or app, report it to security@cmdtab.net.",
+        "If you believe you found a security issue in the website or app, report it to tohsh17@gmail.com.",
         "CmdTab publishes a disclosure contact and policy at /.well-known/security.txt and on the website security page.",
       ],
     },

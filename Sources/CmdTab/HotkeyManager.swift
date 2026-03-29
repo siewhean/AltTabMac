@@ -277,6 +277,26 @@ final class HotkeyManager {
         performTriggerAction(action)
     }
 
+    private func noteStandardShortcutForAlternateTrigger(
+        modifier: HotkeyModifier,
+        now: TimeInterval
+    ) {
+        let monitoredKey = preferences.alternateTrigger.monitoredKey
+
+        switch (modifier, monitoredKey) {
+        case (.command, .leftCommand) where leftCommandDown:
+            alternateTriggerState.noteStandardShortcut(using: .leftCommand, now: now)
+        case (.command, .rightCommand) where rightCommandDown:
+            alternateTriggerState.noteStandardShortcut(using: .rightCommand, now: now)
+        case (.option, .leftOption) where leftOptionDown:
+            alternateTriggerState.noteStandardShortcut(using: .leftOption, now: now)
+        case (.option, .rightOption) where rightOptionDown:
+            alternateTriggerState.noteStandardShortcut(using: .rightOption, now: now)
+        default:
+            break
+        }
+    }
+
     private func handleModifierRelease(_ modifier: HotkeyModifier) {
         cancelScheduledReveal()
         guard let action = triggerState.handleModifierRelease(
@@ -374,6 +394,7 @@ final class HotkeyManager {
                         return nil
                     }
                     let triggerUptime = uptime(for: event.timestamp)
+                    noteStandardShortcutForAlternateTrigger(modifier: .command, now: triggerUptime)
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(
                             modifier: .command,
@@ -385,6 +406,10 @@ final class HotkeyManager {
                 }
 
                 if optionHeld && !commandHeld {
+                    noteStandardShortcutForAlternateTrigger(
+                        modifier: .option,
+                        now: uptime(for: event.timestamp)
+                    )
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(modifier: .option, reverse: shift)
                     }
@@ -572,6 +597,7 @@ private struct PendingAlternateModifierTap: Equatable {
 struct AlternateModifierTriggerState {
     private var activePress: ActiveAlternateModifierPress?
     private var pendingDoubleTap: PendingAlternateModifierTap?
+    private var suppressedReleaseKey: PhysicalModifierTriggerKey?
     private let maximumTapDuration: TimeInterval = 0.28
     private let maximumDoubleTapGap: TimeInterval = 0.40
 
@@ -589,6 +615,12 @@ struct AlternateModifierTriggerState {
             if !isDown, activePress?.key == key {
                 activePress = nil
             }
+            return false
+        }
+
+        if suppressedReleaseKey == key && !isDown {
+            suppressedReleaseKey = nil
+            activePress = nil
             return false
         }
 
@@ -639,6 +671,15 @@ struct AlternateModifierTriggerState {
         activePress.wasInterrupted = true
         self.activePress = activePress
         pendingDoubleTap = nil
+    }
+
+    mutating func noteStandardShortcut(using key: PhysicalModifierTriggerKey, now: TimeInterval) {
+        if activePress?.key == key {
+            activePress?.wasInterrupted = true
+        }
+
+        pendingDoubleTap = nil
+        suppressedReleaseKey = key
     }
 
     private mutating func pruneExpiredState(now: TimeInterval) {

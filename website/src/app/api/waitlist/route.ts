@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-import { getServerEnv } from "@/lib/env";
+import {
+  renderApplicantWaitlistEmail,
+  waitlistEmailContent,
+} from "@/content/waitlist-email";
+import { getServerEnv, getSiteUrl } from "@/lib/env";
 import {
   checkRateLimit,
   createFingerprint,
@@ -11,6 +15,11 @@ import {
   recentlySubmitted,
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
+import {
+  isWaitlistStoreConfigured,
+  updateWaitlistNotificationStatus,
+  upsertWaitlistSubmission,
+} from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -149,6 +158,30 @@ function formatMetadata(metadata?: Record<string, string>) {
     .join("\n");
 }
 
+async function sendApplicantConfirmationEmail(payload: {
+  email: string;
+  name?: string;
+  alreadyRegistered: boolean;
+}) {
+  const env = getServerEnv();
+  const resend = getResendClient(env.resendApiKey);
+  const message = renderApplicantWaitlistEmail({
+    email: payload.email,
+    name: payload.name,
+    siteUrl: getSiteUrl(),
+    variant: payload.alreadyRegistered ? "existing" : "new",
+  });
+
+  return resend.emails.send({
+    from: env.waitlistFromEmail,
+    to: payload.email,
+    replyTo: env.waitlistReplyToEmail,
+    subject: message.subject,
+    text: message.text,
+    html: message.html,
+  });
+}
+
 async function submitWaitlistNotification(payload: {
   email: string;
   name?: string;
@@ -160,7 +193,7 @@ async function submitWaitlistNotification(payload: {
   const resend = getResendClient(env.resendApiKey);
 
   const text = [
-    "CmdTab private beta waitlist submission",
+    waitlistEmailContent.ownerNotification.heading,
     "",
     `Request ID: ${payload.requestId}`,
     `Email: ${payload.email}`,
@@ -175,7 +208,7 @@ async function submitWaitlistNotification(payload: {
     from: env.waitlistFromEmail,
     to: env.waitlistToEmail,
     replyTo: env.waitlistReplyToEmail ?? payload.email,
-    subject: "New CmdTab private beta waitlist signup",
+    subject: waitlistEmailContent.ownerNotification.subject,
     text,
   });
 }
@@ -294,20 +327,63 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await submitWaitlistNotification({
-      email: payload.email,
-      name: payload.name,
-      source: payload.source,
-      metadata: payload.metadata,
-      requestId,
-    });
+    let storedSubmission = null;
+    let alreadyRegistered = false;
+    if (isWaitlistStoreConfigured()) {
+      const upsertResult = await upsertWaitlistSubmission({
+        email: payload.email,
+        name: payload.name,
+        source: payload.source,
+        metadata: payload.metadata,
+        requestId,
+      });
+      storedSubmission = upsertResult.submission;
+      alreadyRegistered = upsertResult.alreadyRegistered;
+    }
 
-    if (result.error) {
+    const [ownerNotificationResult, applicantConfirmationResult] = await Promise.all([
+      submitWaitlistNotification({
+        email: payload.email,
+        name: payload.name,
+        source: payload.source,
+        metadata: payload.metadata,
+        requestId,
+      }),
+      sendApplicantConfirmationEmail({
+        email: payload.email,
+        name: payload.name,
+        alreadyRegistered,
+      }),
+    ]);
+
+    const deliveryError = ownerNotificationResult.error ?? applicantConfirmationResult.error;
+    if (deliveryError) {
       console.error("[CmdTab Website] waitlist delivery failed", {
         requestId,
-        errorName: result.error.name,
-        errorMessage: result.error.message,
+        errorName: deliveryError.name,
+        errorMessage: deliveryError.message,
       });
+
+      if (storedSubmission) {
+        await updateWaitlistNotificationStatus(
+          storedSubmission.email,
+          "failed",
+          deliveryError.message,
+        );
+        markSubmitted(emailFingerprint);
+        markSubmitted(requestFingerprint);
+
+        return jsonResponse({
+          ok: true,
+          code: "waitlist_submitted",
+          message: alreadyRegistered
+            ? waitlistEmailContent.applicant.onPageMessage.existing
+            : waitlistEmailContent.applicant.onPageMessage.new,
+          requestId,
+          submittedAt: new Date().toISOString(),
+          notificationDelivered: false,
+        });
+      }
 
       return jsonResponse(
         {
@@ -320,14 +396,22 @@ export async function POST(request: Request) {
       );
     }
 
+    if (storedSubmission) {
+      await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
+    }
+
     markSubmitted(emailFingerprint);
     markSubmitted(requestFingerprint);
 
     return jsonResponse({
       ok: true,
       code: "waitlist_submitted",
+      message: alreadyRegistered
+        ? waitlistEmailContent.applicant.onPageMessage.existing
+        : waitlistEmailContent.applicant.onPageMessage.new,
       requestId,
       submittedAt: new Date().toISOString(),
+      notificationDelivered: true,
     });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {

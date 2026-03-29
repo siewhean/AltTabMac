@@ -217,4 +217,61 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
     }
+
+    func testStandardCommandTabSuppressesImmediateDoubleTapHotSwap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 80.0
+            )
+        )
+
+        state.noteStandardShortcut(using: .leftCommand, now: 80.05)
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 80.10
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 80.24
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 80.31
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 80.36
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 80.43
+            )
+        )
+    }
 }

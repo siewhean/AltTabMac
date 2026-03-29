@@ -10,13 +10,13 @@ export const waitlistContent = {
     submitting: "Saving your spot…",
   },
   placeholders: {
-    name: "How should we address you?",
-    email: "you@mac.com",
+    name: "Name",
+    email: "Email Address",
   },
   successMessage:
     "You’re on the list. If this email was already registered, we’ll keep the earliest signup and use it for future beta updates.",
   errorMessage:
     "We couldn’t save your spot right now. Please try again in a moment.",
   footnote:
-    "No spammy drip campaign. Just beta access updates, launch news, and first access to the trial and founder price.",
+    "Join our beta access and be the first to try our new features and access to the trial.",
 };

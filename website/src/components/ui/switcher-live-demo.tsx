@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@vercel/analytics";
 
 import { interactiveDemoWindows } from "@/content/home";
@@ -33,14 +33,14 @@ const APP_ICONS: Record<string, string> = {
 // ─── Radial positions – evenly spaced on the ring ────────────────────────────
 
 const RADIAL_POSITIONS = [
-  { x: 50, y: 10 },
-  { x: 73, y: 17 },
-  { x: 85, y: 40 },
-  { x: 73, y: 67 },
-  { x: 50, y: 78 },
-  { x: 27, y: 67 },
-  { x: 15, y: 40 },
-  { x: 27, y: 17 },
+  { x: 50, y: 14 },
+  { x: 78, y: 22 },
+  { x: 86, y: 50 },
+  { x: 78, y: 78 },
+  { x: 50, y: 86 },
+  { x: 22, y: 78 },
+  { x: 14, y: 50 },
+  { x: 22, y: 22 },
 ];
 
 // ─── Fake preview content bars ───────────────────────────────────────────────
@@ -123,6 +123,8 @@ const AUTO_SEQUENCE: AutoStep[] = [
 ];
 
 const AUTO_STEP_DURATION_MS = 820;
+const MODE_TRANSITION_OUT_MS = 110;
+const MODE_TRANSITION_IN_MS = 220;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -131,14 +133,15 @@ export function SwitcherLiveDemo() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [query, setQuery] = useState("");
   const [autoPlaying, setAutoPlaying] = useState(true);
-  const [autoStepIndex, setAutoStepIndex] = useState(0);
+  const [stagePhase, setStagePhase] = useState<"steady" | "out" | "in">("steady");
   const demoRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastTrackedSearchBucket = useRef<string | null>(null);
+  const modeTransitionTimeouts = useRef<number[]>([]);
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const filteredWindows = searchWindows(query);
+  const filteredWindows = useMemo(() => searchWindows(query), [query]);
   const clampedIndex = Math.min(selectedIndex, Math.max(0, filteredWindows.length - 1));
   const activeIndex = mode === "commandPalette" ? clampedIndex : selectedIndex % interactiveDemoWindows.length;
   const activeWindow =
@@ -148,26 +151,82 @@ export function SwitcherLiveDemo() {
 
   // ── Auto-play ──────────────────────────────────────────────────────────────
 
+  const clearModeTransition = useCallback(() => {
+    for (const timeout of modeTransitionTimeouts.current) {
+      window.clearTimeout(timeout);
+    }
+    modeTransitionTimeouts.current = [];
+  }, []);
+
+  const applyDemoState = useCallback(
+    ({
+      nextMode,
+      nextSelectedIndex,
+      nextQuery,
+      animateModeShift = true,
+    }: {
+      nextMode: DemoMode;
+      nextSelectedIndex: number;
+      nextQuery: string;
+      animateModeShift?: boolean;
+    }) => {
+      const commit = () => {
+        setMode(nextMode);
+        setSelectedIndex(nextSelectedIndex);
+        setQuery(nextQuery);
+      };
+
+      if (!animateModeShift || nextMode === mode) {
+        clearModeTransition();
+        setStagePhase("steady");
+        commit();
+        return;
+      }
+
+      clearModeTransition();
+      setStagePhase("out");
+
+      const swapTimeout = window.setTimeout(() => {
+        commit();
+        setStagePhase("in");
+
+        const settleTimeout = window.setTimeout(() => {
+          setStagePhase("steady");
+        }, MODE_TRANSITION_IN_MS);
+        modeTransitionTimeouts.current.push(settleTimeout);
+      }, MODE_TRANSITION_OUT_MS);
+
+      modeTransitionTimeouts.current.push(swapTimeout);
+    },
+    [clearModeTransition, mode]
+  );
+
+  useEffect(() => {
+    return () => clearModeTransition();
+  }, [clearModeTransition]);
+
   useEffect(() => {
     if (!autoPlaying) return;
 
     const id = setInterval(() => {
-      setAutoStepIndex((prev) => {
-        const next = (prev + 1) % AUTO_SEQUENCE.length;
-        const step = AUTO_SEQUENCE[next];
-        setMode(step.mode);
-        setSelectedIndex(step.select);
+      const currentIndex = AUTO_SEQUENCE.findIndex((step) => {
+        if (step.mode !== mode) return false;
         if (step.mode === "commandPalette") {
-          setQuery(step.query);
-        } else {
-          setQuery("");
+          return step.query === query && step.select === selectedIndex;
         }
-        return next;
+        return step.select === selectedIndex;
+      });
+      const nextIndex = (currentIndex + 1 + AUTO_SEQUENCE.length) % AUTO_SEQUENCE.length;
+      const step = AUTO_SEQUENCE[nextIndex];
+      applyDemoState({
+        nextMode: step.mode,
+        nextSelectedIndex: step.select,
+        nextQuery: step.mode === "commandPalette" ? step.query : "",
       });
     }, AUTO_STEP_DURATION_MS);
 
     return () => clearInterval(id);
-  }, [autoPlaying]);
+  }, [applyDemoState, autoPlaying, mode, query, selectedIndex]);
 
   const stopAutoPlay = useCallback(() => {
     if (autoPlaying) setAutoPlaying(false);
@@ -203,9 +262,11 @@ export function SwitcherLiveDemo() {
 
   function switchMode(next: DemoMode) {
     stopAutoPlay();
-    setMode(next);
-    setSelectedIndex(0);
-    if (next !== "commandPalette") setQuery("");
+    applyDemoState({
+      nextMode: next,
+      nextSelectedIndex: 0,
+      nextQuery: next === "commandPalette" ? query : "",
+    });
     track("demo_mode_selected", { mode: next });
   }
 
@@ -314,6 +375,16 @@ export function SwitcherLiveDemo() {
             </div>
           )}
 
+          <div
+            className={`h-full transition-[opacity,transform,filter] duration-300 ease-out ${
+              stagePhase === "out"
+                ? "translate-y-2 scale-[0.985] opacity-0 blur-[2px]"
+                : stagePhase === "in"
+                  ? "translate-y-0 scale-100 opacity-100 blur-0"
+                  : "translate-y-0 scale-100 opacity-100 blur-0"
+            }`}
+          >
+
           {/* ── Classic Grid ── */}
           {mode === "classicGrid" && (
             <div className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -329,10 +400,10 @@ export function SwitcherLiveDemo() {
                       setSelectedIndex(idx);
                       trackDemoSelection("classicGrid", item.app);
                     }}
-                    className={`group flex flex-col rounded-[22px] border p-3 text-left transition duration-150 ${
+                    className={`group flex flex-col rounded-[22px] border p-3 text-left transition-[transform,box-shadow,border-color,background-color,opacity] duration-250 ease-out ${
                       selected
-                        ? "border-cyan/60 bg-cyan/[0.07] shadow-[0_0_0_1px_rgba(105,214,255,0.22),0_20px_60px_rgba(4,7,15,0.45)]"
-                        : "border-white/10 bg-white/[0.03] hover:border-white/18 hover:bg-white/[0.05]"
+                        ? "-translate-y-1 scale-[1.015] border-cyan/60 bg-cyan/[0.07] shadow-[0_0_0_1px_rgba(105,214,255,0.22),0_20px_60px_rgba(4,7,15,0.45)]"
+                        : "border-white/10 bg-white/[0.03] opacity-90 hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05] hover:opacity-100"
                     }`}
                   >
                     {/* Thumbnail */}
@@ -358,10 +429,12 @@ export function SwitcherLiveDemo() {
                         {bars.map((w, bi) => (
                           <div
                             key={bi}
-                            className="h-2 rounded-full bg-white/[0.1]"
-                            style={{ width: w }}
-                          />
-                        ))}
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            selected ? "bg-white/[0.16]" : "bg-white/[0.1]"
+                          }`}
+                          style={{ width: w }}
+                        />
+                      ))}
                       </div>
                     </div>
                     {/* Label */}
@@ -433,10 +506,10 @@ export function SwitcherLiveDemo() {
                             setSelectedIndex(idx);
                             trackDemoSelection("commandPalette", item.app);
                           }}
-                          className={`flex w-full items-center gap-3 rounded-[16px] border px-3 py-2.5 text-left transition duration-150 ${
+                          className={`flex w-full items-center gap-3 rounded-[16px] border px-3 py-2.5 text-left transition-[transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out ${
                             selected
-                              ? "border-[rgba(105,214,255,0.55)] bg-[rgba(105,214,255,0.08)] shadow-[0_0_0_1px_rgba(105,214,255,0.2),0_6px_30px_rgba(105,214,255,0.12)]"
-                              : "border-transparent bg-transparent hover:border-white/8 hover:bg-white/[0.03]"
+                              ? "translate-x-1 scale-[1.01] border-[rgba(105,214,255,0.55)] bg-[rgba(105,214,255,0.08)] shadow-[0_0_0_1px_rgba(105,214,255,0.2),0_6px_30px_rgba(105,214,255,0.12)]"
+                              : "border-transparent bg-transparent opacity-90 hover:border-white/8 hover:bg-white/[0.03] hover:opacity-100"
                           }`}
                         >
                           {/* App initial avatar */}
@@ -476,10 +549,17 @@ export function SwitcherLiveDemo() {
               <div className="relative aspect-square w-full max-w-[500px]">
                 {/* Outer ring glow */}
                 <div className="absolute inset-0 rounded-full border border-white/[0.07] bg-[radial-gradient(circle_at_center,rgba(105,214,255,0.06),transparent_50%)]" />
+                <div
+                  className="absolute h-[116px] w-[116px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/30 bg-cyan/[0.05] shadow-[0_0_0_1px_rgba(105,214,255,0.12),0_0_80px_rgba(105,214,255,0.1)] transition-all duration-300 ease-out"
+                  style={{
+                    left: `${RADIAL_POSITIONS[activeIndex % RADIAL_POSITIONS.length]?.x ?? 50}%`,
+                    top: `${RADIAL_POSITIONS[activeIndex % RADIAL_POSITIONS.length]?.y ?? 10}%`,
+                  }}
+                />
 
                 {/* Centre hub */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-[160px] w-[160px] flex-col items-center justify-center rounded-full border border-white/12 bg-slate-950/80 p-4 text-center shadow-[0_20px_70px_rgba(4,7,15,0.7)]">
+                  <div className="flex h-[160px] w-[160px] flex-col items-center justify-center rounded-full border border-white/12 bg-slate-950/80 p-4 text-center shadow-[0_20px_70px_rgba(4,7,15,0.7)] transition-transform duration-300 ease-out">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan">
                       Active
                     </span>
@@ -498,7 +578,7 @@ export function SwitcherLiveDemo() {
                   return (
                     <div
                       key={idx}
-                      className={`absolute h-px origin-left transition duration-200 ${selected ? "bg-cyan/30" : "bg-white/[0.04]"}`}
+                      className={`absolute h-px origin-left transition-[background-color,opacity] duration-300 ease-out ${selected ? "bg-cyan/30" : "bg-white/[0.04]"}`}
                       style={{
                         left: "50%",
                         top: "50%",
@@ -522,10 +602,10 @@ export function SwitcherLiveDemo() {
                         setSelectedIndex(idx);
                         trackDemoSelection("radialMenu", item.app);
                       }}
-                      className={`absolute flex h-[86px] w-[86px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border text-center transition duration-200 ${
+                      className={`absolute flex h-[86px] w-[86px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border text-center transition-[transform,box-shadow,border-color,background-color,opacity] duration-300 ease-out ${
                         selected
-                          ? "border-cyan/70 bg-cyan/[0.12] shadow-[0_0_0_1px_rgba(105,214,255,0.28),0_16px_50px_rgba(4,7,15,0.5)]"
-                          : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]"
+                          ? "scale-110 border-cyan/70 bg-cyan/[0.12] shadow-[0_0_0_1px_rgba(105,214,255,0.28),0_16px_50px_rgba(4,7,15,0.5)]"
+                          : "border-white/10 bg-white/[0.04] opacity-95 hover:scale-[1.04] hover:border-white/20 hover:bg-white/[0.07]"
                       }`}
                       style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                     >
@@ -539,6 +619,7 @@ export function SwitcherLiveDemo() {
               </div>
             </div>
           )}
+          </div>
         </div>
 
         {/* ── Right panel: context + controls ── */}
@@ -562,7 +643,7 @@ export function SwitcherLiveDemo() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan">
                 Selected
               </p>
-              <div className="mt-2 flex items-center gap-2.5">
+              <div className="mt-2 flex items-center gap-2.5 transition-transform duration-300 ease-out">
                 <span className="text-2xl leading-none">{APP_ICONS[activeWindow.app] ?? activeWindow.app[0]}</span>
                 <div className="min-w-0">
                   <p className="truncate text-base font-semibold tracking-[-0.03em] text-text">
