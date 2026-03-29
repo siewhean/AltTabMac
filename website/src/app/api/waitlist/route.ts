@@ -182,6 +182,11 @@ async function sendApplicantConfirmationEmail(payload: {
   });
 }
 
+function shouldSendOwnerNotification(applicantEmail: string) {
+  const env = getServerEnv();
+  return env.waitlistToEmail.trim().toLowerCase() !== applicantEmail.trim().toLowerCase();
+}
+
 async function submitWaitlistNotification(payload: {
   email: string;
   name?: string;
@@ -341,22 +346,28 @@ export async function POST(request: Request) {
       alreadyRegistered = upsertResult.alreadyRegistered;
     }
 
-    const [ownerNotificationResult, applicantConfirmationResult] = await Promise.all([
-      submitWaitlistNotification({
-        email: payload.email,
-        name: payload.name,
-        source: payload.source,
-        metadata: payload.metadata,
-        requestId,
-      }),
+    const deliveryTasks = [
       sendApplicantConfirmationEmail({
         email: payload.email,
         name: payload.name,
         alreadyRegistered,
       }),
-    ]);
+    ];
 
-    const deliveryError = ownerNotificationResult.error ?? applicantConfirmationResult.error;
+    if (shouldSendOwnerNotification(payload.email)) {
+      deliveryTasks.push(
+        submitWaitlistNotification({
+          email: payload.email,
+          name: payload.name,
+          source: payload.source,
+          metadata: payload.metadata,
+          requestId,
+        }),
+      );
+    }
+
+    const deliveryResults = await Promise.all(deliveryTasks);
+    const deliveryError = deliveryResults.find((result) => result.error)?.error;
     if (deliveryError) {
       console.error("[CmdTab Website] waitlist delivery failed", {
         requestId,
