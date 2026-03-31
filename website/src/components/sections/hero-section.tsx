@@ -13,12 +13,11 @@ export function HeroSection() {
 
   return (
     <section className="relative isolate min-h-[100svh] overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(105,214,255,0.14),transparent_30%),radial-gradient(circle_at_left,rgba(78,161,255,0.18),transparent_32%),linear-gradient(180deg,#05070C_0%,#08101C_44%,#05070C_100%)]" />
-      <div className="motion-grid-drift absolute inset-0 bg-grid-fade bg-[size:120px_120px] opacity-[0.08]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(105,214,255,0.08),transparent_24%),linear-gradient(180deg,#05070C_0%,#08111D_52%,#060913_100%)]" />
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-[1380px] flex-col px-5 pb-12 pt-5 sm:px-8 lg:px-10">
         <header
-          className="hero-enter flex items-center justify-between gap-6 rounded-full border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-xl"
+          className="hero-enter flex items-center justify-between gap-6 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl"
           style={{ "--enter-delay": "60ms" } as CSSProperties}
         >
           <a className="inline-flex items-center gap-3" href="/">
@@ -64,13 +63,13 @@ export function HeroSection() {
             style={{ "--enter-delay": "150ms" } as CSSProperties}
           >
             <Badge tone="success">{heroContent.eyebrow}</Badge>
-            <p className="mt-8 text-[clamp(2.75rem,7vw,5.8rem)] font-medium leading-[0.9] tracking-[-0.07em] text-text">
+            <p className="mt-8 text-[clamp(2.6rem,7vw,5.6rem)] font-medium leading-[0.9] tracking-[-0.07em] text-text">
               CmdTab
             </p>
-            <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.4rem,5vw,4.9rem)] font-medium leading-[0.95] tracking-[-0.06em] text-text">
+            <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.25rem,5vw,4.6rem)] font-medium leading-[0.95] tracking-[-0.06em] text-text">
               {heroContent.title}
             </h1>
-            <p className="mt-6 max-w-[34rem] text-pretty text-lg leading-8 text-muted sm:text-xl">
+            <p className="type-body-lg mt-6 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
               {heroContent.summary}
             </p>
             <p className="mt-4 max-w-[34rem] text-sm leading-6 text-subdued">{heroContent.status}</p>
@@ -96,12 +95,28 @@ export function HeroSection() {
             className="hero-enter relative ml-auto w-full max-w-[820px]"
             style={{ "--enter-delay": "240ms" } as CSSProperties}
           >
-            <ScreenshotFrame assetId="heroMaster" className="relative z-10 motion-drift-subtle" priority />
-            <div className="pointer-events-none absolute -left-6 top-[12%] hidden w-[32%] lg:block">
-              <ScreenshotFrame assetId="commandPalette" className="motion-drift-slow rotate-[-4deg]" />
-            </div>
-            <div className="pointer-events-none absolute -bottom-8 right-[-4%] hidden w-[34%] lg:block">
-              <ScreenshotFrame assetId="radialMenu" className="motion-drift-reverse rotate-[5deg]" />
+            <div className="space-y-4">
+              <ScreenshotFrame assetId="heroMaster" className="relative z-10" priority />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="surface-muted p-5">
+                  <p className="type-eyebrow text-cyan">Visual switching</p>
+                  <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
+                    Real previews before you commit
+                  </h2>
+                  <p className="mt-2 text-sm leading-7 text-muted">
+                    Scan the actual window, not just the app icon.
+                  </p>
+                </div>
+                <div className="surface-muted p-5">
+                  <p className="type-eyebrow text-cyan">Fast fallback</p>
+                  <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
+                    Search or hot swap when you already know
+                  </h2>
+                  <p className="mt-2 text-sm leading-7 text-muted">
+                    Jump directly without opening the wrong thing first.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

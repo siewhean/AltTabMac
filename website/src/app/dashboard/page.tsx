@@ -1,10 +1,20 @@
 import type { Metadata } from "next";
 
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { dashboardContent } from "@/content/dashboard";
 import { getDashboardAuthSummary } from "@/lib/admin-store";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { formatSingaporeDateTime } from "@/lib/date";
+import {
+  getSiteAnalyticsOverview,
+  isSiteAnalyticsConfigured,
+  listSiteAnalyticsSeries,
+  listTopAnalyticsEvents,
+  listTopAnalyticsPages,
+} from "@/lib/site-analytics-store";
 import { isWaitlistStoreConfigured, listWaitlistSubmissions } from "@/lib/waitlist-store";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Dashboard | CmdTab",
@@ -14,74 +24,237 @@ export const metadata: Metadata = {
   },
 };
 
+function getTopSources(
+  submissions: Awaited<ReturnType<typeof listWaitlistSubmissions>>,
+  limit = 4,
+) {
+  const counts = new Map<string, number>();
+
+  for (const submission of submissions) {
+    const label = submission.source?.trim() || "homepage_waitlist";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit);
+}
+
 export default async function DashboardPage() {
   await requireAdminSession();
 
   const storeConfigured = isWaitlistStoreConfigured();
   const submissions = storeConfigured ? await listWaitlistSubmissions(100) : [];
-  const deliveredCount = submissions.filter((entry) => entry.notificationStatus === "delivered").length;
-  const failedCount = submissions.filter((entry) => entry.notificationStatus === "failed").length;
-  const pendingCount = submissions.filter((entry) => entry.notificationStatus === "stored").length;
-  const latestSignup = submissions[0]?.updatedAt;
   const authSummary = await getDashboardAuthSummary();
-  const sourceBreakdown = Array.from(
-    submissions.reduce((map, entry) => {
-      const key = entry.source ?? "homepage_waitlist";
-      map.set(key, (map.get(key) ?? 0) + 1);
-      return map;
-    }, new Map<string, number>()),
-  ).sort((a, b) => b[1] - a[1]);
+  const analyticsConfigured = isSiteAnalyticsConfigured();
+  const emptyAnalytics = {
+    pageviews24h: 0,
+    pageviews7d: 0,
+    visitors24h: 0,
+    visitors7d: 0,
+    totalEvents7d: 0,
+    latestEvent: undefined,
+  };
+  let analyticsOverview = emptyAnalytics;
+  let analyticsSeries: Awaited<ReturnType<typeof listSiteAnalyticsSeries>> = [];
+  let topPages: Awaited<ReturnType<typeof listTopAnalyticsPages>> = [];
+  let topEvents: Awaited<ReturnType<typeof listTopAnalyticsEvents>> = [];
+  let analyticsError = false;
+
+  if (analyticsConfigured) {
+    try {
+      [analyticsOverview, analyticsSeries, topPages, topEvents] = await Promise.all([
+        getSiteAnalyticsOverview(),
+        listSiteAnalyticsSeries(14),
+        listTopAnalyticsPages(6),
+        listTopAnalyticsEvents(8),
+      ]);
+    } catch {
+      analyticsError = true;
+    }
+  }
+
+  const delivered = submissions.filter(
+    (entry) => entry.notificationStatus === "delivered",
+  ).length;
+  const failed = submissions.filter(
+    (entry) => entry.notificationStatus === "failed",
+  ).length;
+  const pending = submissions.length - delivered - failed;
+  const namedCount = submissions.filter((entry) => Boolean(entry.name?.trim())).length;
+  const latestSignup = submissions[0]?.updatedAt;
+  const topSources = getTopSources(submissions);
+  const peakPageviews = Math.max(...analyticsSeries.map((point) => point.pageviews), 1);
 
   return (
     <DashboardShell
       active="/dashboard"
-      title="Waitlist submissions and delivery status"
-      description="Track beta demand, check delivery health, and manage owner access from one private dashboard."
+      title="Waitlist and website analytics"
+      description="A stable operational view of live signups, delivery health, and first-party website analytics mirrored into your own dashboard."
     >
       <div className="space-y-6">
-        <div className="grid gap-5 lg:grid-cols-4">
-          {[
-            { label: "Database", value: storeConfigured ? "Configured" : "Missing" },
-            { label: "Submissions", value: String(submissions.length) },
-            { label: "Delivered", value: String(deliveredCount) },
-            { label: "Pending / failed", value: String(pendingCount + failedCount) },
-          ].map((item) => (
-            <section
-              key={item.label}
-              className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl"
-            >
-              <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
-              <p className="mt-3 text-3xl font-medium tracking-[-0.05em] text-text">
-                {item.value}
-              </p>
-            </section>
-          ))}
-        </div>
+        <section className="surface-panel p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+            Status
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {[
+              { label: "Database", value: storeConfigured ? "Configured" : "Missing" },
+              { label: "Submissions", value: String(submissions.length) },
+              { label: "Delivered", value: String(delivered) },
+              { label: "Failed", value: String(failed) },
+              { label: "Pending", value: String(pending) },
+            ].map((item) => (
+              <div key={item.label} className="surface-muted p-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
+                <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-sm leading-7 text-muted">
+            <p>
+              Latest signup:{" "}
+              <span className="text-text">
+                {latestSignup ? formatSingaporeDateTime(latestSignup) : "No submissions yet"}
+              </span>
+            </p>
+            <p>
+              Named signups: <span className="text-text">{namedCount}</span>
+            </p>
+          </div>
+        </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.8fr)]">
-          <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 shadow-panel backdrop-blur-xl">
-            <div className="flex flex-col gap-2 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <section className="surface-panel p-6">
+          <div className="flex flex-col gap-2 border-b border-white/8 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                Website analytics
+              </p>
+              <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                First-party mirror of pageviews and tracked events
+              </h2>
+            </div>
+            <p className="text-sm leading-6 text-muted">
+              Latest tracked event:{" "}
+              <span className="text-text">
+                {analyticsOverview.latestEvent
+                  ? formatSingaporeDateTime(analyticsOverview.latestEvent)
+                  : "No analytics captured yet"}
+              </span>
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            {[
+              { label: "Pageviews 24h", value: String(analyticsOverview.pageviews24h) },
+              { label: "Visitors 24h", value: String(analyticsOverview.visitors24h) },
+              { label: "Pageviews 7d", value: String(analyticsOverview.pageviews7d) },
+              { label: "Visitors 7d", value: String(analyticsOverview.visitors7d) },
+              { label: "Tracked events 7d", value: String(analyticsOverview.totalEvents7d) },
+            ].map((item) => (
+              <div key={item.label} className="surface-muted p-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
+                <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                  {item.value}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
+            <div className="space-y-3">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">
+                Daily pageviews
+              </p>
+              {analyticsSeries.length > 0 ? (
+                analyticsSeries.map((point) => (
+                  <div key={point.day} className="grid grid-cols-[72px_minmax(0,1fr)_50px] items-center gap-3">
+                    <p className="text-xs text-subdued">{point.day.slice(5)}</p>
+                    <div className="h-2 rounded-full bg-white/[0.06]">
+                      <div
+                        className="h-2 rounded-full bg-accent transition-[width] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                        style={{
+                          width: `${Math.max((point.pageviews / peakPageviews) * 100, point.pageviews > 0 ? 10 : 0)}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="text-right text-sm text-text">{point.pageviews}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="surface-muted p-5 text-sm text-muted">
+                  Analytics data will appear here after visitors load the website.
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Top pages</p>
+                <div className="mt-3 space-y-2">
+                  {topPages.length > 0 ? (
+                    topPages.map((item) => (
+                      <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate text-muted">{item.label}</span>
+                        <span className="text-text">{item.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm leading-6 text-muted">No tracked pages yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Top custom events</p>
+                <div className="mt-3 space-y-2">
+                  {topEvents.length > 0 ? (
+                    topEvents.map((item) => (
+                      <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate text-muted">{item.label}</span>
+                        <span className="text-text">{item.count}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm leading-6 text-muted">No tracked events yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {analyticsError ? (
+            <div className="mt-6 rounded-[22px] border border-amber-300/18 bg-amber-300/[0.06] px-4 py-3 text-sm leading-6 text-amber-100">
+              Website analytics are temporarily unavailable, but waitlist and admin data are still
+              live.
+            </div>
+          ) : null}
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+          <section className="surface-panel p-6">
+            <div className="flex items-end justify-between gap-4 border-b border-white/8 pb-5">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
                   Recent signups
                 </p>
                 <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
-                  Latest waitlist entries
+                  Latest 100 entries
                 </h2>
               </div>
-              <p className="text-sm leading-6 text-muted">
-                Latest activity: {latestSignup ? formatSingaporeDateTime(latestSignup) : "No submissions yet"}
-              </p>
+              <p className="text-sm leading-6 text-muted">This stays separate from the website traffic mirror above.</p>
             </div>
 
-            <div className="mt-5 overflow-x-auto">
+            <div className="mt-6 overflow-x-auto">
               <table className="min-w-full text-left text-sm">
                 <thead className="text-[11px] uppercase tracking-[0.22em] text-subdued">
                   <tr>
                     <th className="px-3 py-3">Email</th>
                     <th className="px-3 py-3">Name</th>
                     <th className="px-3 py-3">Source</th>
-                    <th className="px-3 py-3">Notification</th>
+                    <th className="px-3 py-3">Status</th>
                     <th className="px-3 py-3">Updated</th>
                   </tr>
                 </thead>
@@ -128,24 +301,7 @@ export default async function DashboardPage() {
           </section>
 
           <div className="space-y-6">
-            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                Delivery health
-              </p>
-              <div className="mt-5 space-y-4 text-sm leading-7 text-muted">
-                <p>
-                  Delivered notifications: <span className="text-text">{deliveredCount}</span>
-                </p>
-                <p>
-                  Failed notifications: <span className="text-text">{failedCount}</span>
-                </p>
-                <p>
-                  Stored without delivery: <span className="text-text">{pendingCount}</span>
-                </p>
-              </div>
-            </section>
-
-            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
+            <section className="surface-panel p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
                 Access and storage
               </p>
@@ -169,13 +325,37 @@ export default async function DashboardPage() {
                   </span>
                 </p>
                 <p>
-                  Stored sources:{" "}
+                  Top sources:{" "}
                   <span className="text-text">
-                    {sourceBreakdown.length > 0
-                      ? sourceBreakdown.map(([source, count]) => `${source} (${count})`).join(", ")
+                    {topSources.length > 0
+                      ? topSources.map(([label, count]) => `${label} (${count})`).join(", ")
                       : "No signups yet"}
                   </span>
                 </p>
+              </div>
+            </section>
+
+            <section className="surface-panel p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                Website signals
+              </p>
+              <div className="mt-5 space-y-4 text-sm leading-7 text-muted">
+                <p>{dashboardContent.summary}</p>
+                <div className="space-y-3 border-t border-white/8 pt-4">
+                  {dashboardContent.sources.map((source) => (
+                    <a
+                      key={source.title}
+                      href={source.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="surface-muted block p-4 transition duration-200 hover:-translate-y-0.5 hover:border-white/14"
+                    >
+                      <p className="text-sm font-medium text-text">{source.title}</p>
+                      <p className="mt-1 text-sm leading-6 text-muted">{source.body}</p>
+                    </a>
+                  ))}
+                </div>
+                <p className="text-sm leading-6 text-subdued">{dashboardContent.privacyNote}</p>
               </div>
             </section>
 
@@ -184,9 +364,8 @@ export default async function DashboardPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-amber-200">
                   Database not configured
                 </p>
-                <p className="mt-4 max-w-3xl text-base leading-7 text-text">
+                <p className="mt-4 text-base leading-7 text-text">
                   Add <code>DATABASE_URL</code> or <code>POSTGRES_URL</code> in Vercel and redeploy.
-                  Until then, the waitlist can only notify by email and the admin panel cannot show stored signups.
                 </p>
               </section>
             ) : null}

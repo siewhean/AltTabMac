@@ -25,17 +25,17 @@ export function SectionShell({
         {(eyebrow || title || description) && (
           <MotionReveal className="mb-10 max-w-3xl" direction="up">
             {eyebrow ? (
-              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+              <p className="type-eyebrow mb-4 text-cyan">
                 {eyebrow}
               </p>
             ) : null}
             {title ? (
-              <h2 className="max-w-4xl text-balance text-3xl font-medium tracking-[-0.04em] text-text sm:text-4xl lg:text-[2.8rem]">
+              <h2 className="type-section-title max-w-4xl text-text">
                 {title}
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-4 max-w-2xl text-pretty text-base leading-7 text-muted sm:text-lg">
+              <p className="type-body mt-4 max-w-2xl text-pretty text-muted sm:text-[1.0625rem]">
                 {description}
               </p>
             ) : null}

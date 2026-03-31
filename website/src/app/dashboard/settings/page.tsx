@@ -8,6 +8,8 @@ import { requireAdminSession } from "@/lib/admin-auth";
 import { formatSingaporeDateTime } from "@/lib/date";
 import { isDatabaseConfigured } from "@/lib/postgres";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Dashboard Settings | CmdTab",
   description: "Admin settings for the CmdTab dashboard.",
@@ -56,7 +58,7 @@ export default async function DashboardSettingsPage({
         ].map((item) => (
           <section
             key={item.label}
-            className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl"
+            className="surface-panel p-6"
           >
             <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
             <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">{item.value}</p>
@@ -64,7 +66,7 @@ export default async function DashboardSettingsPage({
         ))}
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
+      <section className="surface-panel p-6">
         <div className="border-b border-white/8 pb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
             Security
@@ -139,7 +141,7 @@ export default async function DashboardSettingsPage({
         </form>
       </section>
 
-      <section className="rounded-[28px] border border-white/10 bg-white/[0.03] p-6 shadow-panel backdrop-blur-xl">
+      <section className="surface-panel p-6">
         <div className="border-b border-white/8 pb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
             Operational notes

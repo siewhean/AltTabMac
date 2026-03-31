@@ -20,15 +20,15 @@ type NativeButtonProps = SharedProps & ButtonHTMLAttributes<HTMLButtonElement>;
 
 const variants = {
   primary:
-    "border border-accent/50 bg-accent text-slate-950 shadow-halo hover:-translate-y-0.5 hover:bg-cyan hover:border-cyan",
+    "border border-accent/45 bg-accent text-slate-950 hover:-translate-y-0.5 hover:border-cyan/80 hover:bg-cyan",
   secondary:
-    "border border-white/12 bg-white/6 text-text hover:-translate-y-0.5 hover:border-white/22 hover:bg-white/10",
+    "border border-white/12 bg-white/[0.05] text-text hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.08]",
   ghost:
-    "border border-transparent bg-transparent text-muted hover:-translate-y-0.5 hover:text-text",
+    "border border-transparent bg-transparent text-muted hover:text-text",
 } as const;
 
 const baseClassName =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,color,opacity] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:scale-[0.97]";
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Button(props: LinkButtonProps): ReactElement;
 export function Button(props: NativeButtonProps): ReactElement;

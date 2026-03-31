@@ -22,6 +22,7 @@ private final class SwitcherPanel: NSPanel {
     /// (i.e. when CGEventTap is momentarily disabled and can't suppress the keyDown).
     var onEscapePressed: (() -> Void)?
     var onKeyEvent: ((NSEvent) -> Bool)?
+    var onScrollEvent: ((NSEvent) -> Bool)?
 
     override func keyDown(with event: NSEvent) {
         if onKeyEvent?(event) == true {
@@ -39,6 +40,13 @@ private final class SwitcherPanel: NSPanel {
             return true
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    override func scrollWheel(with event: NSEvent) {
+        if onScrollEvent?(event) == true {
+            return
+        }
+        super.scrollWheel(with: event)
     }
 }
 
@@ -59,6 +67,8 @@ private final class SwitcherMirrorPanel: NSPanel {
 final class SwitcherWindowController {
     private let itemMutationAnimation = Animation.spring(response: 0.24, dampingFraction: 0.84)
     private let quickActionSuppressionInterval: TimeInterval = 1.4
+    private let trackpadStepThreshold: CGFloat = 26
+    private let trackpadResetInterval: TimeInterval = 0.18
 
     private struct PendingItemSuppression {
         let target: SwitcherItemSuppressionTarget
@@ -66,6 +76,18 @@ final class SwitcherWindowController {
 
         func matches(_ item: SwitcherItem) -> Bool {
             target.matches(item)
+        }
+    }
+
+    private struct TrackpadNavigationState {
+        var horizontal: CGFloat = 0
+        var vertical: CGFloat = 0
+        var lastEventUptime: TimeInterval = 0
+
+        mutating func reset() {
+            horizontal = 0
+            vertical = 0
+            lastEventUptime = 0
         }
     }
 
@@ -83,6 +105,7 @@ final class SwitcherWindowController {
     private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
     private var lastObservedStyle: SwitcherStyle
+    private var trackpadNavigationState = TrackpadNavigationState()
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -286,6 +309,9 @@ final class SwitcherWindowController {
         panel.onKeyEvent = { [weak self] event in
             self?.handlePanelKeyEvent(event) ?? false
         }
+        panel.onScrollEvent = { [weak self] event in
+            self?.handlePanelScrollEvent(event) ?? false
+        }
         self.panel = panel
     }
 
@@ -363,6 +389,51 @@ final class SwitcherWindowController {
         }
 
         performQuickAction(action)
+        return true
+    }
+
+    private func handlePanelScrollEvent(_ event: NSEvent) -> Bool {
+        guard viewModel.isVisible else { return false }
+        guard event.hasPreciseScrollingDeltas else { return false }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - trackpadNavigationState.lastEventUptime > trackpadResetInterval {
+            trackpadNavigationState.reset()
+        }
+        trackpadNavigationState.lastEventUptime = now
+
+        let directionMultiplier: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
+        let horizontalDelta = CGFloat(event.scrollingDeltaX) * directionMultiplier
+        let verticalDelta = CGFloat(event.scrollingDeltaY) * directionMultiplier
+
+        guard abs(horizontalDelta) > 0.01 || abs(verticalDelta) > 0.01 else {
+            return false
+        }
+
+        if abs(horizontalDelta) >= abs(verticalDelta) {
+            trackpadNavigationState.vertical = 0
+            trackpadNavigationState.horizontal += horizontalDelta
+
+            while abs(trackpadNavigationState.horizontal) >= trackpadStepThreshold {
+                let step = trackpadNavigationState.horizontal > 0 ? 1 : -1
+                moveSelection(by: step)
+                trackpadNavigationState.horizontal -= CGFloat(step) * trackpadStepThreshold
+            }
+        } else {
+            trackpadNavigationState.horizontal = 0
+            trackpadNavigationState.vertical += verticalDelta
+
+            while abs(trackpadNavigationState.vertical) >= trackpadStepThreshold {
+                if trackpadNavigationState.vertical > 0 {
+                    moveSelectionUp()
+                    trackpadNavigationState.vertical -= trackpadStepThreshold
+                } else {
+                    moveSelectionDown()
+                    trackpadNavigationState.vertical += trackpadStepThreshold
+                }
+            }
+        }
+
         return true
     }
 
@@ -635,6 +706,7 @@ final class SwitcherWindowController {
     /// - Parameter makeKey: Pass `true` when showing via menu-bar / standalone click so
     ///   `NSApp.activate` is also called, making our app the active one for the session.
     private func showPanel(makeKey: Bool = false) {
+        trackpadNavigationState.reset()
         if viewModel.items.isEmpty, var session {
             let primedItems = items()
             guard !primedItems.isEmpty else { return }
@@ -667,6 +739,7 @@ final class SwitcherWindowController {
     }
 
     private func hidePanel() {
+        trackpadNavigationState.reset()
         viewModel.isVisible = false
         panel.alphaValue = 0
         panel.orderOut(nil)

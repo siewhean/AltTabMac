@@ -2,6 +2,7 @@ import AppKit
 
 final class MenuBarController {
 
+    private static var sharedStatusItem: NSStatusItem?
     private var statusItem: NSStatusItem!
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
@@ -21,7 +22,12 @@ final class MenuBarController {
     }
 
     private func build() {
+        if let existingStatusItem = Self.sharedStatusItem {
+            NSStatusBar.system.removeStatusItem(existingStatusItem)
+        }
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        Self.sharedStatusItem = statusItem
         statusItem.button?.image = NSImage(systemSymbolName: "arrow.right.arrow.left",
                                            accessibilityDescription: "CmdTab")
         statusItem.button?.image?.isTemplate = true   // adapts to dark/light menu bar
@@ -70,7 +76,8 @@ final class MenuBarController {
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit CmdTab", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit CmdTab", action: #selector(quitCmdTab), keyEquivalent: "q")
+        quit.target = self
         menu.addItem(quit)
 
         self.contextMenu = menu
@@ -171,6 +178,10 @@ final class MenuBarController {
 
     @objc private func openSettings() {
         preferencesWindowController.show()
+    }
+
+    @objc private func quitCmdTab() {
+        (NSApp.delegate as? AppDelegate)?.requestTermination()
     }
 
     @objc private func handleStatusItemClick() {

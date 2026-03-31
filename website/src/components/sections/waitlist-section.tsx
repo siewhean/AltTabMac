@@ -177,9 +177,14 @@ export function WaitlistSection() {
                   className="w-full sm:w-auto"
                   {...analyticsAttributes("waitlist_submit", "waitlist")}
                 >
-                  {isSubmitting
-                    ? waitlistContent.labels.submitting
-                    : waitlistContent.labels.submit}
+                  {isSubmitting ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/25 border-t-slate-950" />
+                      {waitlistContent.labels.submitting}
+                    </>
+                  ) : (
+                    waitlistContent.labels.submit
+                  )}
                 </Button>
                 <p className="text-sm leading-6 text-subdued">{waitlistContent.footnote}</p>
               </div>

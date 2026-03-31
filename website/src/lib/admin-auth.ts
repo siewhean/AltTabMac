@@ -82,9 +82,12 @@ export async function requireAdminSession() {
 
 export async function validateAdminPassword(input: string) {
   const databaseMatch = await validateStoredDashboardPassword(input);
-  if (databaseMatch !== null) return databaseMatch;
-
   const expected = getDashboardPassword();
-  if (!expected) return false;
-  return safeEqual(input, expected);
+  const environmentMatch = expected ? safeEqual(input, expected) : false;
+
+  if (databaseMatch !== null) {
+    return databaseMatch || environmentMatch;
+  }
+
+  return environmentMatch;
 }

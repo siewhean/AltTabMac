@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { track } from "@vercel/analytics";
+
+import { trackSiteEvent } from "@/lib/site-analytics-client";
 
 export function SiteEventTracker() {
   useEffect(() => {
@@ -16,7 +17,7 @@ export function SiteEventTracker() {
       if (!eventName) return;
 
       const context = trackable.dataset.analyticsContext?.trim();
-      track(eventName, context ? { context } : {});
+      trackSiteEvent(eventName, context ? { context } : {});
     }
 
     document.addEventListener("click", handleClick);

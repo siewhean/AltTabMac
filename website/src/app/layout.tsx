@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SiteEventTracker } from "@/components/site-event-tracker";
+import { SitePageTracker } from "@/components/site-page-tracker";
 import { siteConfig } from "@/content/site";
 import { getSiteUrl } from "@/lib/env";
 
@@ -52,6 +53,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <SitePageTracker />
         <SiteEventTracker />
         <Analytics />
         <SpeedInsights />

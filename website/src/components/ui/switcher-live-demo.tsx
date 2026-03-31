@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { track } from "@vercel/analytics";
 
 import { interactiveDemoWindows } from "@/content/home";
+import { trackSiteEvent } from "@/lib/site-analytics-client";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -267,14 +267,14 @@ export function SwitcherLiveDemo() {
       nextSelectedIndex: 0,
       nextQuery: next === "commandPalette" ? query : "",
     });
-    track("demo_mode_selected", { mode: next });
+    trackSiteEvent("demo_mode_selected", { mode: next });
   }
 
   function moveSelection(dir: "prev" | "next") {
     stopAutoPlay();
     const collection = mode === "commandPalette" ? filteredWindows : [...interactiveDemoWindows];
     if (collection.length === 0) return;
-    track("demo_navigation", { mode, direction: dir });
+    trackSiteEvent("demo_navigation", { mode, direction: dir });
     setSelectedIndex((i) => {
       const base = Math.min(i, collection.length - 1);
       return dir === "next"
@@ -284,7 +284,7 @@ export function SwitcherLiveDemo() {
   }
 
   function trackDemoSelection(selectedMode: DemoMode, app: string) {
-    track("demo_selection", {
+    trackSiteEvent("demo_selection", {
       mode: selectedMode,
       target: app.toLowerCase().replace(/\s+/g, "_"),
     });
@@ -305,7 +305,7 @@ export function SwitcherLiveDemo() {
     if (lastTrackedSearchBucket.current === bucket) return;
 
     lastTrackedSearchBucket.current = bucket;
-    track("demo_palette_search", { queryLengthBucket, resultsBucket });
+    trackSiteEvent("demo_palette_search", { queryLengthBucket, resultsBucket });
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────

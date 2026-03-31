@@ -10,8 +10,32 @@ SCRATCH="/tmp/CmdTab_build"
 BUILD_DIR="$SCRATCH/release"
 APP_BUNDLE="${APP_NAME}.app"
 CONTENTS="${APP_BUNDLE}/Contents"
+ICON_SOURCE="Resources/${APP_NAME}.png"
+ICONSET_DIR="$SCRATCH/${APP_NAME}.iconset"
+ICON_ICNS="Resources/${APP_NAME}.icns"
+
+generate_app_icon() {
+    [ -f "$ICON_SOURCE" ] || return 0
+
+    rm -rf "$ICONSET_DIR"
+    mkdir -p "$ICONSET_DIR"
+
+    sips -z 16 16 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_16x16.png" >/dev/null
+    sips -z 32 32 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_16x16@2x.png" >/dev/null
+    sips -z 32 32 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_32x32.png" >/dev/null
+    sips -z 64 64 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_32x32@2x.png" >/dev/null
+    sips -z 128 128 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_128x128.png" >/dev/null
+    sips -z 256 256 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_128x128@2x.png" >/dev/null
+    sips -z 256 256 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_256x256.png" >/dev/null
+    sips -z 512 512 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_256x256@2x.png" >/dev/null
+    sips -z 512 512 "$ICON_SOURCE" --out "$ICONSET_DIR/icon_512x512.png" >/dev/null
+    cp "$ICON_SOURCE" "$ICONSET_DIR/icon_512x512@2x.png"
+
+    iconutil -c icns "$ICONSET_DIR" -o "$ICON_ICNS"
+}
 
 echo "Building ${APP_NAME} (release)..."
+generate_app_icon
 swift build -c release --scratch-path "$SCRATCH" 2>&1
 
 BINARY="${BUILD_DIR}/${APP_NAME}"

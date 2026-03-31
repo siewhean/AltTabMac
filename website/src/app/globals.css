@@ -4,6 +4,12 @@
 
 :root {
   color-scheme: dark;
+  --radius-sm: 18px;
+  --radius-md: 24px;
+  --radius-lg: 32px;
+  --radius-pill: 999px;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -18,9 +24,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(105, 214, 255, 0.12), transparent 30%),
-    radial-gradient(circle at 20% 20%, rgba(78, 161, 255, 0.12), transparent 24%),
-    linear-gradient(180deg, #05070c 0%, #07101b 45%, #05070c 100%);
+    radial-gradient(circle at top right, rgba(105, 214, 255, 0.08), transparent 24%),
+    linear-gradient(180deg, #05070c 0%, #08111d 52%, #060913 100%);
   color: #eaf1ff;
   font-family:
     "SF Pro Display",
@@ -31,6 +36,21 @@ body {
     sans-serif;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(24, 36, 58, 0.28) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(24, 36, 58, 0.24) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 82%);
+  opacity: 0.45;
+  z-index: -1;
 }
 
 a {
@@ -51,15 +71,15 @@ img {
 .hero-enter {
   opacity: 0;
   transform: translate3d(0, 24px, 0) scale(0.985);
-  animation: hero-fade-up 900ms cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  animation: hero-fade-up 900ms var(--ease-standard) forwards;
   animation-delay: var(--enter-delay, 0ms);
 }
 
 .motion-reveal {
   opacity: 0;
   transition:
-    opacity 720ms cubic-bezier(0.23, 1, 0.32, 1),
-    transform 720ms cubic-bezier(0.23, 1, 0.32, 1);
+    opacity 720ms var(--ease-standard),
+    transform 720ms var(--ease-standard);
   transition-delay: var(--motion-delay, 0ms);
   will-change: opacity, transform;
 }
@@ -85,22 +105,6 @@ img {
   transform: translate3d(0, 0, 0) scale(1);
 }
 
-.motion-grid-drift {
-  animation: grid-pan 20s linear infinite;
-}
-
-.motion-drift-slow {
-  animation: drift-slow 16s linear infinite alternate;
-}
-
-.motion-drift-reverse {
-  animation: drift-reverse 18s linear infinite alternate;
-}
-
-.motion-drift-subtle {
-  animation: drift-subtle 14s linear infinite alternate;
-}
-
 @keyframes hero-fade-up {
   from {
     opacity: 0;
@@ -113,44 +117,44 @@ img {
   }
 }
 
-@keyframes grid-pan {
-  from {
-    background-position: 0 0;
-  }
-
-  to {
-    background-position: 120px 120px;
-  }
+.surface-panel {
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 32px 80px rgba(5, 7, 12, 0.42);
+  backdrop-filter: blur(20px);
 }
 
-@keyframes drift-slow {
-  from {
-    transform: translate3d(0, -6px, 0);
-  }
-
-  to {
-    transform: translate3d(0, 10px, 0);
-  }
+.surface-muted {
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-@keyframes drift-reverse {
-  from {
-    transform: translate3d(0, 8px, 0);
-  }
-
-  to {
-    transform: translate3d(0, -10px, 0);
-  }
+.type-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
 }
 
-@keyframes drift-subtle {
-  from {
-    transform: translate3d(-6px, 0, 0);
-  }
+.type-section-title {
+  text-wrap: balance;
+  font-size: clamp(2rem, 3vw, 2.8rem);
+  font-weight: 500;
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+}
 
-  to {
-    transform: translate3d(8px, 0, 0);
-  }
+.type-body {
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.type-body-lg {
+  font-size: 1.0625rem;
+  line-height: 1.7;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -171,5 +175,9 @@ img {
   .motion-reveal {
     opacity: 1 !important;
     transform: none !important;
+  }
+
+  body::before {
+    display: none;
   }
 }

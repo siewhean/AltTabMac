@@ -18,7 +18,7 @@ export function FeatureBandsSection() {
             key={item.title}
             delay={index * 70}
             direction="up"
-            className="rounded-[24px] border border-white/8 bg-white/[0.03] p-5"
+            className="surface-muted p-5"
           >
             <h3 className="text-lg font-medium tracking-[-0.03em] text-text">{item.title}</h3>
             <p className="mt-2 text-sm leading-7 text-muted">{item.body}</p>
@@ -37,13 +37,13 @@ export function FeatureBandsSection() {
             }`}
           >
             <div className="max-w-xl space-y-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cyan">
+              <p className="type-eyebrow text-cyan">
                 {band.eyebrow}
               </p>
               <h3 className="text-3xl font-medium tracking-[-0.05em] text-text">
                 {band.title}
               </h3>
-              <p className="text-base leading-8 text-muted">{band.body}</p>
+              <p className="type-body text-muted">{band.body}</p>
               {band.points?.length ? (
                 <div className="space-y-3 border-t border-white/8 pt-4">
                   {band.points.map((point) => (

@@ -160,7 +160,9 @@ struct ClassicItemCardView: View {
                 Image(nsImage: preview)
                     .resizable()
                     .interpolation(.high)
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(preview.size, contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.22))
                     .allowsHitTesting(false)
             } else {
                 previewPlaceholder

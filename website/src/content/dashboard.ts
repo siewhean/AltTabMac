@@ -3,7 +3,7 @@ import { commerceContent } from "@/content/commerce";
 export const dashboardContent = {
   title: "CmdTab launch dashboard",
   summary:
-    "This page is the owner-facing view of the website funnel, pricing setup, and event instrumentation. Live aggregate traffic numbers come from Vercel Analytics and Speed Insights.",
+    "This page is the owner-facing view of the website funnel, pricing setup, and event instrumentation. Core website traffic and interaction metrics are mirrored into this dashboard from the live site.",
   offer: [
     { label: "Founder price", value: commerceContent.founder.price },
     { label: "Standard price", value: commerceContent.standard.price },

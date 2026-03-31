@@ -4,6 +4,10 @@
 <dict>
 	<key>files</key>
 	<dict>
+		<key>Resources/CmdTab.icns</key>
+		<data>
+		5swL7DnqH8RTURHK5uGCLt5DO0Y=
+		</data>
 		<key>Resources/CmdTab.png</key>
 		<data>
 		8+SqaW+YAJHu3tCCcuGII2fvQWE=
@@ -11,6 +15,13 @@
 	</dict>
 	<key>files2</key>
 	<dict>
+		<key>Resources/CmdTab.icns</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			7B0IsqXVvUQINfgmSkhRy9hdqT3qi4HK+fZT4wdv8Og=
+			</data>
+		</dict>
 		<key>Resources/CmdTab.png</key>
 		<dict>
 			<key>hash2</key>

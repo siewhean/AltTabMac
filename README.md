@@ -70,6 +70,35 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - `⌘Tab` remains the headline trigger, but CmdTab now supports optional right-command / right-option tap-based alternate triggers as a secondary access path.
 - The marketing site lives in `website/` and stays waitlist-only for private beta; there is still no checkout, testimonials, or public download flow in v1.
 - The website targets broad Mac users with a premium, screenshot-first presentation and Mac-native system typography instead of a generic SaaS treatment.
+- The website must avoid vibe-coded patterns. Start from a design system first, then keep color, type, spacing, radius, motion, and copy consistent across pages.
+- Website visual constraints:
+  - no default purple gradients unless they are explicitly brand-appropriate
+  - no sparkles or emojis in hero headings
+  - no generic glowing hover effects
+- Website typography constraints:
+  - use a consistent weight hierarchy
+  - keep line-height and paragraph spacing uniform
+  - define a type scale and stick to it
+- Website layout and component constraints:
+  - keep core component placement consistent across pages
+  - define at most two or three border-radius values
+  - keep hover states subtle, with at most a small lift
+  - keep icon sizing proportional to nearby text
+  - remove non-functional social icons
+- Website animation and interaction constraints:
+  - use intentional easing curves
+  - stagger timing deliberately
+  - every animation must serve a purpose
+- Website UX constraints:
+  - all async actions need loading states
+  - buttons should show clear progress while pending
+  - toggles, carousels, and interactive demos must be functional
+  - data-heavy sections should use skeleton states where appropriate
+- Website copy constraints:
+  - avoid em-dash overuse
+  - avoid vague claims like "Launch faster", "Build your dreams", or "Create without limits"
+  - do not use fake testimonials
+  - do not use placeholder personas or generic AI face motifs
 - The waitlist inbox is the source of truth for v1; there is no database dependency for the website launch.
 - The commercial direction is `14-day free trial -> one-time perpetual license`, with founder pricing communicated in copy before any live commerce flow exists.
 

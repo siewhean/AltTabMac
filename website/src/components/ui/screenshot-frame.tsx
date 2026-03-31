@@ -15,7 +15,7 @@ export function ScreenshotFrame({
 
   return (
     <figure className={`group ${className}`}>
-      <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-panel/70 shadow-panel">
+      <div className="surface-panel relative overflow-hidden bg-panel/70 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5">
         <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/8 to-transparent" />
         <img
           src={asset.src}
@@ -23,7 +23,7 @@ export function ScreenshotFrame({
           width={asset.width}
           height={asset.height}
           loading={priority || asset.priority ? "eager" : "lazy"}
-          className="h-auto w-full transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.01]"
+          className="h-auto w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.005]"
         />
       </div>
       {(caption || asset.caption) && (
@@ -34,4 +34,3 @@ export function ScreenshotFrame({
     </figure>
   );
 }
-

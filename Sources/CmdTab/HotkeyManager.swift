@@ -14,6 +14,20 @@ private let hotkeyLog = OSLog(subsystem: "CmdTab", category: "HotkeyManager")
 /// Every side-effect (UI updates, window fetching) is dispatched
 /// asynchronously to the main queue.
 final class HotkeyManager {
+    private struct TrackpadSelectorState {
+        var horizontal: CGFloat = 0
+        var vertical: CGFloat = 0
+        var lastEventUptime: TimeInterval = 0
+        var triggeredCurrentStroke = false
+
+        mutating func reset() {
+            horizontal = 0
+            vertical = 0
+            lastEventUptime = 0
+            triggeredCurrentStroke = false
+        }
+    }
+
     private weak var switcher: SwitcherWindowController?
     private let preferences = SwitcherPreferences.shared
     private var eventTap: CFMachPort?
@@ -28,7 +42,10 @@ final class HotkeyManager {
     private var showUIWorkItem: DispatchWorkItem?
     private var triggerState = HotkeyTriggerState()
     private var alternateTriggerState = AlternateModifierTriggerState()
+    private var trackpadSelectorState = TrackpadSelectorState()
     private let currentUptime: () -> TimeInterval
+    private let trackpadStepThreshold: CGFloat = 18
+    private let trackpadResetInterval: TimeInterval = 0.18
 
     init(
         switcher: SwitcherWindowController,
@@ -51,9 +68,10 @@ final class HotkeyManager {
 
     private func install() {
         let mask: CGEventMask =
-            (1 << CGEventType.keyDown.rawValue)     |
-            (1 << CGEventType.keyUp.rawValue)       |
-            (1 << CGEventType.flagsChanged.rawValue)
+            (1 << CGEventType.keyDown.rawValue) |
+            (1 << CGEventType.keyUp.rawValue) |
+            (1 << CGEventType.flagsChanged.rawValue) |
+            (1 << CGEventType.scrollWheel.rawValue)
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
 
@@ -343,6 +361,7 @@ final class HotkeyManager {
             rightCommandDown = false
             rightOptionDown = false
             alternateTriggerState = AlternateModifierTriggerState()
+            trackpadSelectorState.reset()
             recoverEventTap()
             return nil
 
@@ -474,11 +493,61 @@ final class HotkeyManager {
                 return nil
             }
 
+        case .scrollWheel:
+            guard let switcher, switcher.isVisible else { break }
+            guard event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 else { break }
+            guard handleVisibleSwitcherScroll(event, switcher: switcher) else { break }
+            return nil
+
         default:
             break
         }
 
         return Unmanaged.passRetained(event)
+    }
+
+    private func handleVisibleSwitcherScroll(_ event: CGEvent, switcher: SwitcherWindowController) -> Bool {
+        let now = uptime(for: event.timestamp)
+        if now - trackpadSelectorState.lastEventUptime > trackpadResetInterval {
+            trackpadSelectorState.reset()
+        }
+        trackpadSelectorState.lastEventUptime = now
+
+        let horizontalDelta = CGFloat(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis2))
+        let verticalDelta = CGFloat(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1))
+
+        guard abs(horizontalDelta) > 0.01 || abs(verticalDelta) > 0.01 else {
+            return false
+        }
+
+        guard !trackpadSelectorState.triggeredCurrentStroke else {
+            return true
+        }
+
+        if abs(horizontalDelta) >= abs(verticalDelta) {
+            trackpadSelectorState.vertical = 0
+            trackpadSelectorState.horizontal += horizontalDelta
+
+            if abs(trackpadSelectorState.horizontal) >= trackpadStepThreshold {
+                let step = trackpadSelectorState.horizontal > 0 ? 1 : -1
+                dispatchToMain { switcher.moveSelection(by: step) }
+                trackpadSelectorState.triggeredCurrentStroke = true
+            }
+        } else {
+            trackpadSelectorState.horizontal = 0
+            trackpadSelectorState.vertical += verticalDelta
+
+            if abs(trackpadSelectorState.vertical) >= trackpadStepThreshold {
+                if trackpadSelectorState.vertical > 0 {
+                    dispatchToMain { switcher.moveSelectionDown() }
+                } else {
+                    dispatchToMain { switcher.moveSelectionUp() }
+                }
+                trackpadSelectorState.triggeredCurrentStroke = true
+            }
+        }
+
+        return true
     }
 }
 

@@ -33,6 +33,29 @@ export type WaitlistUpsertResult = {
   alreadyRegistered: boolean;
 };
 
+export type WaitlistAggregateStats = {
+  total: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  signups24h: number;
+  signups7d: number;
+  signups30d: number;
+  namedCount: number;
+  sourceCount: number;
+  latestSignup?: string;
+};
+
+export type WaitlistBreakdownItem = {
+  label: string;
+  count: number;
+};
+
+export type WaitlistSignupSeriesPoint = {
+  day: string;
+  count: number;
+};
+
 let schemaReady = false;
 
 export function isWaitlistStoreConfigured() {
@@ -157,8 +180,131 @@ export async function listWaitlistSubmissions(limit = 100) {
     select *
     from waitlist_signups
     order by updated_at desc
-    limit ${Math.max(1, Math.min(limit, 500))}
+    limit ${Math.max(1, Math.min(limit, 5000))}
   `;
 
   return rows.map(mapRow);
+}
+
+export async function getWaitlistAggregateStats() {
+  await ensureSchema();
+  const sql = getSql();
+  const [row] = await sql<
+    {
+      total: number;
+      delivered: number;
+      failed: number;
+      pending: number;
+      signups24h: number;
+      signups7d: number;
+      signups30d: number;
+      named_count: number;
+      source_count: number;
+      latest_signup: string | null;
+    }[]
+  >`
+    select
+      count(*)::int as total,
+      count(*) filter (where notification_status = 'delivered')::int as delivered,
+      count(*) filter (where notification_status = 'failed')::int as failed,
+      count(*) filter (where notification_status = 'stored')::int as pending,
+      count(*) filter (where created_at >= now() - interval '24 hours')::int as signups24h,
+      count(*) filter (where created_at >= now() - interval '7 days')::int as signups7d,
+      count(*) filter (where created_at >= now() - interval '30 days')::int as signups30d,
+      count(*) filter (where name is not null and btrim(name) <> '')::int as named_count,
+      count(distinct coalesce(nullif(source, ''), 'homepage_waitlist'))::int as source_count,
+      max(updated_at)::text as latest_signup
+    from waitlist_signups
+  `;
+
+  return {
+    total: row?.total ?? 0,
+    delivered: row?.delivered ?? 0,
+    failed: row?.failed ?? 0,
+    pending: row?.pending ?? 0,
+    signups24h: row?.signups24h ?? 0,
+    signups7d: row?.signups7d ?? 0,
+    signups30d: row?.signups30d ?? 0,
+    namedCount: row?.named_count ?? 0,
+    sourceCount: row?.source_count ?? 0,
+    latestSignup: row?.latest_signup ?? undefined,
+  } satisfies WaitlistAggregateStats;
+}
+
+export async function listWaitlistSignupSeries(days = 14) {
+  await ensureSchema();
+  const sql = getSql();
+  const safeDays = Math.max(1, Math.min(days, 90));
+  const rows = await sql<WaitlistSignupSeriesPoint[]>`
+    with series as (
+      select generate_series(
+        timezone('Asia/Singapore', now())::date - ${safeDays - 1},
+        timezone('Asia/Singapore', now())::date,
+        interval '1 day'
+      )::date as day
+    )
+    select
+      series.day::text as day,
+      coalesce(count(waitlist_signups.id), 0)::int as count
+    from series
+    left join waitlist_signups
+      on timezone('Asia/Singapore', waitlist_signups.created_at)::date = series.day
+    group by series.day
+    order by series.day asc
+  `;
+
+  return rows;
+}
+
+export async function listWaitlistBreakdown(
+  kind: "source" | "utm_source" | "utm_medium" | "path",
+  limit = 6,
+) {
+  await ensureSchema();
+  const sql = getSql();
+  const safeLimit = Math.max(1, Math.min(limit, 20));
+
+  const query =
+    kind === "source"
+      ? sql<WaitlistBreakdownItem[]>`
+          select
+            coalesce(nullif(source, ''), 'homepage_waitlist') as label,
+            count(*)::int as count
+          from waitlist_signups
+          group by 1
+          order by count desc, label asc
+          limit ${safeLimit}
+        `
+      : kind === "utm_source"
+        ? sql<WaitlistBreakdownItem[]>`
+            select
+              coalesce(nullif(metadata->>'utm_source', ''), 'direct') as label,
+              count(*)::int as count
+            from waitlist_signups
+            group by 1
+            order by count desc, label asc
+            limit ${safeLimit}
+          `
+        : kind === "utm_medium"
+          ? sql<WaitlistBreakdownItem[]>`
+              select
+                coalesce(nullif(metadata->>'utm_medium', ''), 'unknown') as label,
+                count(*)::int as count
+              from waitlist_signups
+              group by 1
+              order by count desc, label asc
+              limit ${safeLimit}
+            `
+          : sql<WaitlistBreakdownItem[]>`
+              select
+                coalesce(nullif(metadata->>'path', ''), '/') as label,
+                count(*)::int as count
+              from waitlist_signups
+              group by 1
+              order by count desc, label asc
+              limit ${safeLimit}
+            `;
+
+  const rows = await query;
+  return rows;
 }
