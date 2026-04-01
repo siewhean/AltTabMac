@@ -274,4 +274,44 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
     }
+
+    func testStandardShortcutResetsExistingDoubleTapCounter() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 90.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 90.08
+            )
+        )
+
+        state.noteStandardShortcut(now: 90.12)
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                now: 90.20
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftCommandDoubleTap,
+                now: 90.28
+            )
+        )
+    }
 }

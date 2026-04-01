@@ -295,24 +295,8 @@ final class HotkeyManager {
         performTriggerAction(action)
     }
 
-    private func noteStandardShortcutForAlternateTrigger(
-        modifier: HotkeyModifier,
-        now: TimeInterval
-    ) {
-        let monitoredKey = preferences.alternateTrigger.monitoredKey
-
-        switch (modifier, monitoredKey) {
-        case (.command, .leftCommand) where leftCommandDown:
-            alternateTriggerState.noteStandardShortcut(using: .leftCommand, now: now)
-        case (.command, .rightCommand) where rightCommandDown:
-            alternateTriggerState.noteStandardShortcut(using: .rightCommand, now: now)
-        case (.option, .leftOption) where leftOptionDown:
-            alternateTriggerState.noteStandardShortcut(using: .leftOption, now: now)
-        case (.option, .rightOption) where rightOptionDown:
-            alternateTriggerState.noteStandardShortcut(using: .rightOption, now: now)
-        default:
-            break
-        }
+    private func noteStandardShortcutForAlternateTrigger(now: TimeInterval) {
+        alternateTriggerState.noteStandardShortcut(now: now)
     }
 
     private func handleModifierRelease(_ modifier: HotkeyModifier) {
@@ -413,7 +397,7 @@ final class HotkeyManager {
                         return nil
                     }
                     let triggerUptime = uptime(for: event.timestamp)
-                    noteStandardShortcutForAlternateTrigger(modifier: .command, now: triggerUptime)
+                    noteStandardShortcutForAlternateTrigger(now: triggerUptime)
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(
                             modifier: .command,
@@ -425,10 +409,7 @@ final class HotkeyManager {
                 }
 
                 if optionHeld && !commandHeld {
-                    noteStandardShortcutForAlternateTrigger(
-                        modifier: .option,
-                        now: uptime(for: event.timestamp)
-                    )
+                    noteStandardShortcutForAlternateTrigger(now: uptime(for: event.timestamp))
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(modifier: .option, reverse: shift)
                     }
@@ -742,13 +723,14 @@ struct AlternateModifierTriggerState {
         pendingDoubleTap = nil
     }
 
-    mutating func noteStandardShortcut(using key: PhysicalModifierTriggerKey, now: TimeInterval) {
-        if activePress?.key == key {
-            activePress?.wasInterrupted = true
-        }
+    mutating func noteStandardShortcut(using _: PhysicalModifierTriggerKey, now _: TimeInterval) {
+        noteStandardShortcut(now: 0)
+    }
 
+    mutating func noteStandardShortcut(now _: TimeInterval) {
+        activePress = nil
         pendingDoubleTap = nil
-        suppressedReleaseKey = key
+        suppressedReleaseKey = nil
     }
 
     private mutating func pruneExpiredState(now: TimeInterval) {
