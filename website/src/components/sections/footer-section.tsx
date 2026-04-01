@@ -25,13 +25,18 @@ export function FooterSection() {
             </div>
           </div>
           <p className="max-w-xl text-sm leading-7 text-subdued">
-            CmdTab is currently running a waitlist-first launch. Join the list to get beta updates,
-            first access to the trial, and the next release announcement.
+            CmdTab is in active beta. Join the waitlist, review the trial, or check the buy and help path.
           </p>
         </MotionReveal>
 
         <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
           <Button href="#waitlist">{siteConfig.ctas.primary}</Button>
+          <Button href="/buy" variant="secondary">
+            Buy and trial
+          </Button>
+          <Button href="/help" variant="ghost">
+            Help
+          </Button>
           <Button href="/privacy" variant="ghost">
             {siteConfig.ctas.tertiary}
           </Button>

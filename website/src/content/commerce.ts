@@ -1,31 +1,31 @@
 export const commerceContent = {
   eyebrow: "Launch path",
-  title: "Start with a 14-day trial, then buy it once.",
+  title: "Start with the trial. Buy once if it sticks.",
   summary:
-    "CmdTab is a premium Mac utility, not a subscription. The offer is a short free trial and a one-time license you can either buy after the trial or purchase immediately.",
+    "CmdTab is a one-time Mac utility. Try it first, or buy immediately if you already know.",
   trialLength: "14-day trial",
   founder: {
     title: "Buy now",
     price: "US$5",
-    note: "Buy the founder price directly if you already know you want CmdTab.",
+    note: "Take the early price if you already know you want it.",
     points: [
       "One-time purchase",
-      "Buy straight away",
-      "Founder price for the first launch wave",
+      "Immediate access path",
+      "Founder launch price",
     ],
-    cta: "Buy founder license",
+    cta: "Buy founder",
   },
   standard: {
     title: "Free trial",
     price: "US$9.99",
-    note: "Try CmdTab for 14 days first, then decide if you want to keep it.",
+    note: "Use the full app for 14 days, then decide.",
     points: [
       "14-day free trial",
-      "At least 1 year of updates",
+      "One-time upgrade after trial",
       "No recurring subscription",
     ],
-    cta: "Download the trial",
+    cta: "Start trial",
   },
   fallback:
-    "The trial and buy buttons appear here automatically after you add the hosted URLs.",
+    "The trial and buy links appear here after you add the hosted URLs.",
 } as const;

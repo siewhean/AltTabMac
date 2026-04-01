@@ -157,6 +157,29 @@ img {
   line-height: 1.7;
 }
 
+@media (max-width: 767px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .hero-enter {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .motion-reveal,
+  .motion-reveal--up,
+  .motion-reveal--left,
+  .motion-reveal--right,
+  .motion-reveal--scale,
+  .motion-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

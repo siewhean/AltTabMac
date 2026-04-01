@@ -6,6 +6,11 @@ import { getDashboardAuthSummary } from "@/lib/admin-store";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { formatSingaporeDateTime } from "@/lib/date";
 import {
+  getLicenseRequestAggregateStats,
+  isLicenseRequestStoreConfigured,
+  listLicenseRequests,
+} from "@/lib/license-request-store";
+import {
   getSiteAnalyticsOverview,
   isSiteAnalyticsConfigured,
   listSiteAnalyticsSeries,
@@ -48,6 +53,10 @@ export default async function DashboardPage() {
   const submissions = storeConfigured ? await listWaitlistSubmissions(100) : [];
   const authSummary = await getDashboardAuthSummary();
   const analyticsConfigured = isSiteAnalyticsConfigured();
+  const licenseStoreConfigured = isLicenseRequestStoreConfigured();
+  const [licenseStats, licenseRequests] = licenseStoreConfigured
+    ? await Promise.all([getLicenseRequestAggregateStats(), listLicenseRequests(20)])
+    : [{ total: 0, delivered: 0, failed: 0, pending: 0, requests30d: 0, latestRequest: undefined }, []];
   const emptyAnalytics: SiteAnalyticsOverview = {
     pageviews24h: 0,
     pageviews7d: 0,
@@ -302,6 +311,64 @@ export default async function DashboardPage() {
           </section>
 
           <div className="space-y-6">
+            <section className="surface-panel p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                License support
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {[
+                  { label: "Requests", value: String(licenseStats.total) },
+                  { label: "Last 30 days", value: String(licenseStats.requests30d) },
+                  { label: "Delivered", value: String(licenseStats.delivered) },
+                  { label: "Pending", value: String(licenseStats.pending) },
+                ].map((item) => (
+                  <div key={item.label} className="surface-muted p-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
+                    <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 space-y-2 text-sm leading-7 text-muted">
+                <p>
+                  Latest request:{" "}
+                  <span className="text-text">
+                    {licenseStats.latestRequest
+                      ? formatSingaporeDateTime(licenseStats.latestRequest)
+                      : "No requests yet"}
+                  </span>
+                </p>
+                <p>
+                  Store status:{" "}
+                  <span className="text-text">
+                    {licenseStoreConfigured ? "Configured" : "Missing"}
+                  </span>
+                </p>
+              </div>
+              <div className="mt-5 space-y-3 border-t border-white/8 pt-4">
+                {licenseRequests.length > 0 ? (
+                  licenseRequests.slice(0, 5).map((request) => (
+                    <div key={request.id} className="surface-muted p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-text">{request.email}</p>
+                          <p className="mt-1 text-sm leading-6 text-muted">{request.reason}</p>
+                        </div>
+                        <span className="text-xs text-subdued">
+                          {formatSingaporeDateTime(request.updatedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-muted">
+                    License and purchase support requests will appear here.
+                  </p>
+                )}
+              </div>
+            </section>
+
             <section className="surface-panel p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
                 Access and storage

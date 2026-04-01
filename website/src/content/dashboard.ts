@@ -3,7 +3,7 @@ import { commerceContent } from "@/content/commerce";
 export const dashboardContent = {
   title: "CmdTab launch dashboard",
   summary:
-    "This page is the owner-facing view of the website funnel, pricing setup, and event instrumentation. Core website traffic and interaction metrics are mirrored into this dashboard from the live site.",
+    "This page is the owner-facing view of the website funnel, pricing setup, event instrumentation, and operational support flows. Core website traffic and interaction metrics are mirrored into this dashboard from the live site.",
   offer: [
     { label: "Founder price", value: commerceContent.founder.price },
     { label: "Standard price", value: commerceContent.standard.price },
@@ -22,6 +22,7 @@ export const dashboardContent = {
       title: "Conversion",
       metrics: [
         "Waitlist submissions",
+        "License recovery and billing support requests",
         "Launch section trial clicks",
         "Launch section checkout clicks",
       ],

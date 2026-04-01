@@ -3,7 +3,9 @@ type CheckoutProvider = "lemonsqueezy" | "paddle" | "stripe" | "custom";
 export type CommerceConfig = {
   checkoutProvider?: CheckoutProvider;
   checkoutUrl?: string;
+  standardCheckoutUrl?: string;
   trialDownloadUrl?: string;
+  licensePortalUrl?: string;
   supportEmail?: string;
 };
 
@@ -20,7 +22,9 @@ export function getCommerceConfig(): CommerceConfig {
   return {
     checkoutProvider,
     checkoutUrl: optionalValue(process.env.NEXT_PUBLIC_CHECKOUT_URL),
+    standardCheckoutUrl: optionalValue(process.env.NEXT_PUBLIC_STANDARD_CHECKOUT_URL),
     trialDownloadUrl: optionalValue(process.env.NEXT_PUBLIC_TRIAL_URL),
+    licensePortalUrl: optionalValue(process.env.NEXT_PUBLIC_LICENSE_PORTAL_URL),
     supportEmail: optionalValue(process.env.NEXT_PUBLIC_SUPPORT_EMAIL),
   };
 }
