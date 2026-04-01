@@ -146,6 +146,8 @@ struct ClassicItemCardView: View {
             .padding(.bottom, 2)
             .frame(width: layout.cardWidth, alignment: .center)
         }
+        .frame(width: layout.cardWidth, height: layout.cardHeight, alignment: .top)
+        .contentShape(Rectangle())
         .scaleEffect(isSelected ? 1.04 : 1.0)
         .animation(.spring(response: 0.16, dampingFraction: 0.78), value: isSelected)
     }
@@ -154,15 +156,14 @@ struct ClassicItemCardView: View {
     private var thumbnailView: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(Color.black.opacity(isSelected ? 0.35 : 0.50))
+                .fill(Color.clear)
 
             if let preview = item.previewImage {
                 Image(nsImage: preview)
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(preview.size, contentMode: .fit)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.black.opacity(0.22))
+                    .frame(width: layout.cardWidth, height: layout.thumbnailHeight)
                     .allowsHitTesting(false)
             } else {
                 previewPlaceholder

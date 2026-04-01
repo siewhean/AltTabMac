@@ -569,9 +569,12 @@ final class SwitcherWindowController {
                 syncViewModelFromSession(animated: false)
             }
         } else {
+            let previousIDs = session.items.map(\.id)
             session.refreshItems(refreshedItems)
             self.session = session
-            syncViewModelFromSession(animated: true)
+            let refreshedIDs = session.items.map(\.id)
+            let shouldAnimateRefresh = previousIDs != refreshedIDs
+            syncViewModelFromSession(animated: shouldAnimateRefresh)
         }
 
         updateVisibleLayout()

@@ -52,6 +52,7 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Update this file whenever task context, progress, decisions, or blockers change.
 - Do not refactor or redesign working core switcher internals unless the user explicitly asks for it or there is a proven bug with a reproducible case.
 - Treat these paths as protected: hotkey event routing, modifier-release quick switch behavior, MRU/history ordering, frontmost resolution, activation confirmation, quick-action dispatch, and visible-item removal/suppression animations.
+- Treat hot swap trigger logic as frozen. Do not change the hot swap state machine, modifier-tap counting, `Tab` reset behavior, or activation semantics unless the user explicitly asks for a hot swap change.
 - When touching protected core paths, prefer the smallest possible patch, preserve current behavior by default, and verify with tests plus a rebuilt app.
 - Settings interactions must be safe and avoid crash-prone force unwraps.
 - Early modifier release must still quick-switch cleanly if the overlay has not committed yet.
