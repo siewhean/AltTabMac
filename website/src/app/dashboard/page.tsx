@@ -11,6 +11,7 @@ import {
   listSiteAnalyticsSeries,
   listTopAnalyticsEvents,
   listTopAnalyticsPages,
+  type SiteAnalyticsOverview,
 } from "@/lib/site-analytics-store";
 import { isWaitlistStoreConfigured, listWaitlistSubmissions } from "@/lib/waitlist-store";
 
@@ -47,7 +48,7 @@ export default async function DashboardPage() {
   const submissions = storeConfigured ? await listWaitlistSubmissions(100) : [];
   const authSummary = await getDashboardAuthSummary();
   const analyticsConfigured = isSiteAnalyticsConfigured();
-  const emptyAnalytics = {
+  const emptyAnalytics: SiteAnalyticsOverview = {
     pageviews24h: 0,
     pageviews7d: 0,
     visitors24h: 0,
@@ -55,7 +56,7 @@ export default async function DashboardPage() {
     totalEvents7d: 0,
     latestEvent: undefined,
   };
-  let analyticsOverview = emptyAnalytics;
+  let analyticsOverview: SiteAnalyticsOverview = emptyAnalytics;
   let analyticsSeries: Awaited<ReturnType<typeof listSiteAnalyticsSeries>> = [];
   let topPages: Awaited<ReturnType<typeof listTopAnalyticsPages>> = [];
   let topEvents: Awaited<ReturnType<typeof listTopAnalyticsEvents>> = [];
