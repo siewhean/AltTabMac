@@ -1,50 +1,31 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 struct PreferencesView: View {
-    private enum SettingsPane: String, CaseIterable, Identifiable {
-        case general
-        case switcher
-        case shortcuts
-        case system
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .general:
-                return "General"
-            case .switcher:
-                return "Switcher"
-            case .shortcuts:
-                return "Shortcuts"
-            case .system:
-                return "System"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .general:
-                return "slider.horizontal.3"
-            case .switcher:
-                return "square.grid.2x2"
-            case .shortcuts:
-                return "command"
-            case .system:
-                return "lock.shield"
-            }
-        }
-    }
-
     @ObservedObject var preferences: SwitcherPreferences
     let onOpenApplications: () -> Void
     let onRefreshPreviews: () -> Void
     let onApplySwitcherStyle: (SwitcherStyle) -> Void
-    @State private var selectedPane: SettingsPane = .general
+    @StateObject private var licensingController = LicensingController.shared
+    @StateObject private var developerSettings = DeveloperSettings.shared
+    @State private var selectedPane: PreferencesPaneSelection
     @StateObject private var appExclusionCatalog = AppExclusionCatalog()
     @State private var isAppExclusionPickerPresented = false
     private let headerLogo = PreferencesAssets.headerLogo
+
+    init(
+        preferences: SwitcherPreferences,
+        onOpenApplications: @escaping () -> Void,
+        onRefreshPreviews: @escaping () -> Void,
+        onApplySwitcherStyle: @escaping (SwitcherStyle) -> Void,
+        initialPane: PreferencesPaneSelection = .general
+    ) {
+        self.preferences = preferences
+        self.onOpenApplications = onOpenApplications
+        self.onRefreshPreviews = onRefreshPreviews
+        self.onApplySwitcherStyle = onApplySwitcherStyle
+        _selectedPane = State(initialValue: initialPane)
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -113,7 +94,7 @@ struct PreferencesView: View {
 
     private var settingsPanePicker: some View {
         HStack(spacing: 10) {
-            ForEach(SettingsPane.allCases) { pane in
+            ForEach(PreferencesPaneSelection.allCases) { pane in
                 Button {
                     selectedPane = pane
                 } label: {
@@ -122,6 +103,8 @@ struct PreferencesView: View {
                             .font(.system(size: 13, weight: .semibold))
                         Text(pane.title)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .foregroundColor(.white.opacity(selectedPane == pane ? 0.96 : 0.64))
                     .padding(.horizontal, 14)
@@ -145,6 +128,7 @@ struct PreferencesView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .fixedSize()
             }
             Spacer(minLength: 0)
         }
@@ -154,41 +138,28 @@ struct PreferencesView: View {
     private var paneContent: some View {
         switch selectedPane {
         case .general:
-            sessionToolsSection
             appearanceSection
             triggerSection
+            feedbackSection
         case .switcher:
             switcherSection
         case .shortcuts:
             shortcutsSection
+        case .licensing:
+            LicensingPreferencesPane(controller: licensingController)
+        case .developer:
+            DeveloperPreferencesPane(
+                settings: developerSettings,
+                licensingController: licensingController
+            )
         case .system:
             startupSection
             permissionsSection
         }
     }
 
-    private var sessionToolsSection: some View {
-        SettingsCard(title: "Session Tools", subtitle: "Launch the switcher directly from Settings or warm the preview path before the next session.") {
-            HStack(spacing: 12) {
-                Button(action: onOpenApplications) {
-                    Label("Show Applications", systemImage: "square.stack.3d.up.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-
-                Button(action: onRefreshPreviews) {
-                    Label("Preload Previews", systemImage: "sparkles.rectangle.stack.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-            }
-        }
-    }
-
     private var triggerSection: some View {
-        SettingsCard(title: "Hot Swap Shortcut", subtitle: "Set an optional double-tap shortcut for one-handed switching. The normal `⌘Tab` path still works exactly the same.") {
+        SettingsCard(title: "Hot Swap Shortcut", subtitle: "Set an optional quick double-tap or side-matched modifier chord for immediate switching. The normal `⌘Tab` path still works exactly the same.") {
             SettingsMenuPickerRow(
                 title: "Shortcut",
                 subtitle: "Choose whether hot swap should listen for a left or right modifier key, then double-tap that key to jump straight to the most recent app or window without opening the switcher.",
@@ -217,12 +188,43 @@ struct PreferencesView: View {
         }
     }
 
+    private var feedbackSection: some View {
+        SettingsCard(title: "Feedback", subtitle: "Report bugs or propose changes directly from CmdTab.") {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Use the actions below to open a prefilled message for bug reports or feature requests.")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundColor(.white.opacity(0.58))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 12) {
+                    Button {
+                        NSWorkspace.shared.open(FeedbackConfiguration.reportBugURL)
+                    } label: {
+                        Text("Report a Bug")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+
+                    Button {
+                        NSWorkspace.shared.open(FeedbackConfiguration.requestFeatureURL)
+                    } label: {
+                        Text("Request a Feature")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+            }
+        }
+    }
+
     private var hotSwapShortcutOptions: [(AlternateTriggerMode, String)] {
         [
             (.disabled, AlternateTriggerMode.disabled.title),
             (.leftCommandDoubleTap, AlternateTriggerMode.leftCommandDoubleTap.title),
-            (.leftOptionDoubleTap, AlternateTriggerMode.leftOptionDoubleTap.title),
             (.rightCommandDoubleTap, AlternateTriggerMode.rightCommandDoubleTap.title),
+            (.leftOptionDoubleTap, AlternateTriggerMode.leftOptionDoubleTap.title),
             (.rightOptionDoubleTap, AlternateTriggerMode.rightOptionDoubleTap.title)
         ]
     }
@@ -272,7 +274,7 @@ struct PreferencesView: View {
                 hasUnresolvedEntries: hasUnresolvedExcludedApps,
                 onSelectApps: { isAppExclusionPickerPresented = true }
             )
-            .sheet(isPresented: $isAppExclusionPickerPresented) {
+            .popover(isPresented: $isAppExclusionPickerPresented, arrowEdge: .top) {
                 AppExclusionPickerSheet(
                     catalog: appExclusionCatalog,
                     selectedBundleIdentifiers: Binding(
@@ -586,17 +588,7 @@ private struct SettingsSelectableAppsRow: View {
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.46))
             } else {
-                FlexibleChipCloud(items: selectedApps) { app in
-                    HStack(spacing: 6) {
-                        if let icon = app.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .interpolation(.high)
-                                .frame(width: 14, height: 14)
-                        }
-                        Text(app.displayName)
-                    }
-                }
+                SelectedAppChipCloud(items: selectedApps)
             }
 
             if hasUnresolvedEntries {
@@ -626,22 +618,33 @@ private struct SettingsToggleRow: View {
     }
 }
 
-private struct FlexibleChipCloud<Data: RandomAccessCollection, Content: View>: View where Data.Element: Identifiable {
-    let items: Data
-    @ViewBuilder let content: (Data.Element) -> Content
+private struct SelectedAppChipCloud: View {
+    let items: [AppExclusionOption]
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], alignment: .leading, spacing: 10) {
+        FlowWrapLayout(spacing: 8) {
             ForEach(items) { item in
-                content(item)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 7) {
+                    if let icon = item.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 14, height: 14)
+                    }
+
+                    Text(item.displayName)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
                     .background(
                         Capsule(style: .continuous)
                             .fill(Color.white.opacity(0.08))
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(item.pillBorderColor, lineWidth: 1)
                     )
             }
         }
@@ -1001,6 +1004,11 @@ private struct AppExclusionPickerSheet: View {
                         .foregroundColor(.white.opacity(0.58))
                 }
                 Spacer()
+                Button("Unselect All") {
+                    selectedBundleIdentifiers.removeAll()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
                 Button("Done") { dismiss() }
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
@@ -1024,8 +1032,8 @@ private struct AppExclusionPickerSheet: View {
                     )
             )
 
-            ScrollView {
-                LazyVStack(spacing: 10) {
+            OverlayScrollContainer {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(filteredApps) { app in
                         Button {
                             toggle(app.bundleIdentifier)
@@ -1046,9 +1054,11 @@ private struct AppExclusionPickerSheet: View {
                                     Text(app.displayName)
                                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                                         .foregroundColor(.white)
+                                        .lineLimit(1)
+
                                     Text(app.bundleIdentifier)
                                         .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundColor(.white.opacity(0.42))
+                                        .foregroundColor(.white.opacity(0.40))
                                         .lineLimit(1)
                                 }
 
@@ -1070,11 +1080,15 @@ private struct AppExclusionPickerSheet: View {
                                     )
                             )
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .buttonStyle(.plain)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 2)
+                .padding(.trailing, 6)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             if filteredApps.isEmpty {
                 Text("No matching apps found.")
@@ -1105,6 +1119,80 @@ private struct AppExclusionPickerSheet: View {
     }
 }
 
+private struct FlowWrapLayout<Content: View>: View {
+    let spacing: CGFloat
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        _FlowWrapLayout(spacing: spacing) {
+            content
+        }
+    }
+}
+
+private struct _FlowWrapLayout: Layout {
+    let spacing: CGFloat
+
+    init(spacing: CGFloat) {
+        self.spacing = spacing
+    }
+
+    func sizeThatFits(
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+
+        return CGSize(width: proposal.width ?? x, height: y + rowHeight)
+    }
+
+    func placeSubviews(
+        in bounds: CGRect,
+        proposal: ProposedViewSize,
+        subviews: Subviews,
+        cache: inout ()
+    ) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+
+            subview.place(
+                at: CGPoint(x: x, y: y),
+                proposal: ProposedViewSize(width: size.width, height: size.height)
+            )
+
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 private struct AppExclusionOption: Identifiable, Hashable {
     let bundleIdentifier: String
     let displayName: String
@@ -1118,6 +1206,14 @@ private struct AppExclusionOption: Identifiable, Hashable {
 
     static func == (lhs: AppExclusionOption, rhs: AppExclusionOption) -> Bool {
         lhs.bundleIdentifier == rhs.bundleIdentifier
+    }
+
+    var pillBorderColor: Color {
+        guard let iconColor = icon?.averageAccentColor else {
+            return Color.white.opacity(0.14)
+        }
+
+        return Color(nsColor: iconColor.withAlphaComponent(0.68))
     }
 }
 
@@ -1199,5 +1295,90 @@ private final class AppExclusionCatalog: ObservableObject {
             }
             return $0.bundleIdentifier.localizedCaseInsensitiveCompare($1.bundleIdentifier) == .orderedAscending
         }
+    }
+}
+
+private extension NSImage {
+    var averageAccentColor: NSColor? {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 1,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            return nil
+        }
+
+        rep.size = NSSize(width: 1, height: 1)
+
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+
+        guard let context = NSGraphicsContext(bitmapImageRep: rep) else {
+            return nil
+        }
+
+        NSGraphicsContext.current = context
+        context.imageInterpolation = .high
+        draw(in: NSRect(x: 0, y: 0, width: 1, height: 1))
+
+        guard let color = rep.colorAt(x: 0, y: 0)?.usingColorSpace(.deviceRGB) else {
+            return nil
+        }
+        return color
+    }
+}
+
+private struct OverlayScrollContainer<Content: View>: NSViewRepresentable {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.scrollerStyle = .overlay
+        scrollView.verticalScroller?.controlSize = .small
+        scrollView.verticalScroller?.knobStyle = .light
+        scrollView.contentView.drawsBackground = false
+
+        let hostingView = NSHostingView(rootView: content)
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.documentView = hostingView
+        context.coordinator.hostingView = hostingView
+        context.coordinator.widthConstraint = hostingView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
+        context.coordinator.widthConstraint?.isActive = true
+
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let hostingView = context.coordinator.hostingView else { return }
+        hostingView.rootView = content
+
+        let width = max(0, nsView.contentSize.width)
+        let fittingHeight = hostingView.fittingSize.height
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: fittingHeight)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var hostingView: NSHostingView<Content>?
+        var widthConstraint: NSLayoutConstraint?
     }
 }

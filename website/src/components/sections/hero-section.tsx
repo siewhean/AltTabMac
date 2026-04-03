@@ -9,7 +9,7 @@ import { siteConfig } from "@/content/site";
 import { analyticsAttributes } from "@/lib/analytics";
 
 export function HeroSection() {
-  const primaryHref = "#waitlist";
+  const primaryHref = "/trial";
 
   return (
     <section className="relative isolate min-h-[100svh] overflow-hidden">
@@ -31,7 +31,7 @@ export function HeroSection() {
             />
             <div>
               <p className="text-sm font-semibold tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-xs text-subdued">macOS private beta waitlist</p>
+              <p className="text-xs text-subdued">macOS window switching</p>
             </div>
           </a>
 

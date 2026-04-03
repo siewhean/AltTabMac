@@ -14,20 +14,6 @@ private let hotkeyLog = OSLog(subsystem: "CmdTab", category: "HotkeyManager")
 /// Every side-effect (UI updates, window fetching) is dispatched
 /// asynchronously to the main queue.
 final class HotkeyManager {
-    private struct TrackpadSelectorState {
-        var horizontal: CGFloat = 0
-        var vertical: CGFloat = 0
-        var lastEventUptime: TimeInterval = 0
-        var triggeredCurrentStroke = false
-
-        mutating func reset() {
-            horizontal = 0
-            vertical = 0
-            lastEventUptime = 0
-            triggeredCurrentStroke = false
-        }
-    }
-
     private weak var switcher: SwitcherWindowController?
     private let preferences = SwitcherPreferences.shared
     private var eventTap: CFMachPort?
@@ -42,10 +28,7 @@ final class HotkeyManager {
     private var showUIWorkItem: DispatchWorkItem?
     private var triggerState = HotkeyTriggerState()
     private var alternateTriggerState = AlternateModifierTriggerState()
-    private var trackpadSelectorState = TrackpadSelectorState()
     private let currentUptime: () -> TimeInterval
-    private let trackpadStepThreshold: CGFloat = 18
-    private let trackpadResetInterval: TimeInterval = 0.18
 
     init(
         switcher: SwitcherWindowController,
@@ -134,6 +117,22 @@ final class HotkeyManager {
 
         guard charCount > 0 else { return nil }
         return String(utf16CodeUnits: charBuffer, count: charCount)
+    }
+
+    private func shouldBypassForActiveTextInput() -> Bool {
+        MainActor.assumeIsolated {
+            guard NSApp.isActive else {
+                return false
+            }
+
+            for window in NSApp.windows where window.isVisible {
+                if window.firstResponder is NSTextView || window.firstResponder is NSTextField {
+                    return true
+                }
+            }
+
+            return false
+        }
     }
 
     private func cancelScheduledReveal() {
@@ -247,6 +246,10 @@ final class HotkeyManager {
             physicalKey,
             isDown: isDown,
             mode: triggerMode,
+            leftCommandDown: leftCommandDown,
+            leftOptionDown: leftOptionDown,
+            rightCommandDown: rightCommandDown,
+            rightOptionDown: rightOptionDown,
             now: uptime(for: eventTimestamp)
         )
         if shouldActivate {
@@ -345,7 +348,6 @@ final class HotkeyManager {
             rightCommandDown = false
             rightOptionDown = false
             alternateTriggerState = AlternateModifierTriggerState()
-            trackpadSelectorState.reset()
             recoverEventTap()
             return nil
 
@@ -372,6 +374,10 @@ final class HotkeyManager {
             }
 
         case .keyDown:
+            if shouldBypassForActiveTextInput() {
+                return Unmanaged.passRetained(event)
+            }
+
             let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
             let shift = event.flags.contains(.maskShift)
             let commandHeld = cmdDown || event.flags.contains(.maskCommand)
@@ -393,6 +399,14 @@ final class HotkeyManager {
             // Tab key — both ⌘Tab and ⌥Tab trigger the same app switcher.
             if keyCode == 48 {
                 if commandHeld && !optionHeld {
+                    let shouldHandleShortcut = MainActor.assumeIsolated {
+                        LicensingController.shared.shouldHandleCustomSwitcherShortcut()
+                    }
+                    guard shouldHandleShortcut else {
+                        clearPendingTrigger()
+                        return Unmanaged.passRetained(event)
+                    }
+
                     if isAutorepeat && triggerState.hasPendingTrigger && switcher?.isVisible != true {
                         return nil
                     }
@@ -409,6 +423,14 @@ final class HotkeyManager {
                 }
 
                 if optionHeld && !commandHeld {
+                    let shouldHandleShortcut = MainActor.assumeIsolated {
+                        LicensingController.shared.shouldHandleCustomSwitcherShortcut()
+                    }
+                    guard shouldHandleShortcut else {
+                        clearPendingTrigger()
+                        return Unmanaged.passRetained(event)
+                    }
+
                     noteStandardShortcutForAlternateTrigger(now: uptime(for: event.timestamp))
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(modifier: .option, reverse: shift)
@@ -477,7 +499,6 @@ final class HotkeyManager {
         case .scrollWheel:
             guard let switcher, switcher.isVisible else { break }
             guard event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 else { break }
-            guard handleVisibleSwitcherScroll(event, switcher: switcher) else { break }
             return nil
 
         default:
@@ -485,50 +506,6 @@ final class HotkeyManager {
         }
 
         return Unmanaged.passRetained(event)
-    }
-
-    private func handleVisibleSwitcherScroll(_ event: CGEvent, switcher: SwitcherWindowController) -> Bool {
-        let now = uptime(for: event.timestamp)
-        if now - trackpadSelectorState.lastEventUptime > trackpadResetInterval {
-            trackpadSelectorState.reset()
-        }
-        trackpadSelectorState.lastEventUptime = now
-
-        let horizontalDelta = CGFloat(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis2))
-        let verticalDelta = CGFloat(event.getIntegerValueField(.scrollWheelEventPointDeltaAxis1))
-
-        guard abs(horizontalDelta) > 0.01 || abs(verticalDelta) > 0.01 else {
-            return false
-        }
-
-        guard !trackpadSelectorState.triggeredCurrentStroke else {
-            return true
-        }
-
-        if abs(horizontalDelta) >= abs(verticalDelta) {
-            trackpadSelectorState.vertical = 0
-            trackpadSelectorState.horizontal += horizontalDelta
-
-            if abs(trackpadSelectorState.horizontal) >= trackpadStepThreshold {
-                let step = trackpadSelectorState.horizontal > 0 ? 1 : -1
-                dispatchToMain { switcher.moveSelection(by: step) }
-                trackpadSelectorState.triggeredCurrentStroke = true
-            }
-        } else {
-            trackpadSelectorState.horizontal = 0
-            trackpadSelectorState.vertical += verticalDelta
-
-            if abs(trackpadSelectorState.vertical) >= trackpadStepThreshold {
-                if trackpadSelectorState.vertical > 0 {
-                    dispatchToMain { switcher.moveSelectionDown() }
-                } else {
-                    dispatchToMain { switcher.moveSelectionUp() }
-                }
-                trackpadSelectorState.triggeredCurrentStroke = true
-            }
-        }
-
-        return true
     }
 }
 
@@ -600,37 +577,53 @@ enum HotkeyEarlyReleaseAction: Equatable {
     case quickSwitch
 }
 
-enum AlternateTriggerTapStyle: Equatable {
-    case singleTap
-    case doubleTap
-}
-
 private extension AlternateTriggerMode {
+    var activationKind: AlternateTriggerActivationKind? {
+        switch self {
+        case .disabled:
+            return nil
+        case .rightCommandTap, .rightOptionTap:
+            return .singleTap
+        case .rightCommandDoubleTap, .leftCommandDoubleTap:
+            return .doubleTap
+        case .rightOptionDoubleTap, .leftOptionDoubleTap:
+            return .chord
+        }
+    }
+
     var monitoredKey: PhysicalModifierTriggerKey? {
         switch self {
         case .disabled:
             return nil
         case .leftCommandDoubleTap:
             return .leftCommand
-        case .leftOptionDoubleTap:
-            return .leftOption
         case .rightCommandTap, .rightCommandDoubleTap:
             return .rightCommand
-        case .rightOptionTap, .rightOptionDoubleTap:
+        case .rightOptionTap:
             return .rightOption
+        case .rightOptionDoubleTap, .leftOptionDoubleTap:
+            return nil
         }
     }
 
-    var tapStyle: AlternateTriggerTapStyle? {
+    var monitoredKeys: Set<PhysicalModifierTriggerKey>? {
         switch self {
         case .disabled:
             return nil
-        case .rightCommandTap, .rightOptionTap:
-            return .singleTap
-        case .rightCommandDoubleTap, .rightOptionDoubleTap, .leftCommandDoubleTap, .leftOptionDoubleTap:
-            return .doubleTap
+        case .leftOptionDoubleTap:
+            return [.leftCommand, .leftOption]
+        case .rightOptionDoubleTap:
+            return [.rightCommand, .rightOption]
+        case .rightCommandTap, .rightCommandDoubleTap, .rightOptionTap, .leftCommandDoubleTap:
+            return nil
         }
     }
+}
+
+enum AlternateTriggerActivationKind: Equatable {
+    case singleTap
+    case doubleTap
+    case chord
 }
 
 private struct ActiveAlternateModifierPress: Equatable {
@@ -648,75 +641,121 @@ struct AlternateModifierTriggerState {
     private var activePress: ActiveAlternateModifierPress?
     private var pendingDoubleTap: PendingAlternateModifierTap?
     private var suppressedReleaseKey: PhysicalModifierTriggerKey?
+    private var triggeredCombination: Set<PhysicalModifierTriggerKey>?
     private let maximumTapDuration: TimeInterval = 0.28
-    private let maximumDoubleTapGap: TimeInterval = 0.40
+    private let maximumDoubleTapGap: TimeInterval = 1.0
 
     mutating func handleModifierChange(
         _ key: PhysicalModifierTriggerKey,
         isDown: Bool,
         mode: AlternateTriggerMode,
+        leftCommandDown: Bool,
+        leftOptionDown: Bool,
+        rightCommandDown: Bool,
+        rightOptionDown: Bool,
         now: TimeInterval
     ) -> Bool {
         pruneExpiredState(now: now)
 
         guard mode != .disabled,
-              mode.monitoredKey == key,
-              let tapStyle = mode.tapStyle else {
+              let activationKind = mode.activationKind else {
             if !isDown, activePress?.key == key {
                 activePress = nil
             }
             return false
         }
 
-        if suppressedReleaseKey == key && !isDown {
-            suppressedReleaseKey = nil
-            activePress = nil
-            return false
-        }
-
-        if isDown {
-            activePress = ActiveAlternateModifierPress(
-                key: key,
-                pressedAtUptime: now,
-                wasInterrupted: false
-            )
-            return false
-        }
-
-        guard let press = activePress, press.key == key else {
-            return false
-        }
-        activePress = nil
-
-        guard !press.wasInterrupted,
-              now - press.pressedAtUptime <= maximumTapDuration else {
-            pendingDoubleTap = nil
-            return false
-        }
-
-        switch tapStyle {
-        case .singleTap:
-            pendingDoubleTap = nil
-            return true
-
-        case .doubleTap:
-            if let pendingDoubleTap,
-               pendingDoubleTap.key == key,
-               now - pendingDoubleTap.releasedAtUptime <= maximumDoubleTapGap {
-                self.pendingDoubleTap = nil
-                return true
+        if activationKind != .chord {
+            guard mode.monitoredKey == key else {
+                if !isDown, activePress?.key == key {
+                    activePress = nil
+                }
+                return false
             }
 
-            pendingDoubleTap = PendingAlternateModifierTap(
-                key: key,
-                releasedAtUptime: now
-            )
+            if suppressedReleaseKey == key && !isDown {
+                suppressedReleaseKey = nil
+                activePress = nil
+                return false
+            }
+
+            if isDown {
+                activePress = ActiveAlternateModifierPress(
+                    key: key,
+                    pressedAtUptime: now,
+                    wasInterrupted: false
+                )
+                return false
+            }
+
+            guard let press = activePress, press.key == key else {
+                return false
+            }
+            activePress = nil
+
+            guard !press.wasInterrupted,
+                  now - press.pressedAtUptime <= maximumTapDuration else {
+                pendingDoubleTap = nil
+                return false
+            }
+
+            switch activationKind {
+            case .singleTap:
+                pendingDoubleTap = nil
+                return true
+            case .doubleTap:
+                if let pendingDoubleTap,
+                   pendingDoubleTap.key == key,
+                   now - pendingDoubleTap.releasedAtUptime < maximumDoubleTapGap {
+                    self.pendingDoubleTap = nil
+                    return true
+                }
+
+                pendingDoubleTap = PendingAlternateModifierTap(
+                    key: key,
+                    releasedAtUptime: now
+                )
+                return false
+            case .chord:
+                return false
+            }
+        }
+
+        guard let monitoredKeys = mode.monitoredKeys,
+              monitoredKeys.contains(key) else {
+            if !isDown {
+                triggeredCombination = nil
+            }
             return false
         }
+
+        let activeKeys = currentPressedKeys(
+            leftCommandDown: leftCommandDown,
+            leftOptionDown: leftOptionDown,
+            rightCommandDown: rightCommandDown,
+            rightOptionDown: rightOptionDown
+        )
+
+        if !isDown {
+            if let triggeredCombination, !triggeredCombination.isSubset(of: activeKeys) {
+                self.triggeredCombination = nil
+            }
+            return false
+        }
+
+        guard activeKeys.isSuperset(of: monitoredKeys) else {
+            return false
+        }
+
+        if triggeredCombination == monitoredKeys {
+            return false
+        }
+
+        triggeredCombination = monitoredKeys
+        return true
     }
 
-    mutating func noteInterveningKeyDown(now: TimeInterval) {
-        pruneExpiredState(now: now)
+    mutating func noteInterveningKeyDown(now _: TimeInterval) {
         guard var activePress else { return }
         activePress.wasInterrupted = true
         self.activePress = activePress
@@ -731,13 +770,36 @@ struct AlternateModifierTriggerState {
         activePress = nil
         pendingDoubleTap = nil
         suppressedReleaseKey = nil
+        triggeredCombination = nil
     }
 
     private mutating func pruneExpiredState(now: TimeInterval) {
         if let pendingDoubleTap,
-           now - pendingDoubleTap.releasedAtUptime > maximumDoubleTapGap {
+           now - pendingDoubleTap.releasedAtUptime >= maximumDoubleTapGap {
             self.pendingDoubleTap = nil
         }
+    }
+
+    private func currentPressedKeys(
+        leftCommandDown: Bool,
+        leftOptionDown: Bool,
+        rightCommandDown: Bool,
+        rightOptionDown: Bool
+    ) -> Set<PhysicalModifierTriggerKey> {
+        var keys = Set<PhysicalModifierTriggerKey>()
+        if leftCommandDown {
+            keys.insert(.leftCommand)
+        }
+        if leftOptionDown {
+            keys.insert(.leftOption)
+        }
+        if rightCommandDown {
+            keys.insert(.rightCommand)
+        }
+        if rightOptionDown {
+            keys.insert(.rightOption)
+        }
+        return keys
     }
 }
 

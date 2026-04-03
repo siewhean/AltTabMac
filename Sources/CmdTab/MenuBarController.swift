@@ -69,6 +69,14 @@ final class MenuBarController {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let licensingItem = NSMenuItem(title: "Licensing…", action: #selector(openLicensing), keyEquivalent: "")
+        licensingItem.target = self
+        menu.addItem(licensingItem)
+
+        let buyItem = NSMenuItem(title: "Buy CmdTab", action: #selector(openBuyPage), keyEquivalent: "")
+        buyItem.target = self
+        menu.addItem(buyItem)
+
         // ── About / help ─────────────────────────────────────────────────────
         let aboutItem = NSMenuItem(title: "About CmdTab", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
@@ -142,8 +150,8 @@ final class MenuBarController {
         [
             .disabled,
             .leftCommandDoubleTap,
-            .leftOptionDoubleTap,
             .rightCommandDoubleTap,
+            .leftOptionDoubleTap,
             .rightOptionDoubleTap
         ]
     }
@@ -177,7 +185,17 @@ final class MenuBarController {
     }
 
     @objc private func openSettings() {
-        preferencesWindowController.show()
+        preferencesWindowController.show(initialPane: .general)
+    }
+
+    @objc private func openLicensing() {
+        preferencesWindowController.showLicensing()
+    }
+
+    @objc private func openBuyPage() {
+        MainActor.assumeIsolated {
+            LicensingController.shared.openBuyPage()
+        }
     }
 
     @objc private func quitCmdTab() {

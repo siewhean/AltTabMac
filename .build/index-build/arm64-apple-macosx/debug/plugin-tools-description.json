@@ -36,11 +36,31 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppTelemetryReporter.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift"
         },
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperLicenseGenerator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperSettings.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FeedbackConfiguration.swift"
         },
         {
           "kind" : "file",
@@ -56,6 +76,22 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingConfiguration.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingStore.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift"
         },
         {
@@ -65,6 +101,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PermissionDiagnostics.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesPaneSelection.swift"
         },
         {
           "kind" : "file",
@@ -145,14 +185,24 @@
       "objects" : [
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppDelegate.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/HotkeyManager.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PaletteSearch.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesWindowController.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/RadialMenuView.swift.o",
@@ -242,14 +292,24 @@
       "sources" : [
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppTelemetryReporter.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperLicenseGenerator.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperSettings.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FeedbackConfiguration.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FrontmostResolution.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/HotkeyManager.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LaunchAtLoginController.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingConfiguration.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingController.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingStore.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PaletteSearch.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PermissionDiagnostics.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesPaneSelection.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesView.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesWindowController.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/RadialMenuView.swift",
@@ -400,6 +460,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/LicensingControllerTests.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift"
         },
         {
@@ -448,6 +512,7 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/BackdropGeometryTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/FrontmostResolutionTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/HotkeyTriggerStateTests.swift.o",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/PaletteSearchTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/RadialMenuViewportTests.swift.o",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/SwitcherCycleSessionTests.swift.o",
@@ -530,6 +595,7 @@
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift",
+        "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/LicensingControllerTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/RadialMenuViewportTests.swift",
         "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
@@ -555,14 +621,24 @@
       "-c",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppTelemetryReporter.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperLicenseGenerator.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperSettings.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FeedbackConfiguration.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FrontmostResolution.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/HotkeyManager.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LaunchAtLoginController.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingConfiguration.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingController.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingStore.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PaletteSearch.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PermissionDiagnostics.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesPaneSelection.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesView.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesWindowController.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/RadialMenuView.swift",
@@ -727,6 +803,7 @@
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/BackdropGeometryTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/FrontmostResolutionTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift",
+      "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/LicensingControllerTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/RadialMenuViewportTests.swift",
       "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
@@ -839,11 +916,31 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppTelemetryReporter.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift"
         },
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperLicenseGenerator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperSettings.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FeedbackConfiguration.swift"
         },
         {
           "kind" : "file",
@@ -859,6 +956,22 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingConfiguration.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingStore.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift"
         },
         {
@@ -868,6 +981,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PermissionDiagnostics.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesPaneSelection.swift"
         },
         {
           "kind" : "file",
@@ -976,6 +1093,10 @@
         {
           "kind" : "file",
           "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/HotkeyTriggerStateTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/LicensingControllerTests.swift"
         },
         {
           "kind" : "file",

@@ -72,15 +72,15 @@ enum AlternateTriggerMode: String, CaseIterable {
         case .rightCommandTap:
             return "Right Command Tap"
         case .rightCommandDoubleTap:
-            return "Hot Swap: Right Command ×2"
+            return "Hot Swap: Right ⌘ ×2"
         case .rightOptionTap:
             return "Right Option Tap"
         case .rightOptionDoubleTap:
-            return "Hot Swap: Right Option ×2"
+            return "Hot Swap: Right ⌘ + Right ⌥"
         case .leftCommandDoubleTap:
-            return "Hot Swap: Left Command ×2"
+            return "Hot Swap: Left ⌘ ×2"
         case .leftOptionDoubleTap:
-            return "Hot Swap: Left Option ×2"
+            return "Hot Swap: Left ⌘ + Left ⌥"
         }
     }
 
@@ -91,15 +91,15 @@ enum AlternateTriggerMode: String, CaseIterable {
         case .rightCommandTap:
             return "Tap the right Command key once to open a standalone CmdTab session."
         case .rightCommandDoubleTap:
-            return "Double-tap the right Command key to switch immediately to the most recent item without opening the switcher."
+            return "Quickly press the right Command key twice to switch immediately to the most recent item without opening the switcher."
         case .rightOptionTap:
             return "Tap the right Option key once to open a standalone CmdTab session."
         case .rightOptionDoubleTap:
-            return "Double-tap the right Option key to switch immediately to the most recent item without opening the switcher."
+            return "Press the right Command and right Option keys together to switch immediately to the most recent item without opening the switcher."
         case .leftCommandDoubleTap:
-            return "Double-tap the left Command key to switch immediately to the most recent item without opening the switcher."
+            return "Quickly press the left Command key twice to switch immediately to the most recent item without opening the switcher."
         case .leftOptionDoubleTap:
-            return "Double-tap the left Option key to switch immediately to the most recent item without opening the switcher."
+            return "Press the left Command and left Option keys together to switch immediately to the most recent item without opening the switcher."
         }
     }
 
@@ -114,19 +114,19 @@ enum AlternateTriggerMode: String, CaseIterable {
         case .rightOptionTap:
             return "Right ⌥"
         case .rightOptionDoubleTap:
-            return "Right ⌥ ×2"
+            return "Right ⌘ + Right ⌥"
         case .leftCommandDoubleTap:
             return "Left ⌘ ×2"
         case .leftOptionDoubleTap:
-            return "Left ⌥ ×2"
+            return "Left ⌘ + Left ⌥"
         }
     }
 
     var usesDoubleTap: Bool {
         switch self {
-        case .rightCommandDoubleTap, .rightOptionDoubleTap, .leftCommandDoubleTap, .leftOptionDoubleTap:
+        case .rightCommandDoubleTap, .leftCommandDoubleTap:
             return true
-        case .disabled, .rightCommandTap, .rightOptionTap:
+        case .disabled, .rightCommandTap, .rightOptionTap, .rightOptionDoubleTap, .leftOptionDoubleTap:
             return false
         }
     }

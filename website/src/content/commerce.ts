@@ -6,7 +6,7 @@ export const commerceContent = {
   trialLength: "14-day trial",
   founder: {
     title: "Buy now",
-    price: "US$5",
+    price: "US$12",
     note: "Take the early price if you already know you want it.",
     points: [
       "One-time purchase",
@@ -17,7 +17,7 @@ export const commerceContent = {
   },
   standard: {
     title: "Free trial",
-    price: "US$9.99",
+    price: "US$19",
     note: "Use the full app for 14 days, then decide.",
     points: [
       "14-day free trial",

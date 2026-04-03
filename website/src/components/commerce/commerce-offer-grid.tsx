@@ -4,27 +4,12 @@ import { commerceContent } from "@/content/commerce";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
 
-function providerLabel(provider?: string) {
-  if (!provider) return null;
-  switch (provider) {
-    case "lemonsqueezy":
-      return "Hosted checkout via Lemon Squeezy";
-    case "paddle":
-      return "Hosted checkout via Paddle";
-    case "stripe":
-      return "Hosted checkout via Stripe";
-    default:
-      return "Hosted checkout configured";
-  }
-}
-
 type CommerceOfferGridProps = {
   context: string;
 };
 
 export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
   const commerce = getCommerceConfig();
-  const providerNote = providerLabel(commerce.checkoutProvider);
 
   return (
     <div className="space-y-6">
@@ -136,35 +121,6 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
             )}
           </div>
         </article>
-      </MotionReveal>
-
-      <MotionReveal direction="up" delay={140} className="surface-panel p-6">
-        <p className="type-eyebrow text-cyan">Commerce setup</p>
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <p className="text-sm leading-7 text-muted">
-            {providerNote ?? "Hosted checkout is ready for a trial link, a founder checkout link, and a standard buy link."}
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <a
-              href="/trial"
-              className="surface-muted block p-4 transition duration-200 hover:-translate-y-0.5 hover:border-white/14"
-            >
-              <p className="text-sm font-medium text-text">Trial page</p>
-              <p className="mt-1 text-sm leading-6 text-muted">
-                Explain the 14-day evaluation and publish the build.
-              </p>
-            </a>
-            <a
-              href="/help"
-              className="surface-muted block p-4 transition duration-200 hover:-translate-y-0.5 hover:border-white/14"
-            >
-              <p className="text-sm font-medium text-text">Help page</p>
-              <p className="mt-1 text-sm leading-6 text-muted">
-                Handle purchase recovery, activation questions, and billing help.
-              </p>
-            </a>
-          </div>
-        </div>
       </MotionReveal>
     </div>
   );

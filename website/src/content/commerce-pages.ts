@@ -30,15 +30,14 @@ export const commercePageContent = {
     eyebrow: "Free trial",
     title: `${commerceContent.trialLength} before you decide.`,
     description:
-      "The trial page should explain setup, what the evaluation includes, and what happens next.",
+      "Download the current build, enable the required permissions, and try CmdTab in real work.",
     checklist: [
       "Download the current trial build.",
       "Enable Accessibility and Screen Recording in macOS.",
       "Use CmdTab in your normal app-switching workflow.",
-      "Buy the one-time license if you want to keep it after the trial.",
     ],
     note:
-      "If the build is not live yet, this page should still explain the path and point people to Help.",
+      "If the build is not live yet, this page should point people to Help for access.",
   },
   help: {
     eyebrow: "Help",

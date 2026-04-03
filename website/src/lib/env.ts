@@ -5,6 +5,9 @@ type ServerEnv = {
   waitlistFromEmail: string;
   waitlistToEmail: string;
   waitlistReplyToEmail?: string;
+  lemonsqueezyWebhookSecret?: string;
+  cmdtabLicensePrivateKeyPem?: string;
+  licenseDeliveryFromEmail?: string;
 };
 
 export function getSiteUrl() {
@@ -26,6 +29,12 @@ export function getServerEnv(): ServerEnv {
     waitlistFromEmail: process.env.WAITLIST_FROM_EMAIL?.trim(),
     waitlistToEmail: process.env.WAITLIST_TO_EMAIL?.trim(),
     waitlistReplyToEmail: process.env.WAITLIST_REPLY_TO_EMAIL?.trim() || undefined,
+    lemonsqueezyWebhookSecret:
+      process.env.LEMONSQUEEZY_WEBHOOK_SECRET?.trim() || undefined,
+    cmdtabLicensePrivateKeyPem:
+      process.env.CMDTAB_LICENSE_PRIVATE_KEY_PEM?.trim() || undefined,
+    licenseDeliveryFromEmail:
+      process.env.LICENSE_DELIVERY_FROM_EMAIL?.trim() || undefined,
   };
 
   if (!required.resendApiKey || !required.waitlistFromEmail || !required.waitlistToEmail) {
@@ -37,5 +46,8 @@ export function getServerEnv(): ServerEnv {
     waitlistFromEmail: required.waitlistFromEmail,
     waitlistToEmail: required.waitlistToEmail,
     waitlistReplyToEmail: required.waitlistReplyToEmail,
+    lemonsqueezyWebhookSecret: required.lemonsqueezyWebhookSecret,
+    cmdtabLicensePrivateKeyPem: required.cmdtabLicensePrivateKeyPem,
+    licenseDeliveryFromEmail: required.licenseDeliveryFromEmail,
   };
 }

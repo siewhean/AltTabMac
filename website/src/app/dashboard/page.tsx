@@ -11,6 +11,13 @@ import {
   listLicenseRequests,
 } from "@/lib/license-request-store";
 import {
+  getLicenseFulfillmentAggregateStats,
+  isLicenseFulfillmentStoreConfigured,
+  listLicenseFulfillments,
+} from "@/lib/license-fulfillment-store";
+import { getAppUsageOverview, isAppUsageStoreConfigured } from "@/lib/app-usage-store";
+import {
+  getAnalyticsEventCount,
   getSiteAnalyticsOverview,
   isSiteAnalyticsConfigured,
   listSiteAnalyticsSeries,
@@ -18,6 +25,7 @@ import {
   listTopAnalyticsPages,
   type SiteAnalyticsOverview,
 } from "@/lib/site-analytics-store";
+import { getTrialClaimAggregateStats, isTrialClaimStoreConfigured } from "@/lib/trial-claim-store";
 import { isWaitlistStoreConfigured, listWaitlistSubmissions } from "@/lib/waitlist-store";
 
 export const dynamic = "force-dynamic";
@@ -54,9 +62,41 @@ export default async function DashboardPage() {
   const authSummary = await getDashboardAuthSummary();
   const analyticsConfigured = isSiteAnalyticsConfigured();
   const licenseStoreConfigured = isLicenseRequestStoreConfigured();
+  const licenseFulfillmentStoreConfigured = isLicenseFulfillmentStoreConfigured();
+  const trialClaimStoreConfigured = isTrialClaimStoreConfigured();
+  const appUsageStoreConfigured = isAppUsageStoreConfigured();
   const [licenseStats, licenseRequests] = licenseStoreConfigured
     ? await Promise.all([getLicenseRequestAggregateStats(), listLicenseRequests(20)])
     : [{ total: 0, delivered: 0, failed: 0, pending: 0, requests30d: 0, latestRequest: undefined }, []];
+  const [licenseFulfillmentStats, licenseFulfillments] = licenseFulfillmentStoreConfigured
+    ? await Promise.all([
+        getLicenseFulfillmentAggregateStats(),
+        listLicenseFulfillments(20),
+      ])
+    : [{
+        total: 0,
+        delivered: 0,
+        failed: 0,
+        pending: 0,
+        refunded: 0,
+        purchases30d: 0,
+        latestFulfillment: undefined,
+      }, []];
+  const [trialClaimStats, appUsageOverview, trialDownloadClicks30d] = await Promise.all([
+    trialClaimStoreConfigured
+      ? getTrialClaimAggregateStats()
+      : Promise.resolve({ total: 0, active: 0, expired: 0, claims30d: 0, latestClaim: undefined }),
+    appUsageStoreConfigured
+      ? getAppUsageOverview()
+      : Promise.resolve({
+          appActivations7d: 0,
+          heartbeats7d: 0,
+          activeInstalls7d: 0,
+          licenseActivations30d: 0,
+          latestActivity: undefined,
+        }),
+    analyticsConfigured ? getAnalyticsEventCount("trial_page_download_click", 30) : Promise.resolve(0),
+  ]);
   const emptyAnalytics: SiteAnalyticsOverview = {
     pageviews24h: 0,
     pageviews7d: 0,
@@ -99,40 +139,50 @@ export default async function DashboardPage() {
   return (
     <DashboardShell
       active="/dashboard"
-      title="Waitlist and website analytics"
-      description="A stable operational view of live signups, delivery health, and first-party website analytics mirrored into your own dashboard."
+      title="Overview"
+      description="A cleaner operational view of signups, trials, purchases, and website activity."
     >
       <div className="space-y-6">
         <section className="surface-panel p-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-            Status
+            Snapshot
           </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            {[
-              { label: "Database", value: storeConfigured ? "Configured" : "Missing" },
-              { label: "Submissions", value: String(submissions.length) },
-              { label: "Delivered", value: String(delivered) },
-              { label: "Failed", value: String(failed) },
-              { label: "Pending", value: String(pending) },
-            ].map((item) => (
-              <div key={item.label} className="surface-muted p-4">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
-                <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
-                  {item.value}
-                </p>
+          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            <div className="surface-muted p-5">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Waitlist</p>
+              <p className="mt-3 text-3xl font-medium tracking-[-0.05em] text-text">{submissions.length}</p>
+              <div className="mt-4 space-y-2 text-sm leading-6 text-muted">
+                <p>Delivered: <span className="text-text">{delivered}</span></p>
+                <p>Failed: <span className="text-text">{failed}</span></p>
+                <p>Pending: <span className="text-text">{pending}</span></p>
+                <p>Named signups: <span className="text-text">{namedCount}</span></p>
+                <p>Latest signup: <span className="text-text">{latestSignup ? formatSingaporeDateTime(latestSignup) : "No submissions yet"}</span></p>
               </div>
-            ))}
-          </div>
-          <div className="mt-5 text-sm leading-7 text-muted">
-            <p>
-              Latest signup:{" "}
-              <span className="text-text">
-                {latestSignup ? formatSingaporeDateTime(latestSignup) : "No submissions yet"}
-              </span>
-            </p>
-            <p>
-              Named signups: <span className="text-text">{namedCount}</span>
-            </p>
+            </div>
+
+            <div className="surface-muted p-5">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Trials and app usage</p>
+              <p className="mt-3 text-3xl font-medium tracking-[-0.05em] text-text">{trialClaimStats.total}</p>
+              <div className="mt-4 space-y-2 text-sm leading-6 text-muted">
+                <p>Claimed trials 30d: <span className="text-text">{trialClaimStats.claims30d}</span></p>
+                <p>Active trials: <span className="text-text">{trialClaimStats.active}</span></p>
+                <p>Trial downloads 30d: <span className="text-text">{trialDownloadClicks30d}</span></p>
+                <p>Active installs 7d: <span className="text-text">{appUsageOverview.activeInstalls7d}</span></p>
+                <p>Latest app activity: <span className="text-text">{appUsageOverview.latestActivity ? formatSingaporeDateTime(appUsageOverview.latestActivity) : "No app events yet"}</span></p>
+              </div>
+            </div>
+
+            <div className="surface-muted p-5">
+              <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Commerce</p>
+              <p className="mt-3 text-3xl font-medium tracking-[-0.05em] text-text">{licenseFulfillmentStats.delivered}</p>
+              <div className="mt-4 space-y-2 text-sm leading-6 text-muted">
+                <p>Licenses delivered: <span className="text-text">{licenseFulfillmentStats.delivered}</span></p>
+                <p>Purchases 30d: <span className="text-text">{licenseFulfillmentStats.purchases30d}</span></p>
+                <p>License activations 30d: <span className="text-text">{appUsageOverview.licenseActivations30d}</span></p>
+                <p>Support requests 30d: <span className="text-text">{licenseStats.requests30d}</span></p>
+                <p>Latest fulfillment: <span className="text-text">{licenseFulfillmentStats.latestFulfillment ? formatSingaporeDateTime(licenseFulfillmentStats.latestFulfillment) : "No purchases yet"}</span></p>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -156,12 +206,11 @@ export default async function DashboardPage() {
             </p>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
               { label: "Pageviews 24h", value: String(analyticsOverview.pageviews24h) },
               { label: "Visitors 24h", value: String(analyticsOverview.visitors24h) },
               { label: "Pageviews 7d", value: String(analyticsOverview.pageviews7d) },
-              { label: "Visitors 7d", value: String(analyticsOverview.visitors7d) },
               { label: "Tracked events 7d", value: String(analyticsOverview.totalEvents7d) },
             ].map((item) => (
               <div key={item.label} className="surface-muted p-4">
@@ -232,6 +281,16 @@ export default async function DashboardPage() {
                   )}
                 </div>
               </div>
+
+              <div className="surface-muted p-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Visitors 7d</p>
+                <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                  {analyticsOverview.visitors7d}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-muted">
+                  Website traffic and click events are mirrored here so you do not need to keep opening Vercel for routine checks.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -243,7 +302,7 @@ export default async function DashboardPage() {
           ) : null}
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <section className="surface-panel p-6">
             <div className="flex items-end justify-between gap-4 border-b border-white/8 pb-5">
               <div>
@@ -313,6 +372,70 @@ export default async function DashboardPage() {
           <div className="space-y-6">
             <section className="surface-panel p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                License delivery
+              </p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                {[
+                  { label: "Orders", value: String(licenseFulfillmentStats.total) },
+                  { label: "Last 30 days", value: String(licenseFulfillmentStats.purchases30d) },
+                  { label: "Delivered", value: String(licenseFulfillmentStats.delivered) },
+                  { label: "Failed", value: String(licenseFulfillmentStats.failed) },
+                ].map((item) => (
+                  <div key={item.label} className="surface-muted p-4">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
+                    <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 space-y-2 text-sm leading-7 text-muted">
+                <p>
+                  Latest fulfillment:{" "}
+                  <span className="text-text">
+                    {licenseFulfillmentStats.latestFulfillment
+                      ? formatSingaporeDateTime(licenseFulfillmentStats.latestFulfillment)
+                      : "No purchases yet"}
+                  </span>
+                </p>
+                <p>
+                  Fulfillment status:{" "}
+                  <span className="text-text">
+                    {licenseFulfillmentStoreConfigured ? "Configured" : "Missing"}
+                  </span>
+                </p>
+              </div>
+              <div className="mt-5 space-y-3 border-t border-white/8 pt-4">
+                {licenseFulfillments.length > 0 ? (
+                  licenseFulfillments.slice(0, 5).map((delivery) => (
+                    <div key={delivery.id} className="surface-muted p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-text">{delivery.purchaserEmail}</p>
+                          <p className="mt-1 text-sm leading-6 text-muted">
+                            {delivery.productName ?? "CmdTab"} · {delivery.deliveryStatus}
+                            {delivery.testMode ? " · test" : ""}
+                          </p>
+                        </div>
+                        <span className="text-xs text-subdued">
+                          {formatSingaporeDateTime(delivery.updatedAt)}
+                        </span>
+                      </div>
+                      {delivery.deliveryError ? (
+                        <p className="mt-2 text-xs leading-5 text-rose-200">{delivery.deliveryError}</p>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-muted">
+                    Purchases and automated license emails will appear here after the webhook starts receiving orders.
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <section className="surface-panel p-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
                 License support
               </p>
               <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -371,7 +494,7 @@ export default async function DashboardPage() {
 
             <section className="surface-panel p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                Access and storage
+                Access and setup
               </p>
               <div className="mt-5 space-y-4 text-sm leading-7 text-muted">
                 <p>
@@ -405,7 +528,7 @@ export default async function DashboardPage() {
 
             <section className="surface-panel p-6">
               <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                Website signals
+                Reference links
               </p>
               <div className="mt-5 space-y-4 text-sm leading-7 text-muted">
                 <p>{dashboardContent.summary}</p>

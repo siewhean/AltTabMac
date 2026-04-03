@@ -67,8 +67,6 @@ private final class SwitcherMirrorPanel: NSPanel {
 final class SwitcherWindowController {
     private let itemMutationAnimation = Animation.spring(response: 0.24, dampingFraction: 0.84)
     private let quickActionSuppressionInterval: TimeInterval = 1.4
-    private let trackpadStepThreshold: CGFloat = 26
-    private let trackpadResetInterval: TimeInterval = 0.18
 
     private struct PendingItemSuppression {
         let target: SwitcherItemSuppressionTarget
@@ -76,18 +74,6 @@ final class SwitcherWindowController {
 
         func matches(_ item: SwitcherItem) -> Bool {
             target.matches(item)
-        }
-    }
-
-    private struct TrackpadNavigationState {
-        var horizontal: CGFloat = 0
-        var vertical: CGFloat = 0
-        var lastEventUptime: TimeInterval = 0
-
-        mutating func reset() {
-            horizontal = 0
-            vertical = 0
-            lastEventUptime = 0
         }
     }
 
@@ -105,7 +91,6 @@ final class SwitcherWindowController {
     private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
     private var lastObservedStyle: SwitcherStyle
-    private var trackpadNavigationState = TrackpadNavigationState()
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -120,6 +105,7 @@ final class SwitcherWindowController {
     /// before the modifier-release event fires. Without this, releasing Cmd after
     /// a mouse-click commit causes a second, spurious activation.
     var onClickCommit: (() -> Void)?
+    var onLicenseAccessRequired: (() -> Void)?
 
     init() {
         self.lastObservedStyle = SwitcherPreferences.shared.switcherStyle
@@ -393,48 +379,7 @@ final class SwitcherWindowController {
     }
 
     private func handlePanelScrollEvent(_ event: NSEvent) -> Bool {
-        guard viewModel.isVisible else { return false }
-        guard event.hasPreciseScrollingDeltas else { return false }
-
-        let now = ProcessInfo.processInfo.systemUptime
-        if now - trackpadNavigationState.lastEventUptime > trackpadResetInterval {
-            trackpadNavigationState.reset()
-        }
-        trackpadNavigationState.lastEventUptime = now
-
-        let directionMultiplier: CGFloat = event.isDirectionInvertedFromDevice ? -1 : 1
-        let horizontalDelta = CGFloat(event.scrollingDeltaX) * directionMultiplier
-        let verticalDelta = CGFloat(event.scrollingDeltaY) * directionMultiplier
-
-        guard abs(horizontalDelta) > 0.01 || abs(verticalDelta) > 0.01 else {
-            return false
-        }
-
-        if abs(horizontalDelta) >= abs(verticalDelta) {
-            trackpadNavigationState.vertical = 0
-            trackpadNavigationState.horizontal += horizontalDelta
-
-            while abs(trackpadNavigationState.horizontal) >= trackpadStepThreshold {
-                let step = trackpadNavigationState.horizontal > 0 ? 1 : -1
-                moveSelection(by: step)
-                trackpadNavigationState.horizontal -= CGFloat(step) * trackpadStepThreshold
-            }
-        } else {
-            trackpadNavigationState.horizontal = 0
-            trackpadNavigationState.vertical += verticalDelta
-
-            while abs(trackpadNavigationState.vertical) >= trackpadStepThreshold {
-                if trackpadNavigationState.vertical > 0 {
-                    moveSelectionUp()
-                    trackpadNavigationState.vertical -= trackpadStepThreshold
-                } else {
-                    moveSelectionDown()
-                    trackpadNavigationState.vertical += trackpadStepThreshold
-                }
-            }
-        }
-
-        return true
+        viewModel.isVisible && event.hasPreciseScrollingDeltas
     }
 
     private func searchableCharacter(from event: NSEvent) -> String? {
@@ -469,6 +414,14 @@ final class SwitcherWindowController {
     }
 
     private func startSession(reverse: Bool) -> Bool {
+        let hasAccess = MainActor.assumeIsolated {
+            LicensingController.shared.ensureUsageAllowed(openLicensing: { [weak self] in
+                self?.onLicenseAccessRequired?()
+            })
+        }
+        guard hasAccess else {
+            return false
+        }
         guard let newSession = makeSession(reverse: reverse) else { return false }
         session = newSession
         if preferences.switcherStyle == .commandPalette {
@@ -709,7 +662,6 @@ final class SwitcherWindowController {
     /// - Parameter makeKey: Pass `true` when showing via menu-bar / standalone click so
     ///   `NSApp.activate` is also called, making our app the active one for the session.
     private func showPanel(makeKey: Bool = false) {
-        trackpadNavigationState.reset()
         if viewModel.items.isEmpty, var session {
             let primedItems = items()
             guard !primedItems.isEmpty else { return }
@@ -742,7 +694,6 @@ final class SwitcherWindowController {
     }
 
     private func hidePanel() {
-        trackpadNavigationState.reset()
         viewModel.isVisible = false
         panel.alphaValue = 0
         panel.orderOut(nil)

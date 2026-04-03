@@ -5,6 +5,7 @@ final class PreferencesWindowController: NSWindowController {
     var onOpenApplications: (() -> Void)?
     var onRefreshPreviews: (() -> Void)?
     var onApplySwitcherStyle: ((SwitcherStyle) -> Void)?
+    private var preferredInitialPane: PreferencesPaneSelection = .general
 
     private let styleChangeHUDController = StyleChangeHUDController()
 
@@ -13,7 +14,8 @@ final class PreferencesWindowController: NSWindowController {
             preferences: SwitcherPreferences.shared,
             onOpenApplications: { },
             onRefreshPreviews: { },
-            onApplySwitcherStyle: { _ in }
+            onApplySwitcherStyle: { _ in },
+            initialPane: .general
         )
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
@@ -39,10 +41,19 @@ final class PreferencesWindowController: NSWindowController {
     }
 
     func show() {
+        show(initialPane: .general)
+    }
+
+    func show(initialPane: PreferencesPaneSelection) {
+        preferredInitialPane = initialPane
         refreshContent()
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func showLicensing() {
+        show(initialPane: .licensing)
     }
 
     func showStyleChangeHUD(for style: SwitcherStyle) {
@@ -55,7 +66,8 @@ final class PreferencesWindowController: NSWindowController {
             preferences: SwitcherPreferences.shared,
             onOpenApplications: { [weak self] in self?.onOpenApplications?() },
             onRefreshPreviews: { [weak self] in self?.onRefreshPreviews?() },
-            onApplySwitcherStyle: { [weak self] style in self?.onApplySwitcherStyle?(style) }
+            onApplySwitcherStyle: { [weak self] style in self?.onApplySwitcherStyle?(style) },
+            initialPane: preferredInitialPane
         )
     }
 }

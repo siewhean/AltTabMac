@@ -16,6 +16,13 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppSwitcher.dia"
   },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppTelemetryReporter.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/AppTelemetryReporter.dia"
+  },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.d",
     "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/ClassicGridView.swift.o",
@@ -29,6 +36,34 @@
     "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView~partial.swiftmodule",
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/CommandPaletteView.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperLicenseGenerator.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperLicenseGenerator.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperPreferencesPane.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperSettings.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/DeveloperSettings.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FeedbackConfiguration.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FeedbackConfiguration.dia"
   },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/FrontmostResolution.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/FrontmostResolution.d",
@@ -51,6 +86,34 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LaunchAtLoginController.dia"
   },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingConfiguration.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingConfiguration.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingController.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingController.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingPreferencesPane.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingStore.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/LicensingStore.dia"
+  },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/MenuBarController.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.d",
     "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/MenuBarController.swift.o",
@@ -71,6 +134,13 @@
     "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics~partial.swiftmodule",
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PermissionDiagnostics.dia"
+  },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesPaneSelection.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesPaneSelection.dia"
   },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/PreferencesView.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTab.build/PreferencesView.d",

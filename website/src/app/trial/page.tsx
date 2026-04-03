@@ -11,7 +11,7 @@ import { getCommerceConfig } from "@/lib/commerce";
 
 export const metadata: Metadata = {
   title: "CmdTab trial | 14-day download path",
-  description: "Start the CmdTab trial, understand the setup, and know exactly what happens after the 14-day evaluation ends.",
+  description: "Start the CmdTab trial, download the build, and get help if you need access or setup support.",
   alternates: {
     canonical: "/trial",
   },
@@ -44,13 +44,9 @@ export default function TrialPage() {
           </MotionReveal>
 
           <MotionReveal direction="right" delay={120} className="surface-panel p-6">
-            <p className="type-eyebrow text-cyan">Download and next step</p>
+            <p className="type-eyebrow text-cyan">Download</p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-muted">
               <p>{commercePageContent.trial.note}</p>
-              <p>
-                If the trial proves itself, the next step is the one-time buy flow. No account system
-                is required just to move from trial to checkout.
-              </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {commerce.trialDownloadUrl ? (

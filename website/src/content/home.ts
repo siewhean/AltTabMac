@@ -1,9 +1,9 @@
 export const heroContent = {
-  eyebrow: "Private beta waitlist for macOS",
+  eyebrow: "Window switching for macOS",
   title: "Find the right Mac window in one move.",
   summary:
     "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open. Join the waitlist to get beta updates and first access when the next public build is ready.",
+  status: "Built for people who keep too many apps and windows open. Start with the trial, then buy once if it earns a place in your workflow.",
 };
 
 export const proofPoints = [
@@ -13,7 +13,7 @@ export const proofPoints = [
   "Hide, minimize, close, or quit the selected item without leaving the switcher.",
   "Alternate right-side modifier triggers for one-handed sessions.",
   "Exclusions and ignored-title rules to keep noisy windows out of the way.",
-  "Join the waitlist to get the next beta build and release updates.",
+  "Start with the trial and buy once if CmdTab proves itself in real work.",
 ];
 
 export const styleVariants = [

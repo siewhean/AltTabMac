@@ -37,6 +37,13 @@
     "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/HotkeyTriggerStateTests.swiftdeps",
     "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/HotkeyTriggerStateTests.dia"
   },
+  "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/LicensingControllerTests.swift": {
+    "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests.d",
+    "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests.swift.o",
+    "swiftmodule": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests.swiftdeps",
+    "diagnostics": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/LicensingControllerTests.dia"
+  },
   "/Users/Siew Hean/Documents/GitHub/CmdTab/Tests/CmdTabTests/PaletteSearchTests.swift": {
     "dependencies": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/PaletteSearchTests.d",
     "object": "/Users/Siew Hean/Documents/GitHub/CmdTab/.build/index-build/arm64-apple-macosx/debug/CmdTabTests.build/PaletteSearchTests.swift.o",

@@ -517,7 +517,49 @@ final class AppSwitcher: NSObject {
                 }
             }
 
-        return windowItems
+        let representedWindowPIDs = Set(context.candidates.map(\.ownerPID))
+        let representedWindowAppIdentifiers = Set(context.candidates.map(\.sourceAppIdentifier))
+        var seenFallbackAppIdentifiers = Set<String>()
+
+        let fallbackItems: [SwitcherItem] = context.runningApps
+            .sorted(by: compareApps)
+            .compactMap { app in
+                let sourceAppIdentifier = sourceAppIdentifier(for: app)
+                let appName = app.localizedName ?? "Application"
+
+                guard !preferences.excludesApp(identifier: sourceAppIdentifier, appName: appName) else {
+                    return nil
+                }
+
+                guard Self.shouldIncludeFallbackApp(
+                    processIdentifier: app.processIdentifier,
+                    sourceAppIdentifier: sourceAppIdentifier,
+                    representedWindowPIDs: representedWindowPIDs,
+                    representedWindowAppIdentifiers: representedWindowAppIdentifiers,
+                    seenFallbackAppIdentifiers: &seenFallbackAppIdentifiers
+                ) else {
+                    return nil
+                }
+
+                let identity = SwitcherHistoryIdentity.appFallback(
+                    bundleID: sourceAppIdentifier,
+                    pid: app.processIdentifier
+                )
+
+                return SwitcherItem(
+                    title: appName,
+                    subtitle: "",
+                    icon: app.icon,
+                    previewImage: nil,
+                    historyIdentity: identity,
+                    sourceAppIdentifier: sourceAppIdentifier,
+                    kind: .appFallback
+                ) { [weak self] in
+                    self?.activateFallbackApplication(app, identity: identity)
+                }
+            }
+
+        return windowItems + fallbackItems
     }
 
     private func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {

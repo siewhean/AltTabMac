@@ -48,6 +48,23 @@ export type SiteAnalyticsSeriesPoint = {
   visitors: number;
 };
 
+export async function getAnalyticsEventCount(eventName: string, days = 30) {
+  if (!isDatabaseConfigured()) return 0;
+  await ensureSchema();
+  const sql = getSql();
+  const safeDays = Math.max(1, Math.min(days, 365));
+  const [row] = await sql<{ count: number }[]>`
+    select
+      count(*)::int as count
+    from site_analytics_events
+    where event_type = 'event'
+      and event_name = ${eventName}
+      and occurred_at >= now() - (${safeDays} * interval '1 day')
+  `;
+
+  return row?.count ?? 0;
+}
+
 let schemaReady = false;
 
 function serializeEventData(data?: Record<string, unknown>) {

@@ -2,28 +2,7 @@ import XCTest
 @testable import CmdTab
 
 final class AlternateModifierTriggerStateTests: XCTestCase {
-    func testRightCommandSingleTapActivates() {
-        var state = AlternateModifierTriggerState()
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightCommand,
-                isDown: true,
-                mode: .rightCommandTap,
-                now: 10.0
-            )
-        )
-        XCTAssertTrue(
-            state.handleModifierChange(
-                .rightCommand,
-                isDown: false,
-                mode: .rightCommandTap,
-                now: 10.12
-            )
-        )
-    }
-
-    func testRightCommandDoubleTapRequiresSecondTap() {
+    func testRightCommandDoubleTapRequiresQuickSecondTap() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
@@ -31,156 +10,191 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
                 .rightCommand,
                 isDown: true,
                 mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 10.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 10.08
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 10.22
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 10.30
+            )
+        )
+    }
+
+    func testLeftCommandDoubleTapRequiresQuickSecondTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftCommandDoubleTap,
+                leftCommandDown: true,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
                 now: 20.0
             )
         )
         XCTAssertFalse(
             state.handleModifierChange(
-                .rightCommand,
+                .leftCommand,
                 isDown: false,
-                mode: .rightCommandDoubleTap,
-                now: 20.08
+                mode: .leftCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 20.07
             )
         )
 
         XCTAssertFalse(
             state.handleModifierChange(
-                .rightCommand,
+                .leftCommand,
                 isDown: true,
-                mode: .rightCommandDoubleTap,
-                now: 20.24
+                mode: .leftCommandDoubleTap,
+                leftCommandDown: true,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 20.20
             )
         )
         XCTAssertTrue(
             state.handleModifierChange(
-                .rightCommand,
+                .leftCommand,
                 isDown: false,
-                mode: .rightCommandDoubleTap,
-                now: 20.32
+                mode: .leftCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 20.28
             )
         )
     }
 
-    func testLongHoldDoesNotActivateAlternateTrigger() {
+    func testSlowSecondCommandTapDoesNotActivate() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
             state.handleModifierChange(
-                .rightOption,
+                .rightCommand,
                 isDown: true,
-                mode: .rightOptionTap,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
                 now: 30.0
             )
         )
         XCTAssertFalse(
             state.handleModifierChange(
-                .rightOption,
+                .rightCommand,
                 isDown: false,
-                mode: .rightOptionTap,
-                now: 30.5
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 30.08
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 31.20
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 31.28
             )
         )
     }
 
-    func testInterveningKeyCancelsPendingTap() {
+    func testRightSideChordActivatesWhenSecondKeyGoesDown() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
             state.handleModifierChange(
                 .rightCommand,
                 isDown: true,
-                mode: .rightCommandTap,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
                 now: 40.0
             )
         )
-        state.noteInterveningKeyDown(now: 40.05)
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightCommand,
-                isDown: false,
-                mode: .rightCommandTap,
-                now: 40.1
-            )
-        )
-    }
 
-    func testExpiredDoubleTapWindowDoesNotActivate() {
-        var state = AlternateModifierTriggerState()
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightOption,
-                isDown: true,
-                mode: .rightOptionDoubleTap,
-                now: 50.0
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightOption,
-                isDown: false,
-                mode: .rightOptionDoubleTap,
-                now: 50.1
-            )
-        )
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightOption,
-                isDown: true,
-                mode: .rightOptionDoubleTap,
-                now: 50.8
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .rightOption,
-                isDown: false,
-                mode: .rightOptionDoubleTap,
-                now: 50.9
-            )
-        )
-    }
-
-    func testLeftCommandDoubleTapRequiresSecondTap() {
-        var state = AlternateModifierTriggerState()
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 60.0
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 60.08
-            )
-        )
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 60.24
-            )
-        )
         XCTAssertTrue(
             state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 60.32
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: true,
+                now: 40.02
             )
         )
     }
 
-    func testLeftOptionDoubleTapRequiresSecondTap() {
+    func testLeftSideChordActivatesWhenSecondKeyGoesDown() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
@@ -188,129 +202,152 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
                 .leftOption,
                 isDown: true,
                 mode: .leftOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: true,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 50.0
+            )
+        )
+
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: true,
+                mode: .leftOptionDoubleTap,
+                leftCommandDown: true,
+                leftOptionDown: true,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 50.03
+            )
+        )
+    }
+
+    func testHoldingChordDoesNotRetriggerUntilReleased() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 60.0
+            )
+        )
+
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: true,
+                now: 60.02
+            )
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: true,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: true,
+                now: 60.04
+            )
+        )
+    }
+
+    func testStandardShortcutResetsTriggeredStates() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
                 now: 70.0
             )
         )
         XCTAssertFalse(
             state.handleModifierChange(
-                .leftOption,
+                .rightCommand,
                 isDown: false,
-                mode: .leftOptionDoubleTap,
-                now: 70.09
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 70.08
             )
         )
 
+        state.noteStandardShortcut(now: 70.10)
+
         XCTAssertFalse(
             state.handleModifierChange(
-                .leftOption,
+                .rightCommand,
                 isDown: true,
-                mode: .leftOptionDoubleTap,
-                now: 70.24
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 70.18
             )
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             state.handleModifierChange(
-                .leftOption,
+                .rightCommand,
                 isDown: false,
-                mode: .leftOptionDoubleTap,
-                now: 70.31
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 70.26
             )
         )
     }
 
-    func testStandardCommandTabSuppressesImmediateDoubleTapHotSwap() {
+    func testDisabledModeNeverActivates() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
             state.handleModifierChange(
-                .leftCommand,
+                .rightCommand,
                 isDown: true,
-                mode: .leftCommandDoubleTap,
+                mode: .disabled,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
                 now: 80.0
             )
         )
-
-        state.noteStandardShortcut(using: .leftCommand, now: 80.05)
-
         XCTAssertFalse(
             state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 80.10
-            )
-        )
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
+                .rightOption,
                 isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 80.24
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 80.31
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 80.36
-            )
-        )
-        XCTAssertTrue(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 80.43
-            )
-        )
-    }
-
-    func testStandardShortcutResetsExistingDoubleTapCounter() {
-        var state = AlternateModifierTriggerState()
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 90.0
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 90.08
-            )
-        )
-
-        state.noteStandardShortcut(now: 90.12)
-
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: true,
-                mode: .leftCommandDoubleTap,
-                now: 90.20
-            )
-        )
-        XCTAssertFalse(
-            state.handleModifierChange(
-                .leftCommand,
-                isDown: false,
-                mode: .leftCommandDoubleTap,
-                now: 90.28
+                mode: .disabled,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: true,
+                now: 80.02
             )
         )
     }

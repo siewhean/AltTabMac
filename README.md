@@ -1,7 +1,7 @@
 # CmdTab
 
-Last Updated: 2026-03-28
-Active Task: Website launch polish — interactive live walkthroughs plus security-hardened waitlist and launch docs.
+Last Updated: 2026-04-02
+Active Task: App-side licensing flow with local trial enforcement, signed license activation, and direct buy/help entry points.
 
 ## Project Summary
 
@@ -28,6 +28,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Settings now surface live permission diagnostics for Accessibility, Screen Recording, and secure-input interference.
 - Settings now expose a preview preload action so users can explicitly warm the thumbnail cache before the next session.
 - Settings now explicitly surface the shipped workflow features, including search memory, quick actions, selection clarity, space/display awareness, trigger flexibility, and decluttering.
+- The app now includes a dedicated Licensing pane with a 14-day local trial state, signed offline license activation, and direct buy/help actions.
+- Expired-trial sessions now route the user into the Licensing pane instead of opening the switcher.
 - Radial Menu selection emphasis is stronger, with a clearer selected state and center detail label.
 - A standalone `website/` Next.js App Router project now exists for the marketing homepage, privacy page, OG assets, and waitlist API.
 - The website ships a screenshot-led landing page with generated product visuals for Classic Grid, Command Palette, Radial Menu, walkthrough steps, and permissions guidance.
@@ -112,6 +114,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
 - Configure the launch env vars (`NEXT_PUBLIC_CHECKOUT_PROVIDER`, `NEXT_PUBLIC_CHECKOUT_URL`, `NEXT_PUBLIC_TRIAL_URL`, `NEXT_PUBLIC_SUPPORT_EMAIL`) before turning on paid traffic.
+- Back up `.secrets/cmdtab-license-private-key.pem` somewhere safe. The app embeds only the public key; this private key is required to generate real license tokens.
+- Use `swift scripts/generate_license_key.swift --email user@example.com --name "User Name"` to issue a signed activation key for the app.
 - Provision and monitor `security@cmdtab.net` before public launch so security reports do not depend on the privacy inbox alone.
 - Repair Vercel CLI auth on this machine with `vercel login`; the installed CLI currently has an invalid saved token.
 - Authenticate Vercel on the owner side or install/configure the Vercel CLI before attempting a real deployment from this machine.

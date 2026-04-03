@@ -10,10 +10,9 @@ export const siteConfig = {
     { label: "Walkthrough", href: "#walkthrough" },
     { label: "Features", href: "#details" },
     { label: "Buy", href: "/buy" },
-    { label: "Waitlist", href: "#waitlist" },
   ],
   ctas: {
-    primary: "Join the waitlist",
+    primary: "Start the trial",
     secondary: "See the walkthrough",
     tertiary: "Read the privacy policy",
   },

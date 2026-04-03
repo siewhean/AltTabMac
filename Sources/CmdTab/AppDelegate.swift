@@ -37,6 +37,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switcher.onClickCommit = { [weak self] in
             self?.hotkeyManager?.clearTriggerStateFromClickCommit()
         }
+        switcher.onLicenseAccessRequired = { [weak self] in
+            self?.preferencesWindowController?.showLicensing()
+        }
+
+        AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
 
         NotificationCenter.default.addObserver(
             self,

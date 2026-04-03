@@ -37,18 +37,25 @@ This file separates what is already prepared in the repo from what still require
    - `WAITLIST_REPLY_TO_EMAIL`
    - `NEXT_PUBLIC_CHECKOUT_PROVIDER`
    - `NEXT_PUBLIC_CHECKOUT_URL`
+   - `NEXT_PUBLIC_STANDARD_CHECKOUT_URL`
    - `NEXT_PUBLIC_TRIAL_URL`
    - `NEXT_PUBLIC_SUPPORT_EMAIL`
+   - `LEMONSQUEEZY_WEBHOOK_SECRET`
+   - `CMDTAB_LICENSE_PRIVATE_KEY_PEM`
+   - `LICENSE_DELIVERY_FROM_EMAIL` (optional)
 3. Connect your real domain to the Vercel project.
 4. Confirm the direct purchase flow opens the Lemon Squeezy checkout.
-5. Provision and monitor:
+5. Configure the Lemon Squeezy webhook to `https://cmdtab.net/api/lemonsqueezy/webhook`.
+6. Run a signed test delivery:
+   - `node scripts/send_test_purchase_webhook.mjs --url https://cmdtab.net/api/lemonsqueezy/webhook --email tohsh17@gmail.com`
+7. Provision and monitor:
    - `tohsh17@gmail.com`
-6. Enable Vercel edge protections and production abuse controls:
+8. Enable Vercel edge protections and production abuse controls:
    - WAF / attack challenge mode where appropriate
    - request throttling / bot protection
    - deployment access controls
-7. Replace the remaining static walkthrough SVGs with actual product GIFs or MP4 clips.
-8. Keep secrets production-only:
+9. Replace the remaining static walkthrough SVGs with actual product GIFs or MP4 clips.
+10. Keep secrets production-only:
    - do not commit live env values
    - use separate preview and production keys
    - rotate `RESEND_API_KEY` immediately if exposure is suspected
@@ -60,11 +67,13 @@ This file separates what is already prepared in the repo from what still require
    - standard price
    - trial/download delivery flow
    - hosted checkout URL for the site launch section
+   - webhook secret for `order_created`
 3. Decide license model:
    - device count
    - trial duration
    - re-download policy
-4. Add support/refund policy text to the website before public paid launch.
+4. Confirm the automatic license email reaches the purchaser inbox from the webhook flow.
+5. Add support/refund policy text to the website before public paid launch.
 
 ## macOS Distribution Steps
 
