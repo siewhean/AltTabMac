@@ -1,2 +1,6 @@
 .vercel
 .secrets/
+.build/
+CmdTab.app/
+.DS_Store
+**/.DS_Store

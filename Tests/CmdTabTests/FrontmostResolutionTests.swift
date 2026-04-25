@@ -97,6 +97,24 @@ final class FrontmostResolutionTests: XCTestCase {
         XCTAssertEqual(identity, pdfGear.historyIdentity)
     }
 
+    func testMostRecentVisibleWindowForFrontmostPIDIsUsedWhenExactIdentityIsUnavailable() {
+        let finderW1 = makeItem(title: "Finder W1", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+        let arc = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let finderW2 = makeItem(title: "Finder W2", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 33))
+
+        let identity = FrontmostResolution.effectiveIdentity(
+            availableItems: [finderW2, arc, finderW1],
+            historyEntries: [finderW1.historyIdentity, arc.historyIdentity, finderW2.historyIdentity],
+            systemFrontmostIdentity: nil,
+            systemFrontmostPID: 101,
+            observedFrontmostPID: 101,
+            overrideState: nil,
+            now: 24.0
+        )
+
+        XCTAssertEqual(identity, finderW1.historyIdentity)
+    }
+
     private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity, kind: SwitcherItemKind = .appWindow) -> SwitcherItem {
         SwitcherItem(
             title: title,

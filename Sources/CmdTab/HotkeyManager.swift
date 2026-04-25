@@ -499,7 +499,7 @@ final class HotkeyManager {
         case .scrollWheel:
             guard let switcher, switcher.isVisible else { break }
             guard event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 else { break }
-            return nil
+            break
 
         default:
             break

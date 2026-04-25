@@ -15,6 +15,7 @@ final class SwitcherViewModel: ObservableObject {
     /// Updated by SwiftUI `.onHover` on each card, used by `handleCardClick`
     /// to determine which card was clicked — eliminates fragile coordinate math.
     @Published var hoveredIndex: Int?
+    @Published var suppressHoverSelection = false
 
     /// Live search query for the Command Palette style.
     /// Printable characters typed while the palette is visible are forwarded

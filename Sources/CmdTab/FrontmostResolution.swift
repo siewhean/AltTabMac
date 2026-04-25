@@ -70,8 +70,22 @@ enum FrontmostResolution {
             return samePIDItems[0].historyIdentity
         }
 
-        return availableItems.first(where: {
+        if let appFallbackIdentity = availableItems.first(where: {
             $0.kind == .appFallback && $0.historyIdentity.ownerPID == pid
-        })?.historyIdentity
+        })?.historyIdentity {
+            return appFallbackIdentity
+        }
+
+        // When several visible windows belong to the frontmost application and
+        // AX cannot tell us which one is focused yet, prefer the most recent
+        // visible history identity for that PID instead of giving up entirely.
+        if let mostRecentVisibleSamePIDIdentity = historyEntries.first(where: { identity in
+            identity.ownerPID == pid &&
+            availableItems.contains(where: { $0.historyIdentity == identity })
+        }) {
+            return mostRecentVisibleSamePIDIdentity
+        }
+
+        return nil
     }
 }

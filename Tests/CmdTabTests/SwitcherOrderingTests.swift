@@ -164,6 +164,37 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["NotebookLM", "Telegram", "PDFgear"])
     }
 
+    func testMultipleVisibleWindowsUseMostRecentVisibleSamePIDFrontmostFallback() {
+        let finderW1 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 11)
+        let arc = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 22)
+        let finderW2 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 33)
+
+        let rawItems = [
+            makeItem(title: "Finder W2", appID: "com.apple.finder", identity: finderW2),
+            makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: arc),
+            makeItem(title: "Finder W1", appID: "com.apple.finder", identity: finderW1),
+        ]
+
+        let resolvedFrontmost = FrontmostResolution.effectiveIdentity(
+            availableItems: rawItems,
+            historyEntries: [finderW1, arc, finderW2],
+            systemFrontmostIdentity: nil,
+            systemFrontmostPID: 101,
+            observedFrontmostPID: 101,
+            overrideState: nil,
+            now: 18.0
+        )
+
+        let ordered = SwitcherOrdering.orderedItems(
+            rawItems,
+            historyEntries: [finderW1, arc, finderW2],
+            currentFrontmost: resolvedFrontmost
+        )
+
+        XCTAssertEqual(resolvedFrontmost, finderW1)
+        XCTAssertEqual(ordered.map(\.title), ["Arc", "Finder W2", "Finder W1"])
+    }
+
     /// Simulate Finder → Arc → Finder usage pattern.
     /// History = [Finder, Arc] (same window, deduplicated).
     /// Frontmost = Finder → moved to end.

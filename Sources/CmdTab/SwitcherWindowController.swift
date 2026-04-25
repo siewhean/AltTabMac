@@ -23,6 +23,7 @@ private final class SwitcherPanel: NSPanel {
     var onEscapePressed: (() -> Void)?
     var onKeyEvent: ((NSEvent) -> Bool)?
     var onScrollEvent: ((NSEvent) -> Bool)?
+    var onMouseMoved: ((NSEvent) -> Void)?
 
     override func keyDown(with event: NSEvent) {
         if onKeyEvent?(event) == true {
@@ -47,6 +48,11 @@ private final class SwitcherPanel: NSPanel {
             return
         }
         super.scrollWheel(with: event)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        onMouseMoved?(event)
+        super.mouseMoved(with: event)
     }
 }
 
@@ -298,6 +304,9 @@ final class SwitcherWindowController {
         panel.onScrollEvent = { [weak self] event in
             self?.handlePanelScrollEvent(event) ?? false
         }
+        panel.onMouseMoved = { [weak self] event in
+            self?.handlePanelMouseMoved(event)
+        }
         self.panel = panel
     }
 
@@ -379,7 +388,16 @@ final class SwitcherWindowController {
     }
 
     private func handlePanelScrollEvent(_ event: NSEvent) -> Bool {
-        viewModel.isVisible && event.hasPreciseScrollingDeltas
+        guard viewModel.isVisible else { return false }
+        if event.hasPreciseScrollingDeltas {
+            viewModel.suppressHoverSelection = true
+        }
+        return false
+    }
+
+    private func handlePanelMouseMoved(_ event: NSEvent) {
+        guard viewModel.isVisible else { return }
+        viewModel.suppressHoverSelection = false
     }
 
     private func searchableCharacter(from event: NSEvent) -> String? {
@@ -670,6 +688,9 @@ final class SwitcherWindowController {
             syncViewModelFromSession()
         }
 
+        viewModel.hoveredIndex = nil
+        viewModel.suppressHoverSelection = true
+
         refreshPanelContentRoots()
 
         let targetScreen = presentationScreen(for: preferences.switcherStyle)
@@ -710,6 +731,7 @@ final class SwitcherWindowController {
         viewModel.radialViewportState = RadialMenuViewportState()
         viewModel.layout = .empty
         viewModel.hoveredIndex = nil
+        viewModel.suppressHoverSelection = true
         viewModel.searchQuery = ""
     }
 

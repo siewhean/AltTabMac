@@ -307,6 +307,7 @@ final class AppSwitcherActivationTests: XCTestCase {
             ownerPID: 101,
             windowID: 77,
             title: "ChatGPT",
+            hasExplicitTitle: true,
             bounds: CGRect(x: 10, y: 10, width: 900, height: 600),
             orderIndex: 8,
             sortScore: 120,
@@ -316,6 +317,7 @@ final class AppSwitcherActivationTests: XCTestCase {
             ownerPID: 101,
             windowID: 77,
             title: "ChatGPT",
+            hasExplicitTitle: true,
             bounds: CGRect(x: 10, y: 10, width: 1280, height: 820),
             orderIndex: 2,
             sortScore: 420,
@@ -333,6 +335,7 @@ final class AppSwitcherActivationTests: XCTestCase {
             ownerPID: 101,
             windowID: 77,
             title: "ChatGPT",
+            hasExplicitTitle: true,
             bounds: CGRect(x: 10, y: 10, width: 1280, height: 820),
             orderIndex: 2,
             sortScore: 420,
@@ -342,6 +345,7 @@ final class AppSwitcherActivationTests: XCTestCase {
             ownerPID: 101,
             windowID: 78,
             title: "ChatGPT",
+            hasExplicitTitle: true,
             bounds: CGRect(x: 60, y: 40, width: 1280, height: 820),
             orderIndex: 3,
             sortScore: 415,
@@ -351,6 +355,60 @@ final class AppSwitcherActivationTests: XCTestCase {
         let deduplicated = AppSwitcher.deduplicateCandidateProbes([first, second])
 
         XCTAssertEqual(deduplicated, [first, second])
+    }
+
+    func testSemanticDuplicateSurfacePruningCollapsesOverlappingSameAppClones() {
+        let smallerUntitledSurface = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 77,
+            title: "Arc",
+            hasExplicitTitle: false,
+            bounds: CGRect(x: 1516, y: 385, width: 600, height: 600),
+            orderIndex: 2,
+            sortScore: 410,
+            isOnScreen: true
+        )
+        let largerWindow = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 78,
+            title: "Arc",
+            hasExplicitTitle: false,
+            bounds: CGRect(x: 1496, y: 300, width: 749, height: 938),
+            orderIndex: 4,
+            sortScore: 405,
+            isOnScreen: true
+        )
+
+        let pruned = AppSwitcher.pruneDuplicateCandidateSurfaceProbes([smallerUntitledSurface, largerWindow])
+
+        XCTAssertEqual(pruned, [largerWindow])
+    }
+
+    func testSemanticDuplicateSurfacePruningKeepsSeparateWindowsWhenOverlapIsLimited() {
+        let first = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 77,
+            title: "ChatGPT",
+            hasExplicitTitle: true,
+            bounds: CGRect(x: 10, y: 10, width: 1280, height: 820),
+            orderIndex: 2,
+            sortScore: 420,
+            isOnScreen: true
+        )
+        let second = WindowCandidateDeduplicationProbe(
+            ownerPID: 101,
+            windowID: 78,
+            title: "ChatGPT",
+            hasExplicitTitle: true,
+            bounds: CGRect(x: 420, y: 140, width: 1280, height: 820),
+            orderIndex: 3,
+            sortScore: 415,
+            isOnScreen: true
+        )
+
+        let pruned = AppSwitcher.pruneDuplicateCandidateSurfaceProbes([first, second])
+
+        XCTAssertEqual(pruned, [first, second])
     }
 
     /// Empty items list returns empty.
@@ -516,40 +574,45 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertNotEqual(firstKey, secondKey, "Changing the window title should invalidate stale preview reuse")
     }
 
-    func testAllowedWindowIDDefaultsToTrueWhenNoAXFilterExists() {
-        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: nil))
+    func testAllowedWindowIDDefaultsToTrueWhenNoPolicyExists() {
+        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, policy: nil))
     }
 
     func testAllowedWindowIDRejectsNonDisplayWindowIDs() {
-        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: [77, 88]))
-        XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, allowedWindowIDs: [77, 88]))
+        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, policy: .restricted([77, 88])))
+        XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, policy: .restricted([77, 88])))
     }
 
-    func testResolvedAllowedWindowIDsPreservesDisplayWindowsAndIncludesPreferredWindow() {
-        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
+    func testAllowedWindowPolicyPreservesDisplayWindowsAndIncludesPreferredWindow() {
+        let resolved = AppSwitcher.allowedWindowPolicy(
             displayWindowIDs: [11, 22],
             preferredWindowIDs: [33]
         )
 
-        XCTAssertEqual(resolved, [11, 22, 33])
+        XCTAssertEqual(resolved, .restricted([11, 22, 33]))
     }
 
-    func testResolvedAllowedWindowIDsFallsBackToPreferredWindowWhenDisplayFilterIsEmpty() {
-        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
+    func testAllowedWindowPolicyFallsBackToPreferredWindowWhenDisplayFilterIsEmpty() {
+        let resolved = AppSwitcher.allowedWindowPolicy(
             displayWindowIDs: [],
             preferredWindowIDs: [77]
         )
 
-        XCTAssertEqual(resolved, [77])
+        XCTAssertEqual(resolved, .restricted([77]))
     }
 
-    func testResolvedAllowedWindowIDsReturnsNilWhenNoEligibleWindowsExist() {
-        XCTAssertNil(
-            AppSwitcher.resolvedAllowedWindowIDs(
+    func testAllowedWindowPolicyRejectsAllWindowsWhenNoTrustedIDsExist() {
+        XCTAssertEqual(
+            AppSwitcher.allowedWindowPolicy(
                 displayWindowIDs: [],
                 preferredWindowIDs: []
-            )
+            ),
+            .noneTrusted
         )
+    }
+
+    func testAllowedWindowIDRejectsAllWindowsWhenPolicyIsNoneTrusted() {
+        XCTAssertFalse(AppSwitcher.isAllowedWindowID(77, policy: .noneTrusted))
     }
 
     func testSwitcherDisplaySubroleRejectsFloatingPanels() {

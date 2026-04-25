@@ -2,6 +2,7 @@ import AppKit
 import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let reopenSettingsNotification = Notification.Name("CmdTab.ReopenSettings")
 
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
@@ -12,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
+            notifyExistingInstanceToShowSettings()
             activateExistingInstanceIfPossible()
             shouldAllowTermination = true
             NSApp.terminate(nil)
@@ -47,6 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self,
             selector: #selector(handlePreferencesDidChange),
             name: SwitcherPreferences.didChangeNotification,
+            object: nil
+        )
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(handleReopenSettingsRequest),
+            name: Self.reopenSettingsNotification,
             object: nil
         )
 
@@ -93,8 +101,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
     }
 
+    private func notifyExistingInstanceToShowSettings() {
+        DistributedNotificationCenter.default().post(
+            name: Self.reopenSettingsNotification,
+            object: Bundle.main.bundleIdentifier,
+            userInfo: nil
+        )
+    }
+
     @objc private func handlePreferencesDidChange() {
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+    }
+
+    @objc private func handleReopenSettingsRequest() {
+        preferencesWindowController?.show(initialPane: .general)
     }
 
     func requestTermination() {
@@ -103,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        DistributedNotificationCenter.default().removeObserver(self)
         if singletonLockFileDescriptor >= 0 {
             flock(singletonLockFileDescriptor, LOCK_UN)
             close(singletonLockFileDescriptor)

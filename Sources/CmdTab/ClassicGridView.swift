@@ -76,8 +76,16 @@ struct ClassicGridView: View {
                                     )
                                     .id(idx)
                                     .transition(.switcherItemMutation)
-                                    .onHover { hovering in
-                                        viewModel.hoveredIndex = hovering ? idx : nil
+                                    .onContinuousHover(coordinateSpace: .local) { phase in
+                                        switch phase {
+                                        case .active:
+                                            guard !viewModel.suppressHoverSelection else { return }
+                                            viewModel.hoveredIndex = idx
+                                        case .ended:
+                                            if viewModel.hoveredIndex == idx {
+                                                viewModel.hoveredIndex = nil
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -105,6 +113,7 @@ struct ClassicItemCardView: View {
     let isSelected: Bool
     let mode: SwitcherMode
     let layout: SwitcherLayoutMetrics
+    @ObservedObject private var preferences = SwitcherPreferences.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -129,22 +138,24 @@ struct ClassicItemCardView: View {
                     x: 0, y: 0
                 )
 
-            HStack(spacing: 5) {
-                if let icon = item.icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .interpolation(.high)
-                        .frame(width: 20, height: 20)
+            if item.previewImage != nil {
+                HStack(spacing: 7) {
+                    if let icon = item.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 24, height: 24)
+                    }
+                    Text(item.title)
+                        .font(.system(size: 15, weight: isSelected ? .semibold : .regular, design: .rounded))
+                        .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.75))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-                Text(item.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular, design: .rounded))
-                    .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.75))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                .padding(.top, 8)
+                .padding(.bottom, 2)
+                .frame(width: layout.cardWidth, alignment: .center)
             }
-            .padding(.top, 6)
-            .padding(.bottom, 2)
-            .frame(width: layout.cardWidth, alignment: .center)
         }
         .frame(width: layout.cardWidth, height: layout.cardHeight, alignment: .top)
         .contentShape(Rectangle())
@@ -159,14 +170,43 @@ struct ClassicItemCardView: View {
                 .fill(Color.clear)
 
             if let preview = item.previewImage {
-                Image(nsImage: preview)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(preview.size, contentMode: .fit)
-                    .frame(width: layout.cardWidth, height: layout.thumbnailHeight)
-                    .allowsHitTesting(false)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.white.opacity(0.06))
+                        .background(
+                            ZStack {
+                                if preferences.enableVibrancy {
+                                    VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
+
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.08),
+                                                    Color.white.opacity(0.03),
+                                                    Color.white.opacity(0.015)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                } else {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(Color(red: 0.12, green: 0.12, blue: 0.14).opacity(0.92))
+                                }
+                            }
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    Image(nsImage: preview)
+                        .resizable()
+                        .interpolation(.high)
+                        .aspectRatio(preview.size, contentMode: .fit)
+                        .frame(width: layout.cardWidth, height: layout.thumbnailHeight)
+                        .allowsHitTesting(false)
+                }
             } else {
-                previewPlaceholder
+                previewFallbackCard
             }
 
             // Stronger top-edge fade that covers the title-bar zone.
@@ -179,7 +219,12 @@ struct ClassicItemCardView: View {
         }
     }
 
-    private var previewPlaceholder: some View {
+    @ViewBuilder
+    private var previewFallbackCard: some View {
+        previewlessWindowFallback
+    }
+
+    private var previewlessWindowFallback: some View {
         ZStack {
             LinearGradient(
                 colors: [

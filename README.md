@@ -1,7 +1,7 @@
 # CmdTab
 
-Last Updated: 2026-04-02
-Active Task: App-side licensing flow with local trial enforcement, signed license activation, and direct buy/help entry points.
+Last Updated: 2026-04-23
+Active Task: Remove mouse-driven selector movement from the classic grid while preserving click targeting.
 
 ## Project Summary
 
@@ -20,6 +20,21 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
 - The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
 - Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
+- Frontmost resolution now falls back to the most recent visible same-PID history window when AX cannot resolve the exact focused window for a multi-window app.
+- Candidate enumeration now also prunes overlapping same-app window-server surfaces with different `CGWindowID`s so one visible window does not appear multiple times in the switcher.
+- Classic grid thumbnails now fill and clip inside the card frame instead of letterboxing already-cropped captures.
+- Window enumeration now treats unresolved AX window-ID allow-lists as `no trusted window-level entries` instead of silently allowing every CG surface for that PID, so affected apps degrade to one fallback app tile instead of unsafe duplicate or wrong-window candidates.
+- Classic grid tiles without previews now render as intentional app-centric fallback cards, so AX fallback entries and previewless windows no longer appear as broken skeleton windows.
+- App fallback tiles now also attempt a preview-only representative CG window capture, so apps that cannot safely expose an exact AX-switchable window can still show a real thumbnail in the switcher while keeping app-level activation semantics.
+- Classic grid previews now follow the AltTab-style approach more closely: the tile frame stays fixed, but the preview image is aspect-fit within that frame instead of being crop-filled edge to edge.
+- The unused space around aspect-fit previews now renders with a glass-like backing layer, and true no-preview tiles now use the skeleton fallback treatment instead of centered app-icon cards.
+- Previewless skeleton tiles in the classic grid now render as skeleton-only surfaces, without the app icon, title, subtitle, or the standard label row beneath the card.
+- Classic grid tiles with real previews now use a larger app icon and title row so switcher labels read more clearly at a glance.
+- In the classic grid, mouse-wheel input now scrolls the page itself instead of stepping selection, and tile selection follows real mouse movement rather than changing just because content scrolled underneath a stationary pointer.
+- The cold-start switcher path now performs a bounded synchronous thumbnail prime for the first visible windows, reducing the chance that users see skeleton placeholders before thumbnails are ready.
+- Continuous trackpad scroll is no longer swallowed by the global hotkey tap while the switcher is visible, and hover-driven selection is now suppressed during scroll until a real mouse-move event occurs.
+- New switcher sessions now start with hover selection suppressed, so the initial selection stays on the first tab until the user actually moves the mouse.
+- In the classic grid, pointer hover no longer moves the selector at all; mouse position is only used to identify click targets.
 - Command Palette search now uses deterministic ranking with acronym matching, token matching, and remembered selections for repeated short queries.
 - Switcher preferences now support scoped window visibility (`current space`, `visible spaces`, `all spaces`) plus display targeting (`active window display`, `cursor display`, `all displays`).
 - Switcher preferences now also support alternate standalone triggers based on right-side modifier tap / double-tap flows.
@@ -46,7 +61,26 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Security verification now includes repeatable repo automation through `.github/workflows/security.yml`, Dependabot updates, and `npm run security:check`.
 - Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
-- Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
+- Recent local verification passed with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test`; earlier website verification passed with `npm run typecheck` and `npx next build --webpack`.
+- 2026-04-23 live probe after the AX allow-list fix:
+  - Arc resolved to a trusted restricted allow-list (`[134]`) and still has one eligible real window candidate.
+  - VS Code, Terminal, and Finder resolved to `noneTrusted`, which now intentionally routes them to fallback app tiles instead of unsafe per-window entries when exact AX-backed window IDs are unavailable.
+- 2026-04-23 visual fallback refinement:
+  - App fallback entries in the classic grid now show a centered app icon and title instead of a window skeleton placeholder.
+  - Previewless window items still render a fallback card, but now include app identity and a clear `Preview unavailable` treatment so the switcher reads as degraded, not broken.
+- 2026-04-23 fallback thumbnail recovery:
+  - Fallback app tiles now select the best representative CG window candidate for preview capture only, without reusing that candidate for explicit window activation.
+  - This restores thumbnails for apps like Finder, Terminal, VS Code, and Outlook when exact AX-backed window IDs remain untrusted, while preserving the safer app-level fallback action.
+- 2026-04-23 aspect-ratio experiment reverted:
+  - Reverted the per-tile aspect-ratio-driven height logic in `ClassicGridView` after it made the grid read worse in practice.
+  - Restored the previous fixed thumbnail frame with crop/fill rendering, which matches the prior working switcher layout.
+- 2026-04-23 AltTab-style thumbnail refinement:
+  - Kept the fixed `ClassicGridView` tile height and overall grid geometry.
+  - Switched preview rendering to aspect-fit inside the fixed thumbnail frame, with a subtle dark backing layer so non-standard window shapes stay visible without destabilizing the grid.
+- 2026-04-23 fallback polish after AltTab-style fit:
+  - Replaced the dark letterbox backing with a glass-like background so empty preview space blends into the switcher surface more naturally.
+  - Removed the app-icon fallback card path so genuinely previewless tiles return to the skeleton treatment instead of implying a valid rendered thumbnail exists.
+- Recent local verification passed with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test` and `./build.sh`; earlier website verification passed with `npm run typecheck` and `npx next build --webpack`.
 
 ## Active Constraints / Non-Negotiables
 
@@ -108,6 +142,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 ## Open Issues / Next Steps
 
 - Rebuild and manually validate after each change set.
+- Manually validate duplicate-window suppression on real apps that expose internal extra surfaces (browser windows, Electron apps, IDEs) and confirm one visible window yields one switcher tile.
+- Manually validate multi-window MRU ordering on a live desktop, especially when switching back into apps that have several visible windows and slow AX focus updates.
 - Manually validate the new space/display placement behavior on single-display and multi-display setups, especially mirrored overlay behavior for `All Displays`.
 - Manually validate quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`) while the switcher is visible to confirm AX close/minimize behavior across common apps.
 - Manually validate the new alternate trigger options (`Right ⌘`, `Right ⌘ ×2`, `Right ⌥`, `Right ⌥ ×2`) in real apps to confirm they never misfire during ordinary modifier shortcuts.
@@ -127,6 +163,16 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-04-23: Fixed duplicate switcher tiles and tightened thumbnail presentation.
+  - Added a semantic same-app candidate-pruning pass in `AppSwitcher` so overlapping window-server surfaces with different `CGWindowID`s collapse to the best visible candidate instead of producing duplicate tiles.
+  - Added regression coverage in `AppSwitcherActivationTests` for same-app overlapping-surface pruning while preserving legitimately separate overlapping windows.
+  - Updated `ClassicGridView` so live previews now render with fill-and-clip inside the thumbnail card instead of fitting with visible framing artifacts.
+  - Verified with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test` and rebuilt the packaged app with `./build.sh`.
+- 2026-04-23: Fixed multi-window frontmost resolution when exact AX identity is unavailable.
+  - `FrontmostResolution` now uses the most recent visible same-PID history identity before giving up when the frontmost app has multiple visible windows and the exact focused window cannot be resolved yet.
+  - Added regression coverage in `FrontmostResolutionTests` and `SwitcherOrderingTests` for the previously untested ambiguous same-app multi-window path.
+  - Verified the Swift package with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test`; plain SwiftPM sandboxing is blocked in this environment by nested `sandbox-exec`.
+  - Confirmed that a second terminal-launched `CmdTab` instance exits immediately by design because the app is a singleton accessory app; that lifecycle behavior is separate from the MRU bug.
 - 2026-03-28: Added an interactive switcher simulator to the website walkthrough.
   - The walkthrough section now includes a live browser demo where visitors can click through Classic Grid, search inside Command Palette, and step around Radial Menu.
   - The demo uses the same concise product framing as the rest of the site, so it adds hands-on interaction without bringing back low-signal sections.

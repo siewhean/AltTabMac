@@ -148,6 +148,12 @@ final class AppSwitcher: NSObject {
     private let preferences = SwitcherPreferences.shared
     private let history = SwitcherHistoryStore.shared
 
+    enum AllowedWindowPolicy: Equatable {
+        case unrestricted
+        case restricted(Set<CGWindowID>)
+        case noneTrusted
+    }
+
     private struct PreviewCacheEntry {
         let image: NSImage
         let backdropImage: NSImage?
@@ -168,6 +174,7 @@ final class AppSwitcher: NSObject {
     private let refreshInterval: TimeInterval = 0.8
     private let maxPreviewCacheEntries = 512
     private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
+    private let synchronousPrimePreviewWindowLimit = 8
     private let activationRetryLimit = 8
     private let pendingActivationTimeout: TimeInterval = 4.0
     private let initialWindowFocusDelay: TimeInterval = 0.08
@@ -308,12 +315,17 @@ final class AppSwitcher: NSObject {
         guard existing.isEmpty else { return existing }
 
         let context = enumerateWindows()
-        let provisionalItems = assembleItems(
+        let preservedPreviews = cachedPreviewSnapshot()
+        let primedItems = synchronousPrimeItems(
+            from: context,
+            previewFallbacks: preservedPreviews
+        )
+        let provisionalItems = primedItems.isEmpty ? assembleItems(
             from: context,
             capturePreviews: false,
-            previewFallbacks: cachedPreviewSnapshot(),
+            previewFallbacks: preservedPreviews,
             allowPreviewlessItems: true
-        )
+        ) : primedItems
 
         cacheLock.lock()
         if _cachedItems.isEmpty {
@@ -330,6 +342,30 @@ final class AppSwitcher: NSObject {
         }
 
         return snapshot
+    }
+
+    private func synchronousPrimeItems(
+        from context: BuildContext,
+        previewFallbacks: [String: PreviewCacheEntry]
+    ) -> [SwitcherItem] {
+        guard synchronousPrimePreviewWindowLimit > 0 else { return [] }
+        if #available(macOS 10.15, *) {
+            guard CGPreflightScreenCaptureAccess() else { return [] }
+        }
+
+        let primedContext = BuildContext(
+            candidates: Array(context.candidates.prefix(synchronousPrimePreviewWindowLimit)),
+            runningApps: context.runningApps,
+            allWindows: context.allWindows,
+            appsByPID: context.appsByPID
+        )
+
+        return assembleItems(
+            from: primedContext,
+            capturePreviews: true,
+            previewFallbacks: previewFallbacks,
+            allowPreviewlessItems: false
+        )
     }
 
     private func shouldRefresh() -> Bool {
@@ -440,6 +476,8 @@ final class AppSwitcher: NSObject {
     private struct BuildContext {
         let candidates: [WindowCandidate]
         let runningApps: [NSRunningApplication]
+        let allWindows: [[String: Any]]
+        let appsByPID: [pid_t: NSRunningApplication]
     }
 
     /// Phase 1 core: enumerate windows, filter, sort, limit — no preview I/O.
@@ -451,22 +489,29 @@ final class AppSwitcher: NSObject {
             runningApps.map { ($0.processIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: runningApps)
+        let allowedWindowPoliciesByPID = switcherDisplayWindowIDsByPID(for: runningApps)
 
         let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let candidates = deduplicatedCandidates(
-            from: allWindows.enumerated().compactMap { index, info in
-                makeCandidate(
-                    from: info,
-                    orderIndex: index,
-                    appsByPID: appsByPID,
-                    allowedWindowIDsByPID: allowedWindowIDsByPID
-                )
-            }
+        let candidates = prunedDuplicateWindowSurfaces(from:
+            deduplicatedCandidates(
+                from: allWindows.enumerated().compactMap { index, info in
+                    makeCandidate(
+                        from: info,
+                        orderIndex: index,
+                        appsByPID: appsByPID,
+                        allowedWindowPoliciesByPID: allowedWindowPoliciesByPID
+                    )
+                }
+            )
         ).sorted(by: compareCandidates)
 
         let scopedCandidates = visibilityScopedCandidates(candidates)
-        return BuildContext(candidates: limitedByApp(scopedCandidates), runningApps: runningApps)
+        return BuildContext(
+            candidates: limitedByApp(scopedCandidates),
+            runningApps: runningApps,
+            allWindows: allWindows,
+            appsByPID: appsByPID
+        )
     }
 
     /// Create SwitcherItem arrays from a BuildContext. When `capturePreviews`
@@ -546,11 +591,34 @@ final class AppSwitcher: NSObject {
                     pid: app.processIdentifier
                 )
 
+                let representativeCandidate = fallbackPreviewCandidate(
+                    for: app,
+                    allWindows: context.allWindows,
+                    appsByPID: context.appsByPID
+                )
+                let previewKey = representativeCandidate?.previewCacheKey ?? identity.stableKey
+                let representativeAssets: PreviewAssets?
+                if capturePreviews, let representativeCandidate {
+                    representativeAssets = capturePreviewAssets(for: representativeCandidate)
+                } else {
+                    representativeAssets = nil
+                }
+                let cachedRepresentative = representativeCandidate.flatMap { previewFallbacks[$0.previewCacheKey] }
+                let previewImage = representativeAssets?.thumbnail
+                    ?? reusablePhaseTwoFallback(from: cachedRepresentative)
+                let backdropImage = representativeAssets?.backdrop
+                    ?? cachedRepresentative?.backdropImage
+                    ?? previewImage
+
                 return SwitcherItem(
                     title: appName,
                     subtitle: "",
                     icon: app.icon,
-                    previewImage: nil,
+                    previewImage: previewImage,
+                    backdropImage: backdropImage,
+                    backdropFrame: representativeCandidate?.bounds,
+                    backdropSourceScreenFrame: representativeCandidate?.screenFrame,
+                    previewCacheKey: previewKey,
                     historyIdentity: identity,
                     sourceAppIdentifier: sourceAppIdentifier,
                     kind: .appFallback
@@ -560,6 +628,26 @@ final class AppSwitcher: NSObject {
             }
 
         return windowItems + fallbackItems
+    }
+
+    private func fallbackPreviewCandidate(
+        for app: NSRunningApplication,
+        allWindows: [[String: Any]],
+        appsByPID: [pid_t: NSRunningApplication]
+    ) -> WindowCandidate? {
+        prunedDuplicateWindowSurfaces(from:
+            deduplicatedCandidates(
+                from: allWindows.enumerated().compactMap { index, info in
+                    makeCandidate(
+                        from: info,
+                        orderIndex: index,
+                        includeBackgroundWindows: true,
+                        restrictToPID: app.processIdentifier,
+                        appsByPID: appsByPID
+                    )
+                }
+            )
+        ).sorted(by: compareCandidates).first
     }
 
     private func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {
@@ -680,18 +768,20 @@ final class AppSwitcher: NSObject {
     // MARK: - Identity helpers
 
     private func currentFrontmostIdentity(for app: NSRunningApplication) -> SwitcherHistoryIdentity? {
-        let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: [app])
+        let allowedWindowPoliciesByPID = switcherDisplayWindowIDsByPID(for: [app])
         let windows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let candidates = deduplicatedCandidates(
-            from: windows.enumerated().compactMap { index, info in
-                makeCandidate(
-                    from: info,
-                    orderIndex: index,
-                    includeBackgroundWindows: true,
-                    restrictToPID: app.processIdentifier,
-                    allowedWindowIDsByPID: allowedWindowIDsByPID
-                )
-            }
+        let candidates = prunedDuplicateWindowSurfaces(from:
+            deduplicatedCandidates(
+                from: windows.enumerated().compactMap { index, info in
+                    makeCandidate(
+                        from: info,
+                        orderIndex: index,
+                        includeBackgroundWindows: true,
+                        restrictToPID: app.processIdentifier,
+                        allowedWindowPoliciesByPID: allowedWindowPoliciesByPID
+                    )
+                }
+            )
         ).sorted(by: compareCandidates)
 
         if let focusedWindowID = focusedWindowID(for: app.processIdentifier) {
@@ -1047,7 +1137,7 @@ final class AppSwitcher: NSObject {
         includeBackgroundWindows: Bool? = nil,
         restrictToPID: pid_t? = nil,
         appsByPID: [pid_t: NSRunningApplication]? = nil,
-        allowedWindowIDsByPID: [pid_t: Set<CGWindowID>] = [:]
+        allowedWindowPoliciesByPID: [pid_t: AllowedWindowPolicy] = [:]
     ) -> WindowCandidate? {
         guard let ownerPIDNumber = windowInfo[kCGWindowOwnerPID as String] as? NSNumber else { return nil }
         let ownerPID = ownerPIDNumber.int32Value
@@ -1077,9 +1167,10 @@ final class AppSwitcher: NSObject {
         guard bounds.width >= 120, bounds.height >= 80 else { return nil }
 
         let title = (windowInfo[kCGWindowName as String] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasExplicitTitle = !title.isEmpty
         let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value ?? 0
         guard windowID != 0 else { return nil }
-        guard Self.isAllowedWindowID(windowID, allowedWindowIDs: allowedWindowIDsByPID[ownerPID]) else { return nil }
+        guard Self.isAllowedWindowID(windowID, policy: allowedWindowPoliciesByPID[ownerPID]) else { return nil }
 
         let isOnScreen = (windowInfo[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
         let allowBackground = includeBackgroundWindows ?? (preferences.windowVisibilityScope == .allSpaces)
@@ -1107,6 +1198,7 @@ final class AppSwitcher: NSObject {
         return WindowCandidate(
             id: windowID, ownerPID: ownerPID, bundleIdentifier: app.bundleIdentifier,
             appName: appName, appIcon: app.icon, windowTitle: windowTitle,
+            hasExplicitTitle: hasExplicitTitle,
             bounds: bounds,
             screenFrame: screenFrame(containing: bounds),
             orderIndex: orderIndex,
@@ -1136,17 +1228,39 @@ final class AppSwitcher: NSObject {
         )
     }
 
-    private func switcherDisplayWindowIDsByPID(for apps: [NSRunningApplication]) -> [pid_t: Set<CGWindowID>] {
-        var result: [pid_t: Set<CGWindowID>] = [:]
+    private func prunedDuplicateWindowSurfaces(from candidates: [WindowCandidate]) -> [WindowCandidate] {
+        Self.pruneDuplicateWindowSurfaces(
+            candidates,
+            shouldCollapse: { lhs, rhs in
+                Self.areLikelyDuplicateWindowSurfaces(lhs, rhs)
+            },
+            prefersReplacement: { lhs, rhs in
+                Self.prefersReplacementCandidate(
+                    isOnScreen: lhs.isOnScreen,
+                    title: lhs.windowTitle,
+                    bounds: lhs.bounds,
+                    sortScore: lhs.sortScore,
+                    orderIndex: lhs.orderIndex,
+                    overIsOnScreen: rhs.isOnScreen,
+                    overTitle: rhs.windowTitle,
+                    overBounds: rhs.bounds,
+                    overSortScore: rhs.sortScore,
+                    overOrderIndex: rhs.orderIndex
+                )
+            }
+        )
+    }
+
+    private func switcherDisplayWindowIDsByPID(for apps: [NSRunningApplication]) -> [pid_t: AllowedWindowPolicy] {
+        var result: [pid_t: AllowedWindowPolicy] = [:]
         result.reserveCapacity(apps.count)
         for app in apps {
-            guard let windowIDs = switcherDisplayWindowIDs(for: app) else { continue }
-            result[app.processIdentifier] = windowIDs
+            result[app.processIdentifier] = switcherDisplayWindowIDs(for: app)
         }
         return result
     }
 
-    private func switcherDisplayWindowIDs(for app: NSRunningApplication) -> Set<CGWindowID>? {
+    private func switcherDisplayWindowIDs(for app: NSRunningApplication) -> AllowedWindowPolicy {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
         let windows: [AXUIElement]
@@ -1168,7 +1282,7 @@ final class AppSwitcher: NSObject {
         .compactMap { $0 }
         .compactMap { AXWindowIDLookup.windowID(for: $0) }
 
-        return Self.resolvedAllowedWindowIDs(
+        return Self.allowedWindowPolicy(
             displayWindowIDs: Set(displayIDs),
             preferredWindowIDs: preferredIDs
         )
@@ -1183,25 +1297,32 @@ final class AppSwitcher: NSObject {
         )
     }
 
-    static func isAllowedWindowID(_ windowID: CGWindowID, allowedWindowIDs: Set<CGWindowID>?) -> Bool {
-        guard let allowedWindowIDs else { return true }
-        return allowedWindowIDs.contains(windowID)
+    static func isAllowedWindowID(_ windowID: CGWindowID, policy: AllowedWindowPolicy?) -> Bool {
+        let effectivePolicy = policy ?? .unrestricted
+        switch effectivePolicy {
+        case .unrestricted:
+            return true
+        case .restricted(let allowedWindowIDs):
+            return allowedWindowIDs.contains(windowID)
+        case .noneTrusted:
+            return false
+        }
     }
 
-    static func resolvedAllowedWindowIDs(
+    static func allowedWindowPolicy(
         displayWindowIDs: Set<CGWindowID>,
         preferredWindowIDs: [CGWindowID]
-    ) -> Set<CGWindowID>? {
+    ) -> AllowedWindowPolicy {
         let preferredSet = Set(preferredWindowIDs)
         if !displayWindowIDs.isEmpty {
-            return displayWindowIDs.union(preferredSet)
+            return .restricted(displayWindowIDs.union(preferredSet))
         }
 
         if !preferredSet.isEmpty {
-            return preferredSet
+            return .restricted(preferredSet)
         }
 
-        return nil
+        return .noneTrusted
     }
 
     static func isSwitcherDisplaySubrole(_ subrole: String) -> Bool {
@@ -1592,6 +1713,38 @@ final class AppSwitcher: NSObject {
         )
     }
 
+    static func pruneDuplicateCandidateSurfaceProbes(_ candidates: [WindowCandidateDeduplicationProbe]) -> [WindowCandidateDeduplicationProbe] {
+        pruneDuplicateWindowSurfaces(
+            candidates,
+            shouldCollapse: { lhs, rhs in
+                areLikelyDuplicateWindowSurfaces(
+                    ownerPID: lhs.ownerPID,
+                    title: lhs.title,
+                    bounds: lhs.bounds,
+                    hasExplicitTitle: lhs.hasExplicitTitle,
+                    againstOwnerPID: rhs.ownerPID,
+                    againstTitle: rhs.title,
+                    againstBounds: rhs.bounds,
+                    againstHasExplicitTitle: rhs.hasExplicitTitle
+                )
+            },
+            prefersReplacement: { lhs, rhs in
+                prefersReplacementCandidate(
+                    isOnScreen: lhs.isOnScreen,
+                    title: lhs.title,
+                    bounds: lhs.bounds,
+                    sortScore: lhs.sortScore,
+                    orderIndex: lhs.orderIndex,
+                    overIsOnScreen: rhs.isOnScreen,
+                    overTitle: rhs.title,
+                    overBounds: rhs.bounds,
+                    overSortScore: rhs.sortScore,
+                    overOrderIndex: rhs.orderIndex
+                )
+            }
+        )
+    }
+
     private static func deduplicateCandidates<T>(
         _ candidates: [T],
         identityKey: (T) -> WindowCandidateIdentityKey,
@@ -1614,6 +1767,77 @@ final class AppSwitcher: NSObject {
             let key = identityKey(candidate)
             return bestByIdentity.removeValue(forKey: key)
         }
+    }
+
+    private static func pruneDuplicateWindowSurfaces<T>(
+        _ candidates: [T],
+        shouldCollapse: (T, T) -> Bool,
+        prefersReplacement: (T, T) -> Bool
+    ) -> [T] {
+        var kept: [T] = []
+
+        for candidate in candidates {
+            if let existingIndex = kept.firstIndex(where: { shouldCollapse(candidate, $0) }) {
+                if prefersReplacement(candidate, kept[existingIndex]) {
+                    kept[existingIndex] = candidate
+                }
+            } else {
+                kept.append(candidate)
+            }
+        }
+
+        return kept
+    }
+
+    private static func areLikelyDuplicateWindowSurfaces(_ lhs: WindowCandidate, _ rhs: WindowCandidate) -> Bool {
+        areLikelyDuplicateWindowSurfaces(
+            ownerPID: lhs.ownerPID,
+            title: lhs.windowTitle,
+            bounds: lhs.bounds,
+            hasExplicitTitle: lhs.hasExplicitTitle,
+            againstOwnerPID: rhs.ownerPID,
+            againstTitle: rhs.windowTitle,
+            againstBounds: rhs.bounds,
+            againstHasExplicitTitle: rhs.hasExplicitTitle
+        )
+    }
+
+    private static func areLikelyDuplicateWindowSurfaces(
+        ownerPID lhsOwnerPID: pid_t,
+        title lhsTitle: String,
+        bounds lhsBounds: CGRect,
+        hasExplicitTitle lhsHasExplicitTitle: Bool,
+        againstOwnerPID rhsOwnerPID: pid_t,
+        againstTitle rhsTitle: String,
+        againstBounds rhsBounds: CGRect,
+        againstHasExplicitTitle rhsHasExplicitTitle: Bool
+    ) -> Bool {
+        guard lhsOwnerPID == rhsOwnerPID else { return false }
+
+        let normalizedLHSTitle = lhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedRHSTitle = rhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if lhsHasExplicitTitle && rhsHasExplicitTitle && normalizedLHSTitle != normalizedRHSTitle {
+            return false
+        }
+
+        let lhsArea = lhsBounds.width * lhsBounds.height
+        let rhsArea = rhsBounds.width * rhsBounds.height
+        guard lhsArea > 0, rhsArea > 0 else { return false }
+
+        let overlapArea = lhsBounds.intersection(rhsBounds).area
+        let overlapRatio = overlapArea / min(lhsArea, rhsArea)
+        let centerDistance = hypot(lhsBounds.midX - rhsBounds.midX, lhsBounds.midY - rhsBounds.midY)
+        let sameFrame =
+            abs(lhsBounds.minX - rhsBounds.minX) <= 2 &&
+            abs(lhsBounds.minY - rhsBounds.minY) <= 2 &&
+            abs(lhsBounds.width - rhsBounds.width) <= 2 &&
+            abs(lhsBounds.height - rhsBounds.height) <= 2
+
+        if sameFrame {
+            return true
+        }
+
+        return overlapRatio >= 0.92 && centerDistance <= 110
     }
 
     private static func prefersReplacementCandidate(
@@ -1661,6 +1885,7 @@ private struct WindowCandidate {
     let appName: String
     let appIcon: NSImage?
     let windowTitle: String
+    let hasExplicitTitle: Bool
     let bounds: CGRect
     let screenFrame: CGRect?
     let orderIndex: Int
@@ -1688,8 +1913,16 @@ struct WindowCandidateDeduplicationProbe: Equatable {
     let ownerPID: pid_t
     let windowID: CGWindowID
     let title: String
+    let hasExplicitTitle: Bool
     let bounds: CGRect
     let orderIndex: Int
     let sortScore: CGFloat
     let isOnScreen: Bool
+}
+
+private extension CGRect {
+    var area: CGFloat {
+        guard !isNull, !isEmpty else { return 0 }
+        return width * height
+    }
 }
