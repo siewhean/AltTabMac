@@ -1,2 +1,26 @@
-.vercel
+# Local secrets and deployment state
+.vercel/
 .secrets/
+
+# Swift Package Manager and Xcode derived output
+.build/
+.swiftpm/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+
+# Packaged app and debug symbols
+CmdTab.app/
+*.dSYM/
+*.dSYM.zip
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor and temporary files
+*.swp
+*.swo
+*~
