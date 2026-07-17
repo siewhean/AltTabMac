@@ -1,0 +1,79 @@
+name: Apply Process Fallback Repair
+
+on:
+  push:
+    branches:
+      - agent/fix-switcher-mru-completeness
+    paths:
+      - scripts/apply_process_fallback_repair.py
+      - .github/workflows/apply-process-fallback-repair.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Sources/CmdTab/**
+      - Tests/CmdTabTests/**
+      - scripts/apply_process_fallback_repair.py
+      - .github/workflows/apply-process-fallback-repair.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: apply-process-fallback-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name == 'push' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Apply asserted PID fallback repair
+        run: python3 scripts/apply_process_fallback_repair.py
+
+      - name: Run complete Swift package tests
+        shell: bash
+        run: |
+          set +e
+          swift test --scratch-path /tmp/CmdTab-process-test > /tmp/CmdTab-process-test.log 2>&1
+          status=$?
+          tail -n 120 /tmp/CmdTab-process-test.log
+          exit "$status"
+
+      - name: Upload Swift test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmdtab-process-fallback-test-${{ github.run_attempt }}
+          path: /tmp/CmdTab-process-test.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Commit validated repair
+        shell: bash
+        run: |
+          rm scripts/apply_process_fallback_repair.py
+          rm .github/workflows/apply-process-fallback-repair.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Keep fallbacks distinct by running process"
+          git push origin "HEAD:${TARGET_BRANCH}"
