@@ -363,6 +363,13 @@ final class AppSwitcher: NSObject {
         return currentFrontmostIdentity(for: app)
     }
 
+    @discardableResult
+    func reconcileCurrentFrontmostHistory() -> SwitcherHistoryIdentity? {
+        guard let identity = currentFrontmostIdentity() else { return nil }
+        history.noteActivation(identity)
+        return identity
+    }
+
     // MARK: - Two-phase cache build
     //
     // Phase 1 (fast): Enumerate windows via CGWindowListCopyWindowInfo,
@@ -452,6 +459,7 @@ final class AppSwitcher: NSObject {
             uniquingKeysWith: { first, _ in first }
         )
         let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: runningApps)
+        let historyEntries = history.snapshot()
 
         let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let candidates = deduplicatedCandidates(
@@ -463,7 +471,9 @@ final class AppSwitcher: NSObject {
                     allowedWindowIDsByPID: allowedWindowIDsByPID
                 )
             }
-        ).sorted(by: compareCandidates)
+        ).sorted {
+            compareCandidates($0, $1, historyEntries: historyEntries)
+        }
 
         let scopedCandidates = visibilityScopedCandidates(candidates)
         return BuildContext(candidates: limitedByApp(scopedCandidates), runningApps: runningApps)
@@ -517,12 +527,18 @@ final class AppSwitcher: NSObject {
                 }
             }
 
-        let representedWindowPIDs = Set(context.candidates.map(\.ownerPID))
-        let representedWindowAppIdentifiers = Set(context.candidates.map(\.sourceAppIdentifier))
+        // Membership is based on emitted items, never raw candidates. A
+        // failed screenshot therefore cannot suppress both the window tile and
+        // its application fallback.
+        let representedWindowPIDs = Set(windowItems.compactMap(\.historyIdentity.ownerPID))
+        let representedWindowAppIdentifiers = Set(windowItems.compactMap(\.sourceAppIdentifier))
         var seenFallbackAppIdentifiers = Set<String>()
+        let fallbackHistoryEntries = history.snapshot()
 
         let fallbackItems: [SwitcherItem] = context.runningApps
-            .sorted(by: compareApps)
+            .sorted {
+                compareApps($0, $1, historyEntries: fallbackHistoryEntries)
+            }
             .compactMap { app in
                 let sourceAppIdentifier = sourceAppIdentifier(for: app)
                 let appName = app.localizedName ?? "Application"
@@ -585,8 +601,13 @@ final class AppSwitcher: NSObject {
         capturePreviews: Bool,
         allowPreviewlessItems: Bool = false
     ) -> Bool {
-        if previewImage != nil { return true }
-        return !capturePreviews && allowPreviewlessItems
+        // An eligible window remains a switcher item even when Screen Recording
+        // is denied, a private capture API is unavailable, or a cached preview
+        // expires. The UI already renders a safe icon/placeholder state.
+        _ = previewImage
+        _ = capturePreviews
+        _ = allowPreviewlessItems
+        return true
     }
 
     private func updatePreviewCacheLocked(with items: [SwitcherItem]) {
@@ -681,6 +702,7 @@ final class AppSwitcher: NSObject {
 
     private func currentFrontmostIdentity(for app: NSRunningApplication) -> SwitcherHistoryIdentity? {
         let allowedWindowIDsByPID = switcherDisplayWindowIDsByPID(for: [app])
+        let historyEntries = history.snapshot()
         let windows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let candidates = deduplicatedCandidates(
             from: windows.enumerated().compactMap { index, info in
@@ -692,7 +714,9 @@ final class AppSwitcher: NSObject {
                     allowedWindowIDsByPID: allowedWindowIDsByPID
                 )
             }
-        ).sorted(by: compareCandidates)
+        ).sorted {
+            compareCandidates($0, $1, historyEntries: historyEntries)
+        }
 
         if let focusedWindowID = focusedWindowID(for: app.processIdentifier) {
             if let focusedCandidate = candidates.first(where: { $0.id == focusedWindowID }) {
@@ -712,9 +736,13 @@ final class AppSwitcher: NSObject {
 
     // MARK: - Sorting
 
-    private func compareCandidates(_ lhs: WindowCandidate, _ rhs: WindowCandidate) -> Bool {
-        let lhsRank = history.rank(of: lhs.historyIdentity)
-        let rhsRank = history.rank(of: rhs.historyIdentity)
+    private func compareCandidates(
+        _ lhs: WindowCandidate,
+        _ rhs: WindowCandidate,
+        historyEntries: [SwitcherHistoryIdentity]
+    ) -> Bool {
+        let lhsRank = historyEntries.firstIndex(of: lhs.historyIdentity)
+        let rhsRank = historyEntries.firstIndex(of: rhs.historyIdentity)
 
         switch (lhsRank, rhsRank) {
         case let (.some(l), .some(r)) where l != r: return l < r
@@ -727,13 +755,28 @@ final class AppSwitcher: NSObject {
         return lhs.orderIndex < rhs.orderIndex
     }
 
-    private func compareApps(_ lhs: NSRunningApplication, _ rhs: NSRunningApplication) -> Bool {
-        let lhsIdentity = SwitcherHistoryIdentity.appFallback(bundleID: sourceAppIdentifier(for: lhs), pid: lhs.processIdentifier)
-        let rhsIdentity = SwitcherHistoryIdentity.appFallback(bundleID: sourceAppIdentifier(for: rhs), pid: rhs.processIdentifier)
+    private func compareApps(
+        _ lhs: NSRunningApplication,
+        _ rhs: NSRunningApplication,
+        historyEntries: [SwitcherHistoryIdentity]
+    ) -> Bool {
+        func rank(for app: NSRunningApplication) -> Int {
+            let identity = SwitcherHistoryIdentity.appFallback(
+                bundleID: sourceAppIdentifier(for: app),
+                pid: app.processIdentifier
+            )
+            return historyEntries.firstIndex(of: identity)
+                ?? historyEntries.firstIndex {
+                    $0.matches(
+                        bundleID: app.bundleIdentifier,
+                        pid: app.processIdentifier
+                    )
+                }
+                ?? Int.max
+        }
 
-        let lhsRank = history.rank(of: lhsIdentity) ?? history.rankForApp(bundleID: lhs.bundleIdentifier, pid: lhs.processIdentifier) ?? Int.max
-        let rhsRank = history.rank(of: rhsIdentity) ?? history.rankForApp(bundleID: rhs.bundleIdentifier, pid: rhs.processIdentifier) ?? Int.max
-
+        let lhsRank = rank(for: lhs)
+        let rhsRank = rank(for: rhs)
         if lhsRank != rhsRank { return lhsRank < rhsRank }
         return (lhs.localizedName ?? "") < (rhs.localizedName ?? "")
     }
@@ -745,11 +788,21 @@ final class AppSwitcher: NSObject {
         schedulePendingActivationTimeout(for: app.processIdentifier)
         activateApplication(app, activateAllWindows: true)
 
-        var value: CFTypeRef?
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
-           let windows = value as? [AXUIElement], let first = windows.first {
-            raiseWindow(first, ownerPID: app.processIdentifier)
+        let preferredWindows = [
+            preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString),
+            preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
+        ].compactMap { $0 }
+
+        if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+            raiseWindow(preferred, ownerPID: app.processIdentifier)
+        } else {
+            var value: CFTypeRef?
+            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+               let windows = value as? [AXUIElement],
+               let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+                raiseWindow(target, ownerPID: app.processIdentifier)
+            }
         }
 
         ensureApplicationFrontmost(app, identity: identity, attempt: 0)
@@ -845,7 +898,18 @@ final class AppSwitcher: NSObject {
     }
 
     private func scheduleWindowFocusRetry(for candidate: WindowCandidate, attempt: Int) {
-        guard attempt < activationRetryLimit else { return }
+        guard attempt < activationRetryLimit else {
+            if clearPendingActivation(candidate.ownerPID) {
+                os_log(
+                    .error,
+                    log: appSwitcherLog,
+                    "Window activation failed after retries (pid=%{public}d, window=%{public}u)",
+                    candidate.ownerPID,
+                    candidate.id
+                )
+            }
+            return
+        }
         let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: attempt + 1)
@@ -872,9 +936,14 @@ final class AppSwitcher: NSObject {
             return
         }
         guard attempt < activationRetryLimit else {
-            // Retries exhausted — record the history anyway so recency ordering
-            // stays correct even when the app was slow to become frontmost.
-            confirmActivation(identity: identity, pid: app.processIdentifier)
+            if clearPendingActivation(app.processIdentifier) {
+                os_log(
+                    .error,
+                    log: appSwitcherLog,
+                    "Application activation failed after retries (pid=%{public}d)",
+                    app.processIdentifier
+                )
+            }
             return
         }
 
@@ -897,10 +966,14 @@ final class AppSwitcher: NSObject {
         }
         guard attempt < activationRetryLimit,
               let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
-            // Retries exhausted — if the app is at least frontmost, confirm with
-            // whatever identity we have so the history still gets updated.
-            if currentSystemFrontmostPID() == candidate.ownerPID {
-                confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
+            if clearPendingActivation(candidate.ownerPID) {
+                os_log(
+                    .error,
+                    log: appSwitcherLog,
+                    "Exact window activation failed after retries (pid=%{public}d, window=%{public}u)",
+                    candidate.ownerPID,
+                    candidate.id
+                )
             }
             return
         }

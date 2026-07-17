@@ -276,10 +276,10 @@ final class AppSwitcherActivationTests: XCTestCase {
         )
     }
 
-    func testPreviewlessWindowTilesAreDroppedInFinalThumbnailPass() {
-        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
+    func testPreviewlessWindowTilesRemainVisibleInEveryCachePhase() {
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: NSImage(size: NSSize(width: 10, height: 10)), capturePreviews: true))
-        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
     }
 
