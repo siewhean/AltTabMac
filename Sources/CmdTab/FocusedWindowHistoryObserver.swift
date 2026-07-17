@@ -83,14 +83,12 @@ final class FocusedWindowHistoryObserver {
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            guard let self else { return }
-            self.refreshAccessibilityObservers()
-            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
-                    as? NSRunningApplication else {
-                return
-            }
-            self.reconcile(app: app)
+        ) { [weak self] _ in
+            // AppSwitcher owns application-activation history, including its
+            // pending-activation suppression and exact-focus confirmation.
+            // This observer refreshes AX registrations here but records only
+            // intra-application focused/main-window changes.
+            self?.refreshAccessibilityObservers()
         }
 
         let launchToken = workspace.notificationCenter.addObserver(
