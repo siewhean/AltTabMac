@@ -1,7 +1,7 @@
 # CmdTab
 
-Last Updated: 2026-04-02
-Active Task: App-side licensing flow with local trial enforcement, signed license activation, and direct buy/help entry points.
+Last Updated: 2026-07-17
+Active Task: Strict global window MRU, complete switcher membership, activation truth, and live macOS release QA.
 
 ## Project Summary
 
@@ -18,8 +18,9 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Both `⌘Tab` and `⌥Tab` now reveal the same app-window switcher immediately.
 - First-use cache priming is synchronous for the fast icon phase so the overlay does not stall on an empty cache.
 - Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
-- The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
-- Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
+- The visible list now follows one global exact-window MRU sequence; same-application windows are neither grouped nor skipped during initial forward or reverse selection.
+- The current exact window remains visible at the end of the ordered sequence, and ambiguous multi-window frontmost PIDs resolve from the immutable history snapshot.
+- A short-lived provisional frontmost override makes immediate re-presses deterministic without changing permanent MRU before activation is confirmed.
 - Command Palette search now uses deterministic ranking with acronym matching, token matching, and remembered selections for repeated short queries.
 - Switcher preferences now support scoped window visibility (`current space`, `visible spaces`, `all spaces`) plus display targeting (`active window display`, `cursor display`, `all displays`).
 - Switcher preferences now also support alternate standalone triggers based on right-side modifier tap / double-tap flows.
@@ -46,7 +47,15 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Security verification now includes repeatable repo automation through `.github/workflows/security.yml`, Dependabot updates, and `npm run security:check`.
 - Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
-- Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
+- Eligible window membership no longer depends on screenshot success; preview failures now degrade to the existing icon/placeholder presentation instead of removing the tile.
+- Fallback items are process-scoped, so two regular processes sharing a bundle identifier cannot hide each other.
+- New installations default to unlimited windows per application; an existing user-configured cap is still respected.
+- Accessibility focused-window observers now capture A1 → A2 changes inside one already-frontmost app, with exact session-start reconciliation as a safety net.
+- Candidate and visible-item ordering use one immutable history snapshot per operation rather than repeated mutable rank reads from a sort comparator.
+- Activation retry exhaustion is recorded as failure rather than success, and fallback activation prefers focused/main standard windows before arbitrary AX array order.
+- Focused strict-MRU/completeness regressions and the complete 123-test SwiftPM suite passed on a macOS 15.7.7 arm64 GitHub runner; permanent macOS 14/15 Swift CI now protects the path.
+- The implementation review, reproducible model evidence, and exact 136-case QA matrix live under `docs/qa/`.
+- Existing website verification remains `npm run typecheck` plus `npx next build --webpack`.
 
 ## Active Constraints / Non-Negotiables
 
@@ -107,6 +116,13 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Open Issues / Next Steps
 
+- Complete the P0 live switcher matrix in `docs/qa/AltTabMac_comprehensive_test_matrix.csv` before merging this repair.
+- Manually prove exact focused `CGWindowID` activation for keyboard, modifier-release, and mouse commits, including same-title sibling windows.
+- Manually validate Accessibility and Screen Recording denied/granted/revoked transitions; automated SwiftPM tests cannot grant or revoke these permissions.
+- Manually validate current/visible/all-Spaces behavior, native fullscreen Spaces, Stage Manager, and off-Space exact activation.
+- Manually validate single-display, multi-display, mixed-scale, display disconnect/reconnect, and mirrored `All Displays` behavior.
+- Manually validate rapid re-press timing, secure-input interference, event-tap recovery, sleep/wake, and the packaged signed/ad-hoc release bundle.
+- `.gitignore` now prevents future generated build output; existing historical tracked `.build` artifacts were not mass-deleted in this focused repair because that would create a large unrelated diff.
 - Rebuild and manually validate after each change set.
 - Manually validate the new space/display placement behavior on single-display and multi-display setups, especially mirrored overlay behavior for `All Displays`.
 - Manually validate quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`) while the switcher is visible to confirm AX close/minimize behavior across common apps.
@@ -127,6 +143,12 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-07-17: Repaired complete membership, strict global window MRU, exact focus history, and activation truth.
+  - Preview capture failure no longer removes eligible windows, and process-scoped fallbacks cover regular apps without emitted windows.
+  - Forward/reverse session start now follows the displayed exact-window sequence rather than scanning for a different PID.
+  - Added AX focused-window observation, immutable history snapshots, ambiguous-PID resolution, provisional rapid-repress state, verified-only MRU confirmation, and safer fallback activation.
+  - Added focused acceptance regressions, a reproducible exhaustive model, the exact 136-case QA matrix, permanent macOS 14/15 Swift CI, and generated-artifact ignores.
+  - Automated macOS 15 arm64 verification passed all focused tests, all 123 SwiftPM tests, and `git diff --check`; live permissions, Spaces, displays, private-API activation, and packaged-app QA remain explicit pre-merge work.
 - 2026-03-28: Added an interactive switcher simulator to the website walkthrough.
   - The walkthrough section now includes a live browser demo where visitors can click through Classic Grid, search inside Command Palette, and step around Radial Menu.
   - The demo uses the same concise product framing as the rest of the site, so it adds hands-on interaction without bringing back low-signal sections.
