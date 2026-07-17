@@ -7,25 +7,39 @@ on:
     paths:
       - scripts/apply_switcher_repair.py
       - .github/workflows/apply-switcher-repair.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Sources/CmdTab/**
+      - Tests/CmdTabTests/**
+      - scripts/apply_switcher_repair.py
+      - .github/workflows/apply-switcher-repair.yml
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: apply-switcher-repair-${{ github.ref }}
+  group: apply-switcher-repair-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
   repair:
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name == 'push' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
     steps:
       - name: Check out repair branch
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
 
       - name: Apply asserted source repair
@@ -59,4 +73,4 @@ jobs:
           fi
 
           git commit -m "Fix switcher completeness and strict MRU"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:${TARGET_BRANCH}"
