@@ -1,5 +1,55 @@
 # Todo
 
+## 2026-07-17 — Switcher MRU, Completeness, And Activation Reliability
+
+### Phase 1 — Contract And Regression Baseline
+
+- [x] Create `agent/fix-switcher-mru-completeness` from `main`.
+- [ ] Add the implementation review, exhaustive test matrix, model checker, and model results to the repository.
+- [ ] Add focused red tests for preview-independent membership, strict global window MRU, and ambiguous frontmost resolution.
+- [ ] Define the protected acceptance invariants in code comments and test names before changing production behavior.
+
+### Phase 2 — Complete And Stable Membership
+
+- [ ] Decouple switcher membership from preview-capture success so every eligible window remains visible as a placeholder when capture fails.
+- [ ] Calculate fallback suppression from emitted window items rather than raw candidates.
+- [ ] Default `Max windows per application` to unlimited for new installations.
+- [ ] Preserve existing explicit exclusions, title filters, visibility scopes, and user-configured caps.
+
+### Phase 3 — Strict Global Window MRU
+
+- [ ] Remove PID-based initial-selection skipping so forward and reverse switching follow the displayed global window sequence exactly.
+- [ ] Resolve ambiguous multi-window frontmost PIDs from the immutable MRU history snapshot.
+- [ ] Reconcile the exact focused window at session start.
+- [ ] Track same-application focused-window changes through Accessibility notifications where permission is available.
+- [ ] Capture one history snapshot for each ordering operation instead of reading mutable history repeatedly from the sort comparator.
+
+### Phase 4 — Activation Truth And Rapid Re-press Safety
+
+- [ ] Establish a short-lived provisional frontmost identity at commit time for deterministic immediate re-presses without prematurely changing permanent MRU.
+- [ ] Persist MRU only after the target app/window is verified as frontmost.
+- [ ] Treat retry exhaustion as activation failure rather than success.
+- [ ] Prefer focused/main standard windows for app-fallback activation instead of blindly raising the first AX window.
+
+### Phase 5 — Automation, Repository Hygiene, And Release Evidence
+
+- [ ] Add a macOS GitHub Actions workflow for `swift test` on switcher-related changes.
+- [ ] Ignore Swift build, index, app-bundle, dSYM, and Finder metadata artifacts.
+- [ ] Run focused tests, then the full SwiftPM test suite on macOS CI.
+- [ ] Inspect the final branch diff and open a draft PR with explicit validation and remaining manual macOS QA.
+- [ ] Update `README.md`, this file, and `tasks/lessons.md` with the completed work and evidence.
+
+### Acceptance Invariants
+
+- Every eligible top-level application window produces one unique switcher item.
+- A regular running app with no eligible window produces exactly one fallback item.
+- Preview availability affects presentation only and never changes membership.
+- Exact window identities form one global MRU sequence; windows are never grouped or skipped by PID or bundle.
+- The current exact window remains in the list but is moved to the end for cycling.
+- Forward selection uses the first ordered item; reverse selection uses the adjacent prior item.
+- Permanent history changes only after verified activation.
+- Explicit preferences are the only accepted source of intentional omission.
+
 ## 2026-03-27 — Website Motion Pass
 
 - [x] Add a lightweight motion primitive for section reveals without introducing a new animation library.
