@@ -76,7 +76,9 @@ final class SwitcherPreferences: ObservableObject {
             .flatMap(WindowVisibilityScope.init(rawValue:))
             ?? (legacyIncludeBackgroundWindows ? .allSpaces : .visibleSpaces)
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
-        self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 3
+        // Completeness is the default contract. Users can opt into a cap later,
+        // but a fresh installation must not silently hide the fourth window.
+        self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 0
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
         self.showSelectedPreviewBackdrop = defaults.object(forKey: showSelectedPreviewBackdropKey) as? Bool ?? false
         self.switcherStyle = defaults.string(forKey: switcherStyleKey)
