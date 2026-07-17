@@ -1,0 +1,68 @@
+name: Materialize Switcher Test Matrix
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/materialize_switcher_test_matrix.py
+      - .github/workflows/materialize-switcher-test-matrix.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: materialize-switcher-test-matrix-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Materialize and verify matrix
+        run: |
+          python3 scripts/materialize_switcher_test_matrix.py
+          python3 - <<'PY'
+          import csv
+          import hashlib
+          from pathlib import Path
+
+          path = Path('docs/qa/AltTabMac_comprehensive_test_matrix.csv')
+          raw = path.read_bytes()
+          assert len(raw) == 33_303
+          assert hashlib.sha256(raw).hexdigest() == '62d8d636648d2afc0e5d22d21f114b7aaaaf54403cead8705acf76691341432f'
+          with path.open(encoding='utf-8-sig', newline='') as handle:
+              rows = list(csv.DictReader(handle))
+          assert len(rows) == 136, len(rows)
+          assert len({row['ID'] for row in rows}) == 136
+          assert all(all(value.strip() for value in row.values()) for row in rows)
+          print('Verified 136 unique, complete switcher QA cases.')
+          PY
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Commit exact matrix
+        run: |
+          rm scripts/materialize_switcher_test_matrix.py
+          rm .github/workflows/materialize-switcher-test-matrix.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add exhaustive switcher QA matrix"
+          git push origin "HEAD:${TARGET_BRANCH}"
