@@ -531,8 +531,7 @@ final class AppSwitcher: NSObject {
         // failed screenshot therefore cannot suppress both the window tile and
         // its application fallback.
         let representedWindowPIDs = Set(windowItems.compactMap(\.historyIdentity.ownerPID))
-        let representedWindowAppIdentifiers = Set(windowItems.compactMap(\.sourceAppIdentifier))
-        var seenFallbackAppIdentifiers = Set<String>()
+        var seenFallbackPIDs = Set<pid_t>()
         let fallbackHistoryEntries = history.snapshot()
 
         let fallbackItems: [SwitcherItem] = context.runningApps
@@ -549,10 +548,8 @@ final class AppSwitcher: NSObject {
 
                 guard Self.shouldIncludeFallbackApp(
                     processIdentifier: app.processIdentifier,
-                    sourceAppIdentifier: sourceAppIdentifier,
                     representedWindowPIDs: representedWindowPIDs,
-                    representedWindowAppIdentifiers: representedWindowAppIdentifiers,
-                    seenFallbackAppIdentifiers: &seenFallbackAppIdentifiers
+                    seenFallbackPIDs: &seenFallbackPIDs
                 ) else {
                     return nil
                 }
@@ -586,14 +583,14 @@ final class AppSwitcher: NSObject {
 
     static func shouldIncludeFallbackApp(
         processIdentifier: pid_t,
-        sourceAppIdentifier: String,
         representedWindowPIDs: Set<pid_t>,
-        representedWindowAppIdentifiers: Set<String>,
-        seenFallbackAppIdentifiers: inout Set<String>
+        seenFallbackPIDs: inout Set<pid_t>
     ) -> Bool {
+        // A regular running process without an emitted window gets one fallback.
+        // Bundle-level deduplication is incorrect because two independent regular
+        // processes may legitimately share a bundle identifier.
         guard !representedWindowPIDs.contains(processIdentifier) else { return false }
-        guard !representedWindowAppIdentifiers.contains(sourceAppIdentifier) else { return false }
-        return seenFallbackAppIdentifiers.insert(sourceAppIdentifier).inserted
+        return seenFallbackPIDs.insert(processIdentifier).inserted
     }
 
     static func shouldDisplayWindowItem(
