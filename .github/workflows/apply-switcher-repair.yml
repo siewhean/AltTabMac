@@ -1,0 +1,62 @@
+name: Apply Switcher Repair
+
+on:
+  push:
+    branches:
+      - agent/fix-switcher-mru-completeness
+    paths:
+      - scripts/apply_switcher_repair.py
+      - .github/workflows/apply-switcher-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-switcher-repair-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply asserted source repair
+        run: python3 scripts/apply_switcher_repair.py
+
+      - name: Run focused regressions
+        run: >-
+          swift test
+          --scratch-path /tmp/CmdTab-focused-test
+          --filter StrictMRUAndCompletenessRegressionTests
+
+      - name: Run complete Swift package tests
+        run: swift test --scratch-path /tmp/CmdTab-test
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Commit validated repair
+        shell: bash
+        run: |
+          rm scripts/apply_switcher_repair.py
+          rm .github/workflows/apply-switcher-repair.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No repair changes were produced."
+            exit 1
+          fi
+
+          git commit -m "Fix switcher completeness and strict MRU"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
