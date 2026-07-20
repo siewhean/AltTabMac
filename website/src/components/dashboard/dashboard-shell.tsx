@@ -7,6 +7,7 @@ import { SectionShell } from "@/components/ui/section-shell";
 
 const navigation = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/discovery", label: "Search and AI discovery" },
   { href: "/dashboard/settings", label: "Settings" },
 ] as const;
 
@@ -26,12 +27,13 @@ export function DashboardShell({
   return (
     <main>
       <SectionShell
+        headingAs="h1"
         eyebrow="Admin dashboard"
         title={title}
         description={description}
         className="pt-24"
       >
-        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
           <aside className="surface-panel p-4">
             <div className="flex items-center gap-3 px-3 pb-4">
               <Image
@@ -46,7 +48,7 @@ export function DashboardShell({
                 <p className="text-xs text-subdued">Private operations view</p>
               </div>
             </div>
-            <nav className="space-y-2">
+            <nav aria-label="Dashboard navigation" className="space-y-2">
               {navigation.map((item) => (
                 <Link
                   key={item.href}
@@ -62,8 +64,8 @@ export function DashboardShell({
               ))}
             </nav>
             <div className="mt-6 space-y-3 border-t border-white/8 px-3 pt-5 text-sm leading-6 text-muted">
-              <p>Use Overview for live waitlist and website analytics. Use Settings for access control.</p>
-              <p className="text-subdued">Vercel remains useful for deeper platform diagnostics, but the core website metrics now live here.</p>
+              <p>Overview covers the operating funnel. Discovery isolates search and AI-assisted referrals without storing user search queries.</p>
+              <p className="text-subdued">Use Vercel and webmaster platforms for deeper crawl, field-performance, and index diagnostics.</p>
             </div>
           </aside>
 
