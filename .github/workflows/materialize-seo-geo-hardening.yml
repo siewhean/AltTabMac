@@ -1,0 +1,74 @@
+name: Materialize SEO GEO Hardening
+
+on:
+  push:
+    branches:
+      - agent/seo-geo-competitive-hardening
+    paths:
+      - .github/workflows/materialize-seo-geo-hardening.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-seo-geo-hardening
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out specialist branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/seo-geo-competitive-hardening
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Regenerate patched dependency lock
+        working-directory: website
+        run: npm install next@^16.2.6 react@^19.2.6 react-dom@^19.2.6
+
+      - name: Verify SEO and GEO invariants
+        working-directory: website
+        run: npm run seo:check
+
+      - name: Typecheck
+        working-directory: website
+        run: npm run typecheck
+
+      - name: Build production website
+        working-directory: website
+        run: npx next build --webpack
+
+      - name: Audit production dependencies
+        working-directory: website
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Commit validated lockfile
+        shell: bash
+        run: |
+          rm .github/workflows/materialize-seo-geo-hardening.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/package.json website/package-lock.json .github/workflows/materialize-seo-geo-hardening.yml
+
+          if git diff --cached --quiet; then
+            echo "No materialized dependency changes were produced."
+            exit 1
+          fi
+
+          git commit -m "Validate competitive SEO and GEO hardening"
+          git push origin HEAD:agent/seo-geo-competitive-hardening
