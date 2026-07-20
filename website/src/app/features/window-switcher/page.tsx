@@ -17,7 +17,6 @@ const description =
   "CmdTab replaces an app-only Cmd+Tab view with individual Mac windows, exact-window recent-use ordering, live previews, search, quick actions, and Space-aware filtering.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
-  { name: "Features", path: "/features/window-switcher" as const },
   { name: "Window switcher", path: "/features/window-switcher" as const },
 ];
 
