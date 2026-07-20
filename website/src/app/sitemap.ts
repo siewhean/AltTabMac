@@ -2,23 +2,23 @@ import type { MetadataRoute } from "next";
 
 import { getSiteUrl } from "@/lib/env";
 
+const publicRoutes = [
+  "/",
+  "/about",
+  "/buy",
+  "/changelog",
+  "/compatibility",
+  "/help",
+  "/permissions",
+  "/privacy",
+  "/security",
+  "/trial",
+] as const;
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = getSiteUrl();
-  const now = new Date();
 
-  return [
-    {
-      url: siteUrl,
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
-      url: `${siteUrl}/privacy`,
-      lastModified: now,
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
-  ];
+  return publicRoutes.map((path) => ({
+    url: new URL(path, `${siteUrl}/`).toString(),
+  }));
 }
-
