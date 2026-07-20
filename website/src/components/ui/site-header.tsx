@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 
 const marketingNav = [
   { href: "/", label: "Home" },
+  { href: "/compatibility", label: "Compatibility" },
+  { href: "/permissions", label: "Permissions" },
   { href: "/trial", label: "Trial" },
   { href: "/buy", label: "Buy" },
   { href: "/help", label: "Help" },
@@ -31,7 +33,7 @@ export function SiteHeader() {
         </div>
       </Link>
 
-      <nav className="hidden items-center gap-6 text-sm text-muted lg:flex">
+      <nav aria-label="Primary navigation" className="hidden items-center gap-5 text-sm text-muted lg:flex">
         {marketingNav.map((item) => (
           <Link key={item.href} href={item.href} className="transition-colors duration-200 hover:text-text">
             {item.label}
