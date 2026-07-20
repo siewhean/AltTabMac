@@ -1,15 +1,16 @@
-import type { Metadata } from "next";
-
+import { JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
+import { createPageMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "Security | CmdTab",
-  description: "Security disclosure details for the CmdTab website, trial flow, and hosted purchase links.",
-  alternates: {
-    canonical: "/security",
-  },
-};
+export const metadata = createPageMetadata({
+  title: "CmdTab security disclosure policy",
+  description:
+    "Review how to report security issues affecting the CmdTab website, trial delivery, purchase flow, licensing, or native macOS app.",
+  path: "/security",
+  imageAlt: "CmdTab security disclosure policy",
+});
 
 const disclosureSections = [
   {
@@ -38,7 +39,14 @@ const disclosureSections = [
 export default function SecurityPage() {
   return (
     <main>
+      <JsonLd
+        data={createBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Security", path: "/security" },
+        ])}
+      />
       <SectionShell
+        headingAs="h1"
         eyebrow="Security"
         title="CmdTab security disclosure"
         description="Use this page to privately report security issues affecting the CmdTab website, purchase flow, trial delivery, or app."
