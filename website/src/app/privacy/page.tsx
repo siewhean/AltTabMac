@@ -1,21 +1,29 @@
-import type { Metadata } from "next";
-
+import { JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
 import { privacyContent } from "@/content/legal";
+import { createPageMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "Privacy | CmdTab",
-  description: "Privacy details for the CmdTab website, trial flow, and hosted purchase links.",
-  alternates: {
-    canonical: "/privacy",
-  },
-};
+export const metadata = createPageMetadata({
+  title: "CmdTab privacy policy",
+  description:
+    "Review privacy details for the CmdTab website, trial flow, hosted purchase links, analytics, and support requests.",
+  path: "/privacy",
+  imageAlt: "CmdTab privacy policy",
+});
 
 export default function PrivacyPage() {
   return (
     <main>
+      <JsonLd
+        data={createBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Privacy", path: "/privacy" },
+        ])}
+      />
       <SectionShell
+        headingAs="h1"
         eyebrow="Privacy"
         title="CmdTab website privacy"
         description={privacyContent.intro}
