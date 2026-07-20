@@ -1,13 +1,13 @@
 # CmdTab
 
-Last Updated: 2026-04-02
-Active Task: App-side licensing flow with local trial enforcement, signed license activation, and direct buy/help entry points.
+Last Updated: 2026-07-20
+Active Task: Competitive SEO/GEO hardening, production search verification, and external authority growth.
 
 ## Project Summary
 
 CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
 
-The repo now also contains a standalone Next.js marketing site under `website/` for the private beta waitlist and public product story.
+The repo also contains a standalone Next.js product, commerce, documentation, analytics, and discovery site under `website/`.
 
 ## Current Status
 
@@ -48,6 +48,17 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
 - Local verification passed with `swift test --scratch-path /tmp/CmdTab-test`, `npm run typecheck`, and `npx next build --webpack`.
 
+
+- The website now uses one canonical public-route registry for the sitemap, IndexNow submissions, `llms.txt`, and SEO verification.
+- Dedicated discovery pages now cover the core Mac window-switcher category, native window-switching guide, CmdTab-versus-macOS comparison, canonical FAQ, compatibility, permissions, privacy, About, and changelog intents.
+- Public pages expose visible H1s, breadcrumbs, review dates, source links, current app version/build, minimum macOS, limitations, and matching WebPage/FAQ/Article/Breadcrumb structured data.
+- The public privacy and permissions surfaces document the actual native-app telemetry cadence and fields, plus window titles, previews, screenshots, keystrokes, files, clipboard data, and search queries excluded from the current payload.
+- First-party discovery analytics classify broad ChatGPT, Perplexity, Copilot, Gemini, Claude, Google, Bing, direct, and referral sessions without collecting prompts or search-query text.
+- A private `/dashboard/discovery` view reports AI-assisted pageviews, visitors, sources, and landing pages while stating referrer-measurement limits.
+- Next.js is on the patched `16.2.10` family and React / React DOM on `19.2.7`; the regenerated lockfile passed the high-severity production dependency audit.
+- `npm run seo:check`, TypeScript, the production Webpack build, dependency audit, and patch-hygiene checks all passed on the specialist branch.
+- CmdTab can exceed reviewed competitors in technical clarity, visible evidence, privacy specificity, source verifiability, and measurement; external ranking authority still requires downloads, independent reviews, backlinks, community discussion, and selective localization.
+
 ## Active Constraints / Non-Negotiables
 
 - Read this file before planning or coding.
@@ -71,7 +82,7 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Browser-tab Apple Events permissions and messaging should stay removed from the bundle.
 - The product should optimize for the fastest path to the correct window, not expand into a broad launcher or browser-tab automation tool.
 - `⌘Tab` remains the headline trigger, but CmdTab now supports optional right-command / right-option tap-based alternate triggers as a secondary access path.
-- The marketing site lives in `website/` and stays waitlist-only for private beta; there is still no checkout, testimonials, or public download flow in v1.
+- The product website lives in `website/` and supports public trial, buy, help, compatibility, permissions, privacy, security, factual guide, comparison, FAQ, and changelog routes without fake testimonials or unsupported claims.
 - The website targets broad Mac users with a premium, screenshot-first presentation and Mac-native system typography instead of a generic SaaS treatment.
 - The website must avoid vibe-coded patterns. Start from a design system first, then keep color, type, spacing, radius, motion, and copy consistent across pages.
 - Website visual constraints:
@@ -107,6 +118,13 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Open Issues / Next Steps
 
+- Merge the independent specialist PR into the primary SEO implementation only after final human-head security verification remains green.
+- Deploy the final website and verify every canonical URL, sitemap entry, `robots.txt`, `llms.txt`, IndexNow key, metadata card, structured-data graph, redirect, and private-route `X-Robots-Tag` response in production.
+- Verify `cmdtab.net` in Google Search Console and Bing Webmaster Tools, submit the sitemap, inspect each public route, and review their generative-AI / AI Performance reports where available.
+- Configure `INDEXNOW_KEY` and submit only deployed, changed canonical pages through `npm run indexnow:submit`.
+- Compare webmaster-platform evidence with `/dashboard/discovery`, Vercel Analytics, trial starts, and purchases; do not use citation screenshots as the sole GEO KPI.
+- Provision monitored `support@cmdtab.net`, `privacy@cmdtab.net`, and `security@cmdtab.net` addresses before replacing the current personal contact email.
+- Earn authority through a signed public release, original performance and activation evidence, independent reviews, editorial coverage, authentic user discussion, and evidence-led localization rather than synthetic testimonials or thin pages.
 - Rebuild and manually validate after each change set.
 - Manually validate the new space/display placement behavior on single-display and multi-display setups, especially mirrored overlay behavior for `All Displays`.
 - Manually validate quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`) while the switcher is visible to confirm AX close/minimize behavior across common apps.
@@ -127,6 +145,13 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 
 ## Recent Changes Log
 
+- 2026-07-20: Added an independent competitor-informed SEO and GEO hardening pass.
+  - Added authoritative window-switcher, Mac guide, native comparison, FAQ, compatibility, permissions, privacy, entity, and release content with visible review evidence and primary-source links.
+  - Expanded the structured-data graph with Person, Organization, WebSite, SoftwareApplication, WebPage, TechArticle, FAQPage, Offer, and Breadcrumb relationships matching visible page content.
+  - Published the actual website and native-app telemetry contract, added broad AI/search referral classification without prompt collection, and added a private AI-discovery dashboard.
+  - Added a shared canonical-route registry, maintained sitemap dates, IndexNow support, canonical-only `llms.txt`, app-metadata alignment checks, and stronger build-breaking SEO/GEO invariants.
+  - Regenerated the dependency lock at Next.js 16.2.10 and React 19.2.7, then passed SEO verification, TypeScript, production build, high-severity dependency audit, and `git diff --check`.
+  - Recorded the honest authority boundary: code can improve clarity and verifiability, but backlinks, press, downloads, reviews, community demand, and localization must be earned through distribution.
 - 2026-03-28: Added an interactive switcher simulator to the website walkthrough.
   - The walkthrough section now includes a live browser demo where visitors can click through Classic Grid, search inside Command Palette, and step around Radial Menu.
   - The demo uses the same concise product framing as the rest of the site, so it adds hands-on interaction without bringing back low-signal sections.
