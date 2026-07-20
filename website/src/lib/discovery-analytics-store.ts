@@ -33,9 +33,6 @@ export async function getAIDiscoveryOverview(days = 30): Promise<AIDiscoveryOver
 
   const sql = getSql();
   const safeDays = Math.max(1, Math.min(days, 365));
-  const aiSourceFilter = sql`
-    ('chatgpt', 'perplexity', 'microsoft_copilot', 'google_gemini', 'claude')
-  `;
 
   const [summary] = await sql<
     {
@@ -49,7 +46,13 @@ export async function getAIDiscoveryOverview(days = 30): Promise<AIDiscoveryOver
     from site_analytics_events
     where event_type = 'pageview'
       and occurred_at >= now() - (${safeDays} * interval '1 day')
-      and coalesce(event_data ->> 'discoverySource', '') in ${aiSourceFilter}
+      and coalesce(event_data ->> 'discoverySource', '') in (
+        'chatgpt',
+        'perplexity',
+        'microsoft_copilot',
+        'google_gemini',
+        'claude'
+      )
   `;
 
   const sources = await sql<DiscoveryBreakdownItem[]>`
@@ -59,7 +62,13 @@ export async function getAIDiscoveryOverview(days = 30): Promise<AIDiscoveryOver
     from site_analytics_events
     where event_type = 'pageview'
       and occurred_at >= now() - (${safeDays} * interval '1 day')
-      and coalesce(event_data ->> 'discoverySource', '') in ${aiSourceFilter}
+      and coalesce(event_data ->> 'discoverySource', '') in (
+        'chatgpt',
+        'perplexity',
+        'microsoft_copilot',
+        'google_gemini',
+        'claude'
+      )
     group by 1
     order by count desc, label asc
   `;
@@ -71,7 +80,13 @@ export async function getAIDiscoveryOverview(days = 30): Promise<AIDiscoveryOver
     from site_analytics_events
     where event_type = 'pageview'
       and occurred_at >= now() - (${safeDays} * interval '1 day')
-      and coalesce(event_data ->> 'discoverySource', '') in ${aiSourceFilter}
+      and coalesce(event_data ->> 'discoverySource', '') in (
+        'chatgpt',
+        'perplexity',
+        'microsoft_copilot',
+        'google_gemini',
+        'claude'
+      )
     group by path
     order by count desc, path asc
     limit 12
