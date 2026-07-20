@@ -1,7 +1,6 @@
-import type { Metadata } from "next";
-
 import { HelpJourney } from "@/components/commerce/help-journey";
 import { LicenseRequestForm } from "@/components/commerce/license-request-form";
+import { JsonLd } from "@/components/seo/json-ld";
 import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
@@ -10,23 +9,32 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { commercePageContent } from "@/content/commerce-pages";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
+import { createPageMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "CmdTab help | Purchase, activation, and recovery",
-  description: "Get help with CmdTab purchase recovery, activation, billing, and post-purchase support.",
-  alternates: {
-    canonical: "/help",
-  },
-};
+export const metadata = createPageMetadata({
+  title: "CmdTab help: installation, activation, and purchase recovery",
+  description:
+    "Get CmdTab help with trial access, installation, activation, purchase recovery, billing, refunds, and moving the license to another Mac.",
+  path: "/help",
+  imageAlt: "CmdTab installation, activation, and purchase help",
+});
 
 export default function HelpPage() {
   const commerce = getCommerceConfig();
 
   return (
     <main>
+      <JsonLd
+        data={createBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Help", path: "/help" },
+        ])}
+      />
       <SiteHeader />
 
       <SectionShell
+        headingAs="h1"
         eyebrow={commercePageContent.help.eyebrow}
         title={commercePageContent.help.title}
         description={commercePageContent.help.description}
@@ -48,19 +56,19 @@ export default function HelpPage() {
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
-                <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
-                  Review pricing
-                </Button>
-                {commerce.licensePortalUrl ? (
-                  <Button
-                    href={commerce.licensePortalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    {...analyticsAttributes("help_page_portal_click", "help_page")}
-                  >
-                    Open license portal
+                  <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
+                    Review pricing
                   </Button>
-                ) : null}
+                  {commerce.licensePortalUrl ? (
+                    <Button
+                      href={commerce.licensePortalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      {...analyticsAttributes("help_page_portal_click", "help_page")}
+                    >
+                      Open license portal
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             </div>
