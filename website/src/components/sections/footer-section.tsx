@@ -1,13 +1,31 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { siteConfig } from "@/content/site";
 
+const productLinks = [
+  { href: "/features/window-switcher", label: "Window switcher" },
+  { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
+  { href: "/compare/cmdtab-vs-macos-command-tab", label: "CmdTab vs macOS" },
+  { href: "/compatibility", label: "Compatibility" },
+  { href: "/permissions", label: "Permissions" },
+  { href: "/faq", label: "FAQ" },
+] as const;
+
+const companyLinks = [
+  { href: "/about", label: "About" },
+  { href: "/changelog", label: "Changelog" },
+  { href: "/help", label: "Help" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/security", label: "Security" },
+] as const;
+
 export function FooterSection() {
   return (
     <footer className="border-t border-white/8 px-5 py-10 sm:px-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1200px] flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(180px,0.75fr)_minmax(160px,0.65fr)]">
         <MotionReveal className="space-y-4" direction="left">
           <div className="flex items-center gap-3">
             <Image
@@ -19,32 +37,40 @@ export function FooterSection() {
             />
             <div>
               <p className="text-lg font-medium tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-sm text-subdued">
-                Better window switching for people who live in too many apps.
-              </p>
+              <p className="text-sm text-subdued">Individual window switching for macOS.</p>
             </div>
           </div>
           <p className="max-w-xl text-sm leading-7 text-subdued">
-            CmdTab is in active beta. Review the trial, buy once if it sticks, and use Help if you need support later.
+            CmdTab shows eligible Mac windows as separate recent-use targets with previews, search, quick actions, and configurable Space and display scope.
           </p>
-          <nav aria-label="Product information" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-subdued">
-            <a className="hover:text-text" href="/about">About</a>
-            <a className="hover:text-text" href="/compatibility">Compatibility</a>
-            <a className="hover:text-text" href="/permissions">Permissions</a>
-            <a className="hover:text-text" href="/changelog">Changelog</a>
-            <a className="hover:text-text" href="/privacy">Privacy</a>
-            <a className="hover:text-text" href="/security">Security</a>
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+            <Button href="/trial">{siteConfig.ctas.primary}</Button>
+            <Button href="/buy" variant="secondary">
+              Review pricing
+            </Button>
+          </div>
+        </MotionReveal>
+
+        <MotionReveal direction="up" delay={80}>
+          <p className="type-eyebrow text-cyan">Product</p>
+          <nav aria-label="Product information" className="mt-4 flex flex-col gap-3 text-sm text-subdued">
+            {productLinks.map((item) => (
+              <Link key={item.href} className="hover:text-text" href={item.href}>
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </MotionReveal>
 
-        <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
-          <Button href="/trial">{siteConfig.ctas.primary}</Button>
-          <Button href="/buy" variant="secondary">
-            Buy and trial
-          </Button>
-          <Button href="/help" variant="ghost">
-            Help
-          </Button>
+        <MotionReveal direction="right" delay={120}>
+          <p className="type-eyebrow text-cyan">Company and support</p>
+          <nav aria-label="Company and support" className="mt-4 flex flex-col gap-3 text-sm text-subdued">
+            {companyLinks.map((item) => (
+              <Link key={item.href} className="hover:text-text" href={item.href}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </MotionReveal>
       </div>
     </footer>
