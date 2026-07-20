@@ -35,7 +35,7 @@ export function HeroSection() {
             </div>
           </a>
 
-          <nav className="hidden items-center gap-6 text-sm text-muted lg:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-6 text-sm text-muted lg:flex">
             {siteConfig.nav.map((item) => (
               <a
                 key={item.href}
@@ -69,7 +69,10 @@ export function HeroSection() {
             <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.25rem,5vw,4.6rem)] font-medium leading-[0.95] tracking-[-0.06em] text-text">
               {heroContent.title}
             </h1>
-            <p className="type-body-lg mt-6 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
+            <p className="mt-6 max-w-[38rem] text-pretty text-base font-medium leading-7 text-text sm:text-lg">
+              CmdTab is a native macOS window switcher that replaces an app-only view with individual window previews, global recent-use ordering, search, and quick actions.
+            </p>
+            <p className="type-body-lg mt-4 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
               {heroContent.summary}
             </p>
             <p className="mt-4 max-w-[34rem] text-sm leading-6 text-subdued">{heroContent.status}</p>
