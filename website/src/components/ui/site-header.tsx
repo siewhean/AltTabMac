@@ -4,12 +4,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const marketingNav = [
-  { href: "/", label: "Home" },
+  { href: "/features/window-switcher", label: "Features" },
+  { href: "/guides/switch-between-windows-on-mac", label: "Guide" },
+  { href: "/compare/cmdtab-vs-macos-command-tab", label: "Compare" },
   { href: "/compatibility", label: "Compatibility" },
-  { href: "/permissions", label: "Permissions" },
-  { href: "/trial", label: "Trial" },
-  { href: "/buy", label: "Buy" },
-  { href: "/help", label: "Help" },
+  { href: "/faq", label: "FAQ" },
 ] as const;
 
 export function SiteHeader() {
@@ -17,6 +16,7 @@ export function SiteHeader() {
     <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-6 px-5 pt-5 sm:px-8 lg:px-10">
       <Link
         href="/"
+        aria-label="CmdTab homepage"
         className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl"
       >
         <Image
@@ -41,8 +41,8 @@ export function SiteHeader() {
         ))}
       </nav>
 
-      <Button href="/buy" variant="secondary" className="hidden lg:inline-flex">
-        Buy CmdTab
+      <Button href="/trial" variant="secondary" className="hidden lg:inline-flex">
+        Start trial
       </Button>
     </header>
   );
