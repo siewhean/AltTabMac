@@ -6,6 +6,23 @@ const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const publicRoutes = JSON.parse(read("src/content/public-routes.json"));
 
+function versionTuple(value) {
+  const match = String(value).match(/\d+\.\d+\.\d+/);
+  assert.ok(match, `could not parse semantic version from ${value}`);
+  return match[0].split(".").map(Number);
+}
+
+function isAtLeast(value, minimum) {
+  const actual = versionTuple(value);
+  const required = versionTuple(minimum);
+  for (let index = 0; index < Math.max(actual.length, required.length); index += 1) {
+    const left = actual[index] ?? 0;
+    const right = required[index] ?? 0;
+    if (left !== right) return left > right;
+  }
+  return true;
+}
+
 assert.ok(Array.isArray(publicRoutes), "public route registry must be an array");
 assert.ok(publicRoutes.length >= 14, "expected a substantive public discovery architecture");
 
@@ -75,6 +92,7 @@ for (const required of [
 
 const homePage = read("src/app/page.tsx");
 assert.match(homePage, /ProductFactsSection/, "homepage must publish factual product data");
+assert.match(homePage, /DiscoveryResourcesSection/, "homepage must link authoritative discovery resources");
 assert.match(homePage, /FaqSection/, "homepage must publish a focused FAQ entry point");
 
 const faq = read("src/content/faq.ts");
@@ -110,11 +128,12 @@ assert.ok(existsSync(resolve(root, "src/lib/discovery-analytics-store.ts")), "AI
 
 assert.ok(existsSync(resolve(root, "src/app/indexnow-key.txt/route.ts")), "IndexNow key route is missing");
 assert.ok(existsSync(resolve(root, "scripts/submit-indexnow.mjs")), "IndexNow submission script is missing");
+assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "canonical-only llms directory is missing");
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["indexnow:submit"], "node scripts/submit-indexnow.mjs", "IndexNow package script is missing");
-assert.equal(packageJson.dependencies.next, "^16.2.6", "Next.js security floor must stay at 16.2.6 or later");
-assert.equal(packageJson.dependencies.react, "^19.2.6", "React security floor must stay at 19.2.6 or later");
-assert.equal(packageJson.dependencies["react-dom"], "^19.2.6", "React DOM security floor must stay at 19.2.6 or later");
+assert.ok(isAtLeast(packageJson.dependencies.next, "16.2.6"), `Next.js must stay at 16.2.6 or later; found ${packageJson.dependencies.next}`);
+assert.ok(isAtLeast(packageJson.dependencies.react, "19.2.6"), `React must stay at 19.2.6 or later; found ${packageJson.dependencies.react}`);
+assert.ok(isAtLeast(packageJson.dependencies["react-dom"], "19.2.6"), `React DOM must stay at 19.2.6 or later; found ${packageJson.dependencies["react-dom"]}`);
 assert.match(read(".env.example"), /INDEXNOW_KEY=/, "IndexNow environment configuration is missing");
 
 console.log(
