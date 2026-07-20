@@ -1,13 +1,27 @@
 import { JsonLd } from "@/components/seo/json-ld";
+import { LastReviewed } from "@/components/seo/last-reviewed";
+import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
+import { SiteHeader } from "@/components/ui/site-header";
+import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
-import { createBreadcrumbStructuredData } from "@/lib/structured-data";
+import {
+  createBreadcrumbStructuredData,
+  createWebPageStructuredData,
+} from "@/lib/structured-data";
+
+const title = "CmdTab security disclosure policy";
+const description =
+  "Review how to report security issues affecting the CmdTab website, analytics, trial delivery, purchase and licensing flow, or native macOS app, including current scope and safe-testing boundaries.";
+const breadcrumbs = [
+  { name: "Home", path: "/" as const },
+  { name: "Security", path: "/security" as const },
+];
 
 export const metadata = createPageMetadata({
-  title: "CmdTab security disclosure policy",
-  description:
-    "Review how to report security issues affecting the CmdTab website, trial delivery, purchase flow, licensing, or native macOS app.",
+  title,
+  description,
   path: "/security",
   imageAlt: "CmdTab security disclosure policy",
 });
@@ -16,22 +30,29 @@ const disclosureSections = [
   {
     title: "How to report a vulnerability",
     body: [
-      "Report suspected security issues privately to tohsh17@gmail.com.",
-      "Include the affected URL or feature, clear reproduction steps, impact, and any proof-of-concept details that help the CmdTab team validate the issue quickly.",
-    ],
-  },
-  {
-    title: "What to avoid",
-    body: [
-      "Do not publish exploit details, publicly disclose unpatched vulnerabilities, or access data that does not belong to you.",
-      "Do not send large-scale denial-of-service traffic, automated abuse against the site, or destructive payloads against the production service.",
+      `Report suspected security issues privately to ${productFacts.contactEmail}.`,
+      "Include the affected URL, app version or build, macOS version, feature, clear reproduction steps, impact, logs that do not expose other people's data, and a minimal proof of concept when one is needed to validate the issue.",
     ],
   },
   {
     title: "Current scope",
     body: [
-      "The current public web surface is the CmdTab marketing site, privacy page, security page, and the hosted trial / purchase links exposed from the site.",
-      "The native macOS app should also be reported through the same security contact if you identify a security-sensitive issue.",
+      "In scope: the cmdtab.net website and APIs, dashboard authentication, analytics ingestion, trial registration, checkout and webhook handling, license generation and delivery, the native CmdTab app, update and release packaging, and the public repository configuration.",
+      "Third-party platforms such as Vercel, Resend, GitHub, and the configured commerce provider are governed by their own disclosure programs unless the issue is caused by CmdTab's integration or configuration.",
+    ],
+  },
+  {
+    title: "Safe testing boundaries",
+    body: [
+      "Do not access data that is not yours, publish an unpatched vulnerability, destroy or alter production data, send malware, conduct social engineering, or perform sustained denial-of-service testing.",
+      "Use the minimum traffic and data needed to demonstrate the issue. Stop testing and report immediately if you encounter personal, licensing, or payment information belonging to another user.",
+    ],
+  },
+  {
+    title: "Response and remediation",
+    body: [
+      "Reports are reviewed for reproducibility, affected versions, user impact, and available mitigations. CmdTab may request clarification or a safer proof of concept before confirming the issue.",
+      "No guaranteed response time or public bug-bounty payment is promised today. Coordinated disclosure timing should be agreed before technical details are published.",
     ],
   },
 ];
@@ -39,19 +60,27 @@ const disclosureSections = [
 export default function SecurityPage() {
   return (
     <main>
+      <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
       <JsonLd
-        data={createBreadcrumbStructuredData([
-          { name: "Home", path: "/" },
-          { name: "Security", path: "/security" },
-        ])}
+        data={createWebPageStructuredData({
+          name: title,
+          description,
+          path: "/security",
+        })}
       />
+      <SiteHeader />
       <SectionShell
         headingAs="h1"
+        breadcrumbs={breadcrumbs}
         eyebrow="Security"
         title="CmdTab security disclosure"
-        description="Use this page to privately report security issues affecting the CmdTab website, purchase flow, trial delivery, or app."
-        className="pt-24"
+        description="Use this page to report security issues privately and understand which systems, versions, and testing methods are currently in scope."
+        className="pt-14"
       >
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <LastReviewed date={productFacts.reviewedAt} />
+          <p className="text-sm text-subdued">Current documented app: {productFacts.currentVersion}</p>
+        </div>
         <div className="space-y-10">
           {disclosureSections.map((section) => (
             <section key={section.title} className="border-t border-white/8 pt-6">
@@ -69,13 +98,17 @@ export default function SecurityPage() {
           ))}
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="mailto:tohsh17@gmail.com">Contact tohsh17@gmail.com</Button>
+            <Button href={`mailto:${productFacts.contactEmail}`}>Report privately</Button>
+            <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="secondary">
+              Review public source
+            </Button>
             <Button href="/privacy" variant="secondary">
               Read the privacy policy
             </Button>
           </div>
         </div>
       </SectionShell>
+      <FooterSection />
     </main>
   );
 }
