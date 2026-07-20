@@ -1,3 +1,4 @@
+# One-time specialist validation workflow. It removes itself after a successful push run.
 name: Materialize SEO GEO Hardening
 
 on:
