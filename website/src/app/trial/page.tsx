@@ -1,30 +1,38 @@
-import type { Metadata } from "next";
-
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { FooterSection } from "@/components/sections/footer-section";
+import { JsonLd } from "@/components/seo/json-ld";
 import { commercePageContent } from "@/content/commerce-pages";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
+import { createPageMetadata } from "@/lib/seo";
+import { createBreadcrumbStructuredData } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  title: "CmdTab trial | 14-day download path",
-  description: "Start the CmdTab trial, download the build, and get help if you need access or setup support.",
-  alternates: {
-    canonical: "/trial",
-  },
-};
+export const metadata = createPageMetadata({
+  title: "Download the CmdTab 14-day Mac trial",
+  description:
+    "Start the CmdTab 14-day macOS trial, enable the required permissions, and test individual-window switching in your normal workflow.",
+  path: "/trial",
+  imageAlt: "Download the CmdTab 14-day macOS trial",
+});
 
 export default function TrialPage() {
   const commerce = getCommerceConfig();
 
   return (
     <main>
+      <JsonLd
+        data={createBreadcrumbStructuredData([
+          { name: "Home", path: "/" },
+          { name: "Trial", path: "/trial" },
+        ])}
+      />
       <SiteHeader />
 
       <SectionShell
+        headingAs="h1"
         eyebrow={commercePageContent.trial.eyebrow}
         title={commercePageContent.trial.title}
         description={commercePageContent.trial.description}
