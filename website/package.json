@@ -8,16 +8,17 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "seo:check": "node scripts/verify-seo.mjs",
+    "indexnow:submit": "node scripts/submit-indexnow.mjs",
     "security:deps": "npm audit --omit=dev --audit-level=high",
     "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "^16.0.0",
+    "next": "^16.2.6",
     "postgres": "^3.4.8",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "resend": "^6.9.0",
     "zod": "^4.1.5"
   },
