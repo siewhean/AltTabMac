@@ -43,7 +43,10 @@ jobs:
 
       - name: Verify SEO and GEO invariants
         working-directory: website
-        run: npm run seo:check
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run seo:check 2>&1 | tee /tmp/seo-check.log
 
       - name: Typecheck
         working-directory: website
@@ -60,16 +63,19 @@ jobs:
       - name: Check patch hygiene
         run: git diff --check
 
-      - name: Upload materialized dependency lock
+      - name: Upload specialist diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cmdtab-specialist-package-lock
-          path: website/package-lock.json
-          if-no-files-found: error
+          name: cmdtab-specialist-validation-${{ github.run_attempt }}
+          path: |
+            /tmp/seo-check.log
+            website/package-lock.json
+          if-no-files-found: warn
           retention-days: 3
 
       - name: Commit validated lockfile
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && success()
         shell: bash
         run: |
           rm .github/workflows/materialize-seo-geo-hardening.yml
