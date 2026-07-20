@@ -1,24 +1,13 @@
 import type { MetadataRoute } from "next";
 
+import publicRoutes from "@/content/public-routes.json";
 import { getSiteUrl } from "@/lib/env";
-
-const publicRoutes = [
-  "/",
-  "/about",
-  "/buy",
-  "/changelog",
-  "/compatibility",
-  "/help",
-  "/permissions",
-  "/privacy",
-  "/security",
-  "/trial",
-] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = getSiteUrl();
 
-  return publicRoutes.map((path) => ({
+  return publicRoutes.map(({ path, lastModified }) => ({
     url: new URL(path, `${siteUrl}/`).toString(),
+    lastModified,
   }));
 }

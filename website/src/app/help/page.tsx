@@ -1,21 +1,33 @@
 import { HelpJourney } from "@/components/commerce/help-journey";
 import { LicenseRequestForm } from "@/components/commerce/license-request-form";
 import { JsonLd } from "@/components/seo/json-ld";
+import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { commercePageContent } from "@/content/commerce-pages";
+import { productFacts } from "@/content/product-facts";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
 import { createPageMetadata } from "@/lib/seo";
-import { createBreadcrumbStructuredData } from "@/lib/structured-data";
+import {
+  createBreadcrumbStructuredData,
+  createWebPageStructuredData,
+} from "@/lib/structured-data";
+
+const title = "CmdTab help: installation, activation, and purchase recovery";
+const description =
+  "Get CmdTab help with trial access, installation, macOS permissions, activation, purchase recovery, billing, refunds, and moving a license to another Mac.";
+const breadcrumbs = [
+  { name: "Home", path: "/" as const },
+  { name: "Help", path: "/help" as const },
+];
 
 export const metadata = createPageMetadata({
-  title: "CmdTab help: installation, activation, and purchase recovery",
-  description:
-    "Get CmdTab help with trial access, installation, activation, purchase recovery, billing, refunds, and moving the license to another Mac.",
+  title,
+  description,
   path: "/help",
   imageAlt: "CmdTab installation, activation, and purchase help",
 });
@@ -25,21 +37,28 @@ export default function HelpPage() {
 
   return (
     <main>
+      <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
       <JsonLd
-        data={createBreadcrumbStructuredData([
-          { name: "Home", path: "/" },
-          { name: "Help", path: "/help" },
-        ])}
+        data={createWebPageStructuredData({
+          name: title,
+          description,
+          path: "/help",
+        })}
       />
       <SiteHeader />
 
       <SectionShell
         headingAs="h1"
+        breadcrumbs={breadcrumbs}
         eyebrow={commercePageContent.help.eyebrow}
         title={commercePageContent.help.title}
         description={commercePageContent.help.description}
         className="pt-14"
       >
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <LastReviewed date={productFacts.reviewedAt} />
+          <p className="text-sm text-subdued">Current documented version: {productFacts.currentVersion}</p>
+        </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <MotionReveal direction="left" className="space-y-6">
             <HelpJourney />
@@ -50,12 +69,18 @@ export default function HelpPage() {
                 <div className="space-y-3">
                   {commercePageContent.help.supportPoints.map((item) => (
                     <div key={item} className="flex items-start gap-3 text-sm leading-7 text-muted">
-                      <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
+                      <span aria-hidden="true" className="mt-2 h-2 w-2 rounded-full bg-cyan" />
                       <span>{item}</span>
                     </div>
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
+                  <Button href="/permissions" variant="secondary">
+                    Diagnose permissions
+                  </Button>
+                  <Button href="/faq" variant="secondary">
+                    Read common answers
+                  </Button>
                   <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
                     Review pricing
                   </Button>
@@ -82,7 +107,7 @@ export default function HelpPage() {
 
       <SectionShell
         eyebrow="How the buy path works"
-        title="Simple terms, clear support."
+        title="Simple terms, clear support"
         description="This is the practical explanation of how the one-time buy flow is presented today."
         className="pt-0"
       >

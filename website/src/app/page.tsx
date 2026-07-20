@@ -1,3 +1,4 @@
+import { DiscoveryResourcesSection } from "@/components/sections/discovery-resources-section";
 import { FaqSection } from "@/components/sections/faq-section";
 import { FeatureBandsSection } from "@/components/sections/feature-bands-section";
 import { FooterSection } from "@/components/sections/footer-section";
@@ -14,6 +15,7 @@ export default function HomePage() {
       <WalkthroughSection />
       <FeatureBandsSection />
       <ProductFactsSection />
+      <DiscoveryResourcesSection />
       <FaqSection />
       <FooterSection />
     </main>

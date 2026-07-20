@@ -7,6 +7,17 @@ const SESSION_STORAGE_KEY = "cmdtab-website-session-id";
 
 type AnalyticsPropertyValue = string | number | boolean | null;
 
+type DiscoverySource =
+  | "chatgpt"
+  | "perplexity"
+  | "microsoft_copilot"
+  | "google_gemini"
+  | "claude"
+  | "google_search"
+  | "bing_search"
+  | "direct"
+  | "referral";
+
 function makeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -89,6 +100,50 @@ function sanitizeEventData(data?: Record<string, unknown>) {
   return result;
 }
 
+function boundedCampaignValue(value: string | null) {
+  const normalized = value?.trim().slice(0, 120);
+  return normalized || undefined;
+}
+
+function sourceFromLabel(label: string): DiscoverySource | undefined {
+  if (label.includes("chatgpt") || label.includes("openai")) return "chatgpt";
+  if (label.includes("perplexity")) return "perplexity";
+  if (label.includes("copilot") || label.includes("bingchat")) return "microsoft_copilot";
+  if (label.includes("gemini") || label.includes("bard")) return "google_gemini";
+  if (label.includes("claude") || label.includes("anthropic")) return "claude";
+  if (label.includes("google")) return "google_search";
+  if (label.includes("bing")) return "bing_search";
+  return undefined;
+}
+
+function getDiscoveryContext(path: string) {
+  const params = new URLSearchParams(window.location.search);
+  const utmSource = boundedCampaignValue(params.get("utm_source"));
+  const utmMedium = boundedCampaignValue(params.get("utm_medium"));
+  const utmCampaign = boundedCampaignValue(params.get("utm_campaign"));
+  const sourceFromUTM = sourceFromLabel(utmSource?.toLowerCase() ?? "");
+
+  let referrerHost: string | undefined;
+  try {
+    referrerHost = document.referrer ? new URL(document.referrer).hostname.toLowerCase() : undefined;
+  } catch {
+    referrerHost = undefined;
+  }
+
+  const discoverySource =
+    sourceFromUTM ??
+    sourceFromLabel(referrerHost ?? "") ??
+    (referrerHost ? "referral" : "direct");
+
+  return {
+    discoverySource,
+    landingPath: path,
+    ...(utmSource ? { utmSource } : {}),
+    ...(utmMedium ? { utmMedium } : {}),
+    ...(utmCampaign ? { utmCampaign } : {}),
+  };
+}
+
 export function trackSiteEvent(
   eventName: string,
   data?: Record<string, unknown>,
@@ -114,6 +169,7 @@ export function trackSitePageView(path: string) {
     eventType: "pageview",
     path,
     referrer: document.referrer || undefined,
+    eventData: getDiscoveryContext(path),
     visitorId: getVisitorId(),
     sessionId: getSessionId(),
     occurredAt: new Date().toISOString(),

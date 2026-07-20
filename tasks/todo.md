@@ -1,5 +1,26 @@
 # Todo
 
+## 2026-07-20 — Independent SEO And GEO Competitive Hardening
+
+- [x] Review PR #11 as a separate specialist branch rather than silently modifying the first pass.
+- [x] Compare CmdTab with AltTab, Scopo, BetterCmdTab, Contexts, Apple documentation, and current Google, Bing, and OpenAI guidance.
+- [x] Add authoritative pages for the core window-switcher category, Mac window-switching guide, native comparison, and canonical FAQ.
+- [x] Make product version, requirements, breadcrumbs, review dates, source links, telemetry, exclusions, and limitations visible in canonical HTML.
+- [x] Expand Organization, Person, WebSite, SoftwareApplication, WebPage, FAQPage, TechArticle, Offer, and Breadcrumb structured data.
+- [x] Publish the actual native-app telemetry contract and the local window-content fields excluded from the current payload.
+- [x] Add broad AI/search discovery classification without collecting prompts or search queries.
+- [x] Add a private discovery dashboard, canonical route registry, IndexNow support, and canonical-only `llms.txt`.
+- [x] Tie public app version, build number, and minimum macOS to `Resources/Info.plist` through build-breaking assertions.
+- [x] Raise Next.js, React, and React DOM to patched security releases and regenerate the lockfile.
+- [x] Pass SEO/GEO invariants, TypeScript, production Webpack build, high-severity dependency audit, and `git diff --check`.
+- [x] Document the competitor critique, operating contract, honest authority boundary, and post-merge distribution plan.
+
+## Specialist Review
+
+- The implementation can outperform the reviewed competitors in technical clarity, visible evidence, privacy specificity, source verifiability, and discovery measurement.
+- It cannot manufacture AltTab's accumulated backlinks, downloads, press coverage, community discussion, branded demand, or localization. Those remain product-distribution work after live validation.
+- The custom dependency assertion initially failed because it required an exact patch. It was corrected to enforce a minimum secure semantic version, after which the full validation gate passed.
+
 ## 2026-03-27 — Website Motion Pass
 
 - [x] Add a lightweight motion primitive for section reveals without introducing a new animation library.

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Breadcrumbs, type BreadcrumbItem } from "@/components/seo/breadcrumbs";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 
 type SectionShellProps = {
@@ -10,6 +11,7 @@ type SectionShellProps = {
   children: ReactNode;
   className?: string;
   headingAs?: "h1" | "h2";
+  breadcrumbs?: ReadonlyArray<BreadcrumbItem>;
 };
 
 export function SectionShell({
@@ -20,12 +22,14 @@ export function SectionShell({
   children,
   className = "",
   headingAs = "h2",
+  breadcrumbs,
 }: SectionShellProps) {
   const Heading = headingAs;
 
   return (
     <section id={id} className={`relative px-5 py-20 sm:px-8 lg:px-10 ${className}`}>
       <div className="mx-auto max-w-[1200px]">
+        {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
         {(eyebrow || title || description) && (
           <MotionReveal className="mb-10 max-w-3xl" direction="up">
             {eyebrow ? <p className="type-eyebrow mb-4 text-cyan">{eyebrow}</p> : null}
