@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "seo:check": "node scripts/verify-seo.mjs",
     "security:deps": "npm audit --omit=dev --audit-level=high",
-    "security:check": "npm run security:deps && npm run typecheck && next build --webpack"
+    "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
