@@ -27,6 +27,14 @@ export function FooterSection() {
           <p className="max-w-xl text-sm leading-7 text-subdued">
             CmdTab is in active beta. Review the trial, buy once if it sticks, and use Help if you need support later.
           </p>
+          <nav aria-label="Product information" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-subdued">
+            <a className="hover:text-text" href="/about">About</a>
+            <a className="hover:text-text" href="/compatibility">Compatibility</a>
+            <a className="hover:text-text" href="/permissions">Permissions</a>
+            <a className="hover:text-text" href="/changelog">Changelog</a>
+            <a className="hover:text-text" href="/privacy">Privacy</a>
+            <a className="hover:text-text" href="/security">Security</a>
+          </nav>
         </MotionReveal>
 
         <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
@@ -36,9 +44,6 @@ export function FooterSection() {
           </Button>
           <Button href="/help" variant="ghost">
             Help
-          </Button>
-          <Button href="/privacy" variant="ghost">
-            {siteConfig.ctas.tertiary}
           </Button>
         </MotionReveal>
       </div>
