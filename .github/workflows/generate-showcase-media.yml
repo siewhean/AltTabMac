@@ -1,21 +1,15 @@
 name: Generate real CmdTab showcase media
 
 on:
-  push:
-    branches:
-      - agent/real-app-showcase-media
-    paths:
-      - Sources/CmdTab/ShowcaseFixtureFactory.swift
-      - Sources/CmdTab/ShowcaseRenderer.swift
-      - Sources/CmdTab/main.swift
-      - scripts/showcase/validate_showcase_media.swift
-      - .github/workflows/generate-showcase-media.yml
   pull_request:
     branches:
       - main
     paths:
       - Sources/CmdTab/ShowcaseFixtureFactory.swift
       - Sources/CmdTab/ShowcaseRenderer.swift
+      - Sources/CmdTab/ShowcaseRenderingMode.swift
+      - Sources/CmdTab/ClassicGridView.swift
+      - Sources/CmdTab/CommandPaletteView.swift
       - Sources/CmdTab/main.swift
       - scripts/showcase/validate_showcase_media.swift
       - .github/workflows/generate-showcase-media.yml
@@ -24,7 +18,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: generate-showcase-media-${{ github.event.pull_request.number || github.ref }}
+  group: generate-showcase-media-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -66,7 +60,6 @@ jobs:
         run: git diff --check
 
       - name: Commit generated binary assets
-        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
