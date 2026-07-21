@@ -67,7 +67,7 @@ export const altTabComparison = {
     [
       "Current product stage",
       "Mature, broadly adopted product with a free core and optional paid tier.",
-      "Active beta with a smaller adoption base, a public implementation contract, and an evidence-led validation plan.",
+      "CmdTab is an active beta with a smaller adoption base, a public implementation contract, and an evidence-led validation plan.",
     ],
   ] as const,
   decisions: [
