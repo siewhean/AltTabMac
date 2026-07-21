@@ -149,6 +149,14 @@ npm run indexnow:submit
 
 The sitemap and IndexNow payload share the canonical public-route registry. `llms.txt` describes those pages but may also link noindex helper and evidence files. Do not submit private, API, preview, helper-file, or unchanged duplicate URLs.
 
+## Controlled deployment retries
+
+- A Git-integration build-rate rejection is not a production deployment and must not be reported as live.
+- Wait for the provider’s rolling build window to clear, then trigger one audited main-branch deployment retry rather than creating a burst of empty commits.
+- A READY preview can validate the website build, but it does not replace the production-domain check or public alias.
+- Run the full public-domain crawler, browser, evidence-byte, retrieval, and runtime-error checks after the production alias changes.
+- Submit IndexNow only after the changed canonical URLs are publicly deployed.
+
 ## Measurement boundaries
 
 The first-party pageview tracker classifies broad discovery sources such as ChatGPT, Perplexity, Copilot, Gemini, Claude, Google, and Bing. It does not collect prompt or search-query text. Referral classification is directional because browsers, privacy tools, redirectors, copied links, and in-app browsers can remove or alter referrer information.
