@@ -97,10 +97,14 @@ for (const expected of [
   "Does CmdTab use ScreenCaptureKit?",
   "should not be described that way",
   "Does CmdTab publish a RAM or sub-50 ms performance claim?",
-  "State-space counts are synthetic model evidence",
 ]) {
   assert.ok(full.includes(expected), `/llms-full.txt is missing the boundary: ${expected}`);
 }
+assert.match(
+  full,
+  /state-space counts are synthetic model evidence/i,
+  "/llms-full.txt must preserve the model-versus-field-data limitation",
+);
 
 const { response: sitemapResponse, body: sitemap } = await fetchResource("/sitemap.xml");
 assert.equal(sitemapResponse.status, 200, `/sitemap.xml returned HTTP ${sitemapResponse.status}`);
