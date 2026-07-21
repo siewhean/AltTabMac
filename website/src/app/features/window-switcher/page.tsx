@@ -3,11 +3,12 @@ import Link from "next/link";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
+import { ShowcaseVideo } from "@/components/showcase/showcase-video";
 import { Button } from "@/components/ui/button";
-import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { productFacts } from "@/content/product-facts";
+import { showcaseAsset } from "@/content/showcase";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createBreadcrumbStructuredData,
@@ -26,7 +27,10 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/features/window-switcher",
-  imageAlt: "CmdTab standalone macOS app showing individual windows with live previews",
+  image: "/showcase/overview-poster.webp",
+  imageAlt: "CmdTab window-switcher product overview using controlled fixture windows",
+  imageWidth: 720,
+  imageHeight: 450,
 });
 
 const steps = [
@@ -82,6 +86,8 @@ const featureReferences = [
 ] as const;
 
 export default function WindowSwitcherFeaturePage() {
+  const overview = showcaseAsset("overview");
+
   return (
     <main>
       <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
@@ -105,7 +111,10 @@ export default function WindowSwitcherFeaturePage() {
           <LastReviewed date="2026-07-21" />
           <p className="text-sm text-subdued">Current project version: {productFacts.currentVersion}</p>
         </div>
-        <ScreenshotFrame assetId="classicGrid" caption="Classic Grid keeps each eligible window visible as its own target." priority />
+        <ShowcaseVideo asset={overview} priority />
+        <p className="mt-4 text-sm leading-7 text-subdued">
+          The overview is a deterministic, non-AI product composite based on the current interface geometry and documented behavior contract. Controlled fixtures replace private desktop content.
+        </p>
       </SectionShell>
 
       <SectionShell
@@ -180,7 +189,8 @@ export default function WindowSwitcherFeaturePage() {
           ))}
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button href="/trial">Start the 14-day trial</Button>
+          <Button href="/showcase">Watch the full showcase</Button>
+          <Button href="/trial" variant="secondary">Start the 14-day trial</Button>
           <Button href="/compare/cmdtab-vs-alttab" variant="secondary">
             Compare CmdTab with AltTab
           </Button>

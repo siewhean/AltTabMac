@@ -6,10 +6,10 @@ import { MobileNavigation } from "@/components/ui/mobile-navigation";
 
 const marketingNav = [
   { href: "/features/window-switcher", label: "Features" },
+  { href: "/showcase", label: "Showcase" },
   { href: "/evidence", label: "Evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Guide" },
   { href: "/compare/mac-window-switchers", label: "Compare" },
-  { href: "/faq", label: "FAQ" },
 ] as const;
 
 export function SiteHeader() {

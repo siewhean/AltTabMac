@@ -13,6 +13,7 @@ import "./globals.css";
 
 const siteUrl = getSiteUrl();
 const defaultTitle = `${siteConfig.name} macOS window switcher for individual windows and search`;
+const defaultShowcasePoster = "/showcase/overview-poster.png";
 
 function webmasterVerification(): Metadata["verification"] {
   const google = process.env.GOOGLE_SITE_VERIFICATION?.trim();
@@ -66,10 +67,10 @@ export const metadata: Metadata = {
     siteName: siteConfig.name,
     images: [
       {
-        url: "/opengraph-image",
-        width: 1200,
-        height: 630,
-        alt: "CmdTab standalone macOS window-switcher app showing individual window previews",
+        url: defaultShowcasePoster,
+        width: 1280,
+        height: 800,
+        alt: "Real CmdTab production window-switcher render using controlled fixture windows",
       },
     ],
   },
@@ -77,7 +78,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: defaultTitle,
     description: siteConfig.description,
-    images: ["/twitter-image"],
+    images: [defaultShowcasePoster],
   },
   icons: {
     icon: "/brand/cmdtab.png",

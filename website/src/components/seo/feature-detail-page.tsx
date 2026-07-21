@@ -3,13 +3,14 @@ import Link from "next/link";
 import type { BreadcrumbItem } from "@/components/seo/breadcrumbs";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
-import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
+import { ShowcaseVideo } from "@/components/showcase/showcase-video";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import {
   featureDepthSectionLabels,
   type FeatureDepthContent,
 } from "@/content/feature-depth";
+import { showcaseAsset } from "@/content/showcase";
 
 export function FeatureDetailPage({
   content,
@@ -20,6 +21,8 @@ export function FeatureDetailPage({
   breadcrumbs: ReadonlyArray<BreadcrumbItem>;
   headingAs: "h1";
 }) {
+  const showcase = showcaseAsset(content.slug);
+
   return (
     <>
       <SiteHeader />
@@ -31,18 +34,20 @@ export function FeatureDetailPage({
         description={content.description}
         className="pt-14"
       >
-        <div className="mb-8">
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={content.reviewedAt} />
+          <Link href={`/showcase#${showcase.id}`} className="text-sm font-medium text-cyan hover:text-text">
+            Open in the full showcase →
+          </Link>
         </div>
         <div className="surface-muted mb-8 p-6 sm:p-7">
           <p className="type-eyebrow text-cyan">Definition</p>
           <p className="mt-4 max-w-4xl text-base leading-8 text-muted">{content.definition}</p>
         </div>
-        <ScreenshotFrame
-          assetId={content.screenshotId}
-          caption={content.screenshotCaption}
-          priority
-        />
+        <ShowcaseVideo asset={showcase} priority />
+        <p className="mt-4 text-sm leading-7 text-subdued">
+          {content.screenshotCaption} Source: {showcase.sourceLabel}. Controlled fixture windows protect private desktop content; the Evidence page records the separate signed-app acceptance boundary.
+        </p>
       </SectionShell>
 
       <SectionShell

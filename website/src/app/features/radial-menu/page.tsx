@@ -18,8 +18,10 @@ export const metadata = createPageMetadata({
   title: content.metadataTitle,
   description: content.metadataDescription,
   path: "/features/radial-menu",
-  image: "/screenshots/styles/radial-menu.svg",
-  imageAlt: "CmdTab Radial Menu arranging Mac window targets around a circular selector",
+  image: "/showcase/radial-menu-poster.webp",
+  imageAlt: "Authentic CmdTab Radial Menu production render with controlled Mac window fixtures",
+  imageWidth: 800,
+  imageHeight: 500,
 });
 
 export default function RadialMenuPage() {

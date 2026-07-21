@@ -4,7 +4,6 @@ import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MobileNavigation } from "@/components/ui/mobile-navigation";
-import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { heroContent } from "@/content/home";
 import { siteConfig } from "@/content/site";
 import { analyticsAttributes } from "@/lib/analytics";
@@ -87,11 +86,11 @@ export function HeroSection() {
                 {siteConfig.ctas.primary}
               </Button>
               <Button
-                href="#walkthrough"
+                href="/showcase"
                 variant="secondary"
                 {...analyticsAttributes("hero_secondary_cta", "hero")}
               >
-                {siteConfig.ctas.secondary}
+                Watch the showcase
               </Button>
             </div>
           </div>
@@ -101,7 +100,30 @@ export function HeroSection() {
             style={{ "--enter-delay": "240ms" } as CSSProperties}
           >
             <div className="space-y-4">
-              <ScreenshotFrame assetId="heroMaster" className="relative z-10" priority />
+              <a
+                href="/showcase"
+                className="group relative z-10 block overflow-hidden rounded-[28px] border border-white/10 bg-black/35 shadow-[0_28px_100px_rgba(0,0,0,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/70"
+                aria-label="Open the CmdTab product showcase"
+              >
+                <Image
+                  src="/showcase/overview-poster.webp"
+                  alt="CmdTab product overview using controlled fixture windows"
+                  width={720}
+                  height={450}
+                  sizes="(min-width: 1024px) 54vw, 100vw"
+                  className="h-auto w-full transition-transform duration-300 group-hover:scale-[1.006]"
+                  priority
+                />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-5 pt-20">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">Privacy-safe product showcase</p>
+                    <p className="mt-1 text-sm font-medium text-white">Authentic Radial render plus clearly labelled product composites</p>
+                  </div>
+                  <span className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-md">
+                    Watch 8s overview
+                  </span>
+                </div>
+              </a>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="surface-muted p-5">
                   <p className="type-eyebrow text-cyan">Visual switching</p>

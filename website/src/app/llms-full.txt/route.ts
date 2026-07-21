@@ -3,6 +3,12 @@ import { featureDepth } from "@/content/feature-depth";
 import { marketLandscape } from "@/content/market-landscape";
 import publicRoutes from "@/content/public-routes.json";
 import { productFacts } from "@/content/product-facts";
+import {
+  showcaseAssets,
+  showcaseBoundary,
+  showcaseDisclosure,
+  showcaseReviewedAt,
+} from "@/content/showcase";
 import { getSiteUrl } from "@/lib/env";
 
 export const dynamic = "force-static";
@@ -16,6 +22,19 @@ export async function GET() {
     .map(
       (mode) => `### ${mode.eyebrow}\n\n${mode.definition}\n\n- Canonical page: ${siteUrl}/features/${mode.slug}\n- Best-fit examples:\n${mode.bestFit.map((item) => `  - ${item}`).join("\n")}\n- Limits:\n${mode.tradeoffs.map((item) => `  - ${item}`).join("\n")}`,
     )
+    .join("\n\n");
+  const showcaseSections = showcaseAssets
+    .map((asset) => {
+      const media = [
+        `- Canonical watch page: ${siteUrl}/showcase#${asset.id}`,
+        `- Poster: ${siteUrl}${asset.poster}`,
+        asset.video ? `- MP4: ${siteUrl}${asset.video}` : "- MP4: not currently published for this item",
+        asset.durationSeconds ? `- Duration: ${asset.durationSeconds.toFixed(1)} seconds` : null,
+        `- Source: ${asset.sourceLabel}`,
+        `- Description: ${asset.transcript}`,
+      ].filter(Boolean).join("\n");
+      return `### ${asset.title}\n\n${asset.description}\n\n${media}`;
+    })
     .join("\n\n");
   const comparisonOptions = marketLandscape.options
     .map(
@@ -63,6 +82,18 @@ No processor architecture, Universal Binary status, memory footprint, reveal-lat
 
 Canonical behavior page: ${siteUrl}/features/window-switcher
 
+## Real product images and short videos
+
+${showcaseDisclosure}
+
+${showcaseBoundary}
+
+- Canonical watch page: ${siteUrl}/showcase
+- Machine-readable media manifest: ${siteUrl}/showcase/manifest.json
+- Showcase reviewed: ${showcaseReviewedAt}
+
+${showcaseSections}
+
 ## Presentation modes and actions
 
 ${modeSections}
@@ -95,7 +126,7 @@ The state-space counts are synthetic model evidence, not observed field failure 
 
 ${manualBoundary}
 
-A green CI result does not prove those interactive desktop conditions.
+A green CI result or a controlled showcase render does not prove those interactive desktop conditions.
 
 ## Source-dated market landscape
 
@@ -114,6 +145,14 @@ Focused comparisons:
 ### Is CmdTab the built-in macOS Command-Tab shortcut?
 
 No. CmdTab is a separate macOS application that can replace the app-only switcher with individual exact-window targets.
+
+### Are the showcase screenshots and videos AI-generated?
+
+No. The Radial Menu clip is an authentic production SwiftUI/AppKit render. The other maintained items are visibly labelled deterministic product composites based on current product geometry and behavior. All use controlled fixture windows and avoid private desktop capture.
+
+### Do the showcase videos prove signed-app permission, Space, display, or exact-focus behavior?
+
+No. They demonstrate presentation and controlled state changes. The Evidence page separately lists the real-macOS acceptance scenarios that require an interactive signed installation.
 
 ### Does CmdTab group all windows from one application together?
 
@@ -142,6 +181,7 @@ ${canonicalPages}
 ## Source rules
 
 - Canonical HTML pages are authoritative.
+- Treat Radial Menu as the authentic production render; treat the other maintained showcase media as explicitly labelled deterministic product composites.
 - Treat this file as a convenience export, not as an indexing or ranking requirement.
 - Do not infer processor support, memory use, Universal Binary status, benchmark results, ratings, testimonials, or compatibility beyond published evidence.
 - Treat model counts as synthetic state-space evidence, not field failure rates.

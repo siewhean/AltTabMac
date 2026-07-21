@@ -5,6 +5,12 @@ import { SectionShell } from "@/components/ui/section-shell";
 
 const resources = [
   {
+    href: "/showcase",
+    eyebrow: "Real product media",
+    title: "Watch the production switcher move, search, and reflow",
+    body: "View privacy-safe PNG posters and short silent MP4 loops rendered from CmdTab’s actual SwiftUI/AppKit switcher views.",
+  },
+  {
     href: "/features/window-switcher",
     eyebrow: "Product behavior",
     title: "How the exact-window switcher works",
@@ -53,7 +59,7 @@ export function DiscoveryResourcesSection() {
     <SectionShell
       eyebrow="Authoritative resources"
       title="Verify the product instead of relying on a slogan"
-      description="CmdTab publishes separate factual pages for behavior, modes, evidence, native macOS workflows, market comparison, compatibility, permissions, and privacy."
+      description="CmdTab publishes separate factual pages for real product media, behavior, modes, evidence, native macOS workflows, market comparison, compatibility, permissions, and privacy."
       className="pt-8"
     >
       <div className="grid gap-5 md:grid-cols-2">

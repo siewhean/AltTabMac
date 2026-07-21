@@ -9,6 +9,8 @@ type PageMetadataInput = {
   path: "/" | `/${string}`;
   image?: string;
   imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   noIndex?: boolean;
 };
 
@@ -18,6 +20,8 @@ export function createPageMetadata({
   path,
   image = "/opengraph-image",
   imageAlt = `${siteConfig.name} macOS window switcher`,
+  imageWidth = 1200,
+  imageHeight = 630,
   noIndex = false,
 }: PageMetadataInput): Metadata {
   const siteUrl = getSiteUrl();
@@ -55,8 +59,8 @@ export function createPageMetadata({
       images: [
         {
           url: image,
-          width: 1200,
-          height: 630,
+          width: imageWidth,
+          height: imageHeight,
           alt: imageAlt,
         },
       ],
