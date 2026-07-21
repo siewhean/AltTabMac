@@ -3,6 +3,12 @@ import { featureDepth } from "@/content/feature-depth";
 import { marketLandscape } from "@/content/market-landscape";
 import publicRoutes from "@/content/public-routes.json";
 import { productFacts } from "@/content/product-facts";
+import {
+  showcaseAssets,
+  showcaseBoundary,
+  showcaseDisclosure,
+  showcaseReviewedAt,
+} from "@/content/showcase";
 import { getSiteUrl } from "@/lib/env";
 
 export const dynamic = "force-static";
@@ -15,6 +21,11 @@ export async function GET() {
   const modeSections = Object.values(featureDepth)
     .map(
       (mode) => `### ${mode.eyebrow}\n\n${mode.definition}\n\n- Canonical page: ${siteUrl}/features/${mode.slug}\n- Best-fit examples:\n${mode.bestFit.map((item) => `  - ${item}`).join("\n")}\n- Limits:\n${mode.tradeoffs.map((item) => `  - ${item}`).join("\n")}`,
+    )
+    .join("\n\n");
+  const showcaseSections = showcaseAssets
+    .map(
+      (asset) => `### ${asset.title}\n\n${asset.description}\n\n- Canonical watch page: ${siteUrl}/showcase#${asset.id}\n- Poster: ${siteUrl}${asset.poster}\n- MP4: ${siteUrl}${asset.video}\n- Duration: ${asset.durationSeconds.toFixed(1)} seconds\n- Transcript: ${asset.transcript}`,
     )
     .join("\n\n");
   const comparisonOptions = marketLandscape.options
@@ -63,6 +74,18 @@ No processor architecture, Universal Binary status, memory footprint, reveal-lat
 
 Canonical behavior page: ${siteUrl}/features/window-switcher
 
+## Real product images and short videos
+
+${showcaseDisclosure}
+
+${showcaseBoundary}
+
+- Canonical watch page: ${siteUrl}/showcase
+- Machine-readable media manifest: ${siteUrl}/showcase/manifest.json
+- Showcase reviewed: ${showcaseReviewedAt}
+
+${showcaseSections}
+
 ## Presentation modes and actions
 
 ${modeSections}
@@ -95,7 +118,7 @@ The state-space counts are synthetic model evidence, not observed field failure 
 
 ${manualBoundary}
 
-A green CI result does not prove those interactive desktop conditions.
+A green CI result or a controlled showcase render does not prove those interactive desktop conditions.
 
 ## Source-dated market landscape
 
@@ -114,6 +137,14 @@ Focused comparisons:
 ### Is CmdTab the built-in macOS Command-Tab shortcut?
 
 No. CmdTab is a separate macOS application that can replace the app-only switcher with individual exact-window targets.
+
+### Are the showcase screenshots and videos AI-generated?
+
+No. They are rendered from CmdTab’s production SwiftUI/AppKit switcher views with controlled fixture windows. The fixture content and surrounding desktop are explanatory capture context and do not contain a developer’s private desktop.
+
+### Do the showcase videos prove signed-app permission, Space, display, or exact-focus behavior?
+
+No. They demonstrate production UI presentation and deterministic state changes. The Evidence page separately lists the real-macOS acceptance scenarios that still require an interactive signed installation.
 
 ### Does CmdTab group all windows from one application together?
 
@@ -142,6 +173,7 @@ ${canonicalPages}
 ## Source rules
 
 - Canonical HTML pages are authoritative.
+- Treat the showcase assets as real production UI renders with controlled fixture windows, not a real-user desktop recording.
 - Treat this file as a convenience export, not as an indexing or ranking requirement.
 - Do not infer processor support, memory use, Universal Binary status, benchmark results, ratings, testimonials, or compatibility beyond published evidence.
 - Treat model counts as synthetic state-space evidence, not field failure rates.
