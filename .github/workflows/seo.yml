@@ -22,7 +22,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify SEO implementation
+      - name: Verify SEO implementation and committed showcase media
         run: npm run seo:check
 
       - name: Typecheck
@@ -90,18 +90,25 @@ jobs:
           set -o pipefail
           npm run retrieval:check 2>&1 | tee verification-artifacts/retrieval-check.log
 
-      - name: Verify desktop, mobile, and interactive browser behavior
+      - name: Verify rendered showcase page and media responses
+        run: |
+          mkdir -p verification-artifacts
+          set -o pipefail
+          npm run showcase:responses 2>&1 | tee verification-artifacts/showcase-responses.log
+
+      - name: Verify desktop, mobile, media, and interactive browser behavior
         run: |
           mkdir -p verification-artifacts
           set -o pipefail
           npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
 
-      - name: Capture feature and comparison visual evidence
+      - name: Capture showcase, feature, and comparison visual evidence
         run: |
           set -euo pipefail
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
           test -n "$CHROME"
           for route in \
+            showcase \
             evidence \
             compare/mac-window-switchers \
             compare/cmdtab-vs-alttab \
@@ -116,7 +123,7 @@ jobs:
               --disable-dev-shm-usage \
               --hide-scrollbars \
               --run-all-compositor-stages-before-draw \
-              --virtual-time-budget=4000 \
+              --virtual-time-budget=5000 \
               --window-size=1440,1000 \
               --screenshot="verification-artifacts/desktop-${slug}.png" \
               "http://127.0.0.1:3000/${route}"
@@ -126,11 +133,13 @@ jobs:
               --disable-dev-shm-usage \
               --hide-scrollbars \
               --run-all-compositor-stages-before-draw \
-              --virtual-time-budget=4000 \
+              --virtual-time-budget=5000 \
               --window-size=390,844 \
               --screenshot="verification-artifacts/mobile-${slug}.png" \
               "http://127.0.0.1:3000/${route}"
           done
+          cp public/showcase/contact-sheet.png verification-artifacts/showcase-contact-sheet.png
+          cp public/showcase/manifest.json verification-artifacts/showcase-manifest.json
 
       - name: Collect verification evidence
         if: always()
@@ -148,4 +157,4 @@ jobs:
           name: cmdtab-seo-browser-verification
           path: website/verification-artifacts
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 14
