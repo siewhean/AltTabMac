@@ -1,11 +1,12 @@
 # CmdTab SEO and GEO implementation
 
-Implemented in four auditable phases:
+Implemented in five auditable phases:
 
 1. `agent/implement-seo-geo-audit` — technical and semantic foundation.
 2. `agent/seo-geo-competitive-hardening` — independent competitor critique, query architecture, privacy evidence, AI measurement, and stronger regression gates.
 3. `agent/seo-geo-evidence-authority-phase` — product-claim alignment, public QA evidence, source-dated market comparison, webmaster hooks, and response-byte verification.
 4. `agent/seo-geo-retrieval-and-feature-depth` — brand disambiguation, distinct mode/action references, focused AltTab comparison, Contexts coverage, retrieval exports, directory preparation, and unsupported-spec safeguards.
+5. `agent/real-app-showcase-media` — authentic production-view images and short videos, a canonical watch page, VideoObject markup, accessible playback, fixture disclosure, and media-response regression gates.
 
 ## Completed foundation
 
@@ -13,7 +14,7 @@ Implemented in four auditable phases:
 - Dashboard and API surfaces use metadata plus `X-Robots-Tag` index protection.
 - `robots.txt` explicitly allows `OAI-SearchBot` on public content while excluding APIs.
 - Every public route has complete canonical, robots, Open Graph, and Twitter metadata; one H1; visible breadcrumbs; matching structured data; and reviewed modification context.
-- The entity graph includes Person, Organization, WebSite, SoftwareApplication, Offer, WebPage, FAQPage, TechArticle, citation, permission, and Breadcrumb relationships that match visible content.
+- The entity graph includes Person, Organization, WebSite, SoftwareApplication, Offer, WebPage, FAQPage, TechArticle, VideoObject, citation, permission, and Breadcrumb relationships that match visible content.
 - Current public version, build, and minimum macOS are checked against `Resources/Info.plist`.
 - Framework floors are kept on patched Next.js and React release families and the production dependency audit is required.
 
@@ -34,20 +35,92 @@ Permanent macOS 14 and macOS 15 CI reproduces the pre-fix model, runs focused st
 
 ## Entity disambiguation
 
-CmdTab is now defined in visible homepage copy and SoftwareApplication structured data as a standalone macOS window-switcher application, separate from Apple’s built-in Command-Tab shortcut.
+CmdTab is defined in visible homepage copy and SoftwareApplication structured data as a standalone macOS window-switcher application, separate from Apple’s built-in Command-Tab shortcut.
 
-The structured entity adds:
+The structured entity includes:
 
 - `alternateName` values for CmdTab for macOS and CmdTab window switcher;
 - `disambiguatingDescription`;
-- visible-current permission explanations;
+- current permission explanations;
+- real showcase posters as software screenshots;
 - no invented memory or processor requirements.
 
 Root title and description language reinforce the product entity where the brand could otherwise collide with generic native shortcut queries.
 
+## Real product images and short videos
+
+The source now includes a deterministic macOS showcase renderer:
+
+```bash
+swift run -c release CmdTab --render-showcase website/public/showcase
+```
+
+It generates:
+
+```text
+overview-poster.png
+overview.mp4
+classic-grid-poster.png
+classic-grid.mp4
+command-palette-poster.png
+command-palette.mp4
+radial-menu-poster.png
+radial-menu.mp4
+quick-actions-poster.png
+quick-actions.mp4
+contact-sheet.png
+manifest.json
+README.md
+```
+
+### What the media represents
+
+- The switcher panels are production `ClassicGridView`, `CommandPaletteView`, and `RadialMenuView` renders.
+- The renderer uses production `SwitcherViewModel`, `PaletteSearch`, item cards, rows, selection styling, and item mutation behavior.
+- Window titles and previews are deterministic fixtures created with AppKit/SwiftUI so no private desktop data is recorded.
+- System application icons are used where available.
+- The surrounding desktop and fixture windows are capture context.
+- The Quick Action key badge is an explanatory capture annotation.
+- The assets are not AI-generated.
+
+### What the media does not prove
+
+The clips do not prove signed-app Accessibility or Screen Recording behavior, real focused `CGWindowID`, Spaces, displays, fullscreen activation, Stage Manager, secure input, signing, or notarization. Those remain in the manual acceptance matrix.
+
+### Encoding and validation
+
+- Posters are 1280×800 PNGs.
+- Videos are short, silent, 20 fps H.264 MP4 loops encoded with AVFoundation.
+- `manifest.json` records dimensions, duration, frame rate, codec, audio state, file bytes, source type, and fixture disclosure.
+- `scripts/showcase/validate_showcase_media.swift` validates image/video metadata and samples the central product area so a decorative desktop cannot hide a blank lazy grid or list.
+- `scripts/verify-showcase-media.mjs` protects committed file signatures, manifest alignment, disclosure, stable URLs, player behavior, and unsupported-claim exclusions.
+- `scripts/verify-showcase-responses.mjs` fetches the compiled watch page, posters, MP4s, manifest, content types, byte counts, and range responses.
+
+### Capture-only eager layout
+
+SwiftUI lazy containers do not reliably instantiate offscreen children under `ImageRenderer`. The first generation attempt therefore produced blank Classic Grid and Command Palette panels and was rejected.
+
+`ShowcaseRenderingMode` now switches only the capture path to eager row/column containers while reusing the same production item card and row views. Normal application rendering remains on the original lazy containers. A central-region variance check would reject the original blank output.
+
+## Canonical showcase page
+
+`/showcase` is the canonical watch page and the 22nd public HTML route. It contains:
+
+- the overview video as the primary page content;
+- four mode/action clips with stable poster and MP4 URLs;
+- explicit play/pause controls;
+- muted inline loops;
+- reduced-motion default pause;
+- visible descriptions and transcripts;
+- production-view and controlled-fixture disclosures;
+- a link to the evidence ledger;
+- WebPage, BreadcrumbList, and VideoObject structured data.
+
+The homepage and main switcher page embed the overview. The four deep feature pages embed their corresponding real production clip and use the real poster for social metadata.
+
 ## Deep feature references
 
-The canonical HTML registry expanded from 16 to 21 routes with:
+The canonical HTML registry previously expanded with:
 
 ```text
 /features/classic-grid
@@ -57,7 +130,7 @@ The canonical HTML registry expanded from 16 to 21 routes with:
 /compare/cmdtab-vs-alttab
 ```
 
-The four feature pages share one factual template but have distinct user intent, metadata, H1s, definitions, screenshots, behavior tables, best-fit guidance, tradeoffs, limits, and adjacent sources.
+The four feature pages share one factual template but have distinct user intent, metadata, H1s, definitions, real videos, behavior tables, best-fit guidance, tradeoffs, limits, and adjacent sources.
 
 - Classic Grid covers visual exact-window scanning and preview fallback.
 - Command Palette covers local app/window text matching, acronym signals, stable ties, remembered-choice behavior, and raw-query privacy.
@@ -88,7 +161,7 @@ The source verifier compares them byte-for-byte with `docs/qa/`, and the compile
 
 ## Source-dated market and focused comparisons
 
-`/compare/mac-window-switchers` now compares:
+`/compare/mac-window-switchers` compares:
 
 - built-in macOS switching;
 - AltTab;
@@ -105,7 +178,7 @@ External prices, feature tiers, compatibility, download figures, adoption counts
 
 ## Retrieval-oriented documentation
 
-`/llms.txt` now provides descriptive links to product behavior, each mode/action page, evidence artifacts, comparisons, compatibility, permissions, privacy, and changelog sources.
+`/llms.txt` provides descriptive links to the real showcase, stable poster/MP4 URLs, manifest, product behavior, each mode/action page, evidence artifacts, comparisons, compatibility, permissions, privacy, and changelog sources.
 
 `/llms-full.txt` is a generated consolidated Markdown context export with these controls:
 
@@ -113,8 +186,8 @@ External prices, feature tiers, compatibility, download figures, adoption counts
 - canonical HTML declared authoritative;
 - `X-Robots-Tag: noindex, follow`;
 - excluded from the canonical HTML route registry and sitemap;
-- direct Q&A and source rules;
-- explicit ScreenCaptureKit, memory, processor, Universal Binary, latency, and model-versus-field-data boundaries.
+- real-media descriptions and transcripts;
+- explicit production-view, fixture, ScreenCaptureKit, memory, processor, Universal Binary, latency, signed-app, and model-versus-field-data boundaries.
 
 The helper is not claimed as an AI-ranking requirement and must not contain unique product facts.
 
@@ -133,15 +206,9 @@ Current public source uses CoreGraphics, Accessibility APIs, and a WindowServer/
 
 ## Off-page distribution readiness
 
-`docs/seo/software-directory-submission-pack.md` prepares maintained descriptions, categories, screenshots, links, privacy/permission/evidence facts, UTM conventions, and release gates for:
+`docs/seo/software-directory-submission-pack.md` prepares maintained descriptions, categories, screenshots, links, privacy/permission/evidence facts, UTM conventions, and release gates for AlternativeTo, Product Hunt, MacUpdate, Softpedia, and StackShare.
 
-- AlternativeTo;
-- Product Hunt;
-- MacUpdate;
-- Softpedia;
-- StackShare.
-
-Every row remains `Not submitted`. The pack is preparation, not proof of listing, approval, review, indexing, or alternative relationships. Owner-account submission follows a signed public release and destination-specific readiness.
+The validated showcase contact sheet and stable posters can be used only after the public release and public media URLs are live. Every directory row remains `Not submitted`; the pack is not proof of listing, approval, review, indexing, or alternative relationships.
 
 ## Webmaster onboarding
 
@@ -164,7 +231,7 @@ This hook does not itself verify the domain. Owner-account verification, sitemap
 - `/dashboard/discovery` reports AI-assisted pageviews, visitors, sources, and landing pages.
 - The dashboard states that missing referrers, privacy tools, redirects, copied links, and in-app browsers can undercount discovery.
 
-Use webmaster-platform reporting, first-party referrals, trial starts, purchases, and support outcomes together. Do not treat citation screenshots as sufficient evidence of GEO performance.
+Use webmaster-platform reporting, first-party referrals, showcase engagement, trial starts, purchases, and support outcomes together. Do not treat citation screenshots or video-index eligibility as sufficient evidence of GEO performance.
 
 ## Verification
 
@@ -185,25 +252,26 @@ npm run rendered:check
 npm run webmaster:check
 npm run evidence:check
 npm run retrieval:check
+npm run showcase:responses
 npm run browser:check
 ```
 
-The browser suite covers all 21 canonical routes at desktop and mobile sizes, mobile navigation, accessible wide tables, images, console and network failures, document overflow, unnamed controls, and the interactive switcher demo. CI captures desktop and mobile visual evidence for evidence, market comparison, focused AltTab comparison, and the four feature pages.
-
-The retrieval verifier checks rendered brand disambiguation, SoftwareApplication permissions and entity text, new route purpose, `llms.txt`, noindex `llms-full.txt`, unsupported-spec boundaries, sitemap count, and helper-file sitemap exclusion.
+The browser suite covers all 22 canonical routes at desktop and mobile sizes, mobile navigation, accessible wide tables, images, media requests, console and network failures, document overflow, unnamed controls, and the interactive switcher demo. CI captures desktop and mobile visual evidence for the showcase, evidence, comparisons, and feature pages.
 
 ## Production operations
 
-1. Configure real Google and Bing verification tokens in the production environment.
-2. Verify `cmdtab.net` in Google Search Console and Bing Webmaster Tools.
-3. Submit `https://cmdtab.net/sitemap.xml` and inspect the principal canonical URLs.
-4. Re-submit changed canonical URLs through IndexNow after deployment.
-5. Confirm private routes remain excluded and crawler/CDN rules allow intended public bots.
-6. Compare webmaster data with `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
-7. Provision monitored domain support, privacy, and security mailboxes before changing the current contact address.
-8. Complete the signed/notarized release and direct trial/download flow before external software-directory submissions that require a downloadable product.
-9. Earn external authority through original real-machine measurements, independent reviews, editorial links, authentic user discussion, and evidence-led localization.
+1. Generate, validate, visually inspect, and commit the final showcase media.
+2. Remove the one-time generation workflow and restore permanent Swift CI to read-only repository access.
+3. Deploy the 22-route release and verify `/showcase`, every poster/MP4/manifest response, VideoObject markup, browser playback controls, and production runtime errors.
+4. Configure real Google and Bing verification tokens in the production environment.
+5. Verify `cmdtab.net` in Google Search Console and Bing Webmaster Tools.
+6. Submit `https://cmdtab.net/sitemap.xml`, inspect the principal canonical URLs, and re-submit changed canonical URLs through IndexNow.
+7. Confirm private routes remain excluded and crawler/CDN rules allow intended public bots and raw video fetching.
+8. Compare webmaster data with `/dashboard/discovery`, Vercel Analytics, showcase engagement, trial starts, purchases, and support outcomes.
+9. Provision monitored domain support, privacy, and security mailboxes before changing the current contact address.
+10. Complete the signed/notarized release and direct trial/download flow before external software-directory submissions that require a downloadable product.
+11. Earn external authority through original real-machine measurements, independent reviews, editorial links, authentic user discussion, and evidence-led localization.
 
 ## Honest boundary
 
-CmdTab can be more transparent, source-verifiable, structured, and regression-resistant than reviewed competitor sites. That does not guarantee higher rankings or more AI citations. Established competitors retain external authority from downloads, backlinks, press, reviews, community discussion, and localization; those advantages must be earned through product quality and distribution.
+CmdTab can be more transparent, source-verifiable, structured, visually demonstrable, and regression-resistant than reviewed competitor sites. That does not guarantee higher rankings, video indexing, or more AI citations. Established competitors retain external authority from downloads, backlinks, press, reviews, community discussion, and localization; those advantages must be earned through product quality and distribution.
