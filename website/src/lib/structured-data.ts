@@ -1,6 +1,8 @@
 import type { BreadcrumbItem } from "@/components/seo/breadcrumbs";
 import { commerceContent } from "@/content/commerce";
 import { productFacts } from "@/content/product-facts";
+import type { ShowcaseAsset } from "@/content/showcase";
+import { showcaseUploadDate } from "@/content/showcase";
 import { siteConfig } from "@/content/site";
 import { getCommerceConfig } from "@/lib/commerce";
 import { getSiteUrl } from "@/lib/env";
@@ -77,11 +79,12 @@ function softwareApplicationEntity(siteUrl: string) {
       (permission) => `${permission.name}: ${permission.reason}`,
     ),
     description: siteConfig.description,
-    image: `${siteUrl}/opengraph-image`,
+    image: `${siteUrl}/showcase/overview-poster.png`,
     screenshot: [
-      `${siteUrl}/screenshots/styles/classic-grid.svg`,
-      `${siteUrl}/screenshots/styles/command-palette.svg`,
-      `${siteUrl}/screenshots/styles/radial-menu.svg`,
+      `${siteUrl}/showcase/classic-grid-poster.png`,
+      `${siteUrl}/showcase/command-palette-poster.png`,
+      `${siteUrl}/showcase/radial-menu-poster.png`,
+      `${siteUrl}/showcase/quick-actions-poster.png`,
     ],
     featureList,
     releaseNotes: `${siteUrl}/changelog`,
@@ -233,5 +236,31 @@ export function createArticleStructuredData({
     author: { "@id": `${siteUrl}/#organization` },
     publisher: { "@id": `${siteUrl}/#organization` },
     image: `${siteUrl}/opengraph-image`,
+  };
+}
+
+export function createVideoStructuredData(assets: ReadonlyArray<ShowcaseAsset>) {
+  const siteUrl = getSiteUrl();
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": assets.map((asset) => ({
+      "@type": "VideoObject",
+      "@id": `${siteUrl}/showcase#video-${asset.id}`,
+      name: asset.title,
+      description: asset.description,
+      thumbnailUrl: new URL(asset.poster, `${siteUrl}/`).toString(),
+      uploadDate: showcaseUploadDate,
+      contentUrl: new URL(asset.video, `${siteUrl}/`).toString(),
+      duration: `PT${asset.durationSeconds}S`,
+      width: asset.width,
+      height: asset.height,
+      encodingFormat: "video/mp4",
+      inLanguage: "en",
+      isFamilyFriendly: true,
+      isPartOf: { "@id": `${siteUrl}/showcase#webpage` },
+      about: { "@id": `${siteUrl}/#software` },
+      publisher: { "@id": `${siteUrl}/#organization` },
+    })),
   };
 }
