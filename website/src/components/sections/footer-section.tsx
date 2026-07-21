@@ -7,6 +7,7 @@ import { siteConfig } from "@/content/site";
 
 const productLinks = [
   { href: "/features/window-switcher", label: "Window switcher" },
+  { href: "/showcase", label: "Real app showcase" },
   { href: "/features/classic-grid", label: "Classic Grid" },
   { href: "/features/command-palette", label: "Command Palette" },
   { href: "/features/radial-menu", label: "Radial Menu" },
@@ -52,8 +53,8 @@ export function FooterSection() {
           </p>
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <Button href="/trial">{siteConfig.ctas.primary}</Button>
-            <Button href="/buy" variant="secondary">
-              Review pricing
+            <Button href="/showcase" variant="secondary">
+              Watch the app
             </Button>
           </div>
         </MotionReveal>
