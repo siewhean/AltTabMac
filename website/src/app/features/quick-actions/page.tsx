@@ -18,10 +18,10 @@ export const metadata = createPageMetadata({
   title: content.metadataTitle,
   description: content.metadataDescription,
   path: "/features/quick-actions",
-  image: "/showcase/quick-actions-poster.png",
-  imageAlt: "Real CmdTab Quick Actions render showing a selected Mac window item mutation",
-  imageWidth: 1280,
-  imageHeight: 800,
+  image: "/showcase/quick-actions-poster.webp",
+  imageAlt: "CmdTab Quick Actions product composite showing a selected Mac window item mutation",
+  imageWidth: 720,
+  imageHeight: 450,
 });
 
 export default function QuickActionsPage() {
