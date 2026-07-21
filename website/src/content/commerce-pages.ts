@@ -5,57 +5,57 @@ export const commercePageContent = {
     eyebrow: "Buy CmdTab",
     title: "Trial first, then buy once.",
     description:
-      "A short trial first, then a one-time purchase, and clear support after checkout.",
+      "Try first, then decide. One-time purchase only. Support stays one click away.",
     process: [
       {
         title: "Start the trial",
-        body: "Download the current build, enable permissions, and try it in your real work.",
+        body: "Download the build, enable permissions, and try it where you work.",
       },
       {
         title: "Buy through hosted checkout",
-        body: "When you are ready, complete the one-time purchase through the hosted checkout.",
+        body: "When ready, complete a one-time checkout in the hosted purchase flow.",
       },
       {
         title: "Use Help if needed",
-        body: "If you lose the receipt or need activation help later, use the Help page.",
+        body: "Lost a receipt or need activation help? Use Help after checkout.",
       },
     ],
     notes: [
       "No subscription",
       "Hosted checkout",
-      "Help requests land in the dashboard",
+      "One-time purchase flow",
     ],
   },
   trial: {
     eyebrow: "Free trial",
     title: `${commerceContent.trialLength} before you decide.`,
     description:
-      "Download the current build, enable required permissions, and try CmdTab in normal work.",
+      "Download the build, enable permissions, and test in your normal workflow.",
     checklist: [
       "Download the current trial build.",
-      "Enable Accessibility and Screen Recording in macOS.",
+      "Enable Accessibility and Screen Recording.",
       "Use CmdTab in your normal app-switching workflow.",
     ],
     note:
-      "If the build is not live yet, this page should point people to Help for access.",
+      "If the build link is not live, use Help and request access.",
   },
   help: {
     eyebrow: "Help",
     title: "Purchase, activation, and recovery help.",
     description:
-      "Use this page if you started the trial, bought CmdTab, or need help finding a purchase later.",
+      "Use this page after trial or purchase when you need activation, receipt, or billing help.",
     journey: [
       {
         title: "Start with the trial",
-        body: "Use CmdTab in real work first. The trial exists to prove the app before you pay.",
+        body: "Use CmdTab first in real work. No purchase needed to validate.",
       },
       {
         title: "Buy through checkout",
-        body: "When it earns a place in your setup, complete the one-time purchase through hosted checkout.",
+        body: "When it fits your workflow, complete checkout and keep your receipt.",
       },
       {
         title: "Use Help if needed",
-        body: "If you lose the receipt, need activation help, or have a billing issue, send one request here.",
+        body: "Lost access or have billing questions? Submit one request and we will reply.",
       },
     ],
     supportPoints: [

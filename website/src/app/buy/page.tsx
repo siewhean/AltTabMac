@@ -50,7 +50,7 @@ export default function BuyPage() {
       <SectionShell
         eyebrow="How it works"
         title="Three short steps."
-        description="Start with trial, buy if it fits your workflow, and use Help if you need support later."
+        description="Trial, purchase, then support path if needed."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">
@@ -68,17 +68,17 @@ export default function BuyPage() {
 
       <SectionShell
         eyebrow="Compatibility, install, and support"
-        title="What you need before purchase"
-        description="The practical launch path for macOS and support readiness."
+        title="What you need before you buy"
+        description="Permissions and support are checked before checkout."
       >
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           <article className="surface-panel p-6 xl:col-span-1">
             <p className="type-eyebrow text-cyan">Mac requirements</p>
             <h2 className="mt-4 text-xl font-medium tracking-[-0.03em] text-text">
-              macOS and hardware readiness
+              macOS and hardware
             </h2>
             <div className="mt-4 space-y-3 text-sm leading-7 text-muted">
-              <p>Use current macOS versions with required permissions enabled.</p>
+              <p>Use supported macOS versions with required permissions enabled.</p>
               <p>No subscription. One-time license only, after trial.</p>
             </div>
           </article>
@@ -102,12 +102,12 @@ export default function BuyPage() {
             </h2>
             <div className="mt-4 space-y-3 text-sm leading-7 text-muted">
               <p>
-                <a href="/trial" className="text-cyan hover:text-sky-300">Start with /trial</a> to download and configure.
+                <a href="/trial" className="text-cyan hover:text-sky-300">Go to /trial</a> to download and configure.
               </p>
               <p>
-                <a href="/help" className="text-cyan hover:text-sky-300">Need setup or license help</a> on the support page.
+                <a href="/help" className="text-cyan hover:text-sky-300">Use /help</a> for setup or license support.
               </p>
-              <p>If trial access is unavailable, use Help to check delivery state.</p>
+              <p>If /trial is not ready, open /help for delivery status.</p>
             </div>
           </article>
         </div>

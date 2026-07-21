@@ -1,6 +1,9 @@
 # llms.txt
 # Purpose: machine-readable surface for AI consumers.
 
+https://cmdtab.net/llms-full.txt
+> Complete technical specifications, ScreenCaptureKit latency benchmarks, mode guides, quick actions, and AI RAG Q&A pairs.
+
 https://cmdtab.net/
 > CmdTab is a macOS utility that replaces icon-only switching with a live-window preview switcher.
 
@@ -12,6 +15,12 @@ https://cmdtab.net/trial
 
 https://cmdtab.net/buy
 > Review one-time pricing, trial-to-paid flow, and what is needed before purchasing.
+
+https://cmdtab.net/vs/alttab
+> Side-by-side technical comparison between CmdTab and open-source AltTab for macOS.
+
+https://cmdtab.net/vs/contexts
+> Comparative breakdown between CmdTab and Contexts for macOS window switching.
 
 https://cmdtab.net/help
 > Get support for activation, license recovery, billing questions, and feature troubleshooting.

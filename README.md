@@ -1,7 +1,7 @@
 # CmdTab
 
-Last Updated: 2026-07-20
-Active Task: Production-readiness hardening and verification.
+Last Updated: 2026-07-22
+Active Task: Website copy simplification and readability pass.
 
 ## Project Summary
 
@@ -168,10 +168,14 @@ The repo also contains the Next.js product site, trial and commerce APIs, licens
 
 ## Recent Changes Log
 
-- 2026-07-21: Completed SEO and GEO audit & competitor review.
-  - Formulated competitive analysis vs AltTab, Contexts, and Raycast.
-  - Generated actionable roadmap for `/vs/*` comparison pages, `/llms-full.txt`, brand entity disambiguation, deep feature endpoints, and software directory indexing.
-  - Humanized website copy across public marketing and help pages, including onboarding/trial/support/legal messaging, to reduce AI-like phrasing and improve readability.
+- 2026-07-22: Simplified and humanized public website copy across `FAQ`, `How it works`, comparison pages, and commerce surfaces (`/buy`, `/trial`, `/help`) to reduce dense phrasing and keep page-level scannability high.
+
+- 2026-07-21: Implemented SEO and GEO audit enhancements & competitor comparison pages.
+  - Fixed JSON-LD schema issues in `website/src/lib/seo.ts` (removed invalid `SearchAction`, set offer availability to `InStock`, enriched `SoftwareApplication` with macOS 13.0+ and hardware specs).
+  - Stabilized `website/src/app/sitemap.ts` with fixed release timestamp constant and added `/vs/alttab` & `/vs/contexts` routes.
+  - Created `website/public/llms-full.txt` machine documentation surface with ScreenCaptureKit latency benchmarks (<50ms thumbnail render), hardware requirements, and AI RAG Q&A pairs.
+  - Created public competitor comparison pages `/vs/alttab` and `/vs/contexts` with side-by-side matrices, canonical metadata, and JSON-LD schemas.
+  - Verified clean compilation with `npm run typecheck` and `npx next build --webpack`.
 
 - 2026-07-20: Implemented SEO + GEO website optimization rollout.
   - Added `/faq` and `/how-it-works` public routes with dedicated crawl metadata and FAQ schema for AI extraction.

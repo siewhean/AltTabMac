@@ -56,7 +56,7 @@ export default function HowItWorksPage() {
       <SectionShell
         eyebrow="How the workflow unfolds"
         title="Step-by-step"
-        description="A practical flow from install to a reliable switching path."
+        description="From install to trial and daily use."
       >
         <div className="space-y-4">
           {howItWorksContent.steps.map((step, index) => (

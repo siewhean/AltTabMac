@@ -2,46 +2,46 @@ export const howItWorksContent = {
   eyebrow: "Guide",
   title: "How CmdTab works in practice",
   description:
-    "A practical walkthrough of how CmdTab gets you from install to a stable switching routine, including permissions and trial setup.",
+    "A short walkthrough from install to daily switching.",
   whatIs: {
     heading: "What this is",
     text:
-      "CmdTab is a macOS utility for window-level switching. It shows live previews so you can pick the right window before switching, even in crowded desktops.",
+      "CmdTab is a macOS switcher that shows live window previews before each switch.",
   },
   whoIsItFor: {
     heading: "Who it is for",
     text:
-      "Anyone who switches often, keeps many windows open, and wants confidence before every switch.",
+      "Anyone who switches frequently and keeps multiple windows open.",
   },
   howToStart: {
     heading: "How to get started",
     text:
-      "Download the trial, grant Accessibility and Screen Recording permissions, then try a few real workflow switches before purchasing.",
+      "Download the trial, grant permissions, and test in real work before deciding.",
   },
   steps: [
     {
       title: "Install and first launch",
       body:
-        "Install CmdTab and launch it once. Then confirm menu and overlay permissions in System Settings so switching works on the first attempt.",
+        "Install and launch CmdTab once, then confirm permissions in System Settings.",
     },
     {
       title: "Grant permissions",
       body:
-        "Grant Accessibility for shortcut handling and Screen Recording for live preview content before your first switch.",
+        "Grant Accessibility and Screen Recording so shortcut input and previews both work.",
     },
     {
       title: "Trial and switching",
       body:
-        "Open the switcher, scan previews or use Command Palette, and commit only when the target feels clear.",
+        "Open CmdTab, scan previews or use Command Palette, then switch.",
     },
     {
       title: "Buy or continue trial",
-      body: "Move to one-time purchase once the trial proves useful. Keep the Help page handy for activation and receipt questions.",
+      body: "Buy when the trial proves useful, or continue trialing while you work.",
     },
     {
       title: "Keep it healthy",
       body:
-        "Revisit CmdTab Settings when privacy settings change, and use Help for delivery or license questions.",
+        "Recheck Settings after macOS privacy changes. Use Help for delivery or license issues.",
     },
   ],
 } as const;

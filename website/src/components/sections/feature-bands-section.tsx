@@ -8,8 +8,8 @@ export function FeatureBandsSection() {
     <SectionShell
       id="details"
       eyebrow="Key features"
-      title="You can keep using these after the first switch."
-      description="These are built for daily work, not just the first run."
+      title="Useful features for daily switching."
+      description="Keep the same shortcut, but with clearer context."
       className="pt-12"
     >
       <div className="mb-10 grid gap-4 lg:grid-cols-3">

@@ -53,7 +53,7 @@ export default function FaqPage() {
       <SectionShell
         eyebrow="Need more help"
         title="Use support channels"
-        description="If your question is not answered here, use Help or email support directly."
+        description="If this does not answer your question, open Help or email support."
         className="pt-0"
       >
         <div className="grid gap-4 md:grid-cols-2">

@@ -2,12 +2,12 @@ export const commerceContent = {
   eyebrow: "Launch path",
   title: "Start with the trial, then buy once if it earns your spot.",
   summary:
-    "CmdTab is a one-time Mac utility. Try it first, then buy if it fits your routine.",
+    "CmdTab is a one-time Mac utility. Try it first, then buy if it fits.",
   trialLength: "14-day trial",
   founder: {
     title: "Buy now",
     price: "US$12",
-    note: "Use this price if you know it is what you want right now.",
+    note: "Use this price if you want to support the launch now.",
     points: [
       "One-time purchase",
       "Immediate access path",

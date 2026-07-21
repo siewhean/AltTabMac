@@ -84,7 +84,7 @@ export default function HelpPage() {
       <SectionShell
         eyebrow="How the buy path works"
         title="Simple terms, clear support."
-        description="Use this section for practical one-time buy and help rules."
+        description="One-time purchase terms and support paths in one place."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

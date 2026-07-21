@@ -26,11 +26,6 @@ export function buildWebsiteSchema(siteUrl = getSiteUrl()) {
     url: siteUrl,
     description: siteConfig.description,
     inLanguage: "en-US",
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${siteUrl}/?q={search_term_string}`,
-      "query-input": "required name=search_term_string",
-    },
   };
 }
 
@@ -40,7 +35,9 @@ export function buildSoftwareApplicationSchema(siteUrl = getSiteUrl()) {
     "@type": "SoftwareApplication",
     name: siteConfig.name,
     applicationCategory: "ProductivityApplication",
-    operatingSystem: "macOS",
+    operatingSystem: "macOS 13.0 or later",
+    processorRequirements: "Apple Silicon or Intel",
+    memoryRequirements: "< 20MB RAM",
     url: siteUrl,
     image: `${siteUrl}/screenshots/captures/classic-grid.png`,
     description: siteConfig.description,
@@ -50,20 +47,27 @@ export function buildSoftwareApplicationSchema(siteUrl = getSiteUrl()) {
       "hot-swap selection without leaving the app",
       "quick actions for selected windows",
       "space-aware and display-aware overlay placement",
+      "radial menu quick switcher mode",
     ],
     permissions: "Accessibility and Screen Recording",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "USD",
-      availability: "https://schema.org/PreOrder",
-      url: `${siteUrl}/trial`,
-    },
-    review: {
-      "@type": "ReviewAction",
-      target: `${siteUrl}/help`,
-      "reviewBody": "Support and activation follow-up for buyers and trial users.",
-    },
+    offers: [
+      {
+        "@type": "Offer",
+        name: "14-day free trial",
+        price: "0",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url: `${siteUrl}/trial`,
+      },
+      {
+        "@type": "Offer",
+        name: "One-time macOS license",
+        price: "19",
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url: `${siteUrl}/buy`,
+      },
+    ],
   };
 }
 

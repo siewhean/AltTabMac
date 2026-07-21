@@ -67,7 +67,7 @@ export default function TrialPage() {
                   rel="noreferrer"
                   {...analyticsAttributes("trial_page_download_click", "trial_page")}
                 >
-                  Download the trial
+                  Download trial
                 </Button>
               ) : (
                 <Button href="/help" variant="secondary" {...analyticsAttributes("trial_page_support_click", "trial_page")}>

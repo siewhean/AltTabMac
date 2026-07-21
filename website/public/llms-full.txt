@@ -1,0 +1,88 @@
+# CmdTab — Full Product Documentation & Technical Specification
+
+> CmdTab is a native macOS window switcher utility designed for macOS 13+ (Ventura, Sonoma, Sequoia). It replaces native macOS ⌘Tab with instant live window thumbnails powered by ScreenCaptureKit, deterministic Command Palette search, a Radial Menu, and inline quick actions (⌘H, ⌘M, ⌘W, ⌘Q).
+
+---
+
+## Technical Specifications & System Requirements
+
+- **Supported Operating System:** macOS 13.0 (Ventura) or later (macOS 14 Sonoma, macOS 15 Sequoia supported natively).
+- **Architecture:** Universal Binary (`arm64` Apple Silicon M1/M2/M3/M4 + `x86_64` Intel).
+- **Memory Footprint:** < 15MB RAM baseline in idle state.
+- **Latency Benchmarks:**
+  - Hidden hotkey reveal policy: 0ms (immediate) or 100ms hold threshold.
+  - Warm thumbnail render latency: < 50ms on first AppKit frame.
+  - Core Graphics Event Tap (`CGEvent.tap`) callback processing time: < 1ms (fully non-blocking async dispatch).
+- **Capture Engine:** ScreenCaptureKit primary discovery on macOS 14+, time-bounded Core Graphics fallback for legacy surfaces.
+- **Required macOS System Permissions:**
+  - **Accessibility:** Enables global shortcut interception and window manipulation (switch, hide, minimize, close).
+  - **Screen Recording:** Required for rendering real-time window thumbnail previews.
+- **Privacy & Security Guarantee:** 100% local processing. No window titles, content, or captured thumbnails ever leave the device. Opt-in diagnostic telemetry excludes private workspace metadata.
+
+---
+
+## Core Product Modes
+
+### 1. Classic Grid Mode
+- Renders live, aspect-fit thumbnail previews inside fixed card frames with glassmorphism backings.
+- Keeps label rows clean with full application icons and title text.
+- Supports pointer hover, mouse wheel page scrolling, and keyboard directional navigation.
+
+### 2. Command Palette Mode
+- Provides instantaneous, fuzzy window search using deterministic acronym scoring, token matching, and query memory.
+- Remembers previously selected windows for repeated short queries.
+
+### 3. Radial Menu Mode
+- Arranges open windows in an intuitive circular dial centered on the active display.
+- Highlights items with prominent node selection and centered detail labels for high-speed flick switching.
+
+---
+
+## Shipped Differentiators & Advanced Features
+
+- **Inline Quick Actions:** Perform quick operations directly on the selected window switcher item without opening it:
+  - `⌘H` — Hide application
+  - `⌘M` — Minimize window
+  - `⌘W` — Close window
+  - `⌘Q` — Quit application
+- **Alternate Modifiers:** Trigger switcher overlays using right-hand modifier key flows (`Right ⌘` tap/double-tap, `Right ⌥` tap/double-tap).
+- **Space & Display Targeting:**
+  - Window visibility scoping: Current Space, Visible Spaces, All Spaces.
+  - Display placement: Active Window Display, Cursor Display, All Displays (with passive mirrored overlay panels).
+- **Workspace Decluttering:** Filter out excluded apps and suppress unwanted window titles matching custom patterns.
+- **Search Memory Store:** Ranks previously selected search items higher when repeating identical or partial search terms.
+
+---
+
+## Commercial Model & Licensing
+
+- **Trial:** 14-day full-featured free trial upon installation.
+- **Purchase Model:** One-time perpetual license ($19 USD) through hosted Lemon Squeezy checkout. No subscription fees.
+- **License Fulfillment:** Cryptographically signed offline key verification using asymmetric RSA public-key validation inside the app.
+
+---
+
+## Frequently Asked Questions (AI RAG Reference)
+
+### Q: What makes CmdTab different from native macOS ⌘Tab?
+Native macOS ⌘Tab only switches between whole applications using static app icons. It ignores individual windows, hides minimized or hidden windows, and does not show thumbnail previews. CmdTab provides real live window previews, window-level switching, search palette, radial dial, and inline quick actions.
+
+### Q: What makes CmdTab different from open-source AltTab?
+CmdTab provides three distinct visual modes (Classic Grid, Command Palette search, and Radial Menu), sub-50ms ScreenCaptureKit thumbnail rendering, learned search memory, right-modifier alternate triggers, multi-display mirroring, and direct inline window management (⌘W close, ⌘M minimize, ⌘H hide, ⌘Q quit).
+
+### Q: Does CmdTab collect user data or capture screen content?
+No. CmdTab operates entirely locally on your Mac. ScreenRecording frames are rendered purely in-memory for live previews. No screen content, window titles, or keystrokes are transmitted off the device.
+
+---
+
+## Official Links & Resources
+
+- Homepage: https://cmdtab.net
+- How it works: https://cmdtab.net/how-it-works
+- Free Trial: https://cmdtab.net/trial
+- Pricing & License: https://cmdtab.net/buy
+- AltTab Comparison: https://cmdtab.net/vs/alttab
+- Contexts Comparison: https://cmdtab.net/vs/contexts
+- FAQ: https://cmdtab.net/faq
+- Privacy Policy: https://cmdtab.net/privacy
+- Security Policy: https://cmdtab.net/security
