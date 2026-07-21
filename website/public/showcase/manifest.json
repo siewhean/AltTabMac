@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 3,
+  "reviewedAt": "2026-07-21",
+  "title": "CmdTab product showcase",
+  "source": "Hybrid privacy-safe product showcase",
+  "fixturePolicy": "Controlled fixture windows only; no private desktop capture; no AI-generated product screenshots.",
+  "disclosure": "Radial Menu is an authentic production SwiftUI/AppKit render. The overview and Quick Actions clips, plus the Classic Grid and Command Palette posters, are deterministic product composites based on the current production geometry, styling, item model, and documented behavior contract.",
+  "assets": [
+    {
+      "id": "overview",
+      "title": "CmdTab app switcher overview",
+      "poster": "overview-poster.webp",
+      "video": "overview.mp4",
+      "posterWidth": 720,
+      "posterHeight": 450,
+      "videoWidth": 480,
+      "videoHeight": 300,
+      "frameRate": 6,
+      "durationSeconds": 8.0,
+      "sourceType": "deterministic-product-composite",
+      "hasAudio": false
+    },
+    {
+      "id": "classic-grid",
+      "title": "Classic Grid exact-window preview",
+      "poster": "classic-grid-poster.webp",
+      "video": null,
+      "posterWidth": 720,
+      "posterHeight": 450,
+      "sourceType": "deterministic-product-composite",
+      "hasAudio": false
+    },
+    {
+      "id": "command-palette",
+      "title": "Command Palette local window search",
+      "poster": "command-palette-poster.webp",
+      "video": null,
+      "posterWidth": 800,
+      "posterHeight": 500,
+      "sourceType": "deterministic-product-composite",
+      "hasAudio": false
+    },
+    {
+      "id": "radial-menu",
+      "title": "Radial Menu directional selection",
+      "poster": "radial-menu-poster.webp",
+      "video": "radial-menu.mp4",
+      "posterWidth": 800,
+      "posterHeight": 500,
+      "videoWidth": 480,
+      "videoHeight": 300,
+      "frameRate": 8,
+      "durationSeconds": 4.833333,
+      "sourceType": "production-swiftui-render",
+      "hasAudio": false
+    },
+    {
+      "id": "quick-actions",
+      "title": "Quick Actions selected-item mutation",
+      "poster": "quick-actions-poster.webp",
+      "video": "quick-actions.mp4",
+      "posterWidth": 720,
+      "posterHeight": 450,
+      "videoWidth": 480,
+      "videoHeight": 300,
+      "frameRate": 8,
+      "durationSeconds": 3.583333,
+      "sourceType": "deterministic-product-composite",
+      "hasAudio": false
+    }
+  ]
+}
