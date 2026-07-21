@@ -74,3 +74,5 @@ jobs:
           git add website/scripts/verify-browser.mjs .github/workflows/fix-browser-verifier.yml
           git commit -m "Handle local analytics and lazy images in browser verification"
           git push origin HEAD:agent/implement-seo-geo-audit
+
+# Triggered after rendered-browser diagnostics were reviewed.
