@@ -1,0 +1,80 @@
+name: Generate real CmdTab showcase media
+
+on:
+  push:
+    branches:
+      - agent/real-app-showcase-media
+    paths:
+      - Sources/CmdTab/ShowcaseFixtureFactory.swift
+      - Sources/CmdTab/ShowcaseRenderer.swift
+      - Sources/CmdTab/main.swift
+      - scripts/showcase/validate_showcase_media.swift
+      - .github/workflows/generate-showcase-media.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-showcase-media-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: macos-15
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out showcase branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/real-app-showcase-media
+          fetch-depth: 0
+
+      - name: Build and render production switcher media
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf website/public/showcase
+          mkdir -p website/public/showcase
+          swift run \
+            -c release \
+            --scratch-path /tmp/CmdTab-showcase \
+            CmdTab \
+            --render-showcase "$PWD/website/public/showcase"
+
+      - name: Validate images, videos, disclosure, and package size
+        shell: bash
+        run: |
+          set -euo pipefail
+          swift scripts/showcase/validate_showcase_media.swift "$PWD/website/public/showcase"
+          for image in website/public/showcase/*-poster.png website/public/showcase/contact-sheet.png; do
+            echo "Inspecting $image"
+            sips -g pixelWidth -g pixelHeight "$image"
+          done
+          find website/public/showcase -maxdepth 1 -type f -print0 | xargs -0 ls -lh
+
+      - name: Check patch hygiene
+        run: git diff --check
+
+      - name: Commit generated binary assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/public/showcase
+          if git diff --cached --quiet; then
+            echo "Showcase assets are already current."
+            exit 0
+          fi
+          git commit -m "Generate real CmdTab showcase media"
+          git push origin HEAD:agent/real-app-showcase-media
+
+      - name: Upload generated showcase evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmdtab-real-showcase-media
+          path: website/public/showcase
+          if-no-files-found: error
+          retention-days: 14
