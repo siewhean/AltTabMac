@@ -2,6 +2,7 @@ import type { BreadcrumbItem } from "@/components/seo/breadcrumbs";
 import { commerceContent } from "@/content/commerce";
 import { productFacts } from "@/content/product-facts";
 import { siteConfig } from "@/content/site";
+import { getCommerceConfig } from "@/lib/commerce";
 import { getSiteUrl } from "@/lib/env";
 
 const featureList = [
@@ -14,7 +15,49 @@ const featureList = [
   "Hide, minimize, close, and quit quick actions",
 ];
 
+function configuredOffers(siteUrl: string) {
+  const commerce = getCommerceConfig();
+  const offers: Array<Record<string, string>> = [];
+
+  if (commerce.trialDownloadUrl) {
+    offers.push({
+      "@type": "Offer",
+      name: productFacts.trialLength,
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${siteUrl}/trial`,
+    });
+  }
+
+  if (commerce.checkoutUrl) {
+    offers.push({
+      "@type": "Offer",
+      name: commerceContent.founder.title,
+      price: commerceContent.founder.price.replace(/[^0-9.]/g, ""),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${siteUrl}/buy`,
+    });
+  }
+
+  if (commerce.standardCheckoutUrl) {
+    offers.push({
+      "@type": "Offer",
+      name: commerceContent.standard.title,
+      price: commerceContent.standard.price.replace(/[^0-9.]/g, ""),
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${siteUrl}/buy`,
+    });
+  }
+
+  return offers;
+}
+
 function softwareApplicationEntity(siteUrl: string) {
+  const offers = configuredOffers(siteUrl);
+
   return {
     "@type": "SoftwareApplication",
     "@id": `${siteUrl}/#software`,
@@ -40,24 +83,7 @@ function softwareApplicationEntity(siteUrl: string) {
     publisher: {
       "@id": `${siteUrl}/#organization`,
     },
-    offers: [
-      {
-        "@type": "Offer",
-        name: productFacts.trialLength,
-        price: "0",
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        url: `${siteUrl}/trial`,
-      },
-      {
-        "@type": "Offer",
-        name: commerceContent.founder.note,
-        price: commerceContent.founder.price.replace(/[^0-9.]/g, ""),
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        url: `${siteUrl}/buy`,
-      },
-    ],
+    ...(offers.length > 0 ? { offers } : {}),
   };
 }
 
