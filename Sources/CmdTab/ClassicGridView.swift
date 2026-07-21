@@ -55,46 +55,90 @@ struct ClassicGridView: View {
                         .font(.system(.body, design: .rounded))
                         .foregroundColor(.white.opacity(0.50))
                         .frame(width: 300, height: 100)
+                } else if ShowcaseRenderingMode.isEnabled {
+                    eagerShowcaseGrid
                 } else {
-                    ScrollViewReader { proxy in
-                        ScrollView(.vertical, showsIndicators: false) {
-                            let columns = Array(
-                                repeating: GridItem(
-                                    .fixed(viewModel.layout.cardWidth),
-                                    spacing: viewModel.layout.gridSpacing
-                                ),
-                                count: max(1, viewModel.layout.columns)
-                            )
+                    interactiveGrid
+                }
+            }
+        }
+    }
 
-                            LazyVGrid(columns: columns, spacing: viewModel.layout.gridSpacing) {
-                                ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
-                                    ClassicItemCardView(
-                                        item: item,
-                                        isSelected: idx == resolvedSelectedIndex,
-                                        mode: viewModel.mode,
-                                        layout: viewModel.layout
-                                    )
-                                    .id(idx)
-                                    .transition(.switcherItemMutation)
-                                    .onHover { hovering in
-                                        viewModel.hoveredIndex = hovering ? idx : nil
-                                    }
-                                }
+    private var interactiveGrid: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVGrid(columns: gridColumns, spacing: viewModel.layout.gridSpacing) {
+                    ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
+                        itemCard(item: item, index: idx)
+                            .id(idx)
+                            .transition(.switcherItemMutation)
+                            .onHover { hovering in
+                                viewModel.hoveredIndex = hovering ? idx : nil
                             }
-                            .animation(.spring(response: 0.24, dampingFraction: 0.84), value: viewModel.items.map(\.id))
-                            .padding(.horizontal, viewModel.layout.outerPadding)
-                            .padding(.vertical, viewModel.layout.outerPadding)
-                        }
-                        .frame(maxHeight: viewModel.layout.contentHeight)
-                        .onChange(of: resolvedSelectedIndex) { idx in
-                            withAnimation(.easeInOut(duration: 0.12)) {
-                                proxy.scrollTo(idx, anchor: .center)
-                            }
+                    }
+                }
+                .animation(.spring(response: 0.24, dampingFraction: 0.84), value: viewModel.items.map(\.id))
+                .padding(.horizontal, viewModel.layout.outerPadding)
+                .padding(.vertical, viewModel.layout.outerPadding)
+            }
+            .frame(maxHeight: viewModel.layout.contentHeight)
+            .onChange(of: resolvedSelectedIndex) { idx in
+                withAnimation(.easeInOut(duration: 0.12)) {
+                    proxy.scrollTo(idx, anchor: .center)
+                }
+            }
+        }
+    }
+
+    /// `ImageRenderer` does not instantiate the children of a lazy container when
+    /// the view hierarchy never enters a window. The showcase command therefore
+    /// uses the same card view in an eager row/column layout. Normal app rendering
+    /// continues to use the production LazyVGrid above.
+    private var eagerShowcaseGrid: some View {
+        let columnCount = max(1, min(viewModel.layout.columns, viewModel.items.count))
+        let rowStarts = Array(stride(from: 0, to: viewModel.items.count, by: columnCount))
+
+        return VStack(spacing: viewModel.layout.gridSpacing) {
+            ForEach(rowStarts, id: \.self) { rowStart in
+                HStack(spacing: viewModel.layout.gridSpacing) {
+                    ForEach(rowStart..<min(rowStart + columnCount, viewModel.items.count), id: \.self) { index in
+                        itemCard(item: viewModel.items[index], index: index)
+                    }
+                    if rowStart + columnCount > viewModel.items.count {
+                        ForEach(viewModel.items.count..<(rowStart + columnCount), id: \.self) { _ in
+                            Color.clear
+                                .frame(width: viewModel.layout.cardWidth, height: viewModel.layout.cardHeight)
                         }
                     }
                 }
             }
         }
+        .padding(.horizontal, viewModel.layout.outerPadding)
+        .padding(.vertical, viewModel.layout.outerPadding)
+        .frame(
+            width: viewModel.layout.contentWidth,
+            height: viewModel.layout.contentHeight,
+            alignment: .top
+        )
+    }
+
+    private var gridColumns: [GridItem] {
+        Array(
+            repeating: GridItem(
+                .fixed(viewModel.layout.cardWidth),
+                spacing: viewModel.layout.gridSpacing
+            ),
+            count: max(1, viewModel.layout.columns)
+        )
+    }
+
+    private func itemCard(item: SwitcherItem, index: Int) -> some View {
+        ClassicItemCardView(
+            item: item,
+            isSelected: index == resolvedSelectedIndex,
+            mode: viewModel.mode,
+            layout: viewModel.layout
+        )
     }
 }
 
