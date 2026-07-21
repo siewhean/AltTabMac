@@ -18,6 +18,7 @@ This file is a preparation artifact. It does **not** claim that CmdTab has been 
 - **Trial:** 14 days
 - **License:** One-time purchase
 - **Current founder price:** US$12
+- **Real product showcase:** `https://cmdtab.net/showcase`
 - **Evidence page:** `https://cmdtab.net/evidence`
 - **Privacy:** `https://cmdtab.net/privacy`
 - **Permissions:** `https://cmdtab.net/permissions`
@@ -48,7 +49,7 @@ Eligible top-level windows remain separate targets in one global exact-window re
 
 Accessibility permission supports global shortcut handling, window inspection, exact-window focus, and window actions. Screen Recording permission enables live previews; if capture is unavailable, an otherwise eligible window remains represented with an icon or placeholder.
 
-CmdTab publishes its current product contract, source-dated comparison pages, automated regression evidence, 136-case acceptance matrix, and explicit real-macOS manual-test boundary at cmdtab.net.
+CmdTab publishes real production-view images and short silent videos with controlled fixture windows at cmdtab.net/showcase. The media is not AI-generated and does not contain a developer’s private desktop. The site also publishes its current product contract, source-dated comparison pages, automated regression evidence, 136-case acceptance matrix, and explicit real-macOS manual-test boundary.
 
 ## Suggested categories and tags
 
@@ -80,28 +81,39 @@ Use these as factual bullets rather than unsupported superiority claims:
 - Active-window display, cursor display, and all-display placement options.
 - Hide, minimize, close, and quit Quick Actions where supported.
 - Public automated evidence plus a visible real-macOS manual-validation boundary.
+- Real production-view posters and silent MP4 loops with explicit controlled-fixture disclosure.
 
-## Required screenshots
+## Maintained product media
 
-Use current production or release screenshots only. Preserve truthful captions and avoid mock ratings or testimonials.
+Use the stable public URLs below only after the 22-route showcase release is deployed and the production response checks pass.
 
-1. Hero / current switcher overview
-2. Classic Grid
-3. Command Palette
-4. Radial Menu
-5. Quick Actions
-6. Permissions and first-run setup
-7. Evidence ledger
+| Purpose | Stable public URL | Source and disclosure |
+| --- | --- | --- |
+| Full watch page | `https://cmdtab.net/showcase` | Canonical HTML with transcripts, playback controls, and VideoObject markup |
+| Overview poster | `https://cmdtab.net/showcase/overview-poster.png` | Production switcher views with controlled fixture windows |
+| Overview short video | `https://cmdtab.net/showcase/overview.mp4` | Silent H.264 loop; production UI + fixtures |
+| Classic Grid poster | `https://cmdtab.net/showcase/classic-grid-poster.png` | Production Classic Grid card and selection views |
+| Command Palette poster | `https://cmdtab.net/showcase/command-palette-poster.png` | Production palette row, query, and result views |
+| Radial Menu poster | `https://cmdtab.net/showcase/radial-menu-poster.png` | Production radial selection view |
+| Quick Actions poster | `https://cmdtab.net/showcase/quick-actions-poster.png` | Production item mutation with capture-only key annotation |
+| Contact sheet | `https://cmdtab.net/showcase/contact-sheet.png` | Four maintained production-view poster states |
+| Media manifest | `https://cmdtab.net/showcase/manifest.json` | Dimensions, duration, codec, audio, byte, and source disclosure |
 
-Recommended source files are maintained under `website/public/screenshots/` and production verification artifacts.
+### Required caption
+
+Use or preserve this disclosure wherever a destination might otherwise imply a private desktop recording:
+
+> Rendered from CmdTab’s production SwiftUI/AppKit switcher views with controlled fixture windows. Not AI-generated and not a recording of a private desktop.
+
+Do not crop away a disclosure embedded in the image when it materially changes the context. Do not call the fixture desktop a “live customer workflow” or treat the short loops as real-macOS permission, Space, display, fullscreen, or exact-focus proof.
 
 ## Directory-specific checklist
 
 | Destination | Account/action required | Prepared category | Status | Notes |
 | --- | --- | --- | --- | --- |
-| AlternativeTo | Owner account; add product and request relevant alternative relationships | Productivity / window management | Not submitted | Link the canonical website, source repository, privacy page, and current license model. Do not claim an AltTab or Contexts relationship until the directory accepts it. |
-| Product Hunt | Maker account; create launch page and schedule only after a signed public release exists | Mac productivity | Not submitted | Avoid launching a waitlist-only listing as if the downloadable release were generally available. |
-| MacUpdate | Vendor account or submission form | Desktop enhancement / utilities | Not submitted | Provide the signed download URL, version, minimum macOS, release notes, and notarization status when available. |
+| AlternativeTo | Owner account; add product and request relevant alternative relationships | Productivity / window management | Not submitted | Link the canonical website, source repository, real showcase, privacy page, and current license model. Do not claim an AltTab or Contexts relationship until the directory accepts it. |
+| Product Hunt | Maker account; create launch page and schedule only after a signed public release exists | Mac productivity | Not submitted | Use the overview poster/video and contact sheet only after production media URLs are live. Avoid launching a waitlist-only listing as if the downloadable release were generally available. |
+| MacUpdate | Vendor account or submission form | Desktop enhancement / utilities | Not submitted | Provide the signed download URL, version, minimum macOS, release notes, notarization status, and current real product poster when available. |
 | Softpedia | Vendor submission and downloadable build | System utilities / OS enhancements | Not submitted | Do not submit before a stable signed artifact and malware-scannable direct download exist. |
 | StackShare | Account; add tool only if its taxonomy supports a desktop utility | Productivity tool | Not submitted | Do not force CmdTab into a software-development-stack category that misrepresents the product. |
 
@@ -146,6 +158,7 @@ Before changing any status from **Not submitted**:
 3. Confirm version, build, minimum macOS, price, and trial terms match the website.
 4. Confirm Accessibility and Screen Recording explanations match the shipped behavior.
 5. Confirm privacy and telemetry disclosures match the release payload.
-6. Capture current screenshots from the release or production website.
-7. Save the external listing URL and submission date in this file.
-8. Re-run the public production crawler and browser verification after adding any directory link back to the site.
+6. Confirm `/showcase`, every poster, MP4, contact sheet, and manifest returns HTTP 200 from the public domain.
+7. Confirm the visible fixture disclosure and VideoObject data match the generated manifest.
+8. Save the external listing URL and submission date in this file.
+9. Re-run the public production crawler and browser verification after adding any directory link back to the site.
