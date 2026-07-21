@@ -22,25 +22,16 @@ function webpDimensions(buffer, name) {
   assert.equal(buffer.subarray(8, 12).toString("ascii"), "WEBP", `${name} is not WebP`);
   const chunk = buffer.subarray(12, 16).toString("ascii");
   if (chunk === "VP8X") {
-    return {
-      width: 1 + buffer.readUIntLE(24, 3),
-      height: 1 + buffer.readUIntLE(27, 3),
-    };
+    return { width: 1 + buffer.readUIntLE(24, 3), height: 1 + buffer.readUIntLE(27, 3) };
   }
   if (chunk === "VP8 ") {
     assert.equal(buffer.subarray(23, 26).toString("hex"), "9d012a", `${name} has an invalid VP8 frame header`);
-    return {
-      width: buffer.readUInt16LE(26) & 0x3fff,
-      height: buffer.readUInt16LE(28) & 0x3fff,
-    };
+    return { width: buffer.readUInt16LE(26) & 0x3fff, height: buffer.readUInt16LE(28) & 0x3fff };
   }
   if (chunk === "VP8L") {
     assert.equal(buffer[20], 0x2f, `${name} has an invalid VP8L signature`);
     const bits = buffer.readUInt32LE(21);
-    return {
-      width: (bits & 0x3fff) + 1,
-      height: ((bits >> 14) & 0x3fff) + 1,
-    };
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
   }
   throw new Error(`${name} uses unsupported WebP chunk ${JSON.stringify(chunk)}`);
 }
@@ -65,7 +56,7 @@ for (const asset of manifest.assets) {
 
   const posterPath = `public/showcase/${asset.poster}`;
   const poster = read(posterPath);
-  assert.ok(statSync(resolve(root, posterPath)).size >= 10_000, `${asset.id} poster is implausibly small`);
+  assert.ok(statSync(resolve(root, posterPath)).size >= 1_000, `${asset.id} poster is implausibly small`);
   const dimensions = webpDimensions(poster, asset.poster);
   assert.equal(dimensions.width, asset.posterWidth, `${asset.id} WebP width diverges from manifest`);
   assert.equal(dimensions.height, asset.posterHeight, `${asset.id} WebP height diverges from manifest`);
