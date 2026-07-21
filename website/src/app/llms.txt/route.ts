@@ -2,6 +2,7 @@ import { evidenceLedger } from "@/content/evidence";
 import { marketLandscape } from "@/content/market-landscape";
 import publicRoutes from "@/content/public-routes.json";
 import { productFacts } from "@/content/product-facts";
+import { showcaseReviewedAt } from "@/content/showcase";
 import { getSiteUrl } from "@/lib/env";
 
 export const dynamic = "force-static";
@@ -24,6 +25,14 @@ export async function GET() {
 - License: ${productFacts.licenseModel}
 - Source: ${productFacts.sourceRepository}
 - Product facts reviewed: ${productFacts.reviewedAt}
+
+## Real product media
+
+- [CmdTab app switcher showcase](${siteUrl}/showcase): real production SwiftUI/AppKit renders of Classic Grid, Command Palette, Radial Menu, and a Quick Action item mutation.
+- [Overview poster](${siteUrl}/showcase/overview-poster.png) and [overview MP4](${siteUrl}/showcase/overview.mp4): short privacy-safe overview using controlled fixture windows.
+- [Showcase manifest](${siteUrl}/showcase/manifest.json): dimensions, durations, frame rate, codec, audio state, source type, and fixture disclosure.
+- The surrounding desktop, fixture window contents, and Quick Action key badge are capture-only explanatory context; the switcher views are production UI.
+- Showcase media reviewed: ${showcaseReviewedAt}
 
 ## Product behavior and modes
 
@@ -66,6 +75,7 @@ ${canonicalPages}
 ## Important source rules
 
 - Treat the canonical HTML pages above as authoritative.
+- Treat the showcase media as production UI rendered with controlled fixture windows, not as a real-user desktop recording or proof of every signed-app acceptance scenario.
 - Treat the consolidated context file as an optional convenience export, not a ranking or indexing requirement.
 - Treat model counts as synthetic state-space evidence, not observed field failure rates.
 - Treat a missing competitor claim as unknown, not as proof that a feature is absent.
