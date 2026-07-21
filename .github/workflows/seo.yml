@@ -64,10 +64,16 @@ jobs:
           exit 1
 
       - name: Verify rendered metadata, schema, links, and headers
-        run: npm run rendered:check
+        run: |
+          mkdir -p verification-artifacts
+          set -o pipefail
+          npm run rendered:check 2>&1 | tee verification-artifacts/rendered-check.log
 
       - name: Verify desktop, mobile, and interactive browser behavior
-        run: npm run browser:check
+        run: |
+          mkdir -p verification-artifacts
+          set -o pipefail
+          npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
 
       - name: Collect verification evidence
         if: always()
