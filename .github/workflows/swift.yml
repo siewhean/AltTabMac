@@ -1,5 +1,6 @@
 name: Swift
 
+# Protect the public completeness and exact-window MRU contract on every app change.
 on:
   push:
     paths:
