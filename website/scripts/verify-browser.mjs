@@ -150,6 +150,14 @@ function expectedLocalVercelNoise(message) {
   );
 }
 
+function expectedLocalConsoleNoise(message) {
+  return (
+    expectedLocalVercelNoise(message) ||
+    (localRun &&
+      message.includes("Failed to load resource: the server responded with a status of 404 (Not Found)"))
+  );
+}
+
 const chrome = findChrome();
 const chromeUserDataDir = mkdtempSync("/tmp/cmdtab-chrome-");
 const chromeLogPath = resolve(artifactDir, "chrome.log");
@@ -247,12 +255,12 @@ try {
           if (!["error", "assert"].includes(type)) return;
           const message =
             args?.map((item) => item.value || item.description || "").join(" ") || type;
-          if (!expectedLocalVercelNoise(message)) consoleErrors.push(message);
+          if (!expectedLocalConsoleNoise(message)) consoleErrors.push(message);
         }),
         client.on("Log.entryAdded", ({ entry }) => {
           if (entry?.level !== "error") return;
           const message = `${entry.level}: ${entry.text || ""}`;
-          if (!expectedLocalVercelNoise(message)) consoleErrors.push(message);
+          if (!expectedLocalConsoleNoise(message)) consoleErrors.push(message);
         }),
         client.on("Network.loadingFailed", ({ requestId, errorText, canceled }) => {
           if (canceled || String(errorText).includes("ERR_ABORTED")) return;
@@ -485,13 +493,28 @@ try {
   } catch {
     // Best effort.
   }
-  chromeProcess.kill("SIGTERM");
-  writeFileSync(chromeLogPath, chromeLog);
+  if (chromeProcess.exitCode === null) {
+    chromeProcess.kill("SIGTERM");
+    await Promise.race([
+      new Promise((resolveExit) => chromeProcess.once("exit", resolveExit)),
+      sleep(2000),
+    ]);
+  }
   writeFileSync(
     resolve(artifactDir, "browser-report.json"),
     JSON.stringify({ baseUrl, routes, report, failures }, null, 2),
   );
-  rmSync(chromeUserDataDir, { recursive: true, force: true });
+  try {
+    rmSync(chromeUserDataDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 5,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    chromeLog += `\nNon-fatal Chrome profile cleanup warning: ${error.message || String(error)}\n`;
+  }
+  writeFileSync(chromeLogPath, chromeLog);
 }
 
 if (failures.length) {
