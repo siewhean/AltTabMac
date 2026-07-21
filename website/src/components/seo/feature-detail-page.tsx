@@ -6,7 +6,10 @@ import { FooterSection } from "@/components/sections/footer-section";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
-import type { FeatureDepthContent } from "@/content/feature-depth";
+import {
+  featureDepthSectionLabels,
+  type FeatureDepthContent,
+} from "@/content/feature-depth";
 
 export function FeatureDetailPage({
   content,
@@ -83,7 +86,9 @@ export function FeatureDetailPage({
       >
         <div className="grid gap-6 lg:grid-cols-2">
           <article className="surface-panel p-7">
-            <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Best fit</h2>
+            <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">
+              {featureDepthSectionLabels.bestFit}
+            </h2>
             <ul className="mt-5 space-y-4 text-sm leading-7 text-muted">
               {content.bestFit.map((item) => (
                 <li key={item} className="border-l border-cyan/35 pl-4">
@@ -93,7 +98,9 @@ export function FeatureDetailPage({
             </ul>
           </article>
           <article className="surface-panel p-7">
-            <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Tradeoffs and limits</h2>
+            <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">
+              {featureDepthSectionLabels.tradeoffs}
+            </h2>
             <ul className="mt-5 space-y-4 text-sm leading-7 text-muted">
               {content.tradeoffs.map((item) => (
                 <li key={item} className="border-l border-white/15 pl-4">
