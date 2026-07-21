@@ -7,7 +7,9 @@ import { siteConfig } from "@/content/site";
 
 const productLinks = [
   { href: "/features/window-switcher", label: "Window switcher" },
+  { href: "/evidence", label: "Testing and evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
+  { href: "/compare/mac-window-switchers", label: "Switcher landscape" },
   { href: "/compare/cmdtab-vs-macos-command-tab", label: "CmdTab vs macOS" },
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },

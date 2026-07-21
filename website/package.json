@@ -10,6 +10,8 @@
     "seo:check": "node scripts/verify-seo.mjs",
     "rendered:check": "python3 scripts/verify-rendered-site.py",
     "browser:check": "node scripts/verify-browser.mjs",
+    "webmaster:check": "node scripts/verify-webmaster-metadata.mjs",
+    "evidence:check": "node scripts/verify-public-evidence.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
     "security:deps": "npm audit --omit=dev --audit-level=high",
     "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"

@@ -1,65 +1,92 @@
 # CmdTab SEO and GEO implementation
 
-Implemented in two auditable passes on 20 July 2026:
+Implemented in three auditable phases:
 
 1. `agent/implement-seo-geo-audit` — technical and semantic foundation.
 2. `agent/seo-geo-competitive-hardening` — independent competitor critique, query architecture, privacy evidence, AI measurement, and stronger regression gates.
+3. `agent/seo-geo-evidence-authority-phase` — product-claim alignment, public QA evidence, source-dated market comparison, webmaster hooks, and response-byte verification.
 
 ## Completed foundation
 
-- Expanded `sitemap.xml` to every maintained public canonical route.
-- Added real maintained modification dates through one canonical route registry.
-- Added dashboard-level `noindex` metadata and `X-Robots-Tag` protection for dashboard and API routes.
-- Explicitly allowed `OAI-SearchBot` to access public pages while excluding APIs.
-- Added a reusable route metadata builder with canonical, robots, Open Graph, and Twitter data.
-- Added a root title template, publisher and creator signals, and descriptive social-image alternative text.
-- Added visible page-level H1s, breadcrumbs, and last-reviewed dates.
-- Added Organization, Person, WebSite, SoftwareApplication, Offer, WebPage, FAQPage, TechArticle, and Breadcrumb structured data.
-- Added a web manifest and generated `llms.txt` directory that points only to canonical HTML.
+- Every maintained public page is driven by one canonical route registry used by the sitemap, IndexNow, `llms.txt`, and verification.
+- Dashboard and API surfaces use metadata plus `X-Robots-Tag` index protection.
+- `robots.txt` explicitly allows `OAI-SearchBot` on public content while excluding APIs.
+- Every public route has complete canonical, robots, Open Graph, and Twitter metadata; one H1; visible breadcrumbs; matching structured data; and reviewed modification context.
+- The entity graph includes Person, Organization, WebSite, SoftwareApplication, Offer, WebPage, FAQPage, TechArticle, citation, and Breadcrumb relationships that match visible content.
+- Current public version, build, and minimum macOS are checked against `Resources/Info.plist`.
+- Framework floors are kept on patched Next.js and React release families and the production dependency audit is required.
 
-## Authoritative public content
+## Product-claim alignment
 
-- `/features/window-switcher` — exact-window membership, ordering, preview fallback, Spaces, displays, and activation flow.
-- `/guides/switch-between-windows-on-mac` — Command-Tab, Command-`, Mission Control, and CmdTab decision guide with Apple sources.
-- `/compare/cmdtab-vs-macos-command-tab` — fair native comparison with cases where the built-in switcher remains the better choice.
-- `/faq` — canonical factual FAQ with matching visible content and FAQ schema.
-- `/compatibility` — current app version, build, minimum macOS, declared support, and explicit validation limits.
-- `/permissions` — macOS permission purpose, graceful preview fallback, telemetry fields, and excluded local data.
-- `/privacy` — exact website analytics and native app telemetry contract.
-- `/about`, `/security`, `/changelog`, `/buy`, `/trial`, and `/help` — reviewed entity, trust, release, commerce, and support references.
+Before publishing broader authority content, the protected switcher implementation was aligned with the public exact-window contract:
 
-## Source-of-truth safeguards
+- eligible windows remain represented when preview capture fails;
+- multiple windows from one app remain separate in one global exact-window MRU sequence;
+- forward and reverse selection do not skip an adjacent same-app window;
+- ambiguous frontmost PIDs use exact visible history;
+- focused-window changes inside the frontmost app are observed;
+- provisional selections are promoted to permanent history only after activation confirmation;
+- activation timeout is not recorded as success;
+- the default per-app window cap is unlimited.
 
-- Current public version/build and minimum macOS are checked against `Resources/Info.plist`.
-- Sitemap, IndexNow, and `llms.txt` share `website/src/content/public-routes.json`.
-- Public route verification requires metadata, one H1, breadcrumb schema, visible breadcrumbs, and WebPage schema.
-- The privacy disclosure must keep exact app-heartbeat, install-ID, website-visitor-ID, and excluded-window-content language.
-- FAQ coverage must remain substantive rather than collapsing to a single marketing answer.
-- Framework floors are pinned to patched families: Next.js `^16.2.6`, React `^19.2.6`, and React DOM `^19.2.6`.
+Permanent macOS 14 and macOS 15 CI reproduces the pre-fix model, runs focused strict-MRU/completeness regressions, runs the complete Swift package suite, and checks patch hygiene.
+
+## Public evidence
+
+`/evidence` publishes an explicit evidence ledger with:
+
+- focused strict-MRU and preview-independent membership regressions;
+- complete Swift package verification;
+- the reproducible pre-fix state-space model;
+- rendered production website verification;
+- a real-macOS manual acceptance boundary.
+
+Public downloads are served from:
+
+```text
+/evidence/switcher-model-results.json
+/evidence/switcher-test-matrix.csv
+/evidence/switcher-test-plan.md
+```
+
+The source verifier compares them byte-for-byte with `docs/qa/`, and the compiled-server verifier fetches the public responses and compares the served bytes again. Model counts are visibly labelled as synthetic state-space evidence rather than observed field failure rates.
+
+## Source-dated market landscape
+
+`/compare/mac-window-switchers` compares:
+
+- built-in macOS switching;
+- AltTab;
+- BetterCmdTab;
+- CmdTab;
+- Scopo.
+
+The page uses Apple Support and each product's first-party pages only. It displays the review date and methodology, treats missing information as unknown rather than absent, links every source visibly, provides an accessible wide table, explains intended fit instead of declaring a universal winner, and emits matching structured citations.
+
+External prices, feature tiers, compatibility, download figures, and telemetry claims must be rechecked before the review date advances.
+
+## Webmaster onboarding
+
+The root layout supports environment-driven ownership metadata:
+
+```text
+GOOGLE_SITE_VERIFICATION
+BING_SITE_VERIFICATION
+```
+
+The permanent SEO workflow supplies deterministic CI values and verifies the rendered `google-site-verification` and `msvalidate.01` tags after the production build.
+
+This hook does not itself verify the domain. Owner-account verification, sitemap submission, URL inspection, and reporting remain Google Search Console and Bing Webmaster Tools operations.
 
 ## Search and AI discovery measurement
 
 - Website pageviews are broadly classified as ChatGPT, Perplexity, Microsoft Copilot, Google Gemini, Claude, Google Search, Bing Search, direct, or referral.
-- Classification uses a bounded `utm_source` or referrer hostname.
+- Classification uses a bounded campaign value or referrer hostname.
 - Prompt and search-query text is not collected.
 - `/dashboard/discovery` reports AI-assisted pageviews, visitors, sources, and landing pages.
-- The dashboard explicitly warns that missing referrers, privacy tools, redirects, and copied links can undercount discovery.
+- The dashboard states that missing referrers, privacy tools, redirects, copied links, and in-app browsers can undercount discovery.
 
-## IndexNow
-
-Set `INDEXNOW_KEY` in the production environment. Confirm that:
-
-```text
-https://cmdtab.net/indexnow-key.txt
-```
-
-returns the exact key, then run from `website/` after publishing changed canonical pages:
-
-```bash
-npm run indexnow:submit
-```
-
-Do not submit private, API, preview-deployment, or unchanged duplicate URLs.
+Use webmaster-platform reporting, first-party referrals, trial starts, purchases, and support outcomes together. Do not treat citation screenshots as sufficient evidence of GEO performance.
 
 ## Verification
 
@@ -73,21 +100,28 @@ npx next build --webpack
 npm audit --omit=dev --audit-level=high
 ```
 
-## Production follow-up
+The permanent workflow additionally starts the compiled server and runs:
 
-1. Verify the domain in Google Search Console and Bing Webmaster Tools.
-2. Submit `https://cmdtab.net/sitemap.xml` and inspect every canonical public URL.
-3. Confirm dashboard, API, preview-deployment, and administrative URLs remain excluded.
-4. Validate JSON-LD with Google Rich Results Test and Schema.org Validator.
-5. Test canonical host redirects, metadata cards, `robots.txt`, `llms.txt`, sitemap, IndexNow key, and `X-Robots-Tag` headers in production.
-6. Confirm CDN, bot protection, and firewall rules allow `OAI-SearchBot` to fetch public HTML and required assets.
-7. Enable and review Google Search Console generative-AI reporting and Bing Webmaster Tools AI Performance reporting where available.
-8. Compare webmaster-platform data with `/dashboard/discovery`, Vercel Analytics, trial starts, and purchases rather than treating citations alone as success.
-9. Provision and monitor `support@cmdtab.net`, `privacy@cmdtab.net`, and `security@cmdtab.net` before replacing the current personal contact address.
-10. Earn external authority through a validated signed release, independent reviews, editorial coverage, real user discussion, measured performance evidence, and selective localization.
+```bash
+npm run rendered:check
+npm run webmaster:check
+npm run evidence:check
+npm run browser:check
+```
 
-## Honest competitive boundary
+The browser suite covers every canonical route at desktop and mobile sizes, mobile navigation, accessible wide tables, images, console and network failures, document overflow, unnamed controls, and the interactive switcher demo. CI also captures desktop and mobile visual evidence for the evidence ledger and market landscape.
 
-The implementation can be more accurate, transparent, structured, measurable, and regression-resistant than competitor sites. It cannot guarantee higher rankings or more AI citations while established competitors retain stronger backlink, download, press, community, and localization authority.
+## Production operations
 
-See `docs/seo/competitive-hardening-review.md` for the detailed independent critique.
+1. Configure real Google and Bing verification tokens in the production environment.
+2. Verify `cmdtab.net` in Google Search Console and Bing Webmaster Tools.
+3. Submit `https://cmdtab.net/sitemap.xml` and inspect the principal canonical URLs.
+4. Re-submit changed canonical URLs through IndexNow after deployment.
+5. Confirm private routes remain excluded and crawler/CDN rules allow intended public bots.
+6. Compare webmaster data with `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
+7. Provision monitored domain support, privacy, and security mailboxes before changing the current contact address.
+8. Earn external authority through a validated signed release, original real-machine measurements, independent reviews, editorial links, authentic user discussion, and evidence-led localization.
+
+## Honest boundary
+
+CmdTab can be more transparent, source-verifiable, structured, and regression-resistant than reviewed competitor sites. That does not guarantee higher rankings or more AI citations. Established competitors retain external authority from downloads, backlinks, press, reviews, community discussion, and localization; those advantages must be earned through product quality and distribution.

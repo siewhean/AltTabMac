@@ -24,13 +24,15 @@ function isAtLeast(value, minimum) {
 }
 
 assert.ok(Array.isArray(publicRoutes), "public route registry must be an array");
-assert.ok(publicRoutes.length >= 14, "expected a substantive public discovery architecture");
+assert.ok(publicRoutes.length >= 16, "expected a substantive public discovery architecture");
 
 const routePaths = publicRoutes.map((route) => route.path);
 assert.equal(new Set(routePaths).size, routePaths.length, "public route paths must be unique");
 assert.ok(routePaths.includes("/features/window-switcher"), "window-switcher feature page is required");
 assert.ok(routePaths.includes("/guides/switch-between-windows-on-mac"), "Mac window guide is required");
 assert.ok(routePaths.includes("/compare/cmdtab-vs-macos-command-tab"), "native comparison page is required");
+assert.ok(routePaths.includes("/compare/mac-window-switchers"), "source-dated market comparison is required");
+assert.ok(routePaths.includes("/evidence"), "public evidence ledger is required");
 assert.ok(routePaths.includes("/faq"), "canonical FAQ page is required");
 assert.ok(!routePaths.some((path) => path.startsWith("/dashboard") || path.startsWith("/api")), "private routes must not be public");
 
@@ -73,6 +75,10 @@ const rootLayout = read("src/app/layout.tsx");
 assert.match(rootLayout, /template:\s*`%s \| \$\{siteConfig\.name\}`/, "root title template is missing");
 assert.match(rootLayout, /createHomeStructuredData/, "home entity structured data is missing");
 assert.doesNotMatch(rootLayout, /keywords:/, "meta keywords should not be emitted");
+assert.match(rootLayout, /GOOGLE_SITE_VERIFICATION/, "Google Search Console verification hook is missing");
+assert.match(rootLayout, /BING_SITE_VERIFICATION/, "Bing Webmaster Tools verification hook is missing");
+assert.match(rootLayout, /"msvalidate\.01"/, "Bing verification must emit the documented meta name");
+assert.match(rootLayout, /verification:\s*webmasterVerification\(\)/, "webmaster verification metadata is not wired");
 
 const structuredData = read("src/lib/structured-data.ts");
 for (const required of [
@@ -86,6 +92,7 @@ for (const required of [
   "createFaqStructuredData",
   "createArticleStructuredData",
   "createWebPageStructuredData",
+  "citation",
 ]) {
   assert.ok(structuredData.includes(required), `structured data is missing ${required}`);
 }
@@ -99,6 +106,9 @@ const homePage = read("src/app/page.tsx");
 assert.match(homePage, /ProductFactsSection/, "homepage must publish factual product data");
 assert.match(homePage, /DiscoveryResourcesSection/, "homepage must link authoritative discovery resources");
 assert.match(homePage, /FaqSection/, "homepage must publish a focused FAQ entry point");
+const discoveryResources = read("src/components/sections/discovery-resources-section.tsx");
+assert.match(discoveryResources, /\/evidence/, "homepage resources must link the evidence ledger");
+assert.match(discoveryResources, /\/compare\/mac-window-switchers/, "homepage resources must link the market landscape");
 
 const faq = read("src/content/faq.ts");
 const questionCount = (faq.match(/question:/g) ?? []).length;
@@ -122,6 +132,41 @@ assert.match(productFacts, new RegExp(`currentVersion:\\s*"${appVersion.replaceA
 assert.match(productFacts, new RegExp(`buildNumber:\\s*"${appBuild}"`), "public build must match Info.plist");
 assert.match(productFacts, new RegExp(`macOS ${minimumSystem.replaceAll(".", "\\.")}`), "public minimum macOS must match Info.plist");
 
+const evidence = read("src/content/evidence.ts");
+const evidencePage = read("src/app/evidence/page.tsx");
+assert.match(evidence, /productAlignmentCommit/, "evidence ledger must identify the aligned product commit");
+assert.match(evidence, /19,500 meaningful activation sequences/, "evidence ledger must preserve the exact model scope");
+assert.match(evidence, /not a measured field failure rate/, "evidence ledger must state the model limitation");
+assert.match(evidencePage, /State-space counts are not field failure rates/, "evidence page must visibly explain model limits");
+assert.match(evidencePage, /createArticleStructuredData/, "evidence page must publish article structured data");
+const evidenceCopies = [
+  ["public/evidence/switcher-model-results.json", "../docs/qa/AltTabMac_model_results.json"],
+  ["public/evidence/switcher-test-matrix.csv", "../docs/qa/AltTabMac_comprehensive_test_matrix.csv"],
+  ["public/evidence/switcher-test-plan.md", "../docs/qa/AltTabMac_implementation_review_and_test_plan.md"],
+];
+for (const [publicPath, canonicalPath] of evidenceCopies) {
+  assert.ok(existsSync(resolve(root, publicPath)), `missing public evidence artifact ${publicPath}`);
+  assert.equal(read(publicPath), read(canonicalPath), `${publicPath} must remain byte-identical to ${canonicalPath}`);
+}
+
+const landscape = read("src/content/market-landscape.ts");
+const landscapePage = read("src/app/compare/mac-window-switchers/page.tsx");
+const landscapeOptionCount = (landscape.match(/\bid:\s*"/g) ?? []).length;
+assert.ok(landscapeOptionCount >= 5, `expected at least five source-reviewed switcher options, found ${landscapeOptionCount}`);
+for (const requiredSource of [
+  "support.apple.com",
+  "alt-tab.app",
+  "bettercmdtab.app",
+  "cmdtab.net",
+  "scopo.app",
+]) {
+  assert.ok(landscape.includes(requiredSource), `market landscape is missing official source ${requiredSource}`);
+}
+assert.match(landscape, /missing claim is treated as unknown/, "comparison methodology must distinguish unknown from absent");
+assert.match(landscapePage, /source-dated first-party facts/i, "comparison page must expose its first-party source method");
+assert.match(landscapePage, /role="region"/, "wide market comparison must be an accessible region");
+assert.match(landscapePage, /createArticleStructuredData/, "market comparison must publish article structured data");
+
 const analyticsClient = read("src/lib/site-analytics-client.ts");
 for (const source of ["chatgpt", "perplexity", "microsoft_copilot", "google_gemini", "claude"]) {
   assert.ok(analyticsClient.includes(`"${source}"`), `analytics classification is missing ${source}`);
@@ -144,13 +189,30 @@ assert.match(indexNowSubmit, /indexnow-key\.json/, "IndexNow submissions must us
 assert.match(indexNowSubmit, /keyLocation/, "IndexNow submissions must declare the public key location");
 
 assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "canonical-only llms directory is missing");
+const llms = read("src/app/llms.txt/route.ts");
+assert.match(llms, /Public evidence/, "llms directory must point to public evidence");
+assert.match(llms, /Source-dated market comparison/, "llms directory must point to the comparison methodology");
+
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["indexnow:submit"], "node scripts/submit-indexnow.mjs", "IndexNow package script is missing");
+assert.equal(
+  packageJson.scripts["webmaster:check"],
+  "node scripts/verify-webmaster-metadata.mjs",
+  "rendered webmaster verification script is missing",
+);
+assert.ok(existsSync(resolve(root, "scripts/verify-webmaster-metadata.mjs")), "webmaster metadata verifier is missing");
+const seoWorkflow = read("../.github/workflows/seo.yml");
+assert.match(seoWorkflow, /GOOGLE_SITE_VERIFICATION:/, "SEO workflow must exercise Google verification metadata");
+assert.match(seoWorkflow, /BING_SITE_VERIFICATION:/, "SEO workflow must exercise Bing verification metadata");
+assert.match(seoWorkflow, /npm run webmaster:check/, "SEO workflow must verify rendered webmaster metadata");
 assert.ok(isAtLeast(packageJson.dependencies.next, "16.2.6"), `Next.js must stay at 16.2.6 or later; found ${packageJson.dependencies.next}`);
 assert.ok(isAtLeast(packageJson.dependencies.react, "19.2.6"), `React must stay at 19.2.6 or later; found ${packageJson.dependencies.react}`);
 assert.ok(isAtLeast(packageJson.dependencies["react-dom"], "19.2.6"), `React DOM must stay at 19.2.6 or later; found ${packageJson.dependencies["react-dom"]}`);
-assert.match(read(".env.example"), /INDEXNOW_KEY=/, "IndexNow environment configuration is missing");
+const envExample = read(".env.example");
+assert.match(envExample, /INDEXNOW_KEY=/, "IndexNow environment configuration is missing");
+assert.match(envExample, /GOOGLE_SITE_VERIFICATION=/, "Google verification environment configuration is missing");
+assert.match(envExample, /BING_SITE_VERIFICATION=/, "Bing verification environment configuration is missing");
 
 console.log(
-  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, packaged version ${appVersion}, a stable IndexNow key, and AI discovery instrumentation.`,
+  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, ${landscapeOptionCount} source-reviewed switcher options, public byte-matched evidence, packaged version ${appVersion}, webmaster verification hooks, a stable IndexNow key, and AI discovery instrumentation.`,
 );
