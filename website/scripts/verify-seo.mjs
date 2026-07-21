@@ -24,16 +24,26 @@ function isAtLeast(value, minimum) {
 }
 
 assert.ok(Array.isArray(publicRoutes), "public route registry must be an array");
-assert.ok(publicRoutes.length >= 16, "expected a substantive public discovery architecture");
+assert.ok(publicRoutes.length >= 21, "expected the evidence-led feature and comparison architecture");
 
 const routePaths = publicRoutes.map((route) => route.path);
 assert.equal(new Set(routePaths).size, routePaths.length, "public route paths must be unique");
-assert.ok(routePaths.includes("/features/window-switcher"), "window-switcher feature page is required");
-assert.ok(routePaths.includes("/guides/switch-between-windows-on-mac"), "Mac window guide is required");
-assert.ok(routePaths.includes("/compare/cmdtab-vs-macos-command-tab"), "native comparison page is required");
-assert.ok(routePaths.includes("/compare/mac-window-switchers"), "source-dated market comparison is required");
-assert.ok(routePaths.includes("/evidence"), "public evidence ledger is required");
-assert.ok(routePaths.includes("/faq"), "canonical FAQ page is required");
+for (const requiredPath of [
+  "/features/window-switcher",
+  "/features/classic-grid",
+  "/features/command-palette",
+  "/features/radial-menu",
+  "/features/quick-actions",
+  "/guides/switch-between-windows-on-mac",
+  "/compare/cmdtab-vs-macos-command-tab",
+  "/compare/cmdtab-vs-alttab",
+  "/compare/mac-window-switchers",
+  "/evidence",
+  "/faq",
+]) {
+  assert.ok(routePaths.includes(requiredPath), `${requiredPath} is required`);
+}
+assert.ok(!routePaths.includes("/llms-full.txt"), "the non-standard context export must not compete in the HTML sitemap");
 assert.ok(!routePaths.some((path) => path.startsWith("/dashboard") || path.startsWith("/api")), "private routes must not be public");
 
 for (const route of publicRoutes) {
@@ -80,6 +90,13 @@ assert.match(rootLayout, /BING_SITE_VERIFICATION/, "Bing Webmaster Tools verific
 assert.match(rootLayout, /"msvalidate\.01"/, "Bing verification must emit the documented meta name");
 assert.match(rootLayout, /verification:\s*webmasterVerification\(\)/, "webmaster verification metadata is not wired");
 
+const site = read("src/content/site.ts");
+const hero = read("src/components/sections/hero-section.tsx");
+for (const content of [site, hero]) {
+  assert.match(content, /standalone/i, "visible entity language must identify CmdTab as a standalone app");
+  assert.match(content, /built-in Command-Tab/i, "visible entity language must disambiguate Apple’s shortcut");
+}
+
 const structuredData = read("src/lib/structured-data.ts");
 for (const required of [
   '"SoftwareApplication"',
@@ -87,6 +104,8 @@ for (const required of [
   '"Person"',
   "softwareVersion",
   "softwareRequirements",
+  "permissions",
+  "disambiguatingDescription",
   "featureList",
   "sameAs",
   "createFaqStructuredData",
@@ -96,6 +115,8 @@ for (const required of [
 ]) {
   assert.ok(structuredData.includes(required), `structured data is missing ${required}`);
 }
+assert.match(structuredData, /standalone macOS window-switcher application/, "software schema must disambiguate the CmdTab entity");
+assert.doesNotMatch(structuredData, /memoryRequirements|processorRequirements/, "unmeasured memory or processor claims must not enter schema");
 assert.match(structuredData, /getCommerceConfig/, "software offers must use the visible commerce configuration");
 assert.match(structuredData, /commerce\.trialDownloadUrl/, "trial structured data must require a configured download URL");
 assert.match(structuredData, /commerce\.checkoutUrl/, "founder offer structured data must require a configured checkout URL");
@@ -109,6 +130,30 @@ assert.match(homePage, /FaqSection/, "homepage must publish a focused FAQ entry 
 const discoveryResources = read("src/components/sections/discovery-resources-section.tsx");
 assert.match(discoveryResources, /\/evidence/, "homepage resources must link the evidence ledger");
 assert.match(discoveryResources, /\/compare\/mac-window-switchers/, "homepage resources must link the market landscape");
+assert.match(discoveryResources, /\/compare\/cmdtab-vs-alttab/, "homepage resources must link the focused AltTab comparison");
+const stylesSection = read("src/components/sections/styles-section.tsx");
+for (const featurePath of ["/features/classic-grid", "/features/command-palette", "/features/radial-menu"]) {
+  assert.ok(stylesSection.includes(featurePath), `homepage mode cards must link ${featurePath}`);
+}
+
+const featureDepth = read("src/content/feature-depth.ts");
+for (const required of [
+  'slug: "classic-grid"',
+  'slug: "command-palette"',
+  'slug: "radial-menu"',
+  'slug: "quick-actions"',
+  "exact-window",
+  "Preview failure",
+  "Tradeoffs and limits",
+]) {
+  assert.ok(featureDepth.includes(required), `deep feature content is missing ${required}`);
+}
+assert.match(featureDepth, /does not claim a fixed reveal latency/i, "feature pages must state the benchmark boundary");
+assert.doesNotMatch(featureDepth, /ScreenCaptureKit|sub-50\s*ms|<\s*20\s*MB|Universal Binary/i, "feature pages contain an unproved technical claim");
+const featureTemplate = read("src/components/seo/feature-detail-page.tsx");
+assert.match(featureTemplate, /role="region"/, "feature behavior tables must be accessible keyboard regions");
+assert.match(featureTemplate, /Best fit/, "feature pages must explain intended fit");
+assert.match(featureTemplate, /Tradeoffs and limits/, "feature pages must explain limitations");
 
 const faq = read("src/content/faq.ts");
 const questionCount = (faq.match(/question:/g) ?? []).length;
@@ -152,20 +197,33 @@ for (const [publicPath, canonicalPath] of evidenceCopies) {
 const landscape = read("src/content/market-landscape.ts");
 const landscapePage = read("src/app/compare/mac-window-switchers/page.tsx");
 const landscapeOptionCount = (landscape.match(/\bid:\s*"/g) ?? []).length;
-assert.ok(landscapeOptionCount >= 5, `expected at least five source-reviewed switcher options, found ${landscapeOptionCount}`);
+assert.ok(landscapeOptionCount >= 6, `expected at least six source-reviewed switcher options, found ${landscapeOptionCount}`);
 for (const requiredSource of [
   "support.apple.com",
   "alt-tab.app",
   "bettercmdtab.app",
+  "contexts.co",
   "cmdtab.net",
   "scopo.app",
 ]) {
   assert.ok(landscape.includes(requiredSource), `market landscape is missing official source ${requiredSource}`);
 }
 assert.match(landscape, /missing claim is treated as unknown/, "comparison methodology must distinguish unknown from absent");
+assert.match(landscape, /free trial and a US\$9\.99 license/, "Contexts commercial terms must remain source-dated");
 assert.match(landscapePage, /source-dated first-party facts/i, "comparison page must expose its first-party source method");
 assert.match(landscapePage, /role="region"/, "wide market comparison must be an accessible region");
 assert.match(landscapePage, /createArticleStructuredData/, "market comparison must publish article structured data");
+assert.match(landscapePage, /Contexts/, "Contexts must be visible in the landscape article context");
+
+const altTabComparison = read("src/content/alttab-comparison.ts");
+const altTabPage = read("src/app/compare/cmdtab-vs-alttab/page.tsx");
+for (const required of ["alt-tab.app/pricing", "alt-tab.app/terms", "8.2 million downloads", "16,000 GitHub stars", "active beta"]) {
+  assert.ok(altTabComparison.includes(required), `AltTab comparison is missing ${required}`);
+}
+assert.match(altTabComparison, /not a controlled reliability benchmark/, "AltTab adoption must not be misrepresented as reliability");
+assert.match(altTabPage, /createArticleStructuredData/, "focused AltTab comparison must publish article schema");
+assert.match(altTabPage, /role="region"/, "focused AltTab comparison must expose an accessible wide table");
+assert.match(altTabPage, /Neither product wins every workflow/, "focused AltTab comparison must expose fair decision guidance");
 
 const analyticsClient = read("src/lib/site-analytics-client.ts");
 for (const source of ["chatgpt", "perplexity", "microsoft_copilot", "google_gemini", "claude"]) {
@@ -188,10 +246,29 @@ assert.match(indexNowRoute, /process\.env\.INDEXNOW_KEY/, "IndexNow key route mu
 assert.match(indexNowSubmit, /indexnow-key\.json/, "IndexNow submissions must use the deployed ownership key");
 assert.match(indexNowSubmit, /keyLocation/, "IndexNow submissions must declare the public key location");
 
-assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "canonical-only llms directory is missing");
+assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "llms directory is missing");
 const llms = read("src/app/llms.txt/route.ts");
+assert.match(llms, /Product behavior and modes/, "llms directory must describe the deep feature sources");
 assert.match(llms, /Public evidence/, "llms directory must point to public evidence");
-assert.match(llms, /Source-dated market comparison/, "llms directory must point to the comparison methodology");
+assert.match(llms, /Source-dated comparisons/, "llms directory must point to the comparison methodology");
+assert.match(llms, /\/llms-full\.txt/, "llms directory must disclose the optional consolidated context export");
+assert.match(llms, /not claimed as an AI-search requirement/, "llms directory must state the helper-file limitation");
+assert.ok(existsSync(resolve(root, "src/app/llms-full.txt/route.ts")), "consolidated context export is missing");
+const llmsFull = read("src/app/llms-full.txt/route.ts");
+assert.match(llmsFull, /non-standard convenience export/, "consolidated context must identify itself as non-standard");
+assert.match(llmsFull, /canonical HTML as authoritative/, "consolidated context must defer to canonical HTML");
+assert.match(llmsFull, /"X-Robots-Tag": "noindex, follow"/, "consolidated context must be noindex");
+assert.match(llmsFull, /No processor architecture, Universal Binary status, memory footprint/, "consolidated context must expose the unsupported-spec boundary");
+assert.match(llmsFull, /Does CmdTab use ScreenCaptureKit\?/, "consolidated context must correct the unsupported ScreenCaptureKit claim");
+
+const directoryPack = read("../docs/seo/software-directory-submission-pack.md");
+assert.match(directoryPack, /does \*\*not\*\* claim that CmdTab has been submitted/i, "directory pack must not pretend listings exist");
+for (const directory of ["AlternativeTo", "Product Hunt", "MacUpdate", "Softpedia", "StackShare"]) {
+  assert.ok(directoryPack.includes(directory), `directory submission pack is missing ${directory}`);
+}
+assert.match(directoryPack, /Not submitted/g, "directory statuses must remain explicit until owner actions occur");
+assert.doesNotMatch(directoryPack, /ScreenCaptureKit fast-path|sub-50\s*ms|<\s*20\s*MB|Universal Binary `arm64 \+ x86_64`/i, "directory pack contains an unproved technical claim");
+assert.ok(existsSync(resolve(root, "../docs/seo/review-feedback-implementation-plan.md")), "feedback implementation plan is missing");
 
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["indexnow:submit"], "node scripts/submit-indexnow.mjs", "IndexNow package script is missing");
@@ -214,5 +291,5 @@ assert.match(envExample, /GOOGLE_SITE_VERIFICATION=/, "Google verification envir
 assert.match(envExample, /BING_SITE_VERIFICATION=/, "Bing verification environment configuration is missing");
 
 console.log(
-  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, ${landscapeOptionCount} source-reviewed switcher options, public byte-matched evidence, packaged version ${appVersion}, webmaster verification hooks, a stable IndexNow key, and AI discovery instrumentation.`,
+  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, ${landscapeOptionCount} source-reviewed switcher options, four factual feature references, a focused AltTab comparison, a noindex consolidated context export, public byte-matched evidence, packaged version ${appVersion}, webmaster verification hooks, a stable IndexNow key, and AI discovery instrumentation.`,
 );
