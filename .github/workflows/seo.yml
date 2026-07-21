@@ -78,11 +78,46 @@ jobs:
           set -o pipefail
           npm run webmaster:check 2>&1 | tee verification-artifacts/webmaster-check.log
 
+      - name: Verify byte-matched public evidence downloads
+        run: |
+          mkdir -p verification-artifacts
+          set -o pipefail
+          npm run evidence:check 2>&1 | tee verification-artifacts/evidence-check.log
+
       - name: Verify desktop, mobile, and interactive browser behavior
         run: |
           mkdir -p verification-artifacts
           set -o pipefail
           npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
+
+      - name: Capture authority-page visual evidence
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          for route in evidence compare/mac-window-switchers; do
+            slug="${route//\//-}"
+            "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=4000 \
+              --window-size=1440,1000 \
+              --screenshot="verification-artifacts/desktop-${slug}.png" \
+              "http://127.0.0.1:3000/${route}"
+            "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=4000 \
+              --window-size=390,844 \
+              --screenshot="verification-artifacts/mobile-${slug}.png" \
+              "http://127.0.0.1:3000/${route}"
+          done
 
       - name: Collect verification evidence
         if: always()
