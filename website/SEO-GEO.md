@@ -154,6 +154,7 @@ The sitemap and IndexNow payload share the canonical public-route registry. `llm
 - A Git-integration build-rate rejection is not a production deployment and must not be reported as live.
 - A framework deployment may consume multiple build units because generated Functions can count separately; consult the provider’s current limits before retriggering.
 - Wait for the provider’s rolling build window to clear, then trigger one audited main-branch deployment retry rather than creating a burst of empty commits.
+- A later READY preview of the same tree does not repair an earlier failed main-commit deployment status; trigger one fresh audited main commit after capacity returns.
 - A READY preview can validate the website build, but it does not replace the production-domain check or public alias.
 - Run the full public-domain crawler, browser, evidence-byte, retrieval, and runtime-error checks after the production alias changes.
 - Submit IndexNow only after the changed canonical URLs are publicly deployed.
