@@ -1,0 +1,90 @@
+name: Materialize Switcher Claim Alignment
+
+on:
+  push:
+    branches:
+      - agent/align-switcher-claims-with-product
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-switcher-claim-alignment
+  cancel-in-progress: false
+
+jobs:
+  materialize-and-verify:
+    runs-on: macos-15
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out current integration branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import the previously validated switcher repair
+        run: |
+          set -euo pipefail
+          git fetch origin agent/fix-switcher-mru-completeness:refs/remotes/origin/agent/fix-switcher-mru-completeness
+          git checkout origin/agent/fix-switcher-mru-completeness -- \
+            .github/workflows/swift.yml \
+            .gitignore \
+            Sources/CmdTab/AppDelegate.swift \
+            Sources/CmdTab/AppSwitcher.swift \
+            Sources/CmdTab/FocusedWindowHistoryObserver.swift \
+            Sources/CmdTab/FrontmostResolution.swift \
+            Sources/CmdTab/SwitcherCycleSession.swift \
+            Sources/CmdTab/SwitcherHistory.swift \
+            Sources/CmdTab/SwitcherPreferences.swift \
+            Sources/CmdTab/SwitcherWindowController.swift \
+            Tests/CmdTabTests/AppSwitcherActivationTests.swift \
+            Tests/CmdTabTests/FrontmostResolutionTests.swift \
+            Tests/CmdTabTests/StrictMRUAndCompletenessRegressionTests.swift \
+            Tests/CmdTabTests/SwitcherCycleSessionTests.swift \
+            docs/qa \
+            scripts/qa/switcher_mru_visibility_model_check.py
+
+      - name: Reproduce the pre-fix model evidence
+        run: |
+          set -euo pipefail
+          python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/cmdtab-model-results.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path('/tmp/cmdtab-model-results.json').read_text())
+          assert result['mru_selection']['meaningful_sequences_checked'] == 19500
+          assert result['mru_selection']['strict_mru_selection_mismatches'] == 3900
+          assert result['preview_completeness']['preview_success_configurations_checked'] == 126
+          assert result['preview_completeness']['completeness_failures'] == 120
+          print('Pre-fix model evidence reproduced exactly.')
+          PY
+
+      - name: Run focused acceptance regressions
+        run: swift test --scratch-path /tmp/CmdTab-claim-alignment --filter StrictMRUAndCompletenessRegressionTests
+
+      - name: Run complete Swift package test suite
+        run: swift test --scratch-path /tmp/CmdTab-claim-alignment
+
+      - name: Verify patch hygiene
+        run: git diff --check
+
+      - name: Commit only the validated durable changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-switcher-claim-alignment.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/swift.yml \
+            .gitignore \
+            Sources/CmdTab \
+            Tests/CmdTabTests \
+            docs/qa \
+            scripts/qa/switcher_mru_visibility_model_check.py \
+            .github/workflows/materialize-switcher-claim-alignment.yml
+          git commit -m "Align the shipped switcher with public completeness and MRU claims"
+          git push origin HEAD:agent/align-switcher-claims-with-product
