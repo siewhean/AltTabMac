@@ -5,9 +5,9 @@ import { faqItems } from "@/content/home";
 export function FaqSection() {
   return (
     <SectionShell
-      eyebrow="FAQ"
-      title="A few quick answers before you join the waitlist."
-      description="The private beta is meant to show the product clearly before it turns into a public release."
+        eyebrow="FAQ"
+        title="Quick answers before you start."
+        description="Here are the most common questions from people checking out CmdTab for the first time."
       className="pt-8"
     >
       <div className="divide-y divide-white/8 border-t border-white/8">

@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
+import { StructuredData } from "@/components/seo/structured-data";
 import { commercePageContent } from "@/content/commerce-pages";
+import { getSiteUrl } from "@/lib/env";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
+import { buildBreadcrumbSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "CmdTab help | Purchase, activation, and recovery",
@@ -21,9 +24,15 @@ export const metadata: Metadata = {
 
 export default function HelpPage() {
   const commerce = getCommerceConfig();
+  const siteUrl = getSiteUrl();
+  const breadcrumbSchema = buildBreadcrumbSchema(siteUrl, [
+    { name: "Home", path: "/" },
+    { name: "Help", path: "/help" },
+  ]);
 
   return (
     <main>
+      <StructuredData id="cmdtab-help-breadcrumb" data={breadcrumbSchema} />
       <SiteHeader />
 
       <SectionShell
@@ -75,7 +84,7 @@ export default function HelpPage() {
       <SectionShell
         eyebrow="How the buy path works"
         title="Simple terms, clear support."
-        description="This is the practical explanation of how the one-time buy flow is presented today."
+        description="Use this section for practical one-time buy and help rules."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

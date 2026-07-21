@@ -15,7 +15,7 @@ function providerLabel(provider?: string) {
     case "stripe":
       return "Hosted checkout via Stripe";
     default:
-      return "Hosted checkout configured";
+      return "Hosted checkout provider configured";
   }
 }
 
@@ -25,9 +25,9 @@ export function LaunchSection() {
   const checkoutReady = Boolean(commerce.checkoutUrl);
   const trialReady = Boolean(commerce.trialDownloadUrl);
   const statusNote = checkoutReady && !trialReady
-    ? "Founder checkout is live. The trial button will switch on after the notarized trial build is published."
+    ? "Founder checkout is live. The trial button will activate after the notarized trial build is published."
     : checkoutReady || trialReady
-      ? "The launch section is live-configured from environment variables, so the site reflects your current hosted checkout and trial links."
+      ? "Launch section is configured from environment variables, and the site shows your hosted checkout plus trial links."
       : commerceContent.fallback;
 
   return (
@@ -126,8 +126,7 @@ export function LaunchSection() {
               Hosted checkout is wired and ready for your provider URLs.
             </h3>
             <p className="text-base leading-7 text-muted">
-              The site now supports a provider-backed checkout button and a separate trial
-              download button. You only need to add the final hosted URLs in the environment.
+              The site shows a provider checkout flow and a separate trial link. Add your hosted URLs in env when they are ready.
             </p>
           </div>
 
@@ -136,19 +135,19 @@ export function LaunchSection() {
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
                 {providerNote ??
-                  "Choose Lemon Squeezy, Paddle, Stripe, or another hosted provider and set the public checkout URL."}
+                  "Use Lemon Squeezy, Paddle, Stripe, or your own hosted checkout and set a public checkout URL."}
               </span>
             </div>
             <div className="flex items-start gap-3 text-sm leading-6 text-subdued">
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
-                Set a separate trial download URL so visitors can start the app before they buy.
+                Add a separate trial URL so visitors can test first.
               </span>
             </div>
             <div className="flex items-start gap-3 text-sm leading-6 text-subdued">
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
-                If one of the URLs is missing, the section shows a neutral fallback instead of a dead button.
+                If a URL is missing, the section shows a neutral fallback instead of a dead button.
               </span>
             </div>
           </div>

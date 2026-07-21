@@ -8,8 +8,8 @@ export function StylesSection() {
     <SectionShell
       id="modes"
       eyebrow="Three modes"
-      title="Pick the switcher style that matches how you already work."
-      description="Every mode solves the same problem: get to the right app or window faster."
+      title="Pick the switcher style that matches your workflow."
+      description="Each mode does the same job: getting you to the right app or window quickly."
     >
       <div className="grid gap-8 xl:grid-cols-3">
         {styleVariants.map((variant, index) => (

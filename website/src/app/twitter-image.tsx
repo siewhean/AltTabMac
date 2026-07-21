@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "CmdTab website";
+export const alt = "CmdTab app switcher for macOS with preview thumbnails";
 export const size = {
   width: 1200,
   height: 675,
@@ -39,7 +39,7 @@ export default function TwitterImage() {
         >
           <div style={{ fontSize: 64, fontWeight: 600, letterSpacing: "-0.08em" }}>CmdTab</div>
           <div style={{ maxWidth: "860px", fontSize: 46, letterSpacing: "-0.05em" }}>
-            A faster Mac app switcher with real window previews.
+            A practical macOS app switcher with real window previews.
           </div>
           <div style={{ display: "flex", gap: "14px", color: "#A8B5CC", fontSize: 24 }}>
             <span>Classic Grid</span>
@@ -47,6 +47,8 @@ export default function TwitterImage() {
             <span>Command Palette</span>
             <span>•</span>
             <span>Radial Menu</span>
+            <span>•</span>
+            <span>No subscriptions</span>
           </div>
         </div>
       </div>

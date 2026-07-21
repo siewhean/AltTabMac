@@ -9,10 +9,13 @@ import {
 } from "@/content/waitlist-email";
 import { getServerEnv, getSiteUrl } from "@/lib/env";
 import {
+  type DuplicateSubmissionClaim,
+  claimDuplicateSubmission,
   checkRateLimit,
   createFingerprint,
-  markSubmitted,
-  recentlySubmitted,
+  readRequestBody,
+  releaseDuplicateSubmissionClaim,
+  RequestBodyTooLargeError,
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
@@ -20,6 +23,7 @@ import {
   updateWaitlistNotificationStatus,
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
+import { isTrustedPostRequest } from "@/lib/request-post-guard";
 import { waitlistPayloadSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -98,32 +102,6 @@ function optionsResponse() {
       "X-Permitted-Cross-Domain-Policies": "none",
     },
   });
-}
-
-function isSameOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-
-  if (origin) {
-    return origin === requestOrigin;
-  }
-
-  if (referer) {
-    try {
-      return new URL(referer).origin === requestOrigin;
-    } catch {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function passesFetchSiteProtection(request: Request) {
-  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
-  if (!fetchSite) return true;
-  return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
 }
 
 function getClientIp(request: Request) {
@@ -219,7 +197,13 @@ async function submitWaitlistNotification(payload: {
 }
 
 async function parseRequestBody(request: Request) {
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readRequestBody(request, MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) throw new PayloadTooLargeError();
+    throw error;
+  }
   const bodyBytes = Buffer.byteLength(rawBody, "utf8");
 
   if (bodyBytes === 0) {
@@ -239,8 +223,10 @@ async function parseRequestBody(request: Request) {
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+  let duplicateClaim: DuplicateSubmissionClaim | undefined;
+  let operationPersisted = false;
 
-  if (!isSameOrigin(request) || !passesFetchSiteProtection(request)) {
+  if (!isTrustedPostRequest(request)) {
     return jsonResponse(
       {
         ok: false,
@@ -296,7 +282,7 @@ export async function POST(request: Request) {
 
     const ip = getClientIp(request);
     const userAgent = getUserAgent(request);
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip,
       userAgent,
@@ -320,7 +306,10 @@ export async function POST(request: Request) {
       `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
     );
 
-    if (recentlySubmitted(emailFingerprint) || recentlySubmitted(requestFingerprint)) {
+    duplicateClaim = await claimDuplicateSubmission({
+      fingerprints: [emailFingerprint, requestFingerprint],
+    });
+    if (!duplicateClaim.acquired) {
       return jsonResponse(
         {
           ok: true,
@@ -344,6 +333,7 @@ export async function POST(request: Request) {
       });
       storedSubmission = upsertResult.submission;
       alreadyRegistered = upsertResult.alreadyRegistered;
+      operationPersisted = Boolean(storedSubmission);
     }
 
     const deliveryTasks = [
@@ -381,9 +371,6 @@ export async function POST(request: Request) {
           "failed",
           deliveryError.message,
         );
-        markSubmitted(emailFingerprint);
-        markSubmitted(requestFingerprint);
-
         return jsonResponse({
           ok: true,
           code: "waitlist_submitted",
@@ -396,6 +383,8 @@ export async function POST(request: Request) {
         });
       }
 
+      await releaseDuplicateSubmissionClaim(duplicateClaim);
+      duplicateClaim = undefined;
       return jsonResponse(
         {
           ok: false,
@@ -410,9 +399,7 @@ export async function POST(request: Request) {
     if (storedSubmission) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
     }
-
-    markSubmitted(emailFingerprint);
-    markSubmitted(requestFingerprint);
+    operationPersisted = true;
 
     return jsonResponse({
       ok: true,
@@ -425,6 +412,17 @@ export async function POST(request: Request) {
       notificationDelivered: true,
     });
   } catch (error) {
+    if (duplicateClaim?.acquired && !operationPersisted) {
+      try {
+        await releaseDuplicateSubmissionClaim(duplicateClaim);
+      } catch (releaseError) {
+        console.error("[CmdTab Website] waitlist duplicate claim release failed", {
+          requestId,
+          error: releaseError instanceof Error ? releaseError.message : "Unknown error",
+        });
+      }
+    }
+
     if (error instanceof PayloadTooLargeError) {
       return jsonResponse(
         {

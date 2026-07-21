@@ -9,8 +9,8 @@ export function WalkthroughSection() {
     <SectionShell
       id="walkthrough"
       eyebrow="Live walkthroughs"
-      title="See how the modes work in actual use."
-      description="Open it, move fast, and commit. Each mode gives you a different path to the same result."
+      title="See each mode in action."
+      description="Open it, move, and commit. Each mode gets you to the same target in a different way."
     >
       <div className="space-y-12">
         <div className="grid gap-10 lg:grid-cols-2">

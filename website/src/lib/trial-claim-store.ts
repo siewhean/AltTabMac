@@ -42,38 +42,8 @@ type CreateTrialClaimResult =
   | { kind: "created" | "existing"; claim: TrialClaim }
   | { kind: "blocked"; reason: "email_already_used" | "install_already_registered"; claim?: TrialClaim };
 
-let schemaReady = false;
-
 export function isTrialClaimStoreConfigured() {
   return isDatabaseConfigured();
-}
-
-async function ensureSchema() {
-  if (schemaReady) return;
-
-  const sql = getSql();
-  await sql`
-    create table if not exists trial_claims (
-      id text primary key,
-      email text not null unique,
-      install_id text not null unique,
-      app_version text,
-      os_version text,
-      started_at timestamptz not null,
-      ends_at timestamptz not null,
-      last_seen_at timestamptz not null default now(),
-      reminder_sent_at timestamptz,
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    )
-  `;
-
-  await sql`
-    alter table trial_claims
-    add column if not exists reminder_sent_at timestamptz
-  `;
-
-  schemaReady = true;
 }
 
 function mapRow(row: TrialClaimRow): TrialClaim {
@@ -100,7 +70,6 @@ export async function createOrGetTrialClaim(input: {
   trialLengthDays: number;
   now?: Date;
 }): Promise<CreateTrialClaimResult> {
-  await ensureSchema();
   const sql = getSql();
   const now = input.now ?? new Date();
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -169,7 +138,6 @@ export async function createOrGetTrialClaim(input: {
 }
 
 export async function touchTrialClaim(installId: string) {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<TrialClaimRow[]>`
     update trial_claims
@@ -184,7 +152,6 @@ export async function touchTrialClaim(installId: string) {
 }
 
 export async function getTrialClaimAggregateStats() {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<
     {
@@ -214,7 +181,6 @@ export async function getTrialClaimAggregateStats() {
 }
 
 export async function listTrialClaimsDueForReminder(limit = 100) {
-  await ensureSchema();
   const sql = getSql();
   const rows = await sql<TrialClaimRow[]>`
     select *
@@ -230,7 +196,6 @@ export async function listTrialClaimsDueForReminder(limit = 100) {
 }
 
 export async function markTrialReminderSent(id: string) {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<TrialClaimRow[]>`
     update trial_claims

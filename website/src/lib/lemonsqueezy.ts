@@ -22,6 +22,8 @@ export type LemonSqueezyOrderWebhook = {
       updated_at?: string;
       test_mode?: boolean;
       first_order_item?: {
+        product_id?: number;
+        variant_id?: number;
         product_name?: string;
         variant_name?: string;
       };

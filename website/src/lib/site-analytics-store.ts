@@ -50,7 +50,6 @@ export type SiteAnalyticsSeriesPoint = {
 
 export async function getAnalyticsEventCount(eventName: string, days = 30) {
   if (!isDatabaseConfigured()) return 0;
-  await ensureSchema();
   const sql = getSql();
   const safeDays = Math.max(1, Math.min(days, 365));
   const [row] = await sql<{ count: number }[]>`
@@ -65,8 +64,6 @@ export async function getAnalyticsEventCount(eventName: string, days = 30) {
   return row?.count ?? 0;
 }
 
-let schemaReady = false;
-
 function serializeEventData(data?: Record<string, unknown>) {
   if (!data) return null;
   return JSON.parse(JSON.stringify(data));
@@ -76,52 +73,8 @@ export function isSiteAnalyticsConfigured() {
   return isDatabaseConfigured();
 }
 
-async function ensureSchema() {
-  if (schemaReady || !isDatabaseConfigured()) return;
-
-  const sql = getSql();
-  await sql`
-    create table if not exists site_analytics_events (
-      id text primary key,
-      event_type text not null,
-      event_name text,
-      path text not null,
-      referrer text,
-      context text,
-      event_data jsonb,
-      visitor_id text,
-      session_id text,
-      occurred_at timestamptz not null,
-      created_at timestamptz not null default now()
-    )
-  `;
-
-  await sql`
-    create index if not exists site_analytics_events_occurred_at_idx
-      on site_analytics_events (occurred_at desc)
-  `;
-
-  await sql`
-    create index if not exists site_analytics_events_type_idx
-      on site_analytics_events (event_type, occurred_at desc)
-  `;
-
-  await sql`
-    create index if not exists site_analytics_events_path_idx
-      on site_analytics_events (path, occurred_at desc)
-  `;
-
-  await sql`
-    create index if not exists site_analytics_events_name_idx
-      on site_analytics_events (event_name, occurred_at desc)
-  `;
-
-  schemaReady = true;
-}
-
 export async function recordSiteAnalyticsEvent(input: SiteAnalyticsEventInput) {
   if (!isDatabaseConfigured()) return null;
-  await ensureSchema();
 
   const sql = getSql();
   const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
@@ -169,7 +122,6 @@ export async function getSiteAnalyticsOverview() {
     } satisfies SiteAnalyticsOverview;
   }
 
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<
     {
@@ -219,7 +171,6 @@ export async function getSiteAnalyticsOverview() {
 
 export async function listTopAnalyticsPages(limit = 6) {
   if (!isDatabaseConfigured()) return [] satisfies SiteAnalyticsBreakdownItem[];
-  await ensureSchema();
   const sql = getSql();
   const safeLimit = Math.max(1, Math.min(limit, 20));
 
@@ -238,7 +189,6 @@ export async function listTopAnalyticsPages(limit = 6) {
 
 export async function listTopAnalyticsEvents(limit = 8) {
   if (!isDatabaseConfigured()) return [] satisfies SiteAnalyticsBreakdownItem[];
-  await ensureSchema();
   const sql = getSql();
   const safeLimit = Math.max(1, Math.min(limit, 20));
 
@@ -257,7 +207,6 @@ export async function listTopAnalyticsEvents(limit = 8) {
 
 export async function listSiteAnalyticsSeries(days = 14) {
   if (!isDatabaseConfigured()) return [] satisfies SiteAnalyticsSeriesPoint[];
-  await ensureSchema();
   const sql = getSql();
   const safeDays = Math.max(1, Math.min(days, 90));
 

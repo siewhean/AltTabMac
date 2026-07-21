@@ -5,9 +5,12 @@ import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { FooterSection } from "@/components/sections/footer-section";
+import { StructuredData } from "@/components/seo/structured-data";
 import { commercePageContent } from "@/content/commerce-pages";
-import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
+import { getSiteUrl } from "@/lib/env";
+import { analyticsAttributes } from "@/lib/analytics";
+import { buildBreadcrumbSchema, buildProductSchema } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "CmdTab trial | 14-day download path",
@@ -19,9 +22,17 @@ export const metadata: Metadata = {
 
 export default function TrialPage() {
   const commerce = getCommerceConfig();
+  const siteUrl = getSiteUrl();
+  const breadcrumbSchema = buildBreadcrumbSchema(siteUrl, [
+    { name: "Home", path: "/" },
+    { name: "Trial", path: "/trial" },
+  ]);
+  const productSchema = buildProductSchema(siteUrl);
 
   return (
     <main>
+      <StructuredData id="cmdtab-trial-breadcrumb" data={breadcrumbSchema} />
+      <StructuredData id="cmdtab-trial-product" data={productSchema} />
       <SiteHeader />
 
       <SectionShell

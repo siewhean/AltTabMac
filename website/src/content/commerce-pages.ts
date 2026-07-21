@@ -5,11 +5,11 @@ export const commercePageContent = {
     eyebrow: "Buy CmdTab",
     title: "Trial first, then buy once.",
     description:
-      "A short trial, a one-time purchase, and a clear help path after checkout.",
+      "A short trial first, then a one-time purchase, and clear support after checkout.",
     process: [
       {
         title: "Start the trial",
-        body: "Download the current build, enable the required permissions, and use it in real work.",
+        body: "Download the current build, enable permissions, and try it in your real work.",
       },
       {
         title: "Buy through hosted checkout",
@@ -30,7 +30,7 @@ export const commercePageContent = {
     eyebrow: "Free trial",
     title: `${commerceContent.trialLength} before you decide.`,
     description:
-      "Download the current build, enable the required permissions, and try CmdTab in real work.",
+      "Download the current build, enable required permissions, and try CmdTab in normal work.",
     checklist: [
       "Download the current trial build.",
       "Enable Accessibility and Screen Recording in macOS.",
@@ -51,7 +51,7 @@ export const commercePageContent = {
       },
       {
         title: "Buy through checkout",
-        body: "When it earns a place in your setup, complete the one-time purchase through the hosted checkout.",
+        body: "When it earns a place in your setup, complete the one-time purchase through hosted checkout.",
       },
       {
         title: "Use Help if needed",
@@ -70,11 +70,11 @@ export const commercePageContent = {
       },
       {
         title: "Trial first, then decide",
-        body: "The trial exists so people can prove the app in real use before paying.",
+        body: "The trial gives you a chance to validate the app before purchase.",
       },
       {
         title: "Hosted checkout, direct help",
-        body: "Checkout runs through the provider, but purchase questions still come back here.",
+        body: "Checkout stays provider-hosted. Purchase questions still land on this page.",
       },
     ],
   },

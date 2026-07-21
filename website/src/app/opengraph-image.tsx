@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "CmdTab website";
+export const alt = "CmdTab: macOS app switcher with real window previews";
 export const size = {
   width: 1200,
   height: 630,
@@ -76,11 +76,11 @@ export default function OpenGraphImage() {
               fontSize: 24,
             }}
           >
-            <span>Real window previews</span>
+            <span>Real macOS window previews</span>
             <span>•</span>
             <span>Three switcher modes</span>
             <span>•</span>
-            <span>One-time purchase</span>
+            <span>One-time purchase, no subscription</span>
           </div>
         </div>
       </div>

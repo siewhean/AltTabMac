@@ -1,0 +1,22 @@
+{
+  "Rules": [
+    {
+      "ID": "cmdtab-postgres-daily-14d",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "postgres/daily/" },
+      "Expiration": { "Days": 14 }
+    },
+    {
+      "ID": "cmdtab-postgres-weekly-8w",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "postgres/weekly/" },
+      "Expiration": { "Days": 56 }
+    },
+    {
+      "ID": "cmdtab-postgres-monthly-12m",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "postgres/monthly/" },
+      "Expiration": { "Days": 365 }
+    }
+  ]
+}

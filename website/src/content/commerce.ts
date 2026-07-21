@@ -1,13 +1,13 @@
 export const commerceContent = {
   eyebrow: "Launch path",
-  title: "Start with the trial. Buy once if it sticks.",
+  title: "Start with the trial, then buy once if it earns your spot.",
   summary:
-    "CmdTab is a one-time Mac utility. Try it first, or buy immediately if you already know.",
+    "CmdTab is a one-time Mac utility. Try it first, then buy if it fits your routine.",
   trialLength: "14-day trial",
   founder: {
     title: "Buy now",
     price: "US$12",
-    note: "Take the early price if you already know you want it.",
+    note: "Use this price if you know it is what you want right now.",
     points: [
       "One-time purchase",
       "Immediate access path",
@@ -27,5 +27,5 @@ export const commerceContent = {
     cta: "Start trial",
   },
   fallback:
-    "The trial and buy links appear here after you add the hosted URLs.",
+    "Add the hosted trial and checkout URLs, and the launch actions will appear here.",
 } as const;

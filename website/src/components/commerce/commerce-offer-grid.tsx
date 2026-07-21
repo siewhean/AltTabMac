@@ -1,3 +1,5 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { commerceContent } from "@/content/commerce";
@@ -55,7 +57,8 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
           <p className="mt-5 text-4xl font-medium tracking-[-0.06em] text-text">
             {commerceContent.founder.price}
           </p>
-          <p className="mt-3 text-sm leading-6 text-muted">{commerceContent.founder.note}</p>
+          <p className="mt-3 text-sm leading-6 text-muted">{commerceContent.founder.note}
+          </p>
           <ul className="mt-6 grow space-y-3">
             {commerceContent.founder.points.map((point) => (
               <li key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
@@ -89,7 +92,7 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
             After the trial
           </p>
           <p className="mt-3 text-sm leading-6 text-muted">
-            Buy the one-time license after the trial if you want to keep it.
+            Buy the one-time license after trial if you want to keep using it.
           </p>
           <ul className="mt-6 grow space-y-3">
             {[

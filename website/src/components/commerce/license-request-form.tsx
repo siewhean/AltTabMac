@@ -92,8 +92,7 @@ export function LicenseRequestForm() {
           <p className="type-eyebrow text-cyan">Request saved</p>
           <p className="text-2xl font-medium tracking-[-0.04em] text-text">{state.message}</p>
           <p className="text-sm leading-7 text-muted">
-            Keep an eye on your inbox. If this is about a lost purchase email, include the original
-            checkout address when you reply.
+            Keep an eye on your inbox. If this is about a lost purchase email, include the checkout address you used.
           </p>
           <Button href="/buy" variant="secondary" {...analyticsAttributes("license_request_success_buy_click", "help")}>
             Review buy page
@@ -165,7 +164,7 @@ export function LicenseRequestForm() {
             id="license-message"
             label="Message"
             name="message"
-            placeholder="Tell us what happened, what you expected, and any purchase details that will help us find the order."
+            placeholder="Tell us what happened and include order details that help us find it quickly."
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             disabled={isSubmitting}
@@ -200,7 +199,7 @@ export function LicenseRequestForm() {
               )}
             </Button>
             <p className="text-sm leading-6 text-subdued">
-              This goes straight to CmdTab support and is stored in the admin dashboard.
+              This goes straight to CmdTab support and appears in the admin dashboard.
             </p>
           </div>
 

@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/dashboard/settings",
   },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function DashboardSettingsPage({
@@ -75,8 +79,8 @@ export default async function DashboardSettingsPage({
             Change dashboard password
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-muted">
-            The first change moves dashboard login off the Vercel environment password and into the
-            database so you can rotate it directly from this page.
+            The first change replaces the bootstrap environment password with the database-backed
+            password so you can rotate it directly from this page.
           </p>
         </div>
 

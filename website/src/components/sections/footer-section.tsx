@@ -20,19 +20,19 @@ export function FooterSection() {
             <div>
               <p className="text-lg font-medium tracking-[-0.03em] text-text">CmdTab</p>
               <p className="text-sm text-subdued">
-                Better window switching for people who live in too many apps.
+                Better window switching for people with too many open apps.
               </p>
             </div>
           </div>
           <p className="max-w-xl text-sm leading-7 text-subdued">
-            CmdTab is in active beta. Review the trial, buy once if it sticks, and use Help if you need support later.
+            CmdTab is in active beta. Start with the trial, buy once if it fits, and use Help if you need support later.
           </p>
         </MotionReveal>
 
         <MotionReveal className="flex flex-col gap-3 sm:flex-row sm:items-center" direction="right" delay={100}>
           <Button href="/trial">{siteConfig.ctas.primary}</Button>
           <Button href="/buy" variant="secondary">
-            Buy and trial
+            Explore buying
           </Button>
           <Button href="/help" variant="ghost">
             Help

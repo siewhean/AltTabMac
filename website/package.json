@@ -2,22 +2,38 @@
   "name": "cmdtab-website",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "security:deps": "npm audit --omit=dev --audit-level=high",
-    "security:check": "npm run security:deps && npm run typecheck && next build --webpack"
+    "security:check": "npm run security:deps && npm run test && npm run typecheck && next build --webpack",
+    "db:migrate": "node scripts/db/ops/migrate.mjs",
+    "db:migrate:status": "node scripts/db/ops/status.mjs",
+    "db:check": "node scripts/db/ops/check.mjs",
+    "db:backup": "node scripts/db/ops/backup.mjs",
+    "db:restore:verify": "node scripts/db/ops/restore-verify.mjs",
+    "db:retention": "node scripts/db/ops/retention.mjs",
+    "db:configure-roles": "node scripts/db/ops/configure-roles.mjs",
+    "ops:validate:production": "../scripts/validate_production_environment.sh --require-waf-enforcement",
+    "ops:deploy:production": "../scripts/deploy_production_website.sh",
+    "ops:smoke:preview": "../scripts/run_preview_smoke.sh",
+    "ops:promote:production": "../scripts/promote_production_release.sh"
   },
   "dependencies": {
+    "@upstash/redis": "^1.38.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "^16.0.0",
+    "next": "^16.2.10",
     "postgres": "^3.4.8",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "resend": "^6.9.0",
+    "resend": "^6.17.2",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -25,8 +41,14 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.19",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.19"
+    }
   }
 }

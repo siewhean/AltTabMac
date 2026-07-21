@@ -15,22 +15,22 @@ const disclosureSections = [
   {
     title: "How to report a vulnerability",
     body: [
-      "Report suspected security issues privately to tohsh17@gmail.com.",
+      "Report suspected security issues privately to security@cmdtab.net.",
       "Include the affected URL or feature, clear reproduction steps, impact, and any proof-of-concept details that help the CmdTab team validate the issue quickly.",
     ],
   },
   {
     title: "What to avoid",
     body: [
-      "Do not publish exploit details, publicly disclose unpatched vulnerabilities, or access data that does not belong to you.",
-      "Do not send large-scale denial-of-service traffic, automated abuse against the site, or destructive payloads against the production service.",
+      "Do not publish exploit details, publicly disclose unpatched issues, or access data that does not belong to you.",
+      "Do not send large-scale denial-of-service traffic, automated abuse against the site, or destructive payloads to production.",
     ],
   },
   {
     title: "Current scope",
     body: [
-      "The current public web surface is the CmdTab marketing site, privacy page, security page, and the hosted trial / purchase links exposed from the site.",
-      "The native macOS app should also be reported through the same security contact if you identify a security-sensitive issue.",
+      "The public web surface includes the marketing site, privacy page, security page, and hosted trial/purchase links.",
+      "Report native macOS app issues through the same security contact when you find a security-sensitive problem.",
     ],
   },
 ];
@@ -41,7 +41,7 @@ export default function SecurityPage() {
       <SectionShell
         eyebrow="Security"
         title="CmdTab security disclosure"
-        description="Use this page to privately report security issues affecting the CmdTab website, purchase flow, trial delivery, or app."
+        description="Use this page to privately report security issues affecting the website, trial, purchase flow, or app."
         className="pt-24"
       >
         <div className="space-y-10">
@@ -61,7 +61,7 @@ export default function SecurityPage() {
           ))}
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="mailto:tohsh17@gmail.com">Contact tohsh17@gmail.com</Button>
+            <Button href="mailto:security@cmdtab.net">Contact security@cmdtab.net</Button>
             <Button href="/privacy" variant="secondary">
               Read the privacy policy
             </Button>

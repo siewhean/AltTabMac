@@ -26,7 +26,7 @@ function escapeHtml(value: string) {
 }
 
 export function renderTrialStartedEmail(input: TrialEmailInput) {
-  const subject = "Your CmdTab trial has started";
+  const subject = "Your CmdTab trial is active";
   const text = [
     "Your 14-day CmdTab trial is active.",
     "",
@@ -34,7 +34,7 @@ export function renderTrialStartedEmail(input: TrialEmailInput) {
     `Started: ${formatDate(input.startedAt)}`,
     `Ends: ${formatDate(input.endsAt)}`,
     "",
-    "You can keep using CmdTab on this Mac right away.",
+    "You can use CmdTab on this Mac right away.",
     `Buy CmdTab: ${input.siteUrl}/buy`,
     `Help: ${input.siteUrl}/help`,
   ].join("\n");
@@ -48,7 +48,7 @@ export function renderTrialStartedEmail(input: TrialEmailInput) {
             <span style="font-size:13px;font-weight:600;color:#E8EEF9;">CmdTab</span>
           </div>
           <h1 style="margin:0 0 12px;font-size:34px;line-height:1.04;letter-spacing:-0.05em;color:#F7FAFF;">Your 14-day trial is active</h1>
-          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">CmdTab is now unlocked on this Mac for the next 14 days.</p>
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">CmdTab is unlocked on this Mac for the next 14 days.</p>
           <div style="display:grid;gap:10px;">
             <div style="padding:14px 16px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
               <p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#9CC6FF;">Started</p>
@@ -78,7 +78,7 @@ export function renderTrialReminderEmail(input: TrialEmailInput) {
     "",
     `Ends: ${formatDate(input.endsAt)}`,
     "",
-    "If you want to keep using CmdTab after the trial, you can buy the one-time license now.",
+    "If you want to keep using CmdTab, buy the one-time license now.",
     `Buy CmdTab: ${input.siteUrl}/buy`,
     `Help: ${input.siteUrl}/help`,
   ].join("\n");
@@ -92,7 +92,7 @@ export function renderTrialReminderEmail(input: TrialEmailInput) {
             <span style="font-size:13px;font-weight:600;color:#E8EEF9;">CmdTab</span>
           </div>
           <h1 style="margin:0 0 12px;font-size:34px;line-height:1.04;letter-spacing:-0.05em;color:#F7FAFF;">Your trial ends tomorrow</h1>
-          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">If you want to keep using CmdTab after the 14-day trial, you can buy the one-time license now.</p>
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">If you want to keep using CmdTab after 14 days, you can buy the one-time license now.</p>
           <div style="padding:14px 16px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
             <p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#9CC6FF;">Trial ends</p>
             <p style="margin:8px 0 0;font-size:15px;line-height:1.7;color:#E8EEF9;">${escapeHtml(formatDate(input.endsAt))}</p>

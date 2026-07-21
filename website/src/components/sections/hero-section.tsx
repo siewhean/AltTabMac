@@ -100,11 +100,11 @@ export function HeroSection() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="surface-muted p-5">
                   <p className="type-eyebrow text-cyan">Visual switching</p>
-                  <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
+                <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
                     Real previews before you commit
                   </h2>
                   <p className="mt-2 text-sm leading-7 text-muted">
-                    Scan the actual window, not just the app icon.
+                    Scan the actual window, not just an icon.
                   </p>
                 </div>
                 <div className="surface-muted p-5">
@@ -113,7 +113,7 @@ export function HeroSection() {
                     Search or hot swap when you already know
                   </h2>
                   <p className="mt-2 text-sm leading-7 text-muted">
-                    Jump directly without opening the wrong thing first.
+                    Jump straight to the target without opening the wrong app.
                   </p>
                 </div>
               </div>

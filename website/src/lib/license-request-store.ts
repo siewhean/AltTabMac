@@ -41,34 +41,8 @@ export type LicenseRequestAggregateStats = {
   latestRequest?: string;
 };
 
-let schemaReady = false;
-
 export function isLicenseRequestStoreConfigured() {
   return isDatabaseConfigured();
-}
-
-async function ensureSchema() {
-  if (schemaReady) return;
-
-  const sql = getSql();
-  await sql`
-    create table if not exists license_requests (
-      id text primary key,
-      email text not null,
-      name text,
-      purchase_email text,
-      reason text not null,
-      message text not null,
-      metadata jsonb,
-      request_id text not null,
-      notification_status text not null default 'stored',
-      notification_error text,
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    )
-  `;
-
-  schemaReady = true;
 }
 
 function mapRow(row: LicenseRequestRow): LicenseRequest {
@@ -97,7 +71,6 @@ export async function createLicenseRequest(input: {
   metadata?: Record<string, string>;
   requestId: string;
 }) {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<LicenseRequestRow[]>`
     insert into license_requests (
@@ -134,7 +107,6 @@ export async function updateLicenseRequestNotificationStatus(
   status: LicenseRequest["notificationStatus"],
   notificationError?: string,
 ) {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<LicenseRequestRow[]>`
     update license_requests
@@ -150,7 +122,6 @@ export async function updateLicenseRequestNotificationStatus(
 }
 
 export async function listLicenseRequests(limit = 50) {
-  await ensureSchema();
   const sql = getSql();
   const rows = await sql<LicenseRequestRow[]>`
     select *
@@ -163,7 +134,6 @@ export async function listLicenseRequests(limit = 50) {
 }
 
 export async function getLicenseRequestAggregateStats() {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<
     {
@@ -194,4 +164,3 @@ export async function getLicenseRequestAggregateStats() {
     latestRequest: row?.latest_request ?? undefined,
   } satisfies LicenseRequestAggregateStats;
 }
-

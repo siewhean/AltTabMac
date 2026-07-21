@@ -8,8 +8,8 @@ export function FeatureBandsSection() {
     <SectionShell
       id="details"
       eyebrow="Key features"
-      title="The app stays useful after the first shortcut."
-      description="These are the features that make CmdTab feel faster in daily use, not just different in screenshots."
+      title="You can keep using these after the first switch."
+      description="These are built for daily work, not just the first run."
       className="pt-12"
     >
       <div className="mb-10 grid gap-4 lg:grid-cols-3">

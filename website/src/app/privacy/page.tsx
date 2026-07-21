@@ -40,7 +40,7 @@ export default function PrivacyPage() {
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
             <Button href="/">Back to the site</Button>
             <Button href="mailto:tohsh17@gmail.com" variant="secondary">
-              Contact tohsh17@gmail.com
+              Contact support
             </Button>
             <Button href="/security" variant="secondary">
               View security policy

@@ -35,47 +35,12 @@ export type AppUsageOverview = {
   latestActivity?: string;
 };
 
-let schemaReady = false;
-
 export function isAppUsageStoreConfigured() {
   return isDatabaseConfigured();
 }
 
-async function ensureSchema() {
-  if (schemaReady || !isDatabaseConfigured()) return;
-
-  const sql = getSql();
-  await sql`
-    create table if not exists app_usage_events (
-      id text primary key,
-      install_id text not null,
-      event_name text not null,
-      license_state text not null,
-      license_id text,
-      app_version text,
-      os_version text,
-      metadata jsonb,
-      occurred_at timestamptz not null,
-      created_at timestamptz not null default now()
-    )
-  `;
-
-  await sql`
-    create index if not exists app_usage_events_occurred_at_idx
-      on app_usage_events (occurred_at desc)
-  `;
-
-  await sql`
-    create index if not exists app_usage_events_name_idx
-      on app_usage_events (event_name, occurred_at desc)
-  `;
-
-  schemaReady = true;
-}
-
 export async function recordAppUsageEvent(input: AppUsageEventInput) {
   if (!isDatabaseConfigured()) return null;
-  await ensureSchema();
   const sql = getSql();
   const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
   const safeOccurredAt = Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt;
@@ -120,7 +85,6 @@ export async function getAppUsageOverview() {
     } satisfies AppUsageOverview;
   }
 
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<
     {

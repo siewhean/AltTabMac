@@ -56,32 +56,8 @@ export type WaitlistSignupSeriesPoint = {
   count: number;
 };
 
-let schemaReady = false;
-
 export function isWaitlistStoreConfigured() {
   return isDatabaseConfigured();
-}
-
-async function ensureSchema() {
-  if (schemaReady) return;
-
-  const sql = getSql();
-  await sql`
-    create table if not exists waitlist_signups (
-      id text primary key,
-      email text not null unique,
-      name text,
-      source text,
-      metadata jsonb,
-      request_id text not null,
-      notification_status text not null default 'stored',
-      notification_error text,
-      created_at timestamptz not null default now(),
-      updated_at timestamptz not null default now()
-    )
-  `;
-
-  schemaReady = true;
 }
 
 function mapRow(row: WaitlistRow): WaitlistSubmission {
@@ -106,7 +82,6 @@ export async function upsertWaitlistSubmission(input: {
   metadata?: Record<string, string>;
   requestId: string;
 }) {
-  await ensureSchema();
   const sql = getSql();
   const normalizedEmail = input.email.trim().toLowerCase();
   const [existing] = await sql<Pick<WaitlistRow, "id">[]>`
@@ -158,7 +133,6 @@ export async function updateWaitlistNotificationStatus(
   status: WaitlistSubmission["notificationStatus"],
   notificationError?: string,
 ) {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<WaitlistRow[]>`
     update waitlist_signups
@@ -174,7 +148,6 @@ export async function updateWaitlistNotificationStatus(
 }
 
 export async function listWaitlistSubmissions(limit = 100) {
-  await ensureSchema();
   const sql = getSql();
   const rows = await sql<WaitlistRow[]>`
     select *
@@ -187,7 +160,6 @@ export async function listWaitlistSubmissions(limit = 100) {
 }
 
 export async function getWaitlistAggregateStats() {
-  await ensureSchema();
   const sql = getSql();
   const [row] = await sql<
     {
@@ -232,7 +204,6 @@ export async function getWaitlistAggregateStats() {
 }
 
 export async function listWaitlistSignupSeries(days = 14) {
-  await ensureSchema();
   const sql = getSql();
   const safeDays = Math.max(1, Math.min(days, 90));
   const rows = await sql<WaitlistSignupSeriesPoint[]>`
@@ -260,7 +231,6 @@ export async function listWaitlistBreakdown(
   kind: "source" | "utm_source" | "utm_medium" | "path",
   limit = 6,
 ) {
-  await ensureSchema();
   const sql = getSql();
   const safeLimit = Math.max(1, Math.min(limit, 20));
 

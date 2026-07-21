@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Dashboard Login | CmdTab",
   description: "Protected access page for the CmdTab admin dashboard.",
+  alternates: {
+    canonical: "/dashboard/login",
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function DashboardLoginPage({

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const ADMIN_COOKIE = "cmdtab_admin_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const SESSION_TTL_SECONDS = 60 * 60 * 2;
 
 function base64UrlToUint8Array(value: string) {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -35,10 +35,10 @@ async function hasValidAdminSession(request: NextRequest) {
   const raw = request.cookies.get(ADMIN_COOKIE)?.value;
   if (!raw) return false;
 
-  const [issuedAt, signature] = raw.split(".");
-  if (!issuedAt || !signature) return false;
+  const [issuedAt, nonce, signature] = raw.split(".");
+  if (!issuedAt || !nonce || !signature || nonce.length < 20 || nonce.length > 40) return false;
 
-  const expectedSignature = await signValue(issuedAt, secret);
+  const expectedSignature = await signValue(`${issuedAt}.${nonce}`, secret);
   const providedBytes = base64UrlToUint8Array(signature);
   const expectedBytes = base64UrlToUint8Array(expectedSignature);
 

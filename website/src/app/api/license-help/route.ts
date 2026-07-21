@@ -10,10 +10,13 @@ import {
 import { licenseRequestReasonOptions } from "@/content/commerce-pages";
 import { getServerEnv, getSiteUrl } from "@/lib/env";
 import {
+  type DuplicateSubmissionClaim,
+  claimDuplicateSubmission,
   checkRateLimit,
   createFingerprint,
-  markSubmitted,
-  recentlySubmitted,
+  readRequestBody,
+  releaseDuplicateSubmissionClaim,
+  RequestBodyTooLargeError,
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
@@ -21,6 +24,7 @@ import {
   isLicenseRequestStoreConfigured,
   updateLicenseRequestNotificationStatus,
 } from "@/lib/license-request-store";
+import { isTrustedPostRequest } from "@/lib/request-post-guard";
 import { licenseHelpPayloadSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -101,32 +105,6 @@ function optionsResponse() {
   });
 }
 
-function isSameOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-
-  if (origin) {
-    return origin === requestOrigin;
-  }
-
-  if (referer) {
-    try {
-      return new URL(referer).origin === requestOrigin;
-    } catch {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function passesFetchSiteProtection(request: Request) {
-  const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
-  if (!fetchSite) return true;
-  return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
-}
-
 function getClientIp(request: Request) {
   const realIp = request.headers.get("x-real-ip")?.trim();
   if (realIp) return realIp;
@@ -159,7 +137,13 @@ function formatMetadata(metadata?: Record<string, string>) {
 }
 
 async function parseRequestBody(request: Request) {
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readRequestBody(request, MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) throw new PayloadTooLargeError();
+    throw error;
+  }
   const bodyBytes = Buffer.byteLength(rawBody, "utf8");
 
   if (bodyBytes === 0) {
@@ -239,8 +223,10 @@ async function sendApplicantConfirmationEmail(payload: {
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+  let duplicateClaim: DuplicateSubmissionClaim | undefined;
+  let operationPersisted = false;
 
-  if (!isSameOrigin(request) || !passesFetchSiteProtection(request)) {
+  if (!isTrustedPostRequest(request)) {
     return jsonResponse(
       {
         ok: false,
@@ -277,7 +263,7 @@ export async function POST(request: Request) {
     const body = await parseRequestBody(request);
     const payload = licenseHelpPayloadSchema.parse(body);
 
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip: getClientIp(request),
       userAgent: getUserAgent(request),
@@ -300,7 +286,10 @@ export async function POST(request: Request) {
       `${payload.email}|${payload.purchaseEmail ?? ""}|${payload.reason}|${payload.message.trim().toLowerCase()}`,
     );
 
-    if (recentlySubmitted(duplicateFingerprint)) {
+    duplicateClaim = await claimDuplicateSubmission({
+      fingerprints: [duplicateFingerprint],
+    });
+    if (!duplicateClaim.acquired) {
       return jsonResponse({
         ok: true,
         requestId,
@@ -309,6 +298,8 @@ export async function POST(request: Request) {
     }
 
     if (!isLicenseRequestStoreConfigured()) {
+      await releaseDuplicateSubmissionClaim(duplicateClaim);
+      duplicateClaim = undefined;
       return jsonResponse(
         {
           ok: false,
@@ -329,6 +320,7 @@ export async function POST(request: Request) {
       metadata: payload.metadata,
       requestId,
     });
+    operationPersisted = true;
 
     let notificationError: string | undefined;
     try {
@@ -352,8 +344,6 @@ export async function POST(request: Request) {
       await updateLicenseRequestNotificationStatus(requestId, "failed", notificationError);
     }
 
-    markSubmitted(duplicateFingerprint);
-
     return jsonResponse({
       ok: true,
       requestId,
@@ -363,6 +353,17 @@ export async function POST(request: Request) {
       notificationDelivered: !notificationError,
     });
   } catch (error) {
+    if (duplicateClaim?.acquired && !operationPersisted) {
+      try {
+        await releaseDuplicateSubmissionClaim(duplicateClaim);
+      } catch (releaseError) {
+        console.error("[CmdTab Website] license duplicate claim release failed", {
+          requestId,
+          error: releaseError instanceof Error ? releaseError.message : "Unknown error",
+        });
+      }
+    }
+
     if (error instanceof PayloadTooLargeError) {
       return jsonResponse(
         {

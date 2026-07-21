@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getDashboardAuthSummary, validateStoredDashboardPassword } from "@/lib/admin-store";
 
 const ADMIN_COOKIE = "cmdtab_admin_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+const SESSION_TTL_SECONDS = 60 * 60 * 2;
 
 function getDashboardPassword() {
   return process.env.ADMIN_DASHBOARD_PASSWORD?.trim() || null;
@@ -39,12 +39,14 @@ export async function createAdminSession() {
   }
 
   const issuedAt = Math.floor(Date.now() / 1000).toString();
-  const signature = signValue(issuedAt, secret);
+  const nonce = randomBytes(18).toString("base64url");
+  const payload = `${issuedAt}.${nonce}`;
+  const signature = signValue(payload, secret);
   const cookieStore = await cookies();
 
-  cookieStore.set(ADMIN_COOKIE, `${issuedAt}.${signature}`, {
+  cookieStore.set(ADMIN_COOKIE, `${payload}.${signature}`, {
     httpOnly: true,
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
@@ -64,10 +66,10 @@ export async function hasAdminSession() {
   const raw = cookieStore.get(ADMIN_COOKIE)?.value;
   if (!raw) return false;
 
-  const [issuedAt, signature] = raw.split(".");
-  if (!issuedAt || !signature) return false;
+  const [issuedAt, nonce, signature] = raw.split(".");
+  if (!issuedAt || !nonce || !signature || nonce.length < 20 || nonce.length > 40) return false;
 
-  const expectedSignature = signValue(issuedAt, secret);
+  const expectedSignature = signValue(`${issuedAt}.${nonce}`, secret);
   if (!safeEqual(signature, expectedSignature)) return false;
 
   const age = Math.floor(Date.now() / 1000) - Number.parseInt(issuedAt, 10);
@@ -81,12 +83,13 @@ export async function requireAdminSession() {
 }
 
 export async function validateAdminPassword(input: string) {
+  if (input.length < 12 || input.length > 256) return false;
   const databaseMatch = await validateStoredDashboardPassword(input);
   const expected = getDashboardPassword();
   const environmentMatch = expected ? safeEqual(input, expected) : false;
 
   if (databaseMatch !== null) {
-    return databaseMatch || environmentMatch;
+    return databaseMatch;
   }
 
   return environmentMatch;

@@ -36,6 +36,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/dashboard",
   },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 function getTopSources(

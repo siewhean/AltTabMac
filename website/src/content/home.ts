@@ -1,41 +1,42 @@
 export const heroContent = {
   eyebrow: "Window switching for macOS",
-  title: "Find the right Mac window in one move.",
+  title: "A macOS app switcher that shows the real window first.",
   summary:
-    "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open. Start with the trial, then buy once if it earns a place in your workflow.",
+    "CmdTab shows live previews, so you can confirm the exact window before switching. Quick mode changes keep your flow smooth.",
+  status:
+    "Built for people who keep lots of apps open. Start with the trial, then buy once if it fits your workflow.",
 };
 
 export const proofPoints = [
-  "Real previews with a warm first frame instead of blind icon guessing.",
-  "Learned Command Palette search with acronym matching and remembered picks.",
-  "Current Space, visible spaces, or all spaces with display-aware placement.",
-  "Hide, minimize, close, or quit the selected item without leaving the switcher.",
-  "Alternate right-side modifier triggers for one-handed sessions.",
-  "Exclusions and ignored-title rules to keep noisy windows out of the way.",
-  "Start with the trial and buy once if CmdTab proves itself in real work.",
+  "Real previews first, so you switch by window, not by icon.",
+  "Command Palette remembers common picks and supports quick acronym typing.",
+  "Current space, visible spaces, or all spaces with display-aware placement.",
+  "Hide, minimize, close, or quit from the switcher without opening extra windows.",
+  "Alternate right-side modifier triggers for cleaner one-handed workflows.",
+  "Exclude noisy apps and titles so your list stays readable.",
+  "Try the trial in real work, then buy once if it feels right.",
 ];
 
 export const styleVariants = [
   {
     id: "classicGrid",
     name: "Classic Grid",
-    summary: "Open the switcher, scan real thumbnails, and release on the right window.",
-    bestFor: "Best for visual scanning across many open windows.",
+    summary: "Open CmdTab, scan live thumbnails, and release on the right window.",
+    bestFor: "Best when you want to scan many windows quickly.",
     screenshotId: "classicGrid",
   },
   {
     id: "commandPalette",
     name: "Command Palette",
-    summary: "Type straight to the app or window you want, then hit return.",
-    bestFor: "Best for keyboard-heavy workflows and repeated searches.",
+    summary: "Type the app or window you want, then jump to it.",
+    bestFor: "Best for repeated, keyboard-first switching.",
     screenshotId: "commandPalette",
   },
   {
     id: "radialMenu",
     name: "Radial Menu",
-    summary: "Move through a stable ring and commit by position instead of scanning a long list.",
-    bestFor: "Best for directional switching and positional recall.",
+    summary: "Move through a stable ring and commit by position when directional switching is fastest.",
+    bestFor: "Best when directional switching helps you move faster.",
     screenshotId: "radialMenu",
   },
 ];
@@ -45,29 +46,29 @@ export const walkthroughSteps = [
     id: "grid-flow",
     eyebrow: "Classic Grid",
     title: "Open, scan, release.",
-    body: "Classic Grid is the fastest visual path. Hold the shortcut, skim the live previews, and release on the right window without opening the wrong app first.",
-    screenshotId: "classicGrid",
+    body: "Hold the shortcut, scan the live previews, and release on the right window.",
+    screenshotId: "walkthroughInvoke",
   },
   {
     id: "palette-flow",
     eyebrow: "Command Palette",
     title: "Type the app name and go.",
-    body: "If you already know what you want, open Command Palette, type a few letters, and jump directly to the result instead of cycling through everything else.",
-    screenshotId: "commandPalette",
+    body: "If you already know what you need, open Command Palette, type a few letters, and jump straight to the result.",
+    screenshotId: "walkthroughKeyboard",
   },
   {
     id: "radial-flow",
     eyebrow: "Radial Menu",
     title: "Switch by direction and rhythm.",
-    body: "Radial Menu gives you a stable ring for fast left-right movement when you want the selector to do more of the work than your eyes.",
+    body: "Use a stable ring for left-right switching when direction is faster than typing.",
     screenshotId: "radialMenu",
   },
   {
     id: "feature-flow",
     eyebrow: "Quick actions",
-    title: "Act on the current selection without switching into it first.",
-    body: "Hide, minimize, close, or quit directly from the switcher when you want to clean up windows instead of entering them.",
-    screenshotId: "featureQuickActions",
+    title: "Take action on the selected item first.",
+    body: "Hide, minimize, close, or quit directly from the switcher when you want a quick cleanup.",
+    screenshotId: "walkthroughCommit",
   },
 ];
 
@@ -75,22 +76,22 @@ export const interactiveDemoContent = {
   eyebrow: "Interactive demo",
   title: "Try the switcher in the browser before you download.",
   body:
-    "Click through the same three modes, move the selection, type into the palette, and see how each style feels when you are choosing a real target.",
+    "Try all three modes, move the selection, and type in the palette before downloading.",
   modes: [
     {
       id: "classicGrid",
       label: "Classic Grid",
-      hint: "Click tiles or step through the selection.",
+      hint: "Click tiles, or step through the selection.",
     },
     {
       id: "commandPalette",
       label: "Command Palette",
-      hint: "Type a few letters and select the result you want.",
+      hint: "Type a few letters and pick the result.",
     },
     {
       id: "radialMenu",
       label: "Radial Menu",
-      hint: "Run the selector around the ring without losing your place.",
+      hint: "Move around the ring without losing your place.",
     },
   ],
 } as const;
@@ -158,8 +159,8 @@ export const detailBands = [
   {
     id: "previews",
     eyebrow: "Live previews",
-    title: "See the actual window before you commit.",
-    body: "CmdTab shows real previews so you can pick the right target instead of cycling through icons and hoping the next app is the one you meant.",
+    title: "See the right window before you switch.",
+    body: "CmdTab shows live previews so you can pick the right window with confidence.",
     points: [
       "Real window thumbnails.",
       "Faster first reveal.",
@@ -170,8 +171,8 @@ export const detailBands = [
   {
     id: "search",
     eyebrow: "Search that lands faster",
-    title: "Command Palette is built for real repeated queries.",
-    body: "Search by app name, title, or acronym, and let remembered picks make repeated searches feel more direct over time.",
+    title: "Command Palette is built for repeated switching patterns.",
+    body: "Search by app, title, or acronym, and let recent picks make repeat searches faster.",
     points: [
       "App, title, and acronym matching.",
       "Remembered search picks.",
@@ -182,8 +183,8 @@ export const detailBands = [
   {
     id: "actions",
     eyebrow: "More than switching",
-    title: "Use the switcher to clean up windows too.",
-    body: "CmdTab can hide apps, minimize windows, close windows, or quit apps directly from the current selection.",
+    title: "Use the switcher to tidy your workspace too.",
+    body: "You can hide, minimize, close, or quit directly from your current selection.",
     points: [
       "Hide the selected app.",
       "Minimize the selected window.",
@@ -197,23 +198,23 @@ export const detailBands = [
 export const featureHighlights = [
   {
     title: "Hot swap without opening the switcher",
-    body: "Double-tap your chosen modifier and jump straight to the most recent app or window.",
+    body: "Double-tap your preferred modifier and jump to your latest app or window instantly.",
   },
   {
     title: "Space and display-aware placement",
-    body: "Keep CmdTab on the current display, the cursor display, or every display when your setup gets wider.",
+    body: "Keep CmdTab on the current display, near your cursor, or across all displays when needed.",
   },
   {
     title: "Cleaner lists when your desktop gets noisy",
-    body: "Exclude apps you never want in the switcher so the actual work stays easier to reach.",
+    body: "Exclude apps you never want in the switcher so your next switch lands on useful work.",
   },
 ];
 
 export const permissionsContent = {
   eyebrow: "Why permissions are needed",
-  title: "CmdTab uses the same macOS access you would expect from a serious switcher.",
+  title: "CmdTab uses the macOS access you need for reliable switching.",
   summary:
-    "Accessibility lets CmdTab respond to the switcher shortcut. Screen Recording lets it show real window previews. CmdTab also surfaces that health directly in Settings so permission problems are easier to diagnose.",
+    "Accessibility enables shortcut handling. Screen Recording enables live previews. Permission status is shown in Settings so setup is easier.",
   notes: [
     "Accessibility powers the keyboard interaction.",
     "Screen Recording powers live previews of your open windows.",
@@ -227,5 +228,17 @@ export const faqItems = [
   {
     question: "Is CmdTab available now?",
     answer: "CmdTab is currently in a waitlist-first phase while the next release is being prepared.",
+  },
+  {
+    question: "Do I need to download the app before reading help?",
+    answer: "No. You can read setup and trial details on the website first, then download when you are ready to test live.",
+  },
+  {
+    question: "How does the trial work?",
+    answer: "Start from the trial path, grant permissions, and use the full app for a short test period before upgrading.",
+  },
+  {
+    question: "Will there be a subscription charge?",
+    answer: "CmdTab is positioned as a one-time purchase after the trial phase, not a recurring monthly subscription.",
   },
 ];
