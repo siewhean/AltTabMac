@@ -1,0 +1,168 @@
+name: Verify Authority Production
+
+on:
+  push:
+    branches:
+      - agent/verify-authority-production
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-authority-production
+  cancel-in-progress: true
+
+jobs:
+  verify-production:
+    if: github.event_name == 'push' || github.head_ref == 'agent/verify-authority-production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - name: Check out deployed source plus operational workflow
+        uses: actions/checkout@v4
+        with:
+          ref: agent/verify-authority-production
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify the authority release is live
+        run: |
+          mkdir -p production-authority-verification
+          set -o pipefail
+          node --input-type=module <<'NODE' 2>&1 | tee production-authority-verification/release-marker.log
+          import assert from 'node:assert/strict';
+
+          const origin = 'https://cmdtab.net';
+          const [evidence, landscape, sitemap, llms, home] = await Promise.all([
+            fetch(`${origin}/evidence`).then(async (response) => ({ response, text: await response.text() })),
+            fetch(`${origin}/compare/mac-window-switchers`).then(async (response) => ({ response, text: await response.text() })),
+            fetch(`${origin}/sitemap.xml`).then(async (response) => ({ response, text: await response.text() })),
+            fetch(`${origin}/llms.txt`).then(async (response) => ({ response, text: await response.text() })),
+            fetch(`${origin}/`).then(async (response) => ({ response, text: await response.text() })),
+          ]);
+
+          for (const [label, result] of Object.entries({ evidence, landscape, sitemap, llms, home })) {
+            assert.equal(result.response.status, 200, `${label} returned HTTP ${result.response.status}`);
+          }
+          assert.match(evidence.text, /What CmdTab has proved/);
+          assert.match(evidence.text, /State-space counts are not field failure rates/);
+          assert.match(landscape.text, /Mac window switchers compared without pretending one fits everyone/);
+          assert.match(landscape.text, /Mac window switcher comparison table/);
+          assert.match(sitemap.text, /https:\/\/cmdtab\.net\/evidence/);
+          assert.match(sitemap.text, /https:\/\/cmdtab\.net\/compare\/mac-window-switchers/);
+          assert.equal((sitemap.text.match(/<loc>/g) || []).length, 16, 'production sitemap must expose 16 canonical URLs');
+          assert.match(llms.text, /Public evidence/);
+          assert.match(llms.text, /Source-dated market comparison/);
+          assert.doesNotMatch(home.text, /cmdtab-google-verification-ci|cmdtab-bing-verification-ci/);
+
+          const googleConfigured = /name=["']google-site-verification["']/i.test(home.text);
+          const bingConfigured = /name=["']msvalidate\.01["']/i.test(home.text);
+          console.log(JSON.stringify({ canonicalUrlCount: 16, googleConfigured, bingConfigured }, null, 2));
+          NODE
+
+      - name: Verify production metadata, schema, links, crawler surfaces, and headers
+        env:
+          VERIFY_BASE_URL: https://cmdtab.net
+          VERIFY_CANONICAL_ORIGIN: https://cmdtab.net
+        run: |
+          set -o pipefail
+          npm run rendered:check 2>&1 | tee production-authority-verification/rendered-check.log
+
+      - name: Verify production evidence responses match canonical QA bytes
+        env:
+          VERIFY_BASE_URL: https://cmdtab.net
+        run: |
+          set -o pipefail
+          npm run evidence:check 2>&1 | tee production-authority-verification/evidence-check.log
+
+      - name: Verify production desktop, mobile, navigation, tables, and interactive demo
+        env:
+          VERIFY_BASE_URL: https://cmdtab.net
+          VERIFY_ARTIFACT_DIR: production-authority-verification
+        run: |
+          set -o pipefail
+          npm run browser:check 2>&1 | tee production-authority-verification/browser-check.log
+
+      - name: Capture public authority-page visual evidence
+        run: |
+          set -euo pipefail
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          test -n "$CHROME"
+          for route in evidence compare/mac-window-switchers; do
+            slug="${route//\//-}"
+            "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=5000 \
+              --window-size=1440,1000 \
+              --screenshot="production-authority-verification/desktop-${slug}.png" \
+              "https://cmdtab.net/${route}"
+            "$CHROME" \
+              --headless=new \
+              --no-sandbox \
+              --disable-dev-shm-usage \
+              --hide-scrollbars \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=5000 \
+              --window-size=390,844 \
+              --screenshot="production-authority-verification/mobile-${slug}.png" \
+              "https://cmdtab.net/${route}"
+          done
+
+      - name: Verify ownership key and submit the 16 deployed canonicals to IndexNow
+        run: |
+          set -o pipefail
+          node --input-type=module <<'NODE' 2>&1 | tee production-authority-verification/indexnow-submission.log
+          import assert from 'node:assert/strict';
+          import indexNowConfig from './src/content/indexnow-key.json' with { type: 'json' };
+          import publicRoutes from './src/content/public-routes.json' with { type: 'json' };
+
+          const origin = 'https://cmdtab.net';
+          const key = indexNowConfig.key;
+          const keyResponse = await fetch(`${origin}/indexnow-key.txt`);
+          assert.equal(keyResponse.status, 200, `ownership key returned HTTP ${keyResponse.status}`);
+          assert.equal((await keyResponse.text()).trim(), key, 'production ownership key does not match deployed source');
+
+          const urlList = publicRoutes.map(({ path }) => new URL(path, `${origin}/`).toString());
+          assert.equal(urlList.length, 16);
+          const response = await fetch('https://api.indexnow.org/indexnow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({
+              host: 'cmdtab.net',
+              key,
+              keyLocation: `${origin}/indexnow-key.txt`,
+              urlList,
+            }),
+          });
+          const body = await response.text();
+          console.log(JSON.stringify({ status: response.status, submittedUrlCount: urlList.length, responseBody: body.slice(0, 500) }, null, 2));
+          assert.ok([200, 202].includes(response.status), `IndexNow returned HTTP ${response.status}`);
+          NODE
+
+      - name: Upload public production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmdtab-authority-production-verification
+          path: website/production-authority-verification
+          if-no-files-found: warn
+          retention-days: 7
