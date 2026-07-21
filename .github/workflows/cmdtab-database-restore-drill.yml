@@ -1,0 +1,163 @@
+name: CmdTab Database Restore Drill
+
+on:
+  schedule:
+    - cron: "43 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cmdtab-database-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: cmdtab_restore
+          POSTGRES_PASSWORD: restore-only
+          POSTGRES_USER: cmdtab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cmdtab -d cmdtab_restore"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Initialize monitoring receipt
+        run: |
+          printf '{"ok":false,"operation":"database-restore-drill","status":"started","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-restore-receipt.json"
+
+      - name: Require restore monitoring
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_RESTORE_HEARTBEAT_URL }}
+        run: test -n "$HEARTBEAT_URL"
+
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKUP_RESTORE_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies and PostgreSQL client
+        run: |
+          set -euo pipefail
+          npm ci --prefix website
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Download and verify latest backup
+        env:
+          BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_BUCKET"
+          manifest_key="$(aws s3api list-objects-v2 --bucket "$BACKUP_BUCKET" --prefix postgres/daily/ \
+            --query "reverse(sort_by(Contents[?ends_with(Key, '.dump.complete.json')], &LastModified))[0].Key" \
+            --output text)"
+          test -n "$manifest_key"
+          test "$manifest_key" != "None"
+          aws s3 cp "s3://${BACKUP_BUCKET}/${manifest_key}" \
+            "${RUNNER_TEMP}/backup.complete.json" --only-show-errors
+          key="$(node -e 'const m=require(process.argv[1]); process.stdout.write(m.dumpKey ?? "")' \
+            "${RUNNER_TEMP}/backup.complete.json")"
+          checksum_key="$(node -e 'const m=require(process.argv[1]); process.stdout.write(m.checksumKey ?? "")' \
+            "${RUNNER_TEMP}/backup.complete.json")"
+          manifest_checksum="$(node -e 'const m=require(process.argv[1]); process.stdout.write(m.sha256 ?? "")' \
+            "${RUNNER_TEMP}/backup.complete.json")"
+          [[ "$key" =~ ^postgres/daily/[0-9]{4}/[0-9]{2}/[0-9]{2}/cmdtab-[0-9]{8}T[0-9]{6}Z\.dump$ ]]
+          test "$checksum_key" = "${key}.sha256"
+          [[ "$manifest_checksum" =~ ^[0-9a-f]{64}$ ]]
+          aws s3 cp "s3://${BACKUP_BUCKET}/${key}" "${RUNNER_TEMP}/cmdtab.dump" --only-show-errors
+          aws s3 cp "s3://${BACKUP_BUCKET}/${checksum_key}" "${RUNNER_TEMP}/cmdtab.dump.sha256" --only-show-errors
+          cd "$RUNNER_TEMP"
+          sha256sum --check cmdtab.dump.sha256
+          test "$(cut -d ' ' -f 1 cmdtab.dump.sha256)" = "$manifest_checksum"
+          printf '%s\n' "$manifest_checksum" > "$RUNNER_TEMP/restored-backup.sha256"
+          node -e 'const m=require(process.argv[1]); process.stdout.write(String(m.runId ?? ""))' \
+            "$RUNNER_TEMP/backup.complete.json" > "$RUNNER_TEMP/backup-run-id"
+          test -s "$RUNNER_TEMP/backup-run-id"
+
+      - name: Restore and validate schema
+        env:
+          DATABASE_RESTORE_URL: postgresql://cmdtab:restore-only@localhost:5432/cmdtab_restore
+          DB_RESTORE_VERIFY_CONFIRM: isolated-empty-target
+        run: |
+          set -euo pipefail
+          npm --prefix website run db:restore:verify -- \
+            "${RUNNER_TEMP}/cmdtab.dump" "${RUNNER_TEMP}/cmdtab.dump.sha256"
+          BACKUP_SHA256="$(cat "$RUNNER_TEMP/restored-backup.sha256")" \
+          BACKUP_RUN_ID="$(cat "$RUNNER_TEMP/backup-run-id")" node -e '
+            const { writeFileSync } = require("node:fs");
+            writeFileSync(process.env.RUNNER_TEMP + "/database-restore-receipt.json", JSON.stringify({
+              version: 1,
+              ok: true,
+              operation: "database-restore-drill",
+              status: "succeeded",
+              workflow: process.env.GITHUB_WORKFLOW,
+              repository: process.env.GITHUB_REPOSITORY,
+              runId: process.env.GITHUB_RUN_ID,
+              runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              backupRunId: process.env.BACKUP_RUN_ID,
+              backupSha256: process.env.BACKUP_SHA256,
+              completedAt: new Date().toISOString(),
+            }) + "\n", { mode: 0o600 });
+          '
+
+      - name: Report successful restore heartbeat
+        if: success()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_RESTORE_HEARTBEAT_URL }}
+        run: curl --fail --silent --show-error --max-time 15 --retry 3 "$HEARTBEAT_URL"
+
+      - name: Mark failed receipt
+        if: failure()
+        run: |
+          printf '{"ok":false,"operation":"database-restore-drill","status":"failed","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-restore-receipt.json"
+
+      - name: Report failed restore heartbeat
+        if: failure()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_RESTORE_HEARTBEAT_URL }}
+        run: test -z "$HEARTBEAT_URL" || curl --fail --silent --show-error --max-time 15 --retry 3 "${HEARTBEAT_URL%/}/fail"
+
+      - name: Publish monitoring summary
+        if: always()
+        run: cat "$RUNNER_TEMP/database-restore-receipt.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload monitoring receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: database-restore-receipt-${{ github.run_id }}
+          path: ${{ runner.temp }}/database-restore-receipt.json
+          if-no-files-found: error
+          retention-days: 30

@@ -3,39 +3,138 @@ name: Security
 on:
   push:
     paths:
+      - "Package.swift"
+      - ".vercelignore"
+      - "website/.vercelignore"
+      - "Sources/**"
+      - "Tests/**"
+      - "Resources/**"
+      - "build.sh"
+      - "scripts/build_release_dmg.sh"
+      - "scripts/release_metadata.sh"
+      - "scripts/release_notarization_checklist.sh"
+      - "scripts/validate_production_environment.sh"
+      - "scripts/deploy_production_website.sh"
+      - "scripts/publish_release_dmg.sh"
+      - "scripts/promote_production_release.sh"
+      - "scripts/run_preview_smoke.sh"
+      - "scripts/test_production_operations.sh"
+      - "scripts/aggregate_release_evidence.sh"
+      - "scripts/capture_neon_recovery_evidence.mjs"
+      - "scripts/generate_backup_restore_release_receipt.mjs"
+      - "scripts/generate_final_qa_receipt.mjs"
+      - "scripts/test_release_automation.sh"
+      - "scripts/verify_workflow_run_provenance.mjs"
+      - "scripts/verify_release_artifacts.sh"
       - "website/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/**"
       - ".github/workflows/security.yml"
+      - ".github/workflows/cmdtab-production-deploy.yml"
+      - ".github/workflows/cmdtab-production-migration.yml"
+      - ".github/workflows/cmdtab-backup-restore-release-evidence.yml"
       - "SECURITY.md"
       - "SECURITY_CHECKLIST.md"
+      - "RELEASE_EVIDENCE.md"
   pull_request:
     paths:
+      - "Package.swift"
+      - ".vercelignore"
+      - "website/.vercelignore"
+      - "Sources/**"
+      - "Tests/**"
+      - "Resources/**"
+      - "build.sh"
+      - "scripts/build_release_dmg.sh"
+      - "scripts/release_metadata.sh"
+      - "scripts/release_notarization_checklist.sh"
+      - "scripts/validate_production_environment.sh"
+      - "scripts/deploy_production_website.sh"
+      - "scripts/publish_release_dmg.sh"
+      - "scripts/promote_production_release.sh"
+      - "scripts/run_preview_smoke.sh"
+      - "scripts/test_production_operations.sh"
+      - "scripts/aggregate_release_evidence.sh"
+      - "scripts/capture_neon_recovery_evidence.mjs"
+      - "scripts/generate_backup_restore_release_receipt.mjs"
+      - "scripts/generate_final_qa_receipt.mjs"
+      - "scripts/test_release_automation.sh"
+      - "scripts/verify_workflow_run_provenance.mjs"
+      - "scripts/verify_release_artifacts.sh"
       - "website/**"
+      - ".github/dependabot.yml"
+      - ".github/workflows/**"
       - ".github/workflows/security.yml"
+      - ".github/workflows/cmdtab-production-deploy.yml"
+      - ".github/workflows/cmdtab-production-migration.yml"
+      - ".github/workflows/cmdtab-backup-restore-release-evidence.yml"
       - "SECURITY.md"
       - "SECURITY_CHECKLIST.md"
+      - "RELEASE_EVIDENCE.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   website-security:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: website
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: website/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Dependency audit
-        run: npm run security:deps
-
-      - name: Typecheck and production build
+      - name: Audit, typecheck, and production build
         run: npm run security:check
+
+  macos-security:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate release configuration
+        run: |
+          ./scripts/test_release_automation.sh
+          ./scripts/test_production_operations.sh
+          plutil -lint Resources/Info.plist Resources/CmdTab.entitlements
+          test "$(plutil -extract CFBundleIdentifier raw Resources/Info.plist)" = "net.cmdtab.app"
+
+      - name: Build and test Swift package
+        run: swift test --scratch-path /tmp/CmdTab-test
+
+      - name: Package and verify app bundle
+        run: |
+          ./build.sh
+          ./scripts/verify_release_artifacts.sh --local-app

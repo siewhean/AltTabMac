@@ -1,0 +1,202 @@
+name: CmdTab Database Backup
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cmdtab-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Initialize monitoring receipt
+        run: |
+          printf '{"ok":false,"operation":"database-backup","status":"started","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-backup-receipt.json"
+
+      - name: Require backup monitoring
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_BACKUP_HEARTBEAT_URL }}
+        run: test -n "$HEARTBEAT_URL"
+
+      - name: Configure AWS credentials through OIDC
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_BACKUP_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install PostgreSQL client
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Verify private SSE-KMS backup bucket and lifecycle policy
+        env:
+          BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+          KMS_KEY_ID: ${{ vars.DB_BACKUP_KMS_KEY_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_BUCKET"
+          test -n "$KMS_KEY_ID"
+          public_block="$(aws s3api get-public-access-block --bucket "$BACKUP_BUCKET" \
+            --query 'PublicAccessBlockConfiguration.[BlockPublicAcls,IgnorePublicAcls,BlockPublicPolicy,RestrictPublicBuckets]' \
+            --output text)"
+          test "$public_block" = $'True\tTrue\tTrue\tTrue'
+          encryption_algorithm="$(aws s3api get-bucket-encryption --bucket "$BACKUP_BUCKET" \
+            --query 'ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm' \
+            --output text)"
+          encryption_key="$(aws s3api get-bucket-encryption --bucket "$BACKUP_BUCKET" \
+            --query 'ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.KMSMasterKeyID' \
+            --output text)"
+          expected_key_arn="$(aws kms describe-key --key-id "$KMS_KEY_ID" \
+            --query 'KeyMetadata.Arn' --output text)"
+          configured_key_arn="$(aws kms describe-key --key-id "$encryption_key" \
+            --query 'KeyMetadata.Arn' --output text)"
+          test "$encryption_algorithm" = "aws:kms"
+          test "$configured_key_arn" = "$expected_key_arn"
+          aws s3api get-bucket-lifecycle-configuration --bucket "$BACKUP_BUCKET" \
+            > "$RUNNER_TEMP/actual-backup-lifecycle.json"
+          node website/scripts/db/ops/check-backup-lifecycle.mjs \
+            website/db/backup-lifecycle.json "$RUNNER_TEMP/actual-backup-lifecycle.json"
+
+      - name: Create and upload encrypted backup
+        env:
+          DATABASE_BACKUP_URL: ${{ secrets.DATABASE_BACKUP_URL }}
+          BACKUP_BUCKET: ${{ vars.DB_BACKUP_BUCKET }}
+          KMS_KEY_ID: ${{ vars.DB_BACKUP_KMS_KEY_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_BACKUP_URL"
+          test -n "$BACKUP_BUCKET"
+          test -n "$KMS_KEY_ID"
+          retention_classes=(daily)
+          if [ "$(date -u +%u)" = "7" ]; then retention_classes+=(weekly); fi
+          if [ "$(date -u +%d)" = "01" ]; then retention_classes+=(monthly); fi
+          stamp="$(date -u +%Y/%m/%d/cmdtab-%Y%m%dT%H%M%SZ)"
+          backup="${RUNNER_TEMP}/cmdtab.dump"
+          checksum="${backup}.sha256"
+          npm --prefix website run db:backup -- "$backup"
+          expected_key_arn="$(aws kms describe-key --key-id "$KMS_KEY_ID" \
+            --query 'KeyMetadata.Arn' --output text)"
+          for retention_class in "${retention_classes[@]}"; do
+            key="postgres/${retention_class}/${stamp}.dump"
+            aws s3 cp "$backup" "s3://${BACKUP_BUCKET}/${key}" \
+              --sse aws:kms --sse-kms-key-id "$KMS_KEY_ID" --only-show-errors
+            aws s3 cp "$checksum" "s3://${BACKUP_BUCKET}/${key}.sha256" \
+              --sse aws:kms --sse-kms-key-id "$KMS_KEY_ID" --only-show-errors
+            for uploaded_key in "$key" "${key}.sha256"; do
+              encryption="$(aws s3api head-object --bucket "$BACKUP_BUCKET" --key "$uploaded_key" \
+                --query 'ServerSideEncryption' --output text)"
+              object_key="$(aws s3api head-object --bucket "$BACKUP_BUCKET" --key "$uploaded_key" \
+                --query 'SSEKMSKeyId' --output text)"
+              object_key_arn="$(aws kms describe-key --key-id "$object_key" \
+                --query 'KeyMetadata.Arn' --output text)"
+              test "$encryption" = "aws:kms"
+              test "$object_key_arn" = "$expected_key_arn"
+            done
+            verification="$RUNNER_TEMP/upload-verification/$retention_class"
+            mkdir -p "$verification"
+            aws s3 cp "s3://${BACKUP_BUCKET}/${key}" \
+              "$verification/cmdtab.dump" --only-show-errors
+            aws s3 cp "s3://${BACKUP_BUCKET}/${key}.sha256" \
+              "$verification/cmdtab.dump.sha256" --only-show-errors
+            (cd "$verification" && sha256sum --check cmdtab.dump.sha256)
+            pg_restore --list "$verification/cmdtab.dump" > /dev/null
+            dump_sha256="$(cut -d ' ' -f 1 "$checksum")"
+            manifest="$RUNNER_TEMP/${retention_class}.complete.json"
+            node -e '
+              const { writeFileSync } = require("node:fs");
+              const [path, dumpKey, checksumKey, checksum, retentionClass, runId] = process.argv.slice(1);
+              writeFileSync(path, JSON.stringify({
+                version: 1,
+                dumpKey,
+                checksumKey,
+                sha256: checksum,
+                retentionClass,
+                runId,
+              }) + "\n", { mode: 0o600 });
+            ' "$manifest" "$key" "${key}.sha256" "$dump_sha256" \
+              "$retention_class" "$GITHUB_RUN_ID"
+            aws s3 cp "$manifest" "s3://${BACKUP_BUCKET}/${key}.complete.json" \
+              --sse aws:kms --sse-kms-key-id "$KMS_KEY_ID" --only-show-errors
+          done
+          retention_json="$(node -e 'process.stdout.write(JSON.stringify(process.argv.slice(1)))' \
+            "${retention_classes[@]}")"
+          BACKUP_SHA256="$dump_sha256" RETENTION_JSON="$retention_json" node -e '
+            const { writeFileSync } = require("node:fs");
+            writeFileSync(process.env.RUNNER_TEMP + "/database-backup-receipt.json", JSON.stringify({
+              version: 1,
+              ok: true,
+              operation: "database-backup",
+              status: "succeeded",
+              workflow: process.env.GITHUB_WORKFLOW,
+              repository: process.env.GITHUB_REPOSITORY,
+              runId: process.env.GITHUB_RUN_ID,
+              runAttempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+              backupSha256: process.env.BACKUP_SHA256,
+              retentionClasses: JSON.parse(process.env.RETENTION_JSON),
+              completedAt: new Date().toISOString(),
+            }) + "\n", { mode: 0o600 });
+          '
+
+      - name: Report successful backup heartbeat
+        if: success()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_BACKUP_HEARTBEAT_URL }}
+        run: curl --fail --silent --show-error --max-time 15 --retry 3 "$HEARTBEAT_URL"
+
+      - name: Mark failed receipt
+        if: failure()
+        run: |
+          printf '{"ok":false,"operation":"database-backup","status":"failed","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-backup-receipt.json"
+
+      - name: Report failed backup heartbeat
+        if: failure()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_DB_BACKUP_HEARTBEAT_URL }}
+        run: test -z "$HEARTBEAT_URL" || curl --fail --silent --show-error --max-time 15 --retry 3 "${HEARTBEAT_URL%/}/fail"
+
+      - name: Publish monitoring summary
+        if: always()
+        run: cat "$RUNNER_TEMP/database-backup-receipt.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload monitoring receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: database-backup-receipt-${{ github.run_id }}
+          path: ${{ runner.temp }}/database-backup-receipt.json
+          if-no-files-found: error
+          retention-days: 30

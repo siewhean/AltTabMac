@@ -1,0 +1,101 @@
+name: CmdTab Database Retention
+
+on:
+  schedule:
+    - cron: "29 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmdtab-database-retention
+  cancel-in-progress: false
+
+jobs:
+  retain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Initialize monitoring receipt
+        run: |
+          printf '{"ok":false,"operation":"database-retention","status":"started","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-retention-receipt.json"
+      - name: Validate monitoring configuration
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_RETENTION_HEARTBEAT_URL }}
+        run: test -n "$HEARTBEAT_URL"
+      - run: npm ci
+      - name: Apply one bounded batch per retention class
+        env:
+          DATABASE_MAINTENANCE_URL: ${{ secrets.DATABASE_MAINTENANCE_URL }}
+          DB_RETENTION_BATCH_SIZE: "5000"
+        run: |
+          set -euo pipefail
+          : > "$RUNNER_TEMP/database-retention-result.jsonl"
+          drained=false
+          for batch in $(seq 1 50); do
+            result="$(node scripts/db/ops/retention.mjs)"
+            printf '%s\n' "$result" | tee -a "$RUNNER_TEMP/database-retention-result.jsonl"
+            if RESULT="$result" node -e '
+              const value = JSON.parse(process.env.RESULT);
+              const total = Object.entries(value)
+                .filter(([key]) => key.endsWith("Deleted") || key === "fulfillmentsAnonymized")
+                .reduce((sum, [, count]) => sum + Number(count), 0);
+              process.exit(total === 0 ? 0 : 1);
+            '; then
+              drained=true
+              break
+            fi
+          done
+          test "$drained" = true
+          printf '{"ok":true,"operation":"database-retention","status":"succeeded","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-retention-receipt.json"
+
+      - name: Mark failed receipt
+        if: failure()
+        run: |
+          printf '{"ok":false,"operation":"database-retention","status":"failed","runId":"%s"}\n' \
+            "$GITHUB_RUN_ID" > "$RUNNER_TEMP/database-retention-receipt.json"
+
+      - name: Report success heartbeat
+        if: success()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_RETENTION_HEARTBEAT_URL }}
+        run: curl --fail --silent --show-error --retry 2 "$HEARTBEAT_URL"
+
+      - name: Report failed heartbeat
+        if: failure()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_RETENTION_HEARTBEAT_URL }}
+        run: |
+          test -n "$HEARTBEAT_URL"
+          curl --fail --silent --show-error --retry 2 "${HEARTBEAT_URL%/}/fail"
+
+      - name: Publish monitoring summary
+        if: always()
+        run: |
+          cat "$RUNNER_TEMP/database-retention-receipt.json" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/database-retention-result.jsonl" ]; then
+            tail -1 "$RUNNER_TEMP/database-retention-result.jsonl" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload monitoring receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: database-retention-receipt-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/database-retention-receipt.json
+            ${{ runner.temp }}/database-retention-result.jsonl
+          if-no-files-found: error
+          retention-days: 30

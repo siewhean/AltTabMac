@@ -4,10 +4,26 @@ updates:
     directory: "/website"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Singapore"
+    versioning-strategy: "increase-if-necessary"
     open-pull-requests-limit: 5
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Singapore"
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"

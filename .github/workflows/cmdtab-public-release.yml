@@ -1,0 +1,85 @@
+name: CmdTab Public Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable canonical release tag
+        required: true
+        type: string
+      evidence_run_id:
+        description: Successful CmdTab Final Release Evidence workflow run ID
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cmdtab-public-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 20
+    environment: production-release
+    steps:
+      - name: Checkout immutable release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Verify aggregate workflow provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EXPECTED_TAG: ${{ inputs.release_tag }}
+        run: |
+          config="$(mktemp)"
+          response="$(mktemp)"
+          trap 'rm -f "$config" "$response"' EXIT
+          chmod 600 "$config" "$response"
+          printf 'fail\nsilent\nshow-error\nheader = "Authorization: Bearer %s"\nheader = "Accept: application/vnd.github+json"\nurl = "https://api.github.com/repos/%s/actions/runs/%s"\noutput = "%s"\n' \
+            "$GH_TOKEN" "$GITHUB_REPOSITORY" "$EVIDENCE_RUN_ID" "$response" >"$config"
+          curl --config "$config"
+          ./scripts/verify_workflow_run_provenance.mjs \
+            "$response" ".github/workflows/cmdtab-release-evidence.yml" "$(git rev-parse HEAD)"
+
+      - name: Download trusted aggregate and bound release inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cmdtab-release-evidence-${{ inputs.evidence_run_id }}
+          path: dist
+          run-id: ${{ inputs.evidence_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@56.3.2
+
+      - name: Publish aggregate-authorized DMG
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        run: ./scripts/publish_release_dmg.sh
+
+      - name: Promote staged Production and verify canonical health
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CMDTAB_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CMDTAB_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          CMDTAB_PRODUCTION_HEALTHCHECK_SECRET: ${{ secrets.PRODUCTION_HEALTHCHECK_SECRET }}
+        run: ./scripts/promote_production_release.sh
+
+      - name: Upload public release and rollback receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-public-release-${{ github.run_id }}
+          path: |
+            dist/*-blob-publication.json
+            dist/*-public-release.json
+            dist/*-rollback-target.json
+          if-no-files-found: error
+          retention-days: 365

@@ -1,0 +1,120 @@
+name: CmdTab Production Website Stage
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable release tag to stage, for example v1.0.0
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cmdtab-production-website-stage
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: preview
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci --prefix website && npm install --global vercel@56.3.2
+      - name: Link expected Vercel project
+        env:
+          PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          install -d -m 0700 .vercel
+          node -e 'require("node:fs").writeFileSync(".vercel/project.json", JSON.stringify({projectId:process.env.PROJECT_ID,orgId:process.env.ORG_ID})+"\n",{mode:0o600})'
+      - name: Deploy and validate immutable Preview
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CMDTAB_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CMDTAB_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          CMDTAB_PREVIEW_HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+          CMDTAB_PREVIEW_PROTECTION_BYPASS_SECRET: ${{ secrets.PROTECTION_BYPASS_SECRET }}
+        run: ./scripts/deploy_production_website.sh --preview
+      - name: Run privacy-safe live Preview release smoke
+        env:
+          CMDTAB_PREVIEW_HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+          CMDTAB_PREVIEW_PROTECTION_BYPASS_SECRET: ${{ secrets.PROTECTION_BYPASS_SECRET }}
+          CMDTAB_PREVIEW_WEBHOOK_SECRET: ${{ secrets.LEMONSQUEEZY_WEBHOOK_SECRET }}
+          CMDTAB_PREVIEW_DATABASE_MAINTENANCE_URL: ${{ secrets.DATABASE_MAINTENANCE_URL }}
+          CMDTAB_PREVIEW_STORE_ID: ${{ vars.LEMONSQUEEZY_STORE_ID }}
+          CMDTAB_PREVIEW_PRODUCT_ID: ${{ vars.LEMONSQUEEZY_PRODUCT_ID }}
+          CMDTAB_PREVIEW_VARIANT_ID: ${{ vars.LEMONSQUEEZY_VARIANT_ID }}
+          CMDTAB_EXPECTED_TRIAL_URL: ${{ vars.TRIAL_URL }}
+          CMDTAB_EXPECTED_FOUNDER_CHECKOUT_URL: ${{ vars.FOUNDER_CHECKOUT_URL }}
+          CMDTAB_EXPECTED_STANDARD_CHECKOUT_URL: ${{ vars.STANDARD_CHECKOUT_URL }}
+          CMDTAB_EXPECTED_LICENSE_PORTAL_URL: ${{ vars.LICENSE_PORTAL_URL }}
+        run: |
+          version="$(node -e 'const s=require("node:fs").readFileSync("Resources/Info.plist","utf8"); process.stdout.write(s.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)[1])')"
+          receipt="dist/CmdTab-${version}-preview-deployment.json"
+          export CMDTAB_PREVIEW_DEPLOYMENT_ID="$(node -p 'require(process.argv[1]).deploymentId' "$receipt")"
+          export CMDTAB_PREVIEW_DEPLOYMENT_URL="$(node -p 'require(process.argv[1]).deploymentUrl' "$receipt")"
+          ./scripts/run_preview_smoke.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-preview-evidence-${{ github.run_id }}
+          path: |
+            dist/*-preview-deployment.json
+            dist/*-preview-smoke.json
+          if-no-files-found: error
+          retention-days: 90
+
+  stage-production:
+    needs: preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production-staging
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm install --global vercel@56.3.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cmdtab-preview-evidence-${{ github.run_id }}
+          path: dist
+      - name: Link expected Vercel project
+        env:
+          PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          install -d -m 0700 .vercel
+          node -e 'require("node:fs").writeFileSync(".vercel/project.json", JSON.stringify({projectId:process.env.PROJECT_ID,orgId:process.env.ORG_ID})+"\n",{mode:0o600})'
+      - name: Stage tagged source in protected Production without aliasing
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          CMDTAB_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CMDTAB_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          CMDTAB_PRODUCTION_HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+          CMDTAB_PRODUCTION_PROTECTION_BYPASS_SECRET: ${{ secrets.PROTECTION_BYPASS_SECRET }}
+        run: ./scripts/deploy_production_website.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-production-staging-${{ github.run_id }}
+          path: |
+            dist/*-preview-deployment.json
+            dist/*-preview-smoke.json
+            dist/*-production-staging-deployment.json
+            dist/*-environment-validation.json
+          if-no-files-found: error
+          retention-days: 90

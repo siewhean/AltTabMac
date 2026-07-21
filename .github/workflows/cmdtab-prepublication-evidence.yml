@@ -1,0 +1,52 @@
+name: CmdTab Prepublication Evidence Intake
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable canonical release tag
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  intake:
+    runs-on: [self-hosted, macOS, cmdtab-release-evidence]
+    timeout-minutes: 15
+    environment: production-release-evidence-intake
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+      - name: Require canonical tagged source
+        run: |
+          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
+          test "$(git rev-list -n 1 '${{ inputs.release_tag }}')" = "$GITHUB_SHA"
+      - name: Collect protected operator evidence
+        env:
+          EVIDENCE_STAGING_DIR: ${{ secrets.CMDTAB_EVIDENCE_STAGING_DIR }}
+        run: |
+          test -n "$EVIDENCE_STAGING_DIR"
+          test -d "$EVIDENCE_STAGING_DIR"
+          destination="$RUNNER_TEMP/trusted-prepublication-evidence"
+          mkdir -p "$destination"
+          find "$EVIDENCE_STAGING_DIR" -maxdepth 1 -type l -print -quit | grep -q . && {
+            echo "Evidence staging directory must not contain symlinks" >&2
+            exit 1
+          }
+          cp -p "$EVIDENCE_STAGING_DIR"/*.json "$destination"/
+          cp -p "$EVIDENCE_STAGING_DIR"/*.dmg "$destination"/
+          test "$(find "$destination" -maxdepth 1 -type f -name '*.dmg' | wc -l | tr -d ' ')" = 1
+          version="$(plutil -extract CFBundleShortVersionString raw -o - Resources/Info.plist)"
+          test -s "$destination/CmdTab-${version}-release-receipt.json"
+          test -s "$destination/final-qa-receipt.json"
+      - name: Upload fixed-name trusted evidence bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-prepublication-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/trusted-prepublication-evidence
+          if-no-files-found: error
+          retention-days: 30

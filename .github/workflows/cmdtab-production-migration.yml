@@ -1,0 +1,177 @@
+name: CmdTab Production Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable release tag whose schema is being installed
+        required: true
+        type: string
+      acknowledge_expand_only:
+        description: I verified the migration is expand-only for this rollout
+        required: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmdtab-production-database-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-database
+    steps:
+      - name: Checkout immutable release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Validate immutable source and expand-only acknowledgement
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ACKNOWLEDGE_EXPAND_ONLY: ${{ inputs.acknowledge_expand_only }}
+        run: |
+          set -euo pipefail
+          test "$ACKNOWLEDGE_EXPAND_ONLY" = true
+          test -z "$(git status --porcelain --untracked-files=all)"
+          CANONICAL_VERSION="$(node -e '
+            const text = require("node:fs").readFileSync("Resources/Info.plist", "utf8");
+            const match = text.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/);
+            if (!match) process.exit(1);
+            process.stdout.write(match[1]);
+          ')"
+          test "$RELEASE_TAG" = "v${CANONICAL_VERSION}"
+          git show-ref --verify --quiet "refs/tags/${RELEASE_TAG}"
+          test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
+
+      - name: Create and verify Neon recovery checkpoint
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+          NEON_PRODUCTION_BRANCH_ID: ${{ secrets.NEON_PRODUCTION_BRANCH_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$NEON_API_KEY"
+          test -n "$NEON_PROJECT_ID"
+          test -n "$NEON_PRODUCTION_BRANCH_ID"
+          node scripts/capture_neon_recovery_evidence.mjs \
+            dist/neon-recovery-receipt.json
+
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Apply checksum-verified migration and validate roles
+        env:
+          DATABASE_MIGRATOR_URL: ${{ secrets.DATABASE_MIGRATOR_URL }}
+          DATABASE_MAINTENANCE_URL: ${{ secrets.DATABASE_MAINTENANCE_URL }}
+          DATABASE_RUNTIME_URL: ${{ secrets.DATABASE_RUNTIME_URL }}
+          DATABASE_ADMIN_URL: ${{ secrets.DATABASE_ADMIN_URL }}
+          CMDTAB_MIGRATOR_PASSWORD: ${{ secrets.CMDTAB_MIGRATOR_PASSWORD }}
+          CMDTAB_RUNTIME_PASSWORD: ${{ secrets.CMDTAB_RUNTIME_PASSWORD }}
+          CMDTAB_MAINTENANCE_PASSWORD: ${{ secrets.CMDTAB_MAINTENANCE_PASSWORD }}
+          CMDTAB_BACKUP_PASSWORD: ${{ secrets.CMDTAB_BACKUP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_MIGRATOR_URL"
+          test -n "$DATABASE_MAINTENANCE_URL"
+          test -n "$DATABASE_RUNTIME_URL"
+          test -n "$DATABASE_ADMIN_URL"
+          test -n "$CMDTAB_MIGRATOR_PASSWORD"
+          test -n "$CMDTAB_RUNTIME_PASSWORD"
+          test -n "$CMDTAB_MAINTENANCE_PASSWORD"
+          test -n "$CMDTAB_BACKUP_PASSWORD"
+          node website/scripts/db/ops/status.mjs --allow-pending \
+            > "$RUNNER_TEMP/migration-before.json"
+          node website/scripts/db/ops/migrate.mjs
+          npm --prefix website run db:configure-roles
+          node website/scripts/db/ops/status.mjs \
+            > "$RUNNER_TEMP/migration-after.json"
+          node website/scripts/db/ops/check.mjs \
+            > "$RUNNER_TEMP/database-check.json"
+          (
+            cd website
+            DATABASE_RUNTIME_URL="$DATABASE_RUNTIME_URL" node --input-type=module -e '
+              import postgres from "postgres";
+              const sql = postgres(process.env.DATABASE_RUNTIME_URL, {
+                max: 1, connect_timeout: 10, idle_timeout: 5, prepare: false,
+              });
+              try {
+                const [row] = await sql`select count(*)::int as count from public.schema_migrations`;
+                if (!Number.isInteger(row?.count) || row.count < 1) process.exit(1);
+                let ledgerWriteSucceeded = false;
+                try {
+                  await sql.begin(async (transaction) => {
+                    await transaction`update public.schema_migrations set checksum = checksum where false`;
+                    ledgerWriteSucceeded = true;
+                    throw new Error("rollback-ledger-probe");
+                  });
+                } catch (error) {
+                  if (ledgerWriteSucceeded && error.message !== "rollback-ledger-probe") throw error;
+                  if (!ledgerWriteSucceeded && error.code !== "42501") throw error;
+                }
+                if (ledgerWriteSucceeded) process.exit(1);
+              } finally {
+                await sql.end({ timeout: 5 });
+              }
+            '
+          )
+
+      - name: Create redacted migration receipt
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          SOURCE_COMMIT="$(git rev-parse HEAD)" \
+          RELEASE_TAG="$RELEASE_TAG" node -e '
+            const { createHash } = require("node:crypto");
+            const { readFileSync, writeFileSync } = require("node:fs");
+            const recoveryPath = "dist/neon-recovery-receipt.json";
+            const recoveryBytes = readFileSync(recoveryPath);
+            const recovery = JSON.parse(recoveryBytes);
+            if (recovery.ok !== true || recovery.provider !== "neon" ||
+                recovery.sourceCommit !== process.env.SOURCE_COMMIT ||
+                recovery.releaseTag !== process.env.RELEASE_TAG ||
+                !Number.isInteger(recovery.historyRetentionSeconds) ||
+                recovery.historyRetentionSeconds < 604800) process.exit(1);
+            const evidenceCreatedAt = new Date().toISOString();
+            writeFileSync("dist/production-migration-receipt.json", JSON.stringify({
+              version: 1,
+              ok: true,
+              sourceCommit: process.env.SOURCE_COMMIT,
+              releaseTag: process.env.RELEASE_TAG,
+              neonRecoveryEvidence: {
+                file: "neon-recovery-receipt.json",
+                sha256: createHash("sha256").update(recoveryBytes).digest("hex"),
+                projectId: recovery.projectId,
+                productionBranchId: recovery.productionBranchId,
+                recoveryBranchId: recovery.recoveryBranchId,
+                checkpointLsnSha256: recovery.checkpointLsnSha256,
+              },
+              migratedAt: evidenceCreatedAt,
+              evidenceCreatedAt,
+            }, null, 2) + "\n", { mode: 0o600 });
+          '
+          cp "$RUNNER_TEMP/migration-before.json" dist/
+          cp "$RUNNER_TEMP/migration-after.json" dist/
+          cp "$RUNNER_TEMP/database-check.json" dist/
+
+      - name: Upload migration evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-production-migration-${{ github.run_id }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 365

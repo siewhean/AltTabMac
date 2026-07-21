@@ -1,6 +1,9 @@
 .vercel
 .secrets/
+.claude/
+.claude-flow/
 .build/
 CmdTab.app/
+dist/
 .DS_Store
 **/.DS_Store

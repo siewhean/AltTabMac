@@ -1,0 +1,143 @@
+name: CmdTab Database Integration
+
+on:
+  push:
+    paths:
+      - "website/db/**"
+      - "website/scripts/db/**"
+      - "website/package.json"
+      - "website/package-lock.json"
+      - ".github/workflows/cmdtab-database-integration.yml"
+  pull_request:
+    paths:
+      - "website/db/**"
+      - "website/scripts/db/**"
+      - "website/package.json"
+      - "website/package-lock.json"
+      - ".github/workflows/cmdtab-database-integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: cmdtab
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cmdtab"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies and PostgreSQL client
+        run: |
+          set -euo pipefail
+          npm ci --prefix website
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl
+          sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap isolated roles and install schema
+        env:
+          DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/cmdtab
+          DATABASE_MIGRATOR_URL: postgresql://cmdtab_migrator:migrator-only@localhost:5432/cmdtab
+          CMDTAB_MIGRATOR_PASSWORD: migrator-only
+          CMDTAB_RUNTIME_PASSWORD: runtime-only
+          CMDTAB_MAINTENANCE_PASSWORD: maintenance-only
+          CMDTAB_BACKUP_PASSWORD: backup-only
+        run: |
+          set -euo pipefail
+          npm --prefix website run db:configure-roles
+          npm --prefix website run db:migrate
+          npm --prefix website run db:configure-roles
+          npm --prefix website run db:migrate
+
+      - name: Check schema and checksum-drift rejection
+        env:
+          DATABASE_MAINTENANCE_URL: postgresql://cmdtab_maintenance:maintenance-only@localhost:5432/cmdtab
+          DATABASE_MIGRATOR_URL: postgresql://cmdtab_migrator:migrator-only@localhost:5432/cmdtab
+        run: |
+          set -euo pipefail
+          npm --prefix website run db:check
+          migration="website/db/migrations/0001_baseline.sql"
+          cp "$migration" "$RUNNER_TEMP/0001_baseline.sql"
+          trap 'cp "$RUNNER_TEMP/0001_baseline.sql" "$migration"' EXIT
+          printf '\n-- integration drift probe\n' >> "$migration"
+          if npm --prefix website run db:migrate; then
+            echo "Checksum drift was accepted" >&2
+            exit 1
+          fi
+          cp "$RUNNER_TEMP/0001_baseline.sql" "$migration"
+          npm --prefix website run db:migrate:status
+
+      - name: Verify runtime, maintenance, and backup role boundaries
+        env:
+          RUNTIME_URL: postgresql://cmdtab_runtime:runtime-only@localhost:5432/cmdtab
+          MAINTENANCE_URL: postgresql://cmdtab_maintenance:maintenance-only@localhost:5432/cmdtab
+          BACKUP_URL: postgresql://cmdtab_backup:backup-only@localhost:5432/cmdtab
+        run: |
+          set -euo pipefail
+          psql "$RUNTIME_URL" -v ON_ERROR_STOP=1 -c \
+            "begin; insert into admin_settings (key, value) values ('integration', '{}'); rollback;"
+          if psql "$RUNTIME_URL" -v ON_ERROR_STOP=1 -c "create table forbidden_runtime(id int)"; then
+            echo "Runtime role unexpectedly created a table" >&2
+            exit 1
+          fi
+          psql "$MAINTENANCE_URL" -v ON_ERROR_STOP=1 -c \
+            "begin; update admin_settings set value = '{}' where false; delete from admin_settings where false; rollback;"
+          if psql "$MAINTENANCE_URL" -v ON_ERROR_STOP=1 -c \
+            "insert into admin_settings (key, value) values ('forbidden', '{}')"; then
+            echo "Maintenance role unexpectedly inserted data" >&2
+            exit 1
+          fi
+          psql "$BACKUP_URL" -v ON_ERROR_STOP=1 -c "select count(*) from schema_migrations"
+          if psql "$BACKUP_URL" -v ON_ERROR_STOP=1 -c \
+            "delete from admin_settings where false"; then
+            echo "Backup role unexpectedly modified data" >&2
+            exit 1
+          fi
+
+      - name: Exercise custom backup and isolated restore verification
+        env:
+          DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/cmdtab
+          DATABASE_BACKUP_URL: postgresql://cmdtab_backup:backup-only@localhost:5432/cmdtab
+          DATABASE_RESTORE_URL: postgresql://postgres:postgres@localhost:5432/cmdtab_restore_integration
+          DB_RESTORE_VERIFY_CONFIRM: isolated-empty-target
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          backup="$RUNNER_TEMP/cmdtab-integration.dump"
+          npm --prefix website run db:backup -- "$backup"
+          createdb --host localhost --username postgres cmdtab_restore_integration
+          npm --prefix website run db:restore:verify -- "$backup" "${backup}.sha256"

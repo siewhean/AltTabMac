@@ -1,0 +1,64 @@
+name: CmdTab Final Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Immutable canonical release tag
+        required: true
+        type: string
+      evidence_bundle_run_id:
+        description: Successful CmdTab Prepublication Evidence Intake workflow run ID
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  aggregate:
+    runs-on: macos-15
+    timeout-minutes: 15
+    environment: production-release-evidence
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_tag }}
+          fetch-depth: 0
+      - name: Require workflow dispatch from the canonical tag SHA
+        run: |
+          test "$GITHUB_SHA" = "$(git rev-parse HEAD)"
+          test "$(git rev-list -n 1 '${{ inputs.release_tag }}')" = "$GITHUB_SHA"
+      - name: Verify protected evidence producer provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVIDENCE_BUNDLE_RUN_ID: ${{ inputs.evidence_bundle_run_id }}
+        run: |
+          config="$(mktemp)"
+          response="$(mktemp)"
+          trap 'rm -f "$config" "$response"' EXIT
+          chmod 600 "$config" "$response"
+          printf 'fail\nsilent\nshow-error\nheader = "Authorization: Bearer %s"\nheader = "Accept: application/vnd.github+json"\nurl = "https://api.github.com/repos/%s/actions/runs/%s"\noutput = "%s"\n' \
+            "$GH_TOKEN" "$GITHUB_REPOSITORY" "$EVIDENCE_BUNDLE_RUN_ID" "$response" >"$config"
+          curl --config "$config"
+          ./scripts/verify_workflow_run_provenance.mjs \
+            "$response" ".github/workflows/cmdtab-prepublication-evidence.yml" "$(git rev-parse HEAD)"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: cmdtab-prepublication-evidence-${{ inputs.evidence_bundle_run_id }}
+          path: dist
+          run-id: ${{ inputs.evidence_bundle_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Aggregate fail-closed pre-publication evidence
+        run: ./scripts/aggregate_release_evidence.sh
+      - name: Upload trusted aggregate and bound inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cmdtab-release-evidence-${{ github.run_id }}
+          path: |
+            dist/*.json
+            dist/*.sha256
+            dist/*.dmg
+          if-no-files-found: error
+          retention-days: 365

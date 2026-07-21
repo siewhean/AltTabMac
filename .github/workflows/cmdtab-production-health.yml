@@ -1,0 +1,61 @@
+name: CmdTab Production Health
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cmdtab-production-health
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate monitoring configuration
+        env:
+          HEALTHCHECK_SECRET: ${{ secrets.PRODUCTION_HEALTHCHECK_SECRET }}
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_HEALTH_HEARTBEAT_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$HEALTHCHECK_SECRET"
+          test -n "$HEARTBEAT_URL"
+
+      - name: Check database, migration drift, and fulfillment delay
+        env:
+          HEALTHCHECK_SECRET: ${{ secrets.PRODUCTION_HEALTHCHECK_SECRET }}
+        run: |
+          set -euo pipefail
+          config="$(mktemp)"
+          response_file="$(mktemp)"
+          trap 'rm -f "$config" "$response_file"' EXIT
+          chmod 600 "$config" "$response_file"
+          printf 'fail-with-body\nsilent\nshow-error\nretry = 2\nretry-all-errors\nheader = "Authorization: Bearer %s"\nurl = "https://cmdtab.net/api/health"\noutput = "%s"\n' \
+            "$HEALTHCHECK_SECRET" "$response_file" >"$config"
+          curl --config "$config"
+          response="$(cat "$response_file")"
+          RESPONSE="$response" node -e '
+            const result = JSON.parse(process.env.RESPONSE);
+            if (result.ok !== true || result.connectivity !== "ok" ||
+                result.schema !== "current" || result.staleFulfillment !== false) {
+              process.exit(1);
+            }
+          '
+
+      - name: Report success heartbeat
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_HEALTH_HEARTBEAT_URL }}
+        run: curl --fail --silent --show-error --retry 2 "$HEARTBEAT_URL"
+
+      - name: Report failed heartbeat
+        if: failure()
+        env:
+          HEARTBEAT_URL: ${{ secrets.BETTER_STACK_HEALTH_HEARTBEAT_URL }}
+        run: |
+          test -n "$HEARTBEAT_URL"
+          curl --fail --silent --show-error --retry 2 "${HEARTBEAT_URL%/}/fail"

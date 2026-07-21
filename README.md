@@ -1,37 +1,37 @@
 # CmdTab
 
-Last Updated: 2026-04-23
-Active Task: Remove mouse-driven selector movement from the classic grid while preserving click targeting.
+Last Updated: 2026-07-20
+Active Task: Production-readiness hardening and verification.
 
 ## Project Summary
 
 CmdTab is a custom macOS app switcher built with Swift, AppKit, and SwiftUI. It replaces the default switcher with a window-aware overlay, multiple visual styles, and a settings surface for controlling behavior.
 
-The repo now also contains a standalone Next.js marketing site under `website/` for the private beta waitlist and public product story.
+The repo also contains the Next.js product site, trial and commerce APIs, license delivery, opt-in app telemetry ingestion, and an owner dashboard under `website/`.
 
 ## Current Status
 
 - Agent context entrypoints exist in `AGENTS.md`, `CLAUDE.md`, and `CODEX.md`.
+- 2026-07-20: Continued security hardening from `019f7fe9-4471-78e1-9075-2def5e64a508` by (1) centralizing and tightening same-origin `POST` admission checks for waitlist/license-help routes, (2) removing `unsafe-inline` from website CSP `script-src`, and (3) forcing remote license-status refresh before switcher gate checks in app usage paths.
 - All prior bug fixes and refinements remain in place.
+- 2026-07-20: Expanded website SEO and GEO surface for discoverability with new `/faq` and `/how-it-works` pages, JSON-LD emission, strengthened metadata/robots/sitemap policy for public + protected routes, and `llms.txt`.
 - Browser tab feature fully removed (Phase 1 optimization).
 - CGEvent.tap callback refactored to be fully non-blocking (Phase 2 latency fix).
-- Both `⌘Tab` and `⌥Tab` now reveal the same app-window switcher immediately.
-- First-use cache priming is synchronous for the fast icon phase so the overlay does not stall on an empty cache.
-- Refreshes now preserve previously captured thumbnails instead of flashing back to app icons before the next capture pass completes.
-- The visible list now forces the most recent different app to the front, even when extra windows from the current app are still in the snapshot.
+- Both `⌘Tab` and `⌥Tab` use the same app-window switcher. `⌘Tab` quick-releases without UI before 100 ms and reveals at 100 ms when held; `⌥Tab` retains its existing immediate path.
+- First use publishes the complete provisional window list without synchronous capture; thumbnail work stays off the hotkey-installation and reveal-critical paths.
+- Refreshes preserve previously captured thumbnails instead of flashing back to app icons or skeletons before the next capture pass completes.
+- Every trusted real window is a distinct tile in strict window-level MRU order; per-app grouping, fallback tiles, and per-app caps are not used.
 - Frontmost ordering now uses a short-lived validated override after a switch, instead of permanently assuming the selected app became frontmost.
 - Frontmost resolution now falls back to the most recent visible same-PID history window when AX cannot resolve the exact focused window for a multi-window app.
-- Candidate enumeration now also prunes overlapping same-app window-server surfaces with different `CGWindowID`s so one visible window does not appear multiple times in the switcher.
+- Candidate enumeration deduplicates only repeated records for the same `ownerPID + CGWindowID`; distinct window IDs remain distinct tiles even when their titles, frames, or overlap are identical.
 - Classic grid thumbnails now fill and clip inside the card frame instead of letterboxing already-cropped captures.
-- Window enumeration now treats unresolved AX window-ID allow-lists as `no trusted window-level entries` instead of silently allowing every CG surface for that PID, so affected apps degrade to one fallback app tile instead of unsafe duplicate or wrong-window candidates.
-- Classic grid tiles without previews now render as intentional app-centric fallback cards, so AX fallback entries and previewless windows no longer appear as broken skeleton windows.
-- App fallback tiles now also attempt a preview-only representative CG window capture, so apps that cannot safely expose an exact AX-switchable window can still show a real thumbnail in the switcher while keeping app-level activation semantics.
+- Window enumeration prefers AX-resolved window IDs; if every running app has an unusable AX policy, a global heuristic fallback keeps real WindowServer surfaces available instead of producing an empty switcher.
 - Classic grid previews now follow the AltTab-style approach more closely: the tile frame stays fixed, but the preview image is aspect-fit within that frame instead of being crop-filled edge to edge.
 - The unused space around aspect-fit previews now renders with a glass-like backing layer, and true no-preview tiles now use the skeleton fallback treatment instead of centered app-icon cards.
-- Previewless skeleton tiles in the classic grid now render as skeleton-only surfaces, without the app icon, title, subtitle, or the standard label row beneath the card.
+- Previewless tiles keep the app icon and application name in the label row while the unavailable preview area renders as a skeleton.
 - Classic grid tiles with real previews now use a larger app icon and title row so switcher labels read more clearly at a glance.
 - In the classic grid, mouse-wheel input now scrolls the page itself instead of stepping selection, and tile selection follows real mouse movement rather than changing just because content scrolled underneath a stationary pointer.
-- The cold-start switcher path now performs a bounded synchronous thumbnail prime for the first visible windows, reducing the chance that users see skeleton placeholders before thumbnails are ready.
+- The cold-start switcher path never blocks hotkey installation on thumbnail capture; warm thumbnails are reused immediately and cold thumbnails populate asynchronously.
 - Continuous trackpad scroll is no longer swallowed by the global hotkey tap while the switcher is visible, and hover-driven selection is now suppressed during scroll until a real mouse-move event occurs.
 - New switcher sessions now start with hover selection suppressed, so the initial selection stays on the first tab until the user actually moves the mouse.
 - In the classic grid, pointer hover no longer moves the selector at all; mouse position is only used to identify click targets.
@@ -43,34 +43,38 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Settings now surface live permission diagnostics for Accessibility, Screen Recording, and secure-input interference.
 - Settings now expose a preview preload action so users can explicitly warm the thumbnail cache before the next session.
 - Settings now explicitly surface the shipped workflow features, including search memory, quick actions, selection clarity, space/display awareness, trigger flexibility, and decluttering.
-- The app now includes a dedicated Licensing pane with a 14-day local trial state, signed offline license activation, and direct buy/help actions.
+- The app includes a dedicated Licensing pane with a server-registered 14-day trial, signed offline license activation, and direct buy/help actions. Cached licensed state is accepted only after signature verification.
+- Developer licensing simulations and the Developer settings pane are compiled out of release builds.
+- Diagnostics telemetry is disabled by default, can be opted into from Settings, and excludes window titles, thumbnails, and app contents.
 - Expired-trial sessions now route the user into the Licensing pane instead of opening the switcher.
 - Radial Menu selection emphasis is stronger, with a clearer selected state and center detail label.
-- A standalone `website/` Next.js App Router project now exists for the marketing homepage, privacy page, OG assets, and waitlist API.
-- The website ships a screenshot-led landing page with generated product visuals for Classic Grid, Command Palette, Radial Menu, walkthrough steps, and permissions guidance.
+- A standalone `website/` Next.js App Router project provides the marketing, privacy, security, buy, help, and protected dashboard surfaces.
+- The website ships a screenshot-led landing page using privacy-safe captures from the rebuilt app for Classic Grid, Command Palette, Radial Menu, and walkthrough states. The permissions illustration remains until clean-Mac onboarding media is recorded.
 - The website waitlist flow is implemented as a hardened `POST /api/waitlist` route with strict validation, rate limiting, same-origin checks, honeypot handling, and Resend server-side delivery hooks.
-- The website copy now positions the launch around a private beta, founder pricing, a planned 14-day trial, and a one-time license rather than a subscription.
+- The website supports a 14-day trial and one-time-license purchase flow through hosted Lemon Squeezy checkout and signed license fulfillment.
 - The website feature layer now explicitly presents the shipped app differentiators instead of relying on vague “better switcher” language.
 - The website now includes restrained motion: hero entrance choreography, ambient linear drift on supporting visuals, and scroll-reveal movement across the main content sections.
 - The website now includes Vercel Web Analytics / Speed Insights wiring plus client-side CTA event tracking using the existing `data-analytics-*` markers.
 - The walkthrough section now includes a browser-based interactive switcher demo for Classic Grid, Command Palette, and Radial Menu so visitors can click, search, and step through the modes directly on the site.
 - The website now includes a launch/checkout section that can be activated with hosted provider URLs for checkout and trial download.
-- A website owner dashboard now exists at `/dashboard` to summarize the live offer, launch configuration state, and the traffic / funnel / preference metrics that are being tracked.
+- A protected website owner dashboard at `/dashboard` summarizes waitlist, trial, purchase, fulfillment, support, and opt-in app-usage data.
 - A launch handoff file now exists at `LAUNCH.md`, and `website/.env.example` documents the required website env vars for waitlist delivery and deployment.
 - A root `SECURITY.md`, a website security page, and `/.well-known/security.txt` now document disclosure contact, security controls, and launch-stage operational requirements.
 - Security verification now includes repeatable repo automation through `.github/workflows/security.yml`, Dependabot updates, and `npm run security:check`.
-- Window capture now prefers the cleaner WindowServer hardware capture path with explicit full-size / best-resolution flags, reducing white-bar artifacts in thumbnails and selected-window backdrops.
+- Window capture uses ScreenCaptureKit first on macOS 14+ and a circuit-broken, time-bounded WindowServer/Core Graphics compatibility path when shareable-window discovery fails; macOS 13 retains the legacy capture path.
 - Candidate window enumeration now deduplicates repeated CG entries by real window identity, preventing duplicate non-window tiles for the same underlying window from appearing in the switcher.
-- Recent local verification passed with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test`; earlier website verification passed with `npm run typecheck` and `npx next build --webpack`.
-- 2026-04-23 live probe after the AX allow-list fix:
-  - Arc resolved to a trusted restricted allow-list (`[134]`) and still has one eligible real window candidate.
-  - VS Code, Terminal, and Finder resolved to `noneTrusted`, which now intentionally routes them to fallback app tiles instead of unsafe per-window entries when exact AX-backed window IDs are unavailable.
-- 2026-04-23 visual fallback refinement:
-  - App fallback entries in the classic grid now show a centered app icon and title instead of a window skeleton placeholder.
-  - Previewless window items still render a fallback card, but now include app identity and a clear `Preview unavailable` treatment so the switcher reads as degraded, not broken.
-- 2026-04-23 fallback thumbnail recovery:
-  - Fallback app tiles now select the best representative CG window candidate for preview capture only, without reusing that candidate for explicit window activation.
-  - This restores thumbnails for apps like Finder, Terminal, VS Code, and Outlook when exact AX-backed window IDs remain untrusted, while preserving the safer app-level fallback action.
+- Production gates are automated through Swift tests/build checks, website tests/typecheck/build/audit, secret scanning, and fail-closed release scripts. Actual notarization and clean-Mac QA still require owner credentials and hardware validation.
+- Live Aqua-session QA confirmed ScreenCaptureKit populated three distinct Classic Grid thumbnails with app icons and names. A 100-invocation warm first-frame test found a populated preview at 50 ms on every invocation, and a 400-step forward/reverse selection cycle kept the previews intact.
+- The app now builds as a universal `arm64 + x86_64` macOS 13+ bundle, exposes privacy-safe `--diagnostics-json` output, and records hotkey, reveal, capture, and activation timing with `os_signpost`.
+- An opt-in runtime QA evidence channel now correlates hardware-event, reveal-deadline, first AppKit-frame, cache/capture, event-tap, selection-step, and exact-window activation results in privacy-safe JSONL. The release validator enforces warm/cold latency, callback, duplicate, multi-window, and forward/reverse-cycle gates; physical-keyboard and clean-Mac checks remain operator requirements.
+- Local builds use the team Apple Development identity when available so Accessibility and Screen Recording grants survive rebuilds; permission onboarding opens only one missing System Settings pane, never loops automatic requests, and completes its first-launch decision before the global event tap is installed.
+- Upgrades from the legacy `com.user.CmdTab` identity migrate only known preferences and validated licensing state; explicit reopens present the standalone switcher, while first launch and login-item startup remain background-only.
+- If AX window IDs or Screen Recording metadata are unavailable in the launched app process, CmdTab now falls back to visible or titled WindowServer surfaces so `⌘Tab` still opens a skeleton-only switcher instead of an empty session.
+- Public mutation and dashboard-login throttles now use fail-closed Upstash Redis state; Preview has a configured store, while Production still requires a separately provisioned store.
+- PostgreSQL now uses checksum-verified advisory-lock migrations, an authenticated health endpoint, least-privilege role bootstrap, bounded daily retention, and automated backup/restore-drill workflows. Before Production SQL runs, the protected workflow creates and verifies a real Neon recovery branch and derives PITR retention from the authenticated project response; migration, backup/restore, final-QA, and aggregate receipts all bind that same provider evidence. Reusable `db:backup` and `db:restore:verify` commands keep credentials out of process arguments, and PostgreSQL 17 CI covers clean install, migration idempotency, checksum drift, and role isolation. The workflows still require live AWS/KMS, Better Stack, and Neon credentials.
+- Production website operations now have fail-closed Preview/Production environment-isolation validation, exact WAF enforcement checks, clean-tag immutable-SHA deployment receipts, and verified Vercel Blob DMG publishing with post-upload checksum validation. Root and website Vercel ignore manifests prevent local secrets and heavyweight macOS build artifacts from entering deployment uploads.
+- Release publication is two-phase: privacy-safe Preview smoke plus protected zero-alias Production staging feed the final aggregate, then a separate checksum-authorized action publishes the immutable DMG, promotes the staged deployment, verifies canonical health, and records the rollback target.
+- Lemon Squeezy fulfillment now requires explicit store/product allowlists, rejects test-mode orders, atomically claims delivery, and preserves refund tombstones before issuing a signed license.
 - 2026-04-23 aspect-ratio experiment reverted:
   - Reverted the per-tile aspect-ratio-driven height logic in `ClassicGridView` after it made the grid read worse in practice.
   - Restored the previous fixed thumbnail frame with crop/fill rendering, which matches the prior working switcher layout.
@@ -105,7 +109,7 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Browser-tab Apple Events permissions and messaging should stay removed from the bundle.
 - The product should optimize for the fastest path to the correct window, not expand into a broad launcher or browser-tab automation tool.
 - `⌘Tab` remains the headline trigger, but CmdTab now supports optional right-command / right-option tap-based alternate triggers as a secondary access path.
-- The marketing site lives in `website/` and stays waitlist-only for private beta; there is still no checkout, testimonials, or public download flow in v1.
+- The product site lives in `website/`; checkout, trial registration, license fulfillment/recovery, and the protected owner dashboard are active code paths, while public launch still depends on production configuration.
 - The website targets broad Mac users with a premium, screenshot-first presentation and Mac-native system typography instead of a generic SaaS treatment.
 - The website must avoid vibe-coded patterns. Start from a design system first, then keep color, type, spacing, radius, motion, and copy consistent across pages.
 - Website visual constraints:
@@ -136,8 +140,8 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
   - avoid vague claims like "Launch faster", "Build your dreams", or "Create without limits"
   - do not use fake testimonials
   - do not use placeholder personas or generic AI face motifs
-- The waitlist inbox is the source of truth for v1; there is no database dependency for the website launch.
-- The commercial direction is `14-day free trial -> one-time perpetual license`, with founder pricing communicated in copy before any live commerce flow exists.
+- Postgres is required for persistent waitlist, trial, dashboard, telemetry, and license-fulfillment records.
+- The commercial model is `14-day free trial -> one-time perpetual license` through Lemon Squeezy-hosted checkout.
 
 ## Open Issues / Next Steps
 
@@ -147,25 +151,69 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
 - Manually validate the new space/display placement behavior on single-display and multi-display setups, especially mirrored overlay behavior for `All Displays`.
 - Manually validate quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`) while the switcher is visible to confirm AX close/minimize behavior across common apps.
 - Manually validate the new alternate trigger options (`Right ⌘`, `Right ⌘ ×2`, `Right ⌥`, `Right ⌥ ×2`) in real apps to confirm they never misfire during ordinary modifier shortcuts.
-- Decide when to add a real direct-sale stack for trial download, checkout, licensing, and purchase recovery.
+- Split Neon Preview and Production, configure the least-privilege database roles, enable at least seven days of PITR, then apply the validated migrations and activate backup/monitoring workflows.
 - Configure the website runtime env vars (`RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`) before deploying or testing the live waitlist email path.
 - Configure the launch env vars (`NEXT_PUBLIC_CHECKOUT_PROVIDER`, `NEXT_PUBLIC_CHECKOUT_URL`, `NEXT_PUBLIC_TRIAL_URL`, `NEXT_PUBLIC_SUPPORT_EMAIL`) before turning on paid traffic.
+- Configure Production Upstash, database role URLs, dashboard secrets, Lemon Squeezy webhook/signing secrets, and checkout/download URLs before production traffic.
 - Back up `.secrets/cmdtab-license-private-key.pem` somewhere safe. The app embeds only the public key; this private key is required to generate real license tokens.
 - Use `swift scripts/generate_license_key.swift --email user@example.com --name "User Name"` to issue a signed activation key for the app.
-- Provision and monitor `security@cmdtab.net` before public launch so security reports do not depend on the privacy inbox alone.
-- Repair Vercel CLI auth on this machine with `vercel login`; the installed CLI currently has an invalid saved token.
-- Authenticate Vercel on the owner side or install/configure the Vercel CLI before attempting a real deployment from this machine.
-- Enable Vercel edge protections or an equivalent shared rate-limit layer before public launch; the in-repo limiter is intentionally lightweight and process-local.
+- Upgrade Vercel before enforcing the configured WAF rule; Hobby accepted the validated log-only rule but rejected the `429` rate-limit action.
+- Resolve the Apple team identity before release: the plan names `T6CDNA9H92`, while the installed development certificate and current app signature report `TeamIdentifier=94R58J6LA2`. Then install the matching Developer ID Application identity and notary profile and produce the notarized `CmdTab-1.0.0-universal.dmg` receipt.
+- Provision and monitor `security@cmdtab.net` and `ops@cmdtab.net`; the domain currently has no mail exchanger configured.
 - Run a browser pass against the local or deployed website to review the final composition, responsive behavior, and screenshot pacing visually.
 - Tune the new website motion against a real browser session to confirm the reveal cadence and ambient drift feel polished rather than decorative.
 - Feature 3 (Appearance Previews) was already implemented — `StylePreviewCard` + `StyleMockPreview` exist in `PreferencesView.swift`.
+- Verify search console query ownership before further title/H1 reshaping for new commercial pages.
 - Keep this file current whenever the active task or implementation status changes.
 
 ## Recent Changes Log
 
+- 2026-07-21: Completed SEO and GEO audit & competitor review.
+  - Formulated competitive analysis vs AltTab, Contexts, and Raycast.
+  - Generated actionable roadmap for `/vs/*` comparison pages, `/llms-full.txt`, brand entity disambiguation, deep feature endpoints, and software directory indexing.
+  - Humanized website copy across public marketing and help pages, including onboarding/trial/support/legal messaging, to reduce AI-like phrasing and improve readability.
+
+- 2026-07-20: Implemented SEO + GEO website optimization rollout.
+  - Added `/faq` and `/how-it-works` public routes with dedicated crawl metadata and FAQ schema for AI extraction.
+  - Expanded `sitemap.ts` to include all public routes and updated `robots.ts` with protected dashboard/API disallow rules.
+  - Added global and page-level JSON-LD (`WebSite`, `SoftwareApplication`, `Product`, `Offer`, `FAQ`, `BreadcrumbList`) and added `website/public/llms.txt` for model indexing.
+  - Added `noindex` metadata to protected dashboard routes and explicit canonical metadata for public commerce/legal routes.
+  - Added macOS intent copy and platform metadata blocks on `/` and `/buy` plus Open Graph / Twitter alt/title clarifications.
+
+- 2026-07-20: Replaced generated website product visuals with real CmdTab captures.
+  - Captured Classic Grid, Command Palette, and Radial Menu directly from the packaged app using isolated neutral windows; the published frames contain real thumbnails, app icons, names, and selection states without private desktop content.
+  - Added optional self-hosted MP4 rendering with poster fallback and reduced-motion handling, plus asset-integrity tests that reject product SVG regressions and mismatched PNG dimensions.
+  - Full interaction recordings remain a clean-QA-account launch task because this desktop's command-line video capture resolves to the macOS lock screen rather than the active CmdTab panel; no lock-screen or synthesized footage is published.
+
+- 2026-07-20: Security review deepened around website CSRF and license revocation paths.
+  - Hardened website POST intake by making `/api/license-help` and `/api/waitlist` fail hard when `Origin`/`Referer` are missing instead of treating that as same-origin.
+  - Added immediate license-status revocation checks for the macOS client (`/api/license/status`), and introduced a dedicated license-status rate-limit bucket to control abuse.
+  - Completed a focused sweep of app, website, and transaction surfaces for #1 CSRF controls and #3 refund-driven access revocation, with remaining risks limited to timing-window behavior for revocation propagation.
+
+- 2026-07-20: Replaced self-asserted Neon recovery markers with provider-verified release evidence.
+  - The protected migration workflow now creates a protected recovery branch, waits for the exact Neon `create_branch` operation, and verifies its parent LSN and configured history retention before SQL runs.
+  - Migration, backup/restore, final-QA, and aggregate receipts bind the same redacted Neon API response hashes and immutable source/tag; regression coverage rejects missing credentials, weak retention, operation mismatch, and receipt tampering.
+
+- 2026-07-17: Added production database backup and restore verification tooling.
+  - Added reusable custom-format backup and isolated restore-verification commands with SHA-256 validation and credential-safe PostgreSQL process invocation.
+  - Backup CI now downloads its uploaded S3 dump and checksum and revalidates both before reporting success; backup and monthly restore drills support Better Stack success/failure heartbeats.
+  - Added PostgreSQL 17 integration CI for clean migration install, second-run idempotency, checksum-drift rejection, schema checks, and runtime/maintenance/backup role boundaries.
+
+- 2026-07-16: Fixed the cold-start app list dropping windows whose thumbnails were not ready during synchronous priming. The initial session now retains the full enumerated app/window list and overlays ready thumbnails onto it.
+
+- 2026-07-16: Fixed stale Cmd-Tab trigger state after dismissal. All switcher hide paths now cancel the pending trigger before Command release, preventing a dismissed session from launching a hidden quick-switch action.
+
+- 2026-07-16: Hardened touchpad outside-click dismissal by handling all mouse-down variants and converting event-tap clicks through `NSEvent.mouseLocation`, avoiding Quartz/Cocoa screen-coordinate mismatches.
+
+- 2026-07-16: Activated outside-click dismissal by including left/right mouse-down events in the global CGEvent tap mask. The existing dismissal handler was unreachable because those event types were not subscribed to.
+
+- 2026-07-16: Routed outside mouse-down events through the existing Accessibility event tap so switcher dismissal does not depend on AppKit global monitor delivery.
+
+- 2026-07-16: Fixed switcher dismissal when the user clicks outside the visible switcher panel. A global mouse monitor now hides the active session while preserving clicks inside the primary or mirrored switcher panels.
+
 - 2026-04-23: Fixed duplicate switcher tiles and tightened thumbnail presentation.
-  - Added a semantic same-app candidate-pruning pass in `AppSwitcher` so overlapping window-server surfaces with different `CGWindowID`s collapse to the best visible candidate instead of producing duplicate tiles.
-  - Added regression coverage in `AppSwitcherActivationTests` for same-app overlapping-surface pruning while preserving legitimately separate overlapping windows.
+  - Superseded: semantic same-app pruning was removed because distinct `CGWindowID`s are distinct switcher windows even when their frames overlap; current deduplication uses exact stable window identity only.
+  - Regression coverage now preserves distinct same-app IDs with identical or overlapping frames and collapses only duplicate records for one window ID.
   - Updated `ClassicGridView` so live previews now render with fill-and-clip inside the thumbnail card instead of fitting with visible framing artifacts.
   - Verified with `swift test --disable-sandbox --scratch-path /tmp/CmdTab-test` and rebuilt the packaged app with `./build.sh`.
 - 2026-04-23: Fixed multi-window frontmost resolution when exact AX identity is unavailable.
@@ -191,12 +239,12 @@ The repo now also contains a standalone Next.js marketing site under `website/` 
   - Added `@vercel/analytics` and `@vercel/speed-insights` to `website/`.
   - Wired page tracking in `website/src/app/layout.tsx` and CTA event tracking through a new `SiteEventTracker`.
   - Added `website/.env.example` for the waitlist email env vars and created `LAUNCH.md` with the launch checklist covering website deployment, commerce, and notarized macOS distribution.
-  - Confirmed the Vercel connector is not authenticated in this environment and the Vercel CLI is not installed locally, so final deploy/auth steps still need the owner side.
+  - Vercel access was unavailable during that historical pass; authenticated CLI access is now working and was used for the current production audit.
 - 2026-03-27: Tightened duplicate-window suppression in switcher enumeration.
   - `AppSwitcher` now deduplicates CGWindow candidates by `(ownerPID, windowID)` and keeps the best-quality candidate instead of allowing multiple CG entries for the same real window through.
   - Added regression coverage proving duplicate entries for one underlying window collapse while distinct windows with different IDs remain visible.
 - 2026-03-27: Aligned window capture with AltTab’s cleaner thumbnail path.
-  - `AppSwitcher` now prefers the SkyLight / WindowServer hardware capture path earlier in the screenshot pipeline and uses explicit capture flags equivalent to AltTab’s `ignoreGlobalClipShape + bestResolution + fullSize`.
+  - Superseded: macOS 14+ now uses ScreenCaptureKit first, then a single-worker, time-bounded WindowServer/Core Graphics compatibility path so unavailable capture services cannot wedge the refresh queue.
   - `SwitcherView` no longer paints an opaque fill behind the selected-window backdrop layer, reducing visible edge gutters when a captured image still has transparent margins.
 - 2026-03-27: Added protected-core guidance for future agents.
   - `README.md` and `AGENTS.md` now explicitly mark the working switcher core as protected.

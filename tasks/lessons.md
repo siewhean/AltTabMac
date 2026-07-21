@@ -21,3 +21,9 @@
 - 2026-03-27: When a testable state machine keeps private helper structs, keep the exposed stored properties private too; Swift will reject an internal type that surfaces private-type-backed state.
 - 2026-03-27: If a feature is only accessible through hidden shortcuts or buried implementation details, users will treat it as missing; surface shipped features explicitly in Settings and on the marketing site.
 - 2026-03-27: For marketing-site motion, start with CSS-first reveal primitives and ambient keyframes, and always keep `prefers-reduced-motion` as a first-class constraint instead of bolting it on later.
+- 2026-07-16: When adding a CGEvent tap handler for a new event type, update the tap’s event-interest mask in the same change; an implemented switch branch is inert unless the tap subscribes to that event.
+- 2026-07-16: Do not compare raw `CGEvent.location` values with `NSWindow.frame`; normalize through `NSEvent.mouseLocation` or an explicit Quartz-to-Cocoa conversion before hit-testing AppKit windows.
+- 2026-07-16: Dismissing a hotkey-driven overlay must clear its pending trigger state before the modifier release arrives; hiding the panel alone can turn the release into an unintended quick-switch action.
+- 2026-07-16: Cold-start thumbnail priming must enrich the complete enumerated item list rather than replace it; capture readiness must never determine which active apps appear in the first switcher session.
+- 2026-07-17: Do not infer duplicate windows from title, frame, or overlap when the product contract is window-level switching; only repeated records for the same stable `ownerPID + CGWindowID` may collapse.
+- 2026-07-17: On macOS 14+, do not fall through from a bounded ScreenCaptureKit failure into synchronous private or Core Graphics capture APIs; those paths can block indefinitely when ReplayKit is unavailable.
