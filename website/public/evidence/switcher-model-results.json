@@ -1,0 +1,155 @@
+{
+  "mru_selection": {
+    "window_universe": [
+      "A1",
+      "A2",
+      "B1",
+      "B2",
+      "C1"
+    ],
+    "max_sequence_length": 6,
+    "meaningful_sequences_checked": 19500,
+    "strict_mru_selection_mismatches": 3900,
+    "mismatch_rate": 0.2,
+    "examples": [
+      {
+        "activation_sequence": ["A1", "A2"],
+        "history": ["A2", "A1"],
+        "ordered_tiles": ["A1", "B1", "B2", "C1", "A2"],
+        "strict_selection": "A1",
+        "current_selection": "B1"
+      },
+      {
+        "activation_sequence": ["A2", "A1"],
+        "history": ["A1", "A2"],
+        "ordered_tiles": ["A2", "B1", "B2", "C1", "A1"],
+        "strict_selection": "A2",
+        "current_selection": "B1"
+      },
+      {
+        "activation_sequence": ["B1", "B2"],
+        "history": ["B2", "B1"],
+        "ordered_tiles": ["B1", "A1", "A2", "C1", "B2"],
+        "strict_selection": "B1",
+        "current_selection": "A1"
+      },
+      {
+        "activation_sequence": ["B2", "B1"],
+        "history": ["B1", "B2"],
+        "ordered_tiles": ["B2", "A1", "A2", "C1", "B1"],
+        "strict_selection": "B2",
+        "current_selection": "A1"
+      },
+      {
+        "activation_sequence": ["A1", "A1", "A2"],
+        "history": ["A2", "A1"],
+        "ordered_tiles": ["A1", "B1", "B2", "C1", "A2"],
+        "strict_selection": "A1",
+        "current_selection": "B1"
+      },
+      {
+        "activation_sequence": ["A1", "A2", "A1"],
+        "history": ["A1", "A2"],
+        "ordered_tiles": ["A2", "B1", "B2", "C1", "A1"],
+        "strict_selection": "A2",
+        "current_selection": "B1"
+      },
+      {
+        "activation_sequence": ["A1", "A2", "A2"],
+        "history": ["A2", "A1"],
+        "ordered_tiles": ["A1", "B1", "B2", "C1", "A2"],
+        "strict_selection": "A1",
+        "current_selection": "B1"
+      },
+      {
+        "activation_sequence": ["A1", "B1", "B2"],
+        "history": ["B2", "B1", "A1"],
+        "ordered_tiles": ["B1", "A1", "A2", "C1", "B2"],
+        "strict_selection": "B1",
+        "current_selection": "A1"
+      },
+      {
+        "activation_sequence": ["A1", "B2", "B1"],
+        "history": ["B1", "B2", "A1"],
+        "ordered_tiles": ["B2", "A1", "A2", "C1", "B1"],
+        "strict_selection": "B2",
+        "current_selection": "A1"
+      },
+      {
+        "activation_sequence": ["A2", "A1", "A1"],
+        "history": ["A1", "A2"],
+        "ordered_tiles": ["A2", "B1", "B2", "C1", "A1"],
+        "strict_selection": "A2",
+        "current_selection": "B1"
+      }
+    ]
+  },
+  "preview_completeness": {
+    "app_counts": [1, 6],
+    "preview_success_configurations_checked": 126,
+    "completeness_failures": 120,
+    "failure_rate": 0.9523809523809523,
+    "examples": [
+      {
+        "apps": ["App1"],
+        "preview_success": {"App1": false},
+        "visible_apps": [],
+        "missing_apps": ["App1"]
+      },
+      {
+        "apps": ["App1", "App2"],
+        "preview_success": {"App1": false, "App2": false},
+        "visible_apps": [],
+        "missing_apps": ["App1", "App2"]
+      },
+      {
+        "apps": ["App1", "App2"],
+        "preview_success": {"App1": false, "App2": true},
+        "visible_apps": ["App2"],
+        "missing_apps": ["App1"]
+      },
+      {
+        "apps": ["App1", "App2"],
+        "preview_success": {"App1": true, "App2": false},
+        "visible_apps": ["App1"],
+        "missing_apps": ["App2"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": false, "App2": false, "App3": false},
+        "visible_apps": [],
+        "missing_apps": ["App1", "App2", "App3"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": false, "App2": false, "App3": true},
+        "visible_apps": ["App3"],
+        "missing_apps": ["App1", "App2"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": false, "App2": true, "App3": false},
+        "visible_apps": ["App2"],
+        "missing_apps": ["App1", "App3"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": false, "App2": true, "App3": true},
+        "visible_apps": ["App2", "App3"],
+        "missing_apps": ["App1"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": true, "App2": false, "App3": false},
+        "visible_apps": ["App1"],
+        "missing_apps": ["App2", "App3"]
+      },
+      {
+        "apps": ["App1", "App2", "App3"],
+        "preview_success": {"App1": true, "App2": false, "App3": true},
+        "visible_apps": ["App1", "App3"],
+        "missing_apps": ["App2"]
+      }
+    ]
+  }
+}

@@ -14,6 +14,24 @@ import "./globals.css";
 const siteUrl = getSiteUrl();
 const defaultTitle = `${siteConfig.name} — Mac window switcher with real previews`;
 
+function webmasterVerification(): Metadata["verification"] {
+  const google = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+  const bing = process.env.BING_SITE_VERIFICATION?.trim();
+
+  if (!google && !bing) return undefined;
+
+  return {
+    ...(google ? { google } : {}),
+    ...(bing
+      ? {
+          other: {
+            "msvalidate.01": bing,
+          },
+        }
+      : {}),
+  };
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -25,6 +43,7 @@ export const metadata: Metadata = {
   authors: [{ name: siteConfig.name, url: siteUrl }],
   creator: siteConfig.name,
   publisher: siteConfig.name,
+  verification: webmasterVerification(),
   alternates: {
     canonical: "/",
   },

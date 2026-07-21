@@ -198,6 +198,7 @@ export function createArticleStructuredData({
   description,
   path,
   about,
+  citation = [],
   datePublished = "2026-07-20",
   dateModified = productFacts.reviewedAt,
 }: {
@@ -205,6 +206,7 @@ export function createArticleStructuredData({
   description: string;
   path: `/${string}`;
   about: ReadonlyArray<string>;
+  citation?: ReadonlyArray<string>;
   datePublished?: string;
   dateModified?: string;
 }) {
@@ -222,6 +224,7 @@ export function createArticleStructuredData({
     dateModified,
     inLanguage: "en",
     about,
+    ...(citation.length > 0 ? { citation } : {}),
     author: { "@id": `${siteUrl}/#organization` },
     publisher: { "@id": `${siteUrl}/#organization` },
     image: `${siteUrl}/opengraph-image`,

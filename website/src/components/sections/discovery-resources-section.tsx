@@ -11,14 +11,26 @@ const resources = [
     body: "Review multiple windows per app, global recent-use ordering, preview fallback, Spaces, displays, and activation behavior.",
   },
   {
+    href: "/evidence",
+    eyebrow: "Testing evidence",
+    title: "Inspect the model, regression contract, and manual boundary",
+    body: "Download the public model results, 136-case matrix, and execution plan instead of treating a green badge as universal proof.",
+  },
+  {
     href: "/guides/switch-between-windows-on-mac",
     eyebrow: "Mac guide",
     title: "Choose between Cmd+Tab, Cmd+`, Mission Control, and CmdTab",
     body: "Match the native shortcut or CmdTab workflow to the switching problem you actually need to solve.",
   },
   {
+    href: "/compare/mac-window-switchers",
+    eyebrow: "Market landscape",
+    title: "Compare the built-in switcher, AltTab, BetterCmdTab, CmdTab, and Scopo",
+    body: "Use source-dated first-party facts about switching model, search, previews, requirements, and commercial terms.",
+  },
+  {
     href: "/compare/cmdtab-vs-macos-command-tab",
-    eyebrow: "Fair comparison",
+    eyebrow: "Focused comparison",
     title: "CmdTab versus the built-in macOS switcher",
     body: "Compare apps, individual windows, previews, search, permissions, quick actions, and setup without pretending one option fits everyone.",
   },
@@ -35,7 +47,7 @@ export function DiscoveryResourcesSection() {
     <SectionShell
       eyebrow="Authoritative resources"
       title="Verify the product instead of relying on a slogan"
-      description="CmdTab publishes separate factual pages for product behavior, native macOS workflows, comparison, compatibility, permissions, and privacy."
+      description="CmdTab publishes separate factual pages for behavior, evidence, native macOS workflows, market comparison, compatibility, permissions, and privacy."
       className="pt-8"
     >
       <div className="grid gap-5 md:grid-cols-2">

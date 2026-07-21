@@ -6,9 +6,9 @@ import { MobileNavigation } from "@/components/ui/mobile-navigation";
 
 const marketingNav = [
   { href: "/features/window-switcher", label: "Features" },
+  { href: "/evidence", label: "Evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Guide" },
-  { href: "/compare/cmdtab-vs-macos-command-tab", label: "Compare" },
-  { href: "/compatibility", label: "Compatibility" },
+  { href: "/compare/mac-window-switchers", label: "Compare" },
   { href: "/faq", label: "FAQ" },
 ] as const;
 
