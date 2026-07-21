@@ -20,7 +20,7 @@ export function MobileNavigation() {
       </summary>
       <nav
         aria-label="Mobile navigation"
-        className="absolute right-0 top-[calc(100%+0.75rem)] w-[min(82vw,20rem)] overflow-hidden rounded-[24px] border border-white/12 bg-[#07101c]/95 p-2 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur-2xl"
+        className="absolute right-0 top-[calc(100%+0.75rem)] w-[min(82vw,20rem)] overflow-hidden rounded-[24px] border border-white/15 bg-[#07101c] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.7)]"
       >
         <div className="grid gap-1">
           {mobileNavItems.map((item) => (
