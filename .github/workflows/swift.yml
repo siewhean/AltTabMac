@@ -8,7 +8,6 @@ on:
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
       - scripts/qa/**
-      - scripts/showcase/**
       - .github/workflows/swift.yml
   pull_request:
     branches:
@@ -18,11 +17,10 @@ on:
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
       - scripts/qa/**
-      - scripts/showcase/**
       - .github/workflows/swift.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: swift-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -38,14 +36,11 @@ jobs:
           - macos-14
           - macos-15
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-          fetch-depth: 0
 
       - name: Verify pre-fix model evidence remains reproducible
         shell: bash
@@ -74,47 +69,6 @@ jobs:
 
       - name: Run complete Swift package test suite
         run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
-
-      - name: Generate production-view showcase media
-        if: matrix.runner == 'macos-15' && github.head_ref == 'agent/real-app-showcase-media'
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -rf website/public/showcase
-          mkdir -p website/public/showcase
-          swift run \
-            -c release \
-            --scratch-path /tmp/CmdTab-showcase \
-            CmdTab \
-            --render-showcase "$PWD/website/public/showcase"
-          swift scripts/showcase/validate_showcase_media.swift "$PWD/website/public/showcase"
-          for image in website/public/showcase/*-poster.png website/public/showcase/contact-sheet.png; do
-            sips -g pixelWidth -g pixelHeight "$image"
-          done
-
-      - name: Commit validated showcase media
-        if: matrix.runner == 'macos-15' && github.head_ref == 'agent/real-app-showcase-media'
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add website/public/showcase
-          if git diff --cached --quiet; then
-            echo "Showcase media is already current."
-          else
-            git commit -m "Generate real CmdTab showcase media"
-            git push origin HEAD:agent/real-app-showcase-media
-          fi
-
-      - name: Upload showcase media evidence
-        if: always() && matrix.runner == 'macos-15' && github.head_ref == 'agent/real-app-showcase-media'
-        uses: actions/upload-artifact@v4
-        with:
-          name: cmdtab-real-showcase-media
-          path: website/public/showcase
-          if-no-files-found: warn
-          retention-days: 14
 
       - name: Check patch hygiene
         run: git diff --check
