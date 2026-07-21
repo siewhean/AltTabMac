@@ -3,6 +3,7 @@ import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MobileNavigation } from "@/components/ui/mobile-navigation";
 import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { heroContent } from "@/content/home";
 import { siteConfig } from "@/content/site";
@@ -17,25 +18,25 @@ export function HeroSection() {
 
       <div className="relative mx-auto flex min-h-[100svh] max-w-[1380px] flex-col px-5 pb-12 pt-5 sm:px-8 lg:px-10">
         <header
-          className="hero-enter flex items-center justify-between gap-6 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl"
+          className="hero-enter relative z-40 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl lg:gap-6"
           style={{ "--enter-delay": "60ms" } as CSSProperties}
         >
-          <a className="inline-flex items-center gap-3" href="/">
+          <a aria-label="CmdTab homepage" className="inline-flex min-w-0 items-center gap-3" href="/">
             <Image
               src="/brand/cmdtab.png"
               alt="CmdTab app icon"
               width={40}
               height={40}
-              className="rounded-[12px]"
+              className="shrink-0 rounded-[12px]"
               priority
             />
-            <div>
-              <p className="text-sm font-semibold tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-xs text-subdued">macOS window switching</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-[-0.03em] text-text">CmdTab</p>
+              <p className="truncate text-xs text-subdued">macOS window switching</p>
             </div>
           </a>
 
-          <nav className="hidden items-center gap-6 text-sm text-muted lg:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-6 text-sm text-muted lg:flex">
             {siteConfig.nav.map((item) => (
               <a
                 key={item.href}
@@ -55,6 +56,7 @@ export function HeroSection() {
           >
             {siteConfig.ctas.primary}
           </Button>
+          <MobileNavigation />
         </header>
 
         <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:py-20">
@@ -69,7 +71,10 @@ export function HeroSection() {
             <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.25rem,5vw,4.6rem)] font-medium leading-[0.95] tracking-[-0.06em] text-text">
               {heroContent.title}
             </h1>
-            <p className="type-body-lg mt-6 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
+            <p className="mt-6 max-w-[38rem] text-pretty text-base font-medium leading-7 text-text sm:text-lg">
+              CmdTab is a native macOS window switcher that replaces an app-only view with individual window previews, global recent-use ordering, search, and quick actions.
+            </p>
+            <p className="type-body-lg mt-4 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
               {heroContent.summary}
             </p>
             <p className="mt-4 max-w-[34rem] text-sm leading-6 text-subdued">{heroContent.status}</p>

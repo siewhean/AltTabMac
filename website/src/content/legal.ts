@@ -1,48 +1,62 @@
 export const privacyContent = {
   intro:
-    "This page explains what the CmdTab website collects and how that information is used while you browse the site, start a trial, or follow external purchase links.",
+    "This page explains what the CmdTab website and native app currently collect, which fields are transmitted, and how that information is used while you browse, start a trial, activate a license, or run the app.",
   sections: [
     {
-      title: "What we collect",
+      title: "Website analytics",
       body: [
-        "The website may collect limited technical metadata such as page path, performance metrics, and aggregate campaign context to understand how people discover and use the site.",
-        "CmdTab does not create a product account on this marketing site before you start a trial or complete a purchase through an external provider.",
+        "The website records page path, referrer, event name and context, event timestamp, a locally generated visitor identifier, and a session identifier. Campaign parameters and a broad discovery-source label may be stored so traffic from search, ChatGPT, Copilot, Perplexity, Gemini, Claude, and other referrals can be measured without storing a search query.",
+        "The site also uses Vercel Web Analytics and Speed Insights for aggregate traffic and performance measurement.",
       ],
     },
     {
-      title: "How we use it",
+      title: "Native app telemetry",
       body: [
-        "We use website analytics to understand traffic, measure performance, and improve how the product is presented.",
-        "If you start a trial or purchase through an external provider, their service will handle the transaction or download flow according to their own policies.",
+        "When the current app starts, it sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",
+        "The current payload contains a pseudonymous install identifier, event name, license state, license identifier when present, app version, macOS version, and event timestamp.",
+        "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, or search queries.",
+      ],
+    },
+    {
+      title: "Trial and licensing information",
+      body: [
+        "Starting a trial sends the email address provided by the user together with the install identifier, app version, and macOS version so the trial period can be registered and enforced.",
+        "Purchase, receipt, billing, and license-portal information may be processed by the hosted commerce provider. CmdTab stores the operational records required to fulfil licenses and handle support requests.",
+      ],
+    },
+    {
+      title: "How the information is used",
+      body: [
+        "Website analytics are used to understand discovery, page performance, trial and purchase journeys, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
+        "App telemetry is used to understand active installations, trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to reconstruct the contents of a user's open windows.",
       ],
     },
     {
       title: "Third-party services",
       body: [
-        "Hosting and edge protections are provided through Vercel. Both services may process the minimum operational data required to deliver the website and its submission flow.",
-        "The website also uses Vercel Web Analytics and Speed Insights for aggregate traffic and performance measurement.",
-        "Hosted checkout and download links may point to external providers such as Lemon Squeezy or other launch infrastructure chosen by the CmdTab team.",
+        "Hosting, edge delivery, Web Analytics, and Speed Insights are provided through Vercel, which may process the operational data needed to deliver and measure the site.",
+        "Transactional email may be delivered through Resend. Hosted checkout, receipt, and license-management links may point to Lemon Squeezy or another configured commerce provider, whose own terms and privacy policy apply to that transaction.",
       ],
     },
     {
-      title: "Retention and deletion",
+      title: "Retention, access, and deletion",
       body: [
-        "CmdTab keeps only the operational data that is reasonably needed for site analytics, support, and launch operations.",
-        "If you have a privacy-related request about the website, contact the CmdTab team at tohsh17@gmail.com.",
+        "CmdTab keeps operational data for analytics, trial enforcement, licensing, fulfilment, support, fraud prevention, and launch operations. Retention periods should be reviewed as the public release process matures and documented here when formal limits are adopted.",
+        "For access, correction, or deletion requests concerning CmdTab-held data, contact tohsh17@gmail.com and include enough information to locate the relevant trial, purchase, support request, or install record.",
+      ],
+    },
+    {
+      title: "Permissions and local window data",
+      body: [
+        "The website does not request macOS Accessibility or Screen Recording permission. Those permissions apply only to the native app.",
+        "Accessibility is used to detect the switcher shortcut, inspect eligible windows, and focus the selected target. Screen Recording is used to render local window previews. If preview capture is unavailable, eligible windows remain represented with an icon or placeholder.",
       ],
     },
     {
       title: "Security contact",
       body: [
-        "If you believe you found a security issue in the website or app, report it to tohsh17@gmail.com.",
-        "CmdTab publishes a disclosure contact and policy at /.well-known/security.txt and on the website security page.",
-      ],
-    },
-    {
-      title: "Permissions and the app itself",
-      body: [
-        "The website does not request macOS Accessibility or Screen Recording permissions.",
-        "Those permissions apply only to the app experience and are explained on the homepage because they are required for CmdTab’s switcher behavior and real window previews.",
+        "Report a suspected security issue in the website or app privately to tohsh17@gmail.com.",
+        "CmdTab also publishes its disclosure policy at /.well-known/security.txt and on the Security page.",
       ],
     },
   ],
