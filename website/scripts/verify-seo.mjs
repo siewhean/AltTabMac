@@ -133,6 +133,16 @@ assert.ok(existsSync(resolve(root, "src/lib/discovery-analytics-store.ts")), "AI
 
 assert.ok(existsSync(resolve(root, "src/app/indexnow-key.txt/route.ts")), "IndexNow key route is missing");
 assert.ok(existsSync(resolve(root, "scripts/submit-indexnow.mjs")), "IndexNow submission script is missing");
+assert.ok(existsSync(resolve(root, "src/content/indexnow-key.json")), "stable IndexNow key configuration is missing");
+const indexNowKey = JSON.parse(read("src/content/indexnow-key.json")).key;
+assert.match(indexNowKey, /^[A-Za-z0-9-]{8,128}$/, "IndexNow key must contain 8-128 letters, numbers, or hyphens");
+const indexNowRoute = read("src/app/indexnow-key.txt/route.ts");
+const indexNowSubmit = read("scripts/submit-indexnow.mjs");
+assert.match(indexNowRoute, /indexnow-key\.json/, "IndexNow key route must use the stable ownership key");
+assert.match(indexNowRoute, /process\.env\.INDEXNOW_KEY/, "IndexNow key route must allow an environment override");
+assert.match(indexNowSubmit, /indexnow-key\.json/, "IndexNow submissions must use the deployed ownership key");
+assert.match(indexNowSubmit, /keyLocation/, "IndexNow submissions must declare the public key location");
+
 assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "canonical-only llms directory is missing");
 const packageJson = JSON.parse(read("package.json"));
 assert.equal(packageJson.scripts["indexnow:submit"], "node scripts/submit-indexnow.mjs", "IndexNow package script is missing");
@@ -142,5 +152,5 @@ assert.ok(isAtLeast(packageJson.dependencies["react-dom"], "19.2.6"), `React DOM
 assert.match(read(".env.example"), /INDEXNOW_KEY=/, "IndexNow environment configuration is missing");
 
 console.log(
-  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, packaged version ${appVersion}, and AI discovery instrumentation.`,
+  `SEO verification passed for ${publicRoutes.length} public routes, ${questionCount} FAQ entries, packaged version ${appVersion}, a stable IndexNow key, and AI discovery instrumentation.`,
 );
