@@ -34,6 +34,11 @@ assert.match(
   "rendered SoftwareApplication schema is missing the disambiguating description",
 );
 assert.match(home, /"permissions":\[/, "rendered SoftwareApplication schema is missing permission text");
+assert.match(
+  home,
+  /\/showcase\/overview-poster\.png/,
+  "rendered SoftwareApplication schema must use the real showcase poster",
+);
 assert.doesNotMatch(
   home,
   /"(?:memoryRequirements|processorRequirements)":/,
@@ -41,6 +46,7 @@ assert.doesNotMatch(
 );
 
 const expectedRoutes = new Map([
+  ["/showcase", /See the CmdTab switcher move, search, and reflow/i],
   ["/features/classic-grid", /A visual Mac window switcher for choosing one exact window/i],
   ["/features/command-palette", /Search open Mac windows by app name or window text/i],
   ["/features/radial-menu", /A circular Mac window switcher for directional selection/i],
@@ -63,6 +69,10 @@ assert.match(
   "/llms.txt must be plain text",
 );
 for (const expected of [
+  "/showcase",
+  "/showcase/overview-poster.png",
+  "/showcase/overview.mp4",
+  "/showcase/manifest.json",
   "/features/classic-grid",
   "/features/command-palette",
   "/features/radial-menu",
@@ -72,6 +82,8 @@ for (const expected of [
 ]) {
   assert.ok(llms.includes(expected), `/llms.txt is missing ${expected}`);
 }
+assert.match(llms, /not AI-generated/i, "/llms.txt must disclose the real-media source");
+assert.match(llms, /controlled fixture windows/i, "/llms.txt must disclose the fixture boundary");
 assert.match(
   llms,
   /not claimed as an AI-search requirement/i,
@@ -93,12 +105,25 @@ assert.match(
 for (const expected of [
   "non-standard convenience export",
   "canonical HTML as authoritative",
+  "Real product images and short videos",
+  "Are the showcase screenshots and videos AI-generated?",
+  "controlled fixture windows",
   "No processor architecture, Universal Binary status, memory footprint",
   "Does CmdTab use ScreenCaptureKit?",
   "should not be described that way",
   "Does CmdTab publish a RAM or sub-50 ms performance claim?",
 ]) {
   assert.ok(full.includes(expected), `/llms-full.txt is missing the boundary: ${expected}`);
+}
+for (const expected of [
+  "/showcase/overview-poster.png",
+  "/showcase/overview.mp4",
+  "/showcase/classic-grid.mp4",
+  "/showcase/command-palette.mp4",
+  "/showcase/radial-menu.mp4",
+  "/showcase/quick-actions.mp4",
+]) {
+  assert.ok(full.includes(expected), `/llms-full.txt is missing showcase asset ${expected}`);
 }
 assert.match(
   full,
@@ -115,11 +140,12 @@ assert.equal(
   `sitemap contains ${locCount} URLs but the canonical registry contains ${publicRoutes.length}`,
 );
 assert.ok(!sitemap.includes("llms-full.txt"), "the non-standard context export must not appear in sitemap.xml");
+assert.ok(!sitemap.includes(".mp4"), "raw videos must not compete as canonical HTML sitemap entries");
 for (const { path } of publicRoutes) {
   const expected = `https://cmdtab.net${path === "/" ? "/" : path}`;
   assert.ok(sitemap.includes(`<loc>${expected}</loc>`), `sitemap is missing ${expected}`);
 }
 
 console.log(
-  `Retrieval verification passed for brand disambiguation, SoftwareApplication entity text, ${expectedRoutes.size} new distinct pages, llms.txt, noindex llms-full.txt, and ${publicRoutes.length} canonical sitemap URLs.`,
+  `Retrieval verification passed for brand disambiguation, real product media, SoftwareApplication entity text, ${expectedRoutes.size} distinct pages, llms.txt, noindex llms-full.txt, and ${publicRoutes.length} canonical sitemap URLs.`,
 );
