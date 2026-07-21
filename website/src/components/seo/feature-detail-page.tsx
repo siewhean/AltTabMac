@@ -46,7 +46,7 @@ export function FeatureDetailPage({
         </div>
         <ShowcaseVideo asset={showcase} priority />
         <p className="mt-4 text-sm leading-7 text-subdued">
-          {content.screenshotCaption} The clip is rendered from the production view with controlled fixture windows rather than a private desktop recording.
+          {content.screenshotCaption} Source: {showcase.sourceLabel}. Controlled fixture windows protect private desktop content; the Evidence page records the separate signed-app acceptance boundary.
         </p>
       </SectionShell>
 
@@ -90,7 +90,7 @@ export function FeatureDetailPage({
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-2">
-          <article aria-label="Best fit" className="surface-panel p-7">
+          <article aria-label={featureDepthSectionLabels.bestFit} className="surface-panel p-7">
             <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">
               {featureDepthSectionLabels.bestFit}
             </h2>
@@ -102,7 +102,7 @@ export function FeatureDetailPage({
               ))}
             </ul>
           </article>
-          <article aria-label="Tradeoffs and limits" className="surface-panel p-7">
+          <article aria-label={featureDepthSectionLabels.tradeoffs} className="surface-panel p-7">
             <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">
               {featureDepthSectionLabels.tradeoffs}
             </h2>
