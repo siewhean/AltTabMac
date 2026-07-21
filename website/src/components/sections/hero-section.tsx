@@ -72,7 +72,7 @@ export function HeroSection() {
               {heroContent.title}
             </h1>
             <p className="mt-6 max-w-[38rem] text-pretty text-base font-medium leading-7 text-text sm:text-lg">
-              CmdTab is a native macOS window switcher that replaces an app-only view with individual window previews, global recent-use ordering, search, and quick actions.
+              CmdTab is a standalone native macOS window-switcher app. It is separate from Apple’s built-in Command-Tab shortcut and replaces an app-only view with individual window targets, previews, global recent-use ordering, search, and quick actions.
             </p>
             <p className="type-body-lg mt-4 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
               {heroContent.summary}
