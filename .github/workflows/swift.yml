@@ -1,0 +1,74 @@
+name: Swift
+
+# Protect the public completeness and exact-window MRU contract on every app change.
+on:
+  push:
+    paths:
+      - Package.swift
+      - Sources/CmdTab/**
+      - Tests/CmdTabTests/**
+      - scripts/qa/**
+      - .github/workflows/swift.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Package.swift
+      - Sources/CmdTab/**
+      - Tests/CmdTabTests/**
+      - scripts/qa/**
+      - .github/workflows/swift.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: swift-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: macOS ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-14
+          - macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify pre-fix model evidence remains reproducible
+        shell: bash
+        run: |
+          python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/switcher-model.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path('/tmp/switcher-model.json').read_text())
+          mru = result['mru_selection']
+          preview = result['preview_completeness']
+
+          assert mru['meaningful_sequences_checked'] == 19_500, mru
+          assert mru['strict_mru_selection_mismatches'] == 3_900, mru
+          assert preview['preview_success_configurations_checked'] == 126, preview
+          assert preview['completeness_failures'] == 120, preview
+          print('Model evidence verified.')
+          PY
+
+      - name: Run strict MRU and completeness regressions
+        run: >-
+          swift test
+          --scratch-path /tmp/CmdTab-focused-${{ matrix.runner }}
+          --filter StrictMRUAndCompletenessRegressionTests
+
+      - name: Run complete Swift package test suite
+        run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
+
+      - name: Check patch hygiene
+        run: git diff --check

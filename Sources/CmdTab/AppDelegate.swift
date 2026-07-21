@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
+    private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     var switcher: SwitcherWindowController!
     var hotkeyManager: HotkeyManager!
     var menuBar: MenuBarController!
@@ -61,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        focusedWindowHistoryObserver = FocusedWindowHistoryObserver()
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
     }
 
@@ -103,6 +105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        focusedWindowHistoryObserver = nil
         if singletonLockFileDescriptor >= 0 {
             flock(singletonLockFileDescriptor, LOCK_UN)
             close(singletonLockFileDescriptor)

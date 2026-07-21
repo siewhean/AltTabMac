@@ -238,48 +238,50 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertEqual(prepared.height, 697)
     }
 
-    func testFallbackAppsAreDroppedWhenWindowsAlreadyRepresentThatApp() {
-        var seen = Set<String>()
+    func testFallbackAppIsDroppedWhenTheSameProcessAlreadyHasAWindow() {
+        var seen = Set<pid_t>()
 
         XCTAssertFalse(
             AppSwitcher.shouldIncludeFallbackApp(
                 processIdentifier: 101,
-                sourceAppIdentifier: "com.apple.finder",
                 representedWindowPIDs: [101],
-                representedWindowAppIdentifiers: ["com.apple.finder"],
-                seenFallbackAppIdentifiers: &seen
+                seenFallbackPIDs: &seen
             )
         )
     }
 
-    func testFallbackAppsAreDeduplicatedByApplicationIdentifier() {
-        var seen = Set<String>()
+    func testFallbackAppsRemainDistinctForProcessesSharingABundleIdentifier() {
+        var seen = Set<pid_t>()
 
         XCTAssertTrue(
             AppSwitcher.shouldIncludeFallbackApp(
                 processIdentifier: 101,
-                sourceAppIdentifier: "com.apple.finder",
                 representedWindowPIDs: [],
-                representedWindowAppIdentifiers: [],
-                seenFallbackAppIdentifiers: &seen
+                seenFallbackPIDs: &seen
+            )
+        )
+
+        XCTAssertTrue(
+            AppSwitcher.shouldIncludeFallbackApp(
+                processIdentifier: 202,
+                representedWindowPIDs: [],
+                seenFallbackPIDs: &seen
             )
         )
 
         XCTAssertFalse(
             AppSwitcher.shouldIncludeFallbackApp(
                 processIdentifier: 202,
-                sourceAppIdentifier: "com.apple.finder",
                 representedWindowPIDs: [],
-                representedWindowAppIdentifiers: [],
-                seenFallbackAppIdentifiers: &seen
+                seenFallbackPIDs: &seen
             )
         )
     }
 
-    func testPreviewlessWindowTilesAreDroppedInFinalThumbnailPass() {
-        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
+    func testPreviewlessWindowTilesRemainVisibleInEveryCachePhase() {
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: NSImage(size: NSSize(width: 10, height: 10)), capturePreviews: true))
-        XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
     }
 
