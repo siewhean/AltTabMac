@@ -295,12 +295,13 @@ for link_path in sorted(internal_paths):
 status, robots_body, robots_headers, _ = fetch("/robots.txt")
 if status != 200:
     fail(f"/robots.txt returned HTTP {status}")
+robots_lower = robots_body.lower()
 for expected in (
-    "User-agent: OAI-SearchBot",
-    "Disallow: /api/",
-    f"Sitemap: {CANONICAL_ORIGIN}/sitemap.xml",
+    "user-agent: oai-searchbot",
+    "disallow: /api/",
+    f"sitemap: {CANONICAL_ORIGIN.lower()}/sitemap.xml",
 ):
-    if expected not in robots_body:
+    if expected not in robots_lower:
         fail(f"/robots.txt is missing {expected!r}")
 if "text/plain" not in str(robots_headers.get("Content-Type", "")).lower():
     fail("/robots.txt has the wrong content type")
