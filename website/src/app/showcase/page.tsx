@@ -7,6 +7,7 @@ import { ShowcaseVideo } from "@/components/showcase/showcase-video";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import {
+  showcaseAsset,
   showcaseAssets,
   showcaseBoundary,
   showcaseDisclosure,
@@ -36,7 +37,8 @@ export const metadata = createPageMetadata({
 });
 
 export default function ShowcasePage() {
-  const [overview, ...clips] = showcaseAssets;
+  const overview = showcaseAsset("overview");
+  const clips = showcaseAssets.filter((asset) => asset.id !== "overview");
 
   return (
     <main>
