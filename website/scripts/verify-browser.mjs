@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
@@ -23,18 +30,25 @@ function findChrome() {
   throw new Error("Chrome or Chromium was not found");
 }
 
-async function waitForJson(url, timeoutMs = 20_000) {
+async function waitForDevToolsPort(userDataDir, processHandle, getChromeLog, timeoutMs = 25_000) {
+  const portFile = resolve(userDataDir, "DevToolsActivePort");
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return await response.json();
-    } catch {
-      // Chrome has not exposed the debugging endpoint yet.
+    if (processHandle.exitCode !== null) {
+      throw new Error(
+        `Chrome exited before DevTools started (exit ${processHandle.exitCode}).\n${getChromeLog()}`,
+      );
     }
-    await sleep(150);
+    if (existsSync(portFile)) {
+      const [portLine] = readFileSync(portFile, "utf8").trim().split(/\r?\n/);
+      const port = Number.parseInt(portLine, 10);
+      if (Number.isInteger(port) && port > 0 && port <= 65535) return port;
+    }
+    await sleep(100);
   }
-  throw new Error(`Timed out waiting for ${url}`);
+  throw new Error(
+    `Timed out waiting for Chrome DevToolsActivePort in ${userDataDir}.\n${getChromeLog()}`,
+  );
 }
 
 class CDPClient {
@@ -137,7 +151,7 @@ function expectedLocalVercelNoise(message) {
 }
 
 const chrome = findChrome();
-const debuggingPort = 9222 + Math.floor(Math.random() * 500);
+const chromeUserDataDir = mkdtempSync("/tmp/cmdtab-chrome-");
 const chromeLogPath = resolve(artifactDir, "chrome.log");
 const chromeProcess = spawn(
   chrome,
@@ -146,9 +160,16 @@ const chromeProcess = spawn(
     "--no-sandbox",
     "--disable-dev-shm-usage",
     "--disable-gpu",
+    "--disable-background-networking",
+    "--disable-default-apps",
+    "--disable-extensions",
+    "--disable-sync",
     "--hide-scrollbars",
-    `--remote-debugging-port=${debuggingPort}`,
-    `--user-data-dir=/tmp/cmdtab-chrome-${process.pid}`,
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--remote-debugging-address=127.0.0.1",
+    "--remote-debugging-port=0",
+    `--user-data-dir=${chromeUserDataDir}`,
     "about:blank",
   ],
   { stdio: ["ignore", "ignore", "pipe"] },
@@ -164,7 +185,11 @@ const fail = (message) => failures.push(message);
 let client;
 
 try {
-  await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
+  const debuggingPort = await waitForDevToolsPort(
+    chromeUserDataDir,
+    chromeProcess,
+    () => chromeLog,
+  );
   const targetResponse = await fetch(`http://127.0.0.1:${debuggingPort}/json/new?about:blank`, {
     method: "PUT",
   });
@@ -237,11 +262,7 @@ try {
         client.on("Network.responseReceived", ({ response, type }) => {
           const url = String(response?.url || "");
           const status = Number(response?.status || 0);
-          if (
-            url.startsWith(baseUrl) &&
-            status >= 400 &&
-            !expectedLocalVercelNoise(url)
-          ) {
+          if (url.startsWith(baseUrl) && status >= 400 && !expectedLocalVercelNoise(url)) {
             badResponses.push(`${type || "resource"} ${status} ${url}`);
           }
         }),
@@ -470,6 +491,7 @@ try {
     resolve(artifactDir, "browser-report.json"),
     JSON.stringify({ baseUrl, routes, report, failures }, null, 2),
   );
+  rmSync(chromeUserDataDir, { recursive: true, force: true });
 }
 
 if (failures.length) {
