@@ -1,0 +1,75 @@
+name: Submit production URLs to IndexNow
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/submit-indexnow-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  submit-production-urls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - name: Check out deployed source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Verify the production ownership key
+        run: |
+          node --input-type=module <<'NODE'
+          import indexNowKey from "./src/content/indexnow-key.json" with { type: "json" };
+
+          const response = await fetch("https://cmdtab.net/indexnow-key.txt", {
+            headers: { "User-Agent": "CmdTabIndexNowSubmission/1.0" },
+          });
+          const body = (await response.text()).trim();
+          if (response.status !== 200 || body !== indexNowKey.key) {
+            throw new Error(`Production key verification failed: HTTP ${response.status}`);
+          }
+          console.log("Production IndexNow ownership key verified with HTTP 200.");
+          NODE
+
+      - name: Submit all canonical URLs and record the protocol response
+        run: |
+          node --input-type=module <<'NODE'
+          import indexNowKey from "./src/content/indexnow-key.json" with { type: "json" };
+          import publicRoutes from "./src/content/public-routes.json" with { type: "json" };
+
+          const origin = "https://cmdtab.net";
+          const keyLocation = `${origin}/indexnow-key.txt`;
+          const urlList = publicRoutes.map(({ path }) => new URL(path, `${origin}/`).toString());
+          const response = await fetch("https://api.indexnow.org/indexnow", {
+            method: "POST",
+            headers: { "Content-Type": "application/json; charset=utf-8" },
+            body: JSON.stringify({
+              host: "cmdtab.net",
+              key: indexNowKey.key,
+              keyLocation,
+              urlList,
+            }),
+          });
+          const responseBody = await response.text();
+          console.log(JSON.stringify({
+            status: response.status,
+            statusText: response.statusText,
+            submittedUrls: urlList.length,
+            keyLocation,
+            responseBody,
+          }, null, 2));
+          if (![200, 202].includes(response.status)) {
+            throw new Error(`IndexNow rejected the submission with HTTP ${response.status}.`);
+          }
+          NODE
