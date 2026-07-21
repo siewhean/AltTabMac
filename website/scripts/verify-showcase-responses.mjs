@@ -25,9 +25,11 @@ assert.match(page, /See the CmdTab switcher move, search, and reflow/i, "showcas
 assert.match(page, /real renders of CmdTab’s production SwiftUI\/AppKit switcher views/i, "showcase production-view disclosure is missing");
 assert.match(page, /not AI-generated/i, "showcase AI-generation disclosure is missing");
 assert.match(page, /<video/i, "rendered showcase page is missing video elements");
-assert.match(page, /playsinline=""/i, "rendered showcase videos must play inline");
-assert.match(page, /muted=""/i, "rendered showcase videos must be muted");
+assert.match(page, /<video[^>]*\splaysinline(?:="")?/i, "rendered showcase videos must play inline");
+assert.match(page, /<video[^>]*\smuted(?:="")?/i, "rendered showcase videos must be muted");
+assert.match(page, /<video[^>]*\sloop(?:="")?/i, "rendered showcase videos must loop");
 assert.match(page, /poster="\/showcase\/overview-poster\.png"/i, "overview poster is missing from rendered HTML");
+assert.match(page, /<source[^>]*src="\/showcase\/overview\.mp4"[^>]*type="video\/mp4"/i, "overview MP4 source is missing from rendered HTML");
 assert.match(page, /"@type":"VideoObject"/, "rendered VideoObject schema is missing");
 assert.match(page, /"thumbnailUrl":"https:\/\/cmdtab\.net\/showcase\/overview-poster\.png"/, "VideoObject thumbnail URL is wrong");
 assert.match(page, /"contentUrl":"https:\/\/cmdtab\.net\/showcase\/overview\.mp4"/, "VideoObject content URL is wrong");
@@ -36,6 +38,9 @@ assert.match(page, /Read the clip transcript/i, "visible video transcripts are m
 for (const asset of manifest.assets) {
   const posterPath = `/showcase/${asset.poster}`;
   const videoPath = `/showcase/${asset.video}`;
+
+  assert.ok(page.includes(`poster="${posterPath}"`), `${posterPath} is not wired into rendered HTML`);
+  assert.ok(page.includes(`src="${videoPath}"`), `${videoPath} is not wired into rendered HTML`);
 
   const posterResponse = await fetchPath(posterPath);
   assert.equal(posterResponse.status, 200, `${posterPath} returned HTTP ${posterResponse.status}`);
