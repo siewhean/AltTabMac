@@ -65,6 +65,25 @@ export const marketLandscape = {
       sourceUrl: "https://bettercmdtab.app/",
     },
     {
+      id: "contexts",
+      name: "Contexts",
+      operator: "Contexts",
+      commercialModel:
+        "The official site offers a free trial and a US$9.99 license.",
+      minimumSystem:
+        "The official page lists Contexts 3.9 for macOS Ventura, Sonoma, and Sequoia.",
+      switchingModel:
+        "A window switcher combining Fast Search, an enhanced Command-Tab flow, a persistent Sidebar, and a trackpad gesture workflow.",
+      search:
+        "Fast Search filters by application name or window title and is designed to make frequently used windows reachable with a small number of keystrokes.",
+      previews:
+        "The current first-party page emphasizes search, the Sidebar, gestures, Spaces, and multi-display behavior. It does not provide enough detail on the page to compare thumbnail behavior here, so that point remains unknown.",
+      distinctiveFit:
+        "Strong fit for users who want deterministic window search, an always-available Sidebar, trackpad gestures, and explicit multiple-Space and multiple-display workflows.",
+      sourceLabel: "Contexts official product page",
+      sourceUrl: "https://contexts.co/",
+    },
+    {
       id: "cmdtab",
       name: "CmdTab",
       operator: "CmdTab",

@@ -11,9 +11,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "Mac window switchers compared: built-in, AltTab, BetterCmdTab, CmdTab, and Scopo";
+const title = "Mac window switchers compared: macOS, AltTab, BetterCmdTab, Contexts, CmdTab, and Scopo";
 const description =
-  "Compare the built-in macOS shortcuts, AltTab, BetterCmdTab, CmdTab, and Scopo using source-dated first-party facts about switching model, search, previews, pricing, and platform requirements.";
+  "Compare macOS switching, AltTab, BetterCmdTab, Contexts, CmdTab, and Scopo using source-dated first-party facts about window model, search, previews, pricing, and requirements.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Compare", path: "/compare/mac-window-switchers" as const },
@@ -54,6 +54,7 @@ export default function MacWindowSwitchersPage() {
             "Command-Tab alternatives",
             "AltTab",
             "BetterCmdTab",
+            "Contexts",
             "CmdTab",
             "Scopo",
           ],
@@ -85,9 +86,9 @@ export default function MacWindowSwitchersPage() {
           </h2>
           <p className="mt-4 max-w-3xl text-base leading-8 text-muted">
             The biggest difference is what each tool treats as the unit of work: an application,
-            every eligible window, the windows in the current Space, or a launcher-plus-switcher
-            workflow. Pricing and search tiers matter only after that model fits how you organize
-            your Mac.
+            every eligible window, a searchable set, a persistent sidebar, the windows in the
+            current Space, or a launcher-plus-switcher workflow. Pricing and search tiers matter
+            only after that model fits how you organize your Mac.
           </p>
 
           <p className="mt-7 text-sm leading-7 text-subdued">
@@ -100,7 +101,7 @@ export default function MacWindowSwitchersPage() {
             aria-label="Mac window switcher comparison table"
             className="mt-4 overflow-x-auto rounded-[28px] border border-white/10 bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
           >
-            <table className="min-w-[980px] w-full border-collapse text-left">
+            <table className="min-w-[1040px] w-full border-collapse text-left">
               <thead>
                 <tr className="border-b border-white/10 text-xs uppercase tracking-[0.16em] text-subdued">
                   <th className="px-5 py-4 font-semibold">Option</th>
@@ -212,7 +213,7 @@ export default function MacWindowSwitchersPage() {
               "Must text search be included in the free tier, or is a paid search feature acceptable?",
               "Do minimized, hidden, fullscreen, and off-Space windows need to be included in your workflow?",
               "Are Accessibility and Screen Recording permissions acceptable for exact focus and live previews?",
-              "Do you need launch capabilities, tiling, profiles, quick actions, or multiple independent shortcuts?",
+              "Do you need launch capabilities, a persistent sidebar, tiling, profiles, quick actions, or multiple independent shortcuts?",
               "Do you prefer free/open-source software, a one-time purchase, or an ongoing subscription?",
               "Which macOS versions and processor architectures must be supported on every machine you use?",
               "What telemetry, update checks, and network behavior does the current product explicitly disclose?",

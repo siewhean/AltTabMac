@@ -84,18 +84,31 @@ jobs:
           set -o pipefail
           npm run evidence:check 2>&1 | tee verification-artifacts/evidence-check.log
 
+      - name: Verify rendered entity and retrieval surfaces
+        run: |
+          mkdir -p verification-artifacts
+          set -o pipefail
+          npm run retrieval:check 2>&1 | tee verification-artifacts/retrieval-check.log
+
       - name: Verify desktop, mobile, and interactive browser behavior
         run: |
           mkdir -p verification-artifacts
           set -o pipefail
           npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
 
-      - name: Capture authority-page visual evidence
+      - name: Capture feature and comparison visual evidence
         run: |
           set -euo pipefail
           CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
           test -n "$CHROME"
-          for route in evidence compare/mac-window-switchers; do
+          for route in \
+            evidence \
+            compare/mac-window-switchers \
+            compare/cmdtab-vs-alttab \
+            features/classic-grid \
+            features/command-palette \
+            features/radial-menu \
+            features/quick-actions; do
             slug="${route//\//-}"
             "$CHROME" \
               --headless=new \

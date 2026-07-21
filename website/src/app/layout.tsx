@@ -12,7 +12,7 @@ import { createHomeStructuredData } from "@/lib/structured-data";
 import "./globals.css";
 
 const siteUrl = getSiteUrl();
-const defaultTitle = `${siteConfig.name} — Mac window switcher with real previews`;
+const defaultTitle = `${siteConfig.name} macOS window switcher for individual windows and search`;
 
 function webmasterVerification(): Metadata["verification"] {
   const google = process.env.GOOGLE_SITE_VERIFICATION?.trim();
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "CmdTab macOS window switcher showing individual window previews",
+        alt: "CmdTab standalone macOS window-switcher app showing individual window previews",
       },
     ],
   },

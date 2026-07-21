@@ -1,7 +1,7 @@
 # CmdTab
 
 Last Updated: 2026-07-21  
-Active Task: Real-macOS acceptance, webmaster-account onboarding, signed release evidence, and external authority growth.
+Active Task: Deploy factual feature-depth and retrieval changes, then complete real-macOS acceptance, webmaster onboarding, signed release evidence, and external authority growth.
 
 ## Project Summary
 
@@ -84,16 +84,20 @@ Do not convert a green CI result into a claim that these real-desktop scenarios 
 
 ## Website and Discovery Status
 
-The production site uses one canonical public-route registry for sitemap generation, IndexNow submissions, `llms.txt`, and build-breaking SEO verification.
+The production site uses one canonical public-HTML route registry for sitemap generation, IndexNow submissions, and build-breaking SEO verification.
 
-Public discovery surfaces cover:
+The maintained discovery architecture contains 21 canonical HTML routes covering:
 
-- product behavior and exact-window switching;
+- exact-window switcher behavior;
+- distinct Classic Grid, Command Palette, Radial Menu, and Quick Actions references;
 - a native macOS window-switching guide;
 - CmdTab versus the built-in macOS switcher;
-- a source-dated landscape covering built-in macOS switching, AltTab, BetterCmdTab, CmdTab, and Scopo;
+- CmdTab versus AltTab;
+- a source-dated landscape covering built-in macOS switching, AltTab, BetterCmdTab, Contexts, CmdTab, and Scopo;
 - public testing evidence and downloadable QA artifacts;
 - compatibility, permissions, privacy, FAQ, About, changelog, trial, purchase, help, and security.
+
+The homepage and SoftwareApplication entity explicitly identify CmdTab as a standalone macOS window-switcher application, separate from Apple’s built-in Command-Tab shortcut.
 
 Every maintained public page must provide:
 
@@ -105,6 +109,8 @@ Every maintained public page must provide:
 - factual visible content consistent with structured data.
 
 The website explicitly documents the native-app and website analytics fields it records and the local window content it does not send.
+
+`/llms.txt` is a descriptive source directory. `/llms-full.txt` is a non-standard, noindex convenience export that defers to canonical HTML and is excluded from the XML sitemap.
 
 ## Website Verification
 
@@ -124,8 +130,9 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 - metadata, JSON-LD, H1s, breadcrumbs, images, crawler files, private-route headers, and security headers;
 - rendered Google and Bing ownership meta tags using deterministic CI tokens;
 - byte-matched public evidence downloads;
-- desktop and mobile rendering, navigation, wide-table accessibility, and the interactive demo;
-- visual evidence captures for the public evidence and market-comparison pages.
+- rendered entity disambiguation, deep-page purpose, `llms.txt`, noindex `llms-full.txt`, unsupported-spec boundaries, and sitemap-helper exclusion;
+- desktop and mobile rendering across all 21 public routes, navigation, wide-table accessibility, and the interactive demo;
+- visual evidence captures for evidence, market comparison, CmdTab-versus-AltTab, and the four deep feature pages.
 
 ## Search and AI Discovery Measurement
 
@@ -145,23 +152,28 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 - `⌘Tab` remains the headline trigger; right-command and right-option tap modes are optional secondary triggers.
 - Commercial direction: 14-day trial followed by a one-time license.
 - Public claims must be visible in canonical HTML and supported by source, code, test, or clearly labelled product intent.
-- Competitor comparisons must use first-party sources, show a review date, and treat missing claims as unknown rather than absent.
-- Do not publish fake ratings, testimonials, download counts, processor coverage, benchmarks, or compatibility claims.
+- Competitor comparisons must use first-party sources, show a review date, distinguish adoption from reliability, and treat missing claims as unknown rather than absent.
+- Keep comparisons under `/compare/`; do not add near-duplicate `/vs/` doorway pages merely for keyword variants.
+- Do not publish fake ratings, testimonials, directory status, download counts, processor coverage, benchmarks, or compatibility claims.
+- Do not publish ScreenCaptureKit, RAM, latency, Universal Binary, Apple Silicon, Intel, processor, or memory claims without reproducible product/release evidence.
 - `llms.txt` is a directory to canonical sources, not an AI-ranking mechanism and not a place for unique claims.
-- External prices, feature tiers, compatibility, and download figures must be rechecked before advancing a comparison review date.
+- `llms-full.txt` is an optional noindex convenience export; canonical HTML remains authoritative.
+- External prices, feature tiers, compatibility, download figures, and adoption signals must be rechecked before advancing a comparison review date.
+- `docs/seo/software-directory-submission-pack.md` is preparation only; external listings remain `Not submitted` until an owner action and listing URL are recorded.
 
 ## Open Issues and Next Steps
 
-1. Execute the real-macOS acceptance matrix for permissions, exact focused-window proof, Spaces, displays, fullscreen, Stage Manager, rapid input, Secure Input, signing, notarization, and clean-account installation.
-2. Publish a signed and notarized release only after the relevant acceptance rows pass.
-3. Configure `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` with owner-account tokens, verify `cmdtab.net`, submit the sitemap, and inspect the principal canonical URLs.
-4. Review Google Search Console and Bing Webmaster Tools alongside `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
-5. Re-submit changed canonical URLs through IndexNow after production deployments.
+1. Deploy the 21-route feature-depth and retrieval phase, verify production, and submit the changed canonical set through IndexNow.
+2. Execute the real-macOS acceptance matrix for permissions, exact focused-window proof, Spaces, displays, fullscreen, Stage Manager, rapid input, Secure Input, signing, notarization, and clean-account installation.
+3. Publish a signed and notarized release only after the relevant acceptance rows pass.
+4. Configure `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` with owner-account tokens, verify `cmdtab.net`, submit the sitemap, and inspect the principal canonical URLs.
+5. Review Google Search Console and Bing Webmaster Tools alongside `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
 6. Provision monitored `support@cmdtab.net`, `privacy@cmdtab.net`, and `security@cmdtab.net` addresses before replacing the current contact email.
 7. Configure and test the real trial download, checkout, webhook, license delivery, recovery, and support environment before paid traffic.
-8. Publish original performance and exact-window activation methodology only after collecting reproducible real-machine measurements.
-9. Earn authority through independent reviews, editorial links, authentic user discussion, and evidence-led localization rather than synthetic pages.
-10. Keep this README, `website/SEO-GEO.md`, and `docs/seo/implementation.md` synchronized when the product or discovery contract changes.
+8. Complete the signed release and direct download flow before owner-operated AlternativeTo, Product Hunt, MacUpdate, Softpedia, or similar listings that require a downloadable product.
+9. Publish original performance and exact-window activation methodology only after collecting reproducible real-machine measurements.
+10. Earn authority through independent reviews, editorial links, authentic user discussion, and evidence-led localization rather than synthetic pages.
+11. Keep this README, `website/SEO-GEO.md`, and `docs/seo/implementation.md` synchronized when the product or discovery contract changes.
 
 ## Recent Changes
 
@@ -172,7 +184,10 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 - Added `/evidence` with public byte-matched QA artifacts and explicit automated-versus-manual boundaries.
 - Added `/compare/mac-window-switchers` using source-dated first-party facts and visible comparison limitations.
 - Added environment-driven Google Search Console and Bing Webmaster Tools verification hooks with rendered CI validation.
-- Expanded canonical routes, sitemap, internal navigation, structured citations, and `llms.txt` to include the evidence and landscape sources.
+- Added entity disambiguation, four distinct mode/action references, a focused CmdTab-versus-AltTab comparison, and Contexts to the wider landscape.
+- Expanded `llms.txt`, added a non-standard noindex `llms-full.txt`, and protected the helper/canonical boundary with rendered verification.
+- Prepared an owner-operated software-directory pack while explicitly rejecting unsupported ScreenCaptureKit, memory, processor, Universal Binary, and latency claims.
+- Expanded the canonical public HTML registry from 16 to 21 routes and verified all routes at desktop and mobile sizes.
 
 ### 2026-07-20
 
