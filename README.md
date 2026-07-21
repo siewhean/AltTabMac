@@ -1,7 +1,7 @@
 # CmdTab
 
 Last Updated: 2026-07-21  
-Active Task: Deploy factual feature-depth and retrieval changes, then complete real-macOS acceptance, webmaster onboarding, signed release evidence, and external authority growth.
+Active Task: Generate and validate authentic production-view showcase media, deploy the 22-route website, then complete real-macOS acceptance, webmaster onboarding, signed release evidence, and external authority growth.
 
 ## Project Summary
 
@@ -67,9 +67,24 @@ Those are synthetic state-space counts, not observed field failure rates.
 
 Canonical QA sources live in `docs/qa/`. The public website publishes byte-matched copies from `/evidence`.
 
+## Real Showcase Media Contract
+
+`CmdTab --render-showcase <output-directory>` renders deterministic website media from the production `ClassicGridView`, `CommandPaletteView`, `RadialMenuView`, `SwitcherViewModel`, `PaletteSearch`, item cards, rows, selection styling, and item mutation behavior.
+
+- Fixture window titles and contents are deterministic and privacy-safe.
+- System application icons are used when installed; a controlled fallback icon is rendered otherwise.
+- No developer desktop, private window, or personal data is recorded.
+- PNG posters and silent H.264 MP4 loops are encoded locally with AppKit, SwiftUI, and AVFoundation.
+- The surrounding desktop and fixture window contents are capture context. The Quick Action key badge is an explanatory capture annotation.
+- Showcase media is not AI-generated and must never be described as proof of signed-app permissions, Spaces, displays, fullscreen activation, or exact focused-window behavior.
+- Offscreen capture may replace lazy containers with eager equivalents only in `ShowcaseRenderingMode`; normal app rendering remains lazy and unchanged.
+- `scripts/showcase/validate_showcase_media.swift` must reject wrong dimensions, duration, codec, audio, blank product regions, missing disclosure, or excessive package size before assets are committed.
+
+The planned stable website assets live under `website/public/showcase/` and are described by `manifest.json`.
+
 ## Manual App Acceptance Boundary
 
-Automation does not replace an interactive signed-app pass for:
+Automation and controlled product renders do not replace an interactive signed-app pass for:
 
 - Accessibility and Screen Recording grant, denial, revocation, and recovery;
 - selected identity versus actual focused `CGWindowID` for keyboard and mouse commits;
@@ -80,14 +95,15 @@ Automation does not replace an interactive signed-app pass for:
 - rapid repeated switching, Secure Input, event-tap recovery, sleep and wake;
 - signing, notarization, first-run permissions, and clean-account installation.
 
-Do not convert a green CI result into a claim that these real-desktop scenarios passed.
+Do not convert a green CI result or a showcase clip into a claim that these real-desktop scenarios passed.
 
 ## Website and Discovery Status
 
-The production site uses one canonical public-HTML route registry for sitemap generation, IndexNow submissions, and build-breaking SEO verification.
+The website source uses one canonical public-HTML route registry for sitemap generation, IndexNow submissions, and build-breaking SEO verification.
 
-The maintained discovery architecture contains 21 canonical HTML routes covering:
+The maintained discovery architecture contains 22 canonical HTML routes covering:
 
+- a real production-view image and short-video showcase;
 - exact-window switcher behavior;
 - distinct Classic Grid, Command Palette, Radial Menu, and Quick Actions references;
 - a native macOS window-switching guide;
@@ -105,12 +121,12 @@ Every maintained public page must provide:
 - exactly one page-level H1;
 - visible breadcrumbs and matching breadcrumb schema;
 - visible review or modification context where facts can change;
-- WebPage structured data, plus matching FAQ or TechArticle data where relevant;
+- WebPage structured data, plus matching FAQ, TechArticle, or VideoObject data where relevant;
 - factual visible content consistent with structured data.
 
 The website explicitly documents the native-app and website analytics fields it records and the local window content it does not send.
 
-`/llms.txt` is a descriptive source directory. `/llms-full.txt` is a non-standard, noindex convenience export that defers to canonical HTML and is excluded from the XML sitemap.
+`/llms.txt` is a descriptive source directory. `/llms-full.txt` is a non-standard, noindex convenience export that defers to canonical HTML and is excluded from the XML sitemap. Both describe the real-media source and fixture boundary.
 
 ## Website Verification
 
@@ -124,15 +140,28 @@ npx next build --webpack
 npm audit --omit=dev --audit-level=high
 ```
 
-The permanent SEO/GEO workflow additionally starts the compiled production server and verifies:
+After starting the compiled server, also run:
+
+```bash
+npm run rendered:check
+npm run webmaster:check
+npm run evidence:check
+npm run retrieval:check
+npm run showcase:responses
+npm run browser:check
+```
+
+The permanent SEO/GEO workflow verifies:
 
 - every canonical route and internal link;
 - metadata, JSON-LD, H1s, breadcrumbs, images, crawler files, private-route headers, and security headers;
 - rendered Google and Bing ownership meta tags using deterministic CI tokens;
 - byte-matched public evidence downloads;
+- real poster/MP4 file signatures, dimensions, byte counts, H.264 codec, audio absence, manifest alignment, and disclosure;
+- rendered VideoObject data, native video elements, stable poster/content URLs, transcripts, reduced-motion source handling, and media response types;
 - rendered entity disambiguation, deep-page purpose, `llms.txt`, noindex `llms-full.txt`, unsupported-spec boundaries, and sitemap-helper exclusion;
-- desktop and mobile rendering across all 21 public routes, navigation, wide-table accessibility, and the interactive demo;
-- visual evidence captures for evidence, market comparison, CmdTab-versus-AltTab, and the four deep feature pages.
+- desktop and mobile rendering across all 22 public routes, navigation, wide-table accessibility, real-media requests, and the interactive demo;
+- visual evidence captures for the showcase, evidence, comparisons, and deep feature pages.
 
 ## Search and AI Discovery Measurement
 
@@ -151,7 +180,8 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 - Browser-tab Apple Events behavior and permissions should remain removed.
 - `⌘Tab` remains the headline trigger; right-command and right-option tap modes are optional secondary triggers.
 - Commercial direction: 14-day trial followed by a one-time license.
-- Public claims must be visible in canonical HTML and supported by source, code, test, or clearly labelled product intent.
+- Public claims must be visible in canonical HTML and supported by source, code, test, controlled product render, or clearly labelled product intent.
+- Real showcase assets must use production app views and controlled fixtures; AI-generated substitutes or private desktop recordings are not acceptable.
 - Competitor comparisons must use first-party sources, show a review date, distinguish adoption from reliability, and treat missing claims as unknown rather than absent.
 - Keep comparisons under `/compare/`; do not add near-duplicate `/vs/` doorway pages merely for keyword variants.
 - Do not publish fake ratings, testimonials, directory status, download counts, processor coverage, benchmarks, or compatibility claims.
@@ -163,17 +193,18 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 
 ## Open Issues and Next Steps
 
-1. Deploy the 21-route feature-depth and retrieval phase, verify production, and submit the changed canonical set through IndexNow.
-2. Execute the real-macOS acceptance matrix for permissions, exact focused-window proof, Spaces, displays, fullscreen, Stage Manager, rapid input, Secure Input, signing, notarization, and clean-account installation.
-3. Publish a signed and notarized release only after the relevant acceptance rows pass.
-4. Configure `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` with owner-account tokens, verify `cmdtab.net`, submit the sitemap, and inspect the principal canonical URLs.
-5. Review Google Search Console and Bing Webmaster Tools alongside `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
-6. Provision monitored `support@cmdtab.net`, `privacy@cmdtab.net`, and `security@cmdtab.net` addresses before replacing the current contact email.
-7. Configure and test the real trial download, checkout, webhook, license delivery, recovery, and support environment before paid traffic.
-8. Complete the signed release and direct download flow before owner-operated AlternativeTo, Product Hunt, MacUpdate, Softpedia, or similar listings that require a downloadable product.
-9. Publish original performance and exact-window activation methodology only after collecting reproducible real-machine measurements.
-10. Earn authority through independent reviews, editorial links, authentic user discussion, and evidence-led localization rather than synthetic pages.
-11. Keep this README, `website/SEO-GEO.md`, and `docs/seo/implementation.md` synchronized when the product or discovery contract changes.
+1. Complete the validated macOS showcase render, visually inspect every poster and clip, commit the final media, and remove the one-time generation workflow.
+2. Deploy the 22-route website, verify the production watch page and media responses, then submit the changed canonical set through IndexNow.
+3. Execute the real-macOS acceptance matrix for permissions, exact focused-window proof, Spaces, displays, fullscreen, Stage Manager, rapid input, Secure Input, signing, notarization, and clean-account installation.
+4. Publish a signed and notarized release only after the relevant acceptance rows pass.
+5. Configure `GOOGLE_SITE_VERIFICATION` and `BING_SITE_VERIFICATION` with owner-account tokens, verify `cmdtab.net`, submit the sitemap, and inspect the principal canonical URLs.
+6. Review Google Search Console and Bing Webmaster Tools alongside `/dashboard/discovery`, Vercel Analytics, trial starts, purchases, and support outcomes.
+7. Provision monitored `support@cmdtab.net`, `privacy@cmdtab.net`, and `security@cmdtab.net` addresses before replacing the current contact email.
+8. Configure and test the real trial download, checkout, webhook, license delivery, recovery, and support environment before paid traffic.
+9. Complete the signed release and direct download flow before owner-operated AlternativeTo, Product Hunt, MacUpdate, Softpedia, or similar listings that require a downloadable product.
+10. Publish original performance and exact-window activation methodology only after collecting reproducible real-machine measurements.
+11. Earn authority through independent reviews, editorial links, authentic user discussion, and evidence-led localization rather than synthetic pages.
+12. Keep this README, `website/SEO-GEO.md`, `docs/seo/implementation.md`, and the showcase plan synchronized when the product or discovery contract changes.
 
 ## Recent Changes
 
@@ -188,6 +219,7 @@ The permanent SEO/GEO workflow additionally starts the compiled production serve
 - Expanded `llms.txt`, added a non-standard noindex `llms-full.txt`, and protected the helper/canonical boundary with rendered verification.
 - Prepared an owner-operated software-directory pack while explicitly rejecting unsupported ScreenCaptureKit, memory, processor, Universal Binary, and latency claims.
 - Expanded the canonical public HTML registry from 16 to 21 routes and verified all routes at desktop and mobile sizes.
+- Added a deterministic production-view media renderer, privacy-safe fixture windows, blank-product-region validation, H.264 encoding, a 22nd canonical `/showcase` route, homepage and feature-page video surfaces, transcripts, reduced-motion playback, VideoObject markup, and media response checks.
 
 ### 2026-07-20
 
