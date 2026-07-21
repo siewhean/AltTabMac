@@ -492,8 +492,13 @@ final class SwitcherWindowController {
     private func items() -> [SwitcherItem] {
         let rawItems = appSwitcher.getItems()
         let visibleItems = applyingPendingSuppressions(to: rawItems)
+        _ = appSwitcher.reconcileCurrentFrontmostHistory()
         let currentFrontmost = currentFrontmostIdentity(availableItems: visibleItems)
-        return SwitcherOrdering.orderedItems(visibleItems, history: history, currentFrontmost: currentFrontmost)
+        return SwitcherOrdering.orderedItems(
+            visibleItems,
+            history: history,
+            currentFrontmost: currentFrontmost
+        )
     }
 
     private func refreshVisibleItemsIfNeeded() {
@@ -794,6 +799,14 @@ final class SwitcherWindowController {
         self.session = session
 
         let selectedItem = session.commitSelection()
+
+        // Make an immediate second trigger deterministic while AppKit and
+        // NSWorkspace finish activation. This is deliberately provisional:
+        // AppSwitcher writes permanent MRU only after exact focus confirmation.
+        if let pid = selectedItem.historyIdentity.ownerPID {
+            activeFrontmostPID = pid
+            setFrontmostOverride(identity: selectedItem.historyIdentity, pid: pid)
+        }
 
         let rememberedQuery = preferences.switcherStyle == .commandPalette ? viewModel.searchQuery : ""
         if !rememberedQuery.isEmpty {

@@ -155,22 +155,17 @@ struct SwitcherCycleSession {
     ) -> Int {
         guard items.count > 1 else { return 0 }
 
-        let currentPID = currentFrontmost?.ownerPID
+        // SwitcherOrdering supplies one global exact-window MRU sequence and
+        // moves the current exact identity to the end. Selection must follow
+        // that visible sequence directly. Scanning for a different PID would
+        // silently group same-application windows and skip a more recent tile.
+        guard reverse else { return 0 }
 
-        if reverse {
-            let frontmostWasMovedToEnd = currentFrontmost != nil && items.last?.historyIdentity == currentFrontmost
-            let fallbackIndex = frontmostWasMovedToEnd ? max(0, items.count - 2) : items.count - 1
-
-            guard let currentPID else { return fallbackIndex }
-            if let reverseIndex = stride(from: fallbackIndex, through: 0, by: -1).first(where: {
-                items[$0].historyIdentity.ownerPID != currentPID
-            }) {
-                return reverseIndex
-            }
-            return fallbackIndex
+        if let currentFrontmost,
+           let currentIndex = items.firstIndex(where: { $0.historyIdentity == currentFrontmost }) {
+            return (currentIndex - 1 + items.count) % items.count
         }
 
-        guard let currentPID else { return 0 }
-        return items.firstIndex(where: { $0.historyIdentity.ownerPID != currentPID }) ?? 0
+        return items.count - 1
     }
 }

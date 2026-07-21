@@ -61,7 +61,7 @@ final class FrontmostResolutionTests: XCTestCase {
         XCTAssertEqual(identity, arc.historyIdentity)
     }
 
-    func testAppFallbackIsUsedWhenOnlyPidLevelIdentityExists() {
+    func testExactVisibleWindowWinsOverFallbackForSamePID() {
         let fallback = makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appFallback(bundleID: "company.thebrowser.Browser", pid: 202), kind: .appFallback)
         let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
         let history = [notebookLM.historyIdentity, fallback.historyIdentity]
@@ -76,7 +76,7 @@ final class FrontmostResolutionTests: XCTestCase {
             now: 12.0
         )
 
-        XCTAssertEqual(identity, fallback.historyIdentity)
+        XCTAssertEqual(identity, notebookLM.historyIdentity)
     }
 
     func testSingleVisibleTileForFrontmostPIDIsUsedWhenExactIdentityCannotBeResolved() {

@@ -70,8 +70,19 @@ enum FrontmostResolution {
             return samePIDItems[0].historyIdentity
         }
 
-        return availableItems.first(where: {
-            $0.kind == .appFallback && $0.historyIdentity.ownerPID == pid
+        // Accessibility can temporarily provide only the frontmost PID while an
+        // application has several visible windows. Resolve that ambiguity from
+        // the same immutable history snapshot used for ordering instead of
+        // returning nil or collapsing the windows into one application bucket.
+        let availableIdentities = Set(samePIDItems.map(\.historyIdentity))
+        if let mostRecentVisibleIdentity = historyEntries.first(where: {
+            availableIdentities.contains($0)
+        }) {
+            return mostRecentVisibleIdentity
+        }
+
+        return samePIDItems.first(where: {
+            $0.kind == .appFallback
         })?.historyIdentity
     }
 }
