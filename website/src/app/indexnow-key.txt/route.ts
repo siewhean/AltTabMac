@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 
+import committedIndexNowKey from "@/content/indexnow-key.json";
+
 export const dynamic = "force-dynamic";
 
 function configuredKey() {
-  const key = process.env.INDEXNOW_KEY?.trim();
-  return key && /^[A-Za-z0-9-]{8,128}$/.test(key) ? key : undefined;
+  const environmentKey = process.env.INDEXNOW_KEY?.trim();
+  const key = environmentKey || committedIndexNowKey.key.trim();
+  return /^[A-Za-z0-9-]{8,128}$/.test(key) ? key : undefined;
 }
 
 export async function GET() {
