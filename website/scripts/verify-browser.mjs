@@ -284,6 +284,8 @@ try {
       await client.send("Runtime.evaluate", {
         expression: `new Promise(async (resolve) => {
           if (document.fonts?.ready) await document.fonts.ready;
+          document.documentElement.style.scrollBehavior = 'auto';
+          document.body.style.scrollBehavior = 'auto';
           const max = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
           for (let y = 0; y <= max; y += Math.max(450, window.innerHeight * 0.7)) {
             window.scrollTo(0, y);
