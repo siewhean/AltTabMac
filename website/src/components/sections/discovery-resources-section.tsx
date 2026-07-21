@@ -8,7 +8,7 @@ const resources = [
     href: "/features/window-switcher",
     eyebrow: "Product behavior",
     title: "How the exact-window switcher works",
-    body: "Review multiple windows per app, global recent-use ordering, preview fallback, Spaces, displays, and activation behavior.",
+    body: "Review multiple windows per app, global recent-use ordering, preview fallback, Spaces, displays, activation behavior, and links to every presentation mode.",
   },
   {
     href: "/evidence",
@@ -25,12 +25,18 @@ const resources = [
   {
     href: "/compare/mac-window-switchers",
     eyebrow: "Market landscape",
-    title: "Compare the built-in switcher, AltTab, BetterCmdTab, CmdTab, and Scopo",
+    title: "Compare macOS, AltTab, BetterCmdTab, Contexts, CmdTab, and Scopo",
     body: "Use source-dated first-party facts about switching model, search, previews, requirements, and commercial terms.",
   },
   {
-    href: "/compare/cmdtab-vs-macos-command-tab",
+    href: "/compare/cmdtab-vs-alttab",
     eyebrow: "Focused comparison",
+    title: "CmdTab versus AltTab for macOS",
+    body: "Compare exact-window behavior, search tiers, presentation modes, shortcuts, pricing, adoption signals, and public evidence without hiding CmdTab’s beta stage.",
+  },
+  {
+    href: "/compare/cmdtab-vs-macos-command-tab",
+    eyebrow: "Native comparison",
     title: "CmdTab versus the built-in macOS switcher",
     body: "Compare apps, individual windows, previews, search, permissions, quick actions, and setup without pretending one option fits everyone.",
   },
@@ -47,7 +53,7 @@ export function DiscoveryResourcesSection() {
     <SectionShell
       eyebrow="Authoritative resources"
       title="Verify the product instead of relying on a slogan"
-      description="CmdTab publishes separate factual pages for behavior, evidence, native macOS workflows, market comparison, compatibility, permissions, and privacy."
+      description="CmdTab publishes separate factual pages for behavior, modes, evidence, native macOS workflows, market comparison, compatibility, permissions, and privacy."
       className="pt-8"
     >
       <div className="grid gap-5 md:grid-cols-2">
