@@ -5,11 +5,11 @@ import { ScreenshotFrame } from "@/components/ui/screenshot-frame";
 import { SectionShell } from "@/components/ui/section-shell";
 import { styleVariants } from "@/content/home";
 
-const modeLinks = {
+const modeLinks: Record<string, string> = {
   classicGrid: "/features/classic-grid",
   commandPalette: "/features/command-palette",
   radialMenu: "/features/radial-menu",
-} as const;
+};
 
 export function StylesSection() {
   return (
