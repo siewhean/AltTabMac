@@ -90,7 +90,7 @@ export function HeroSection() {
                 variant="secondary"
                 {...analyticsAttributes("hero_secondary_cta", "hero")}
               >
-                Watch the app
+                Watch the showcase
               </Button>
             </div>
           </div>
@@ -103,21 +103,21 @@ export function HeroSection() {
               <a
                 href="/showcase"
                 className="group relative z-10 block overflow-hidden rounded-[28px] border border-white/10 bg-black/35 shadow-[0_28px_100px_rgba(0,0,0,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/70"
-                aria-label="Open the real CmdTab app switcher showcase"
+                aria-label="Open the CmdTab product showcase"
               >
                 <Image
-                  src="/showcase/overview-poster.png"
-                  alt="Real CmdTab production UI render showing the app switcher with controlled fixture windows"
-                  width={1280}
-                  height={800}
+                  src="/showcase/overview-poster.webp"
+                  alt="CmdTab product overview using controlled fixture windows"
+                  width={720}
+                  height={450}
                   sizes="(min-width: 1024px) 54vw, 100vw"
                   className="h-auto w-full transition-transform duration-300 group-hover:scale-[1.006]"
                   priority
                 />
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-5 pt-20">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">Real production UI</p>
-                    <p className="mt-1 text-sm font-medium text-white">Controlled fixture windows, not an AI-generated mockup</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">Privacy-safe product showcase</p>
+                    <p className="mt-1 text-sm font-medium text-white">Authentic Radial render plus clearly labelled product composites</p>
                   </div>
                   <span className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-md">
                     Watch 8s overview
