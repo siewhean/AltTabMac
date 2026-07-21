@@ -1,7 +1,9 @@
 # CmdTab software-directory submission pack
 
 **Reviewed:** 2026-07-22  
-**Status:** Preparation only; no external listing is claimed.
+**Status:** Preparation only.
+
+This file does **not** claim that CmdTab has been submitted, approved, reviewed, or indexed by any external directory.
 
 ## Canonical identity
 
