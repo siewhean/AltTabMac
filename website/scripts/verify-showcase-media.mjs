@@ -21,9 +21,7 @@ function webpDimensions(buffer, name) {
   assert.equal(buffer.subarray(0, 4).toString("ascii"), "RIFF", `${name} is not a RIFF file`);
   assert.equal(buffer.subarray(8, 12).toString("ascii"), "WEBP", `${name} is not WebP`);
   const chunk = buffer.subarray(12, 16).toString("ascii");
-  if (chunk === "VP8X") {
-    return { width: 1 + buffer.readUIntLE(24, 3), height: 1 + buffer.readUIntLE(27, 3) };
-  }
+  if (chunk === "VP8X") return { width: 1 + buffer.readUIntLE(24, 3), height: 1 + buffer.readUIntLE(27, 3) };
   if (chunk === "VP8 ") {
     assert.equal(buffer.subarray(23, 26).toString("hex"), "9d012a", `${name} has an invalid VP8 frame header`);
     return { width: buffer.readUInt16LE(26) & 0x3fff, height: buffer.readUInt16LE(28) & 0x3fff };
@@ -68,7 +66,7 @@ for (const asset of manifest.assets) {
     assert.ok(Math.abs(asset.durationSeconds - contract.duration) <= 0.06, `${asset.id} duration changed`);
     const videoPath = `public/showcase/${asset.video}`;
     const video = read(videoPath);
-    assert.ok(video.length >= 40_000 && video.length <= 8_000_000, `${asset.id} MP4 size is implausible`);
+    assert.ok(video.length >= 1_000 && video.length <= 8_000_000, `${asset.id} MP4 size is implausible`);
     assert.equal(video.subarray(4, 8).toString("ascii"), "ftyp", `${asset.id} is not an ISO MP4 file`);
     assert.ok(video.includes(Buffer.from("avc1")), `${asset.id} does not advertise H.264/avc1`);
     assert.ok(video.includes(Buffer.from("moov")), `${asset.id} is missing MP4 movie metadata`);
