@@ -1,15 +1,11 @@
+import committedIndexNowKey from "../src/content/indexnow-key.json" with { type: "json" };
 import publicRoutes from "../src/content/public-routes.json" with { type: "json" };
 
-const key = process.env.INDEXNOW_KEY?.trim();
+const key = process.env.INDEXNOW_KEY?.trim() || committedIndexNowKey.key.trim();
 const candidateSiteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
   process.env.SITE_URL?.trim() ||
   "https://cmdtab.net";
-
-if (!key) {
-  console.log("INDEXNOW_KEY is not configured; no URLs were submitted.");
-  process.exit(0);
-}
 
 if (!/^[A-Za-z0-9-]{8,128}$/.test(key)) {
   throw new Error("INDEXNOW_KEY must contain 8-128 letters, numbers, or hyphens.");
