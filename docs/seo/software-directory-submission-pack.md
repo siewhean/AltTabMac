@@ -15,7 +15,7 @@ This file does **not** claim that CmdTab has been submitted, approved, reviewed,
 - Showcase: `https://cmdtab.net/showcase`
 - Minimum system, pricing, trial, permissions, privacy, and version must be copied from the live canonical pages at submission time.
 
-Do not claim ScreenCaptureKit, sub-50 ms performance, RAM footprint, Universal Binary, Apple Silicon, Intel, or processor coverage without reproducible release evidence.
+Do not claim a capture API, fixed latency, RAM footprint, binary architecture, processor family, or hardware coverage without reproducible release evidence.
 
 ## Maintained media
 
