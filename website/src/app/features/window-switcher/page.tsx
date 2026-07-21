@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
@@ -12,9 +14,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "Mac window switcher with live previews and global MRU";
+const title = "CmdTab macOS window switcher with live previews and global MRU";
 const description =
-  "CmdTab replaces an app-only Cmd+Tab view with individual Mac windows, exact-window recent-use ordering, live previews, search, quick actions, and Space-aware filtering.";
+  "CmdTab is a standalone macOS window-switcher app that replaces an app-only Command-Tab view with individual windows, exact-window recent-use ordering, previews, search, and quick actions.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Window switcher", path: "/features/window-switcher" as const },
@@ -24,7 +26,7 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/features/window-switcher",
-  imageAlt: "CmdTab showing individual Mac windows with live previews",
+  imageAlt: "CmdTab standalone macOS app showing individual windows with live previews",
 });
 
 const steps = [
@@ -56,6 +58,29 @@ const behaviorRows = [
   ["Actions", "Hide, minimize, close, or quit the selected item"],
 ] as const;
 
+const featureReferences = [
+  {
+    href: "/features/classic-grid",
+    title: "Classic Grid",
+    body: "Review the thumbnail-oriented mode, exact-window tile contract, preview fallback, and visual-scanning tradeoffs.",
+  },
+  {
+    href: "/features/command-palette",
+    title: "Command Palette",
+    body: "Inspect local app and window text matching, acronym signals, stable ties, and bounded remembered-choice promotion.",
+  },
+  {
+    href: "/features/radial-menu",
+    title: "Radial Menu",
+    body: "Understand the circular positional presentation, shared target sequence, and directional-selection limits.",
+  },
+  {
+    href: "/features/quick-actions",
+    title: "Quick Actions",
+    body: "See which operations apply to an exact window or an application and how unavailable controls fail safely.",
+  },
+] as const;
+
 export default function WindowSwitcherFeaturePage() {
   return (
     <main>
@@ -72,12 +97,12 @@ export default function WindowSwitcherFeaturePage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow="Window switcher"
-        title="A Cmd+Tab switcher that shows individual Mac windows"
-        description="CmdTab is a native macOS window switcher built for people who need to reach a specific window, not merely activate an application and then search again."
+        title="A standalone CmdTab app that shows individual Mac windows"
+        description="CmdTab is separate from Apple’s built-in Command-Tab shortcut. It is built for people who need to reach a specific window, not merely activate an application and search again."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date="2026-07-21" />
           <p className="text-sm text-subdued">Current project version: {productFacts.currentVersion}</p>
         </div>
         <ScreenshotFrame assetId="classicGrid" caption="Classic Grid keeps each eligible window visible as its own target." priority />
@@ -108,8 +133,13 @@ export default function WindowSwitcherFeaturePage() {
         description="These rules are also protected by automated regression tests in the public repository."
         className="pt-0"
       >
-        <div className="overflow-hidden rounded-[24px] border border-white/10">
-          <table className="w-full border-collapse text-left text-sm">
+        <div
+          role="region"
+          aria-label="CmdTab exact-window behavior reference"
+          tabIndex={0}
+          className="overflow-x-auto rounded-[24px] border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+        >
+          <table className="w-full min-w-[620px] border-collapse text-left text-sm">
             <thead className="bg-white/[0.05] text-text">
               <tr>
                 <th className="px-5 py-4 font-medium">Question</th>
@@ -128,10 +158,31 @@ export default function WindowSwitcherFeaturePage() {
             </tbody>
           </table>
         </div>
+      </SectionShell>
+
+      <SectionShell
+        eyebrow="Mode and action references"
+        title="Go deeper without repeating the same landing page"
+        description="Each page below answers a different user decision: visual scanning, text search, positional selection, or contextual window management."
+        className="pt-0"
+      >
+        <div className="grid gap-5 md:grid-cols-2">
+          {featureReferences.map((reference) => (
+            <Link
+              key={reference.href}
+              href={reference.href}
+              className="surface-panel group block h-full p-7 transition-transform duration-200 hover:-translate-y-0.5"
+            >
+              <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">{reference.title}</h2>
+              <p className="mt-4 text-sm leading-7 text-muted">{reference.body}</p>
+              <p className="mt-6 text-sm font-medium text-cyan group-hover:text-text">Open reference →</p>
+            </Link>
+          ))}
+        </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button href="/trial">Start the 14-day trial</Button>
-          <Button href="/compare/cmdtab-vs-macos-command-tab" variant="secondary">
-            Compare with macOS Cmd+Tab
+          <Button href="/compare/cmdtab-vs-alttab" variant="secondary">
+            Compare CmdTab with AltTab
           </Button>
           <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="ghost">
             Review the source
