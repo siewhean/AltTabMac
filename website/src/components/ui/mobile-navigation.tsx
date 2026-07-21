@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const mobileNavItems = [
   { href: "/features/window-switcher", label: "Switcher and modes" },
+  { href: "/showcase", label: "Real app showcase" },
   { href: "/evidence", label: "Testing and evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
   { href: "/compare/mac-window-switchers", label: "Switcher landscape" },
