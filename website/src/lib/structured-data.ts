@@ -62,7 +62,9 @@ function softwareApplicationEntity(siteUrl: string) {
     "@type": "SoftwareApplication",
     "@id": `${siteUrl}/#software`,
     name: siteConfig.name,
-    alternateName: "CmdTab for macOS",
+    alternateName: ["CmdTab for macOS", "CmdTab window switcher"],
+    disambiguatingDescription:
+      "CmdTab is a standalone macOS window-switcher application, not Apple’s built-in Command-Tab shortcut.",
     url: siteUrl,
     sameAs: [productFacts.sourceRepository],
     applicationCategory: "UtilitiesApplication",
@@ -71,6 +73,9 @@ function softwareApplicationEntity(siteUrl: string) {
     softwareVersion: productFacts.currentVersion,
     softwareRequirements:
       `${productFacts.minimumMacOS}; Accessibility permission; Screen Recording permission for live window previews`,
+    permissions: productFacts.permissions.map(
+      (permission) => `${permission.name}: ${permission.reason}`,
+    ),
     description: siteConfig.description,
     image: `${siteUrl}/opengraph-image`,
     screenshot: [
@@ -117,7 +122,7 @@ export function createHomeStructuredData() {
         "@id": `${siteUrl}/#website`,
         url: siteUrl,
         name: siteConfig.name,
-        alternateName: "CmdTab for macOS",
+        alternateName: ["CmdTab for macOS", "CmdTab window switcher"],
         description: siteConfig.description,
         publisher: {
           "@id": `${siteUrl}/#organization`,
