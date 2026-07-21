@@ -20,6 +20,8 @@ export const metadata = createPageMetadata({
   path: "/features/command-palette",
   image: "/showcase/command-palette-poster.png",
   imageAlt: "Real CmdTab Command Palette render searching open Mac windows",
+  imageWidth: 1280,
+  imageHeight: 800,
 });
 
 export default function CommandPalettePage() {
