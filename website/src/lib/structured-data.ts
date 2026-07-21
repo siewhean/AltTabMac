@@ -79,12 +79,12 @@ function softwareApplicationEntity(siteUrl: string) {
       (permission) => `${permission.name}: ${permission.reason}`,
     ),
     description: siteConfig.description,
-    image: `${siteUrl}/showcase/overview-poster.png`,
+    image: `${siteUrl}/showcase/overview-poster.webp`,
     screenshot: [
-      `${siteUrl}/showcase/classic-grid-poster.png`,
-      `${siteUrl}/showcase/command-palette-poster.png`,
-      `${siteUrl}/showcase/radial-menu-poster.png`,
-      `${siteUrl}/showcase/quick-actions-poster.png`,
+      `${siteUrl}/showcase/classic-grid-poster.webp`,
+      `${siteUrl}/showcase/command-palette-poster.webp`,
+      `${siteUrl}/showcase/radial-menu-poster.webp`,
+      `${siteUrl}/showcase/quick-actions-poster.webp`,
     ],
     featureList,
     releaseNotes: `${siteUrl}/changelog`,
@@ -241,20 +241,24 @@ export function createArticleStructuredData({
 
 export function createVideoStructuredData(assets: ReadonlyArray<ShowcaseAsset>) {
   const siteUrl = getSiteUrl();
+  const videos = assets.filter(
+    (asset): asset is ShowcaseAsset & Required<Pick<ShowcaseAsset, "video" | "durationSeconds" | "videoWidth" | "videoHeight">> =>
+      Boolean(asset.video && asset.durationSeconds && asset.videoWidth && asset.videoHeight),
+  );
 
   return {
     "@context": "https://schema.org",
-    "@graph": assets.map((asset) => ({
+    "@graph": videos.map((asset) => ({
       "@type": "VideoObject",
       "@id": `${siteUrl}/showcase#video-${asset.id}`,
       name: asset.title,
-      description: asset.description,
+      description: `${asset.description} Source: ${asset.sourceLabel}.`,
       thumbnailUrl: new URL(asset.poster, `${siteUrl}/`).toString(),
       uploadDate: showcaseUploadDate,
       contentUrl: new URL(asset.video, `${siteUrl}/`).toString(),
       duration: `PT${asset.durationSeconds}S`,
-      width: asset.width,
-      height: asset.height,
+      width: asset.videoWidth,
+      height: asset.videoHeight,
       encodingFormat: "video/mp4",
       inLanguage: "en",
       isFamilyFriendly: true,
