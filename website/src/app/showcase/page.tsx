@@ -34,6 +34,8 @@ export const metadata = createPageMetadata({
   path: "/showcase",
   image: "/showcase/overview-poster.png",
   imageAlt: "CmdTab production app switcher showcase with controlled fixture windows",
+  imageWidth: 1280,
+  imageHeight: 800,
 });
 
 export default function ShowcasePage() {
