@@ -8,6 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "seo:check": "node scripts/verify-seo.mjs",
+    "rendered:check": "python3 scripts/verify-rendered-site.py",
+    "browser:check": "node scripts/verify-browser.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
     "security:deps": "npm audit --omit=dev --audit-level=high",
     "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
