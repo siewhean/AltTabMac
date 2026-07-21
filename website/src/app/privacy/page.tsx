@@ -1,7 +1,9 @@
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
+import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
+import { SiteHeader } from "@/components/ui/site-header";
 import { privacyContent } from "@/content/legal";
 import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
@@ -36,13 +38,14 @@ export default function PrivacyPage() {
           path: "/privacy",
         })}
       />
+      <SiteHeader />
       <SectionShell
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow="Privacy"
         title="CmdTab website and native app privacy"
         description={privacyContent.intro}
-        className="pt-24"
+        className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={productFacts.reviewedAt} />
@@ -77,6 +80,7 @@ export default function PrivacyPage() {
           </div>
         </div>
       </SectionShell>
+      <FooterSection />
     </main>
   );
 }
