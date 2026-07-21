@@ -1,10 +1,11 @@
 import Link from "next/link";
 
 const mobileNavItems = [
-  { href: "/features/window-switcher", label: "Features" },
+  { href: "/features/window-switcher", label: "Switcher and modes" },
   { href: "/evidence", label: "Testing and evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
   { href: "/compare/mac-window-switchers", label: "Switcher landscape" },
+  { href: "/compare/cmdtab-vs-alttab", label: "CmdTab vs AltTab" },
   { href: "/compare/cmdtab-vs-macos-command-tab", label: "Compare with macOS" },
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },
