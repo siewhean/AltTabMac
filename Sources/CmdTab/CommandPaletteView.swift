@@ -105,33 +105,53 @@ struct CommandPaletteView: View {
                     .foregroundColor(.white.opacity(0.40))
                     .frame(maxWidth: .infinity, minHeight: 60)
                     .padding(.vertical, 8)
+            } else if ShowcaseRenderingMode.isEnabled {
+                eagerShowcaseList
             } else {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical, showsIndicators: false) {
-                        LazyVStack(spacing: 0) {
-                            ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
-                                PaletteRowView(item: item, isSelected: idx == resolvedSelectedIndex)
-                                    .id(idx)
-                                    .onHover { hovering in
-                                        viewModel.hoveredIndex = hovering ? idx : nil
-                                    }
-                            }
-                        }
-                        .id(paletteListIdentity)
-                    }
-                    .onChange(of: resolvedSelectedIndex) { idx in
-                        withAnimation(.easeInOut(duration: 0.10)) {
-                            proxy.scrollTo(idx, anchor: .center)
-                        }
-                    }
-                    .onChange(of: viewModel.searchQuery) { _ in
-                        // Snap to top whenever the filter changes so the first result is visible.
-                        proxy.scrollTo(0, anchor: .top)
-                    }
-                }
+                interactiveList
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var interactiveList: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
+                        PaletteRowView(item: item, isSelected: idx == resolvedSelectedIndex)
+                            .id(idx)
+                            .onHover { hovering in
+                                viewModel.hoveredIndex = hovering ? idx : nil
+                            }
+                    }
+                }
+                .id(paletteListIdentity)
+            }
+            .onChange(of: resolvedSelectedIndex) { idx in
+                withAnimation(.easeInOut(duration: 0.10)) {
+                    proxy.scrollTo(idx, anchor: .center)
+                }
+            }
+            .onChange(of: viewModel.searchQuery) { _ in
+                // Snap to top whenever the filter changes so the first result is visible.
+                proxy.scrollTo(0, anchor: .top)
+            }
+        }
+    }
+
+    /// See `ShowcaseRenderingMode`. This eager list uses the production row view
+    /// while avoiding a lazy container that has no visible window during capture.
+    private var eagerShowcaseList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
+                PaletteRowView(item: item, isSelected: idx == resolvedSelectedIndex)
+                    .id(idx)
+            }
+        }
+        .id(paletteListIdentity)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .clipped()
     }
 }
 
