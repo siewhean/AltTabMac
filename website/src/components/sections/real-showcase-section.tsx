@@ -10,20 +10,20 @@ export function RealShowcaseSection() {
   return (
     <SectionShell
       id="showcase"
-      eyebrow="Real product footage"
-      title="Watch the production switcher instead of guessing from a mockup"
-      description="The short overview is rendered from CmdTab’s actual Classic Grid, Command Palette, Radial Menu, and item-mutation views with controlled fixture windows."
+      eyebrow="Product showcase"
+      title="Watch CmdTab’s current interaction model"
+      description="The overview is a polished deterministic product composite; the full showcase also includes an authentic production SwiftUI render of Radial Menu. Every asset uses controlled fixtures and a visible source label."
       className="pt-8"
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.55fr)] lg:items-center">
         <ShowcaseVideo asset={overview} compact />
         <div className="surface-panel p-7">
-          <p className="type-eyebrow text-cyan">What is real</p>
+          <p className="type-eyebrow text-cyan">What is shown</p>
           <p className="mt-4 text-base leading-8 text-muted">{showcaseDisclosure}</p>
           <ul className="mt-6 space-y-3 text-sm leading-7 text-subdued">
-            <li className="border-l border-cyan/35 pl-4">Production selection, filtering, radial, and item-mutation views.</li>
-            <li className="border-l border-cyan/35 pl-4">System application icons and deterministic privacy-safe fixture windows.</li>
-            <li className="border-l border-cyan/35 pl-4">Silent H.264 clips with stable poster and video URLs.</li>
+            <li className="border-l border-cyan/35 pl-4">An authentic production SwiftUI/AppKit Radial Menu render.</li>
+            <li className="border-l border-cyan/35 pl-4">Deterministic product composites for the remaining surfaces.</li>
+            <li className="border-l border-cyan/35 pl-4">Silent H.264 clips and fast WebP posters with stable public URLs.</li>
           </ul>
           <Link
             href="/showcase"
