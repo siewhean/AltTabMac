@@ -1,7 +1,80 @@
 import AppKit
 import CoreGraphics
 import ApplicationServices
+import ScreenCaptureKit
 import os.log
+
+final class LockedCaptureResult<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Value?
+
+    func store(_ value: Value?) {
+        lock.lock()
+        self.value = value
+        lock.unlock()
+    }
+
+    func load() -> Value? {
+        lock.lock()
+        let snapshot = value
+        lock.unlock()
+        return snapshot
+    }
+}
+
+/// Isolates the deprecated Core Graphics capture path from the switcher's
+/// serial build queue. Some modern macOS sessions leave this call blocked in
+/// the capture service; after one timeout, the circuit remains open until that
+/// attempt actually returns so repeated refreshes cannot leak worker threads.
+final class BoundedCaptureGate<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private let queue: DispatchQueue
+    private let failureCooldown: TimeInterval
+    private var isInFlight = false
+    private var retryAfter = Date.distantPast
+
+    init(label: String, failureCooldown: TimeInterval = 0) {
+        queue = DispatchQueue(label: label, qos: .utility)
+        self.failureCooldown = failureCooldown
+    }
+
+    func run(
+        timeout: TimeInterval,
+        operation: @escaping @Sendable () -> Value?
+    ) -> Value? {
+        lock.lock()
+        guard !isInFlight, Date() >= retryAfter else {
+            lock.unlock()
+            return nil
+        }
+        isInFlight = true
+        lock.unlock()
+
+        let semaphore = DispatchSemaphore(value: 0)
+        let result = LockedCaptureResult<Value>()
+        queue.async { [self] in
+            let captured = autoreleasepool(invoking: operation)
+            result.store(captured)
+            lock.lock()
+            if captured == nil {
+                retryAfter = Date().addingTimeInterval(failureCooldown)
+            }
+            isInFlight = false
+            lock.unlock()
+            semaphore.signal()
+        }
+
+        guard semaphore.wait(timeout: .now() + timeout) == .success else {
+            return nil
+        }
+        return result.load()
+    }
+}
+
+private let legacyCaptureGate = BoundedCaptureGate<NSImage>(
+    label: "CmdTab.AppSwitcher.LegacyCapture",
+    failureCooldown: 1
+)
 
 // MARK: - SkyLight private API (window capture for minimized / off-screen windows)
 
@@ -150,14 +223,17 @@ final class AppSwitcher: NSObject {
 
     enum AllowedWindowPolicy: Equatable {
         case unrestricted
+        case fallbackHeuristics
         case restricted(Set<CGWindowID>)
         case noneTrusted
     }
 
-    private struct PreviewCacheEntry {
+    struct PreviewCacheEntry {
         let image: NSImage
         let backdropImage: NSImage?
         let capturedAt: Date
+        var lastAccessAt: Date
+        let byteCost: Int
     }
 
     // ── Non-blocking cache architecture ──────────────────────────────────────
@@ -168,13 +244,17 @@ final class AppSwitcher: NSObject {
     private let buildQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Build", qos: .userInitiated)
     private var _cachedItems: [SwitcherItem] = []
     private var previewCache: [String: PreviewCacheEntry] = [:]
+    private var stalePreviewKeys = Set<String>()
+    private var previewCacheBytes = 0
     private let cacheLock = NSLock()
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
+    private var consecutiveEmptyEnumerations = 0
     private let refreshInterval: TimeInterval = 0.8
-    private let maxPreviewCacheEntries = 512
-    private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
-    private let synchronousPrimePreviewWindowLimit = 8
+    private let maximumEmptyEnumerationRetries = 2
+    private let maxPreviewCacheBytes = 320 * 1024 * 1024
+    private let previewSoftTTL: TimeInterval = 20
+    private let previewHardTTL: TimeInterval = 180
     private let activationRetryLimit = 8
     private let pendingActivationTimeout: TimeInterval = 4.0
     private let initialWindowFocusDelay: TimeInterval = 0.08
@@ -184,6 +264,7 @@ final class AppSwitcher: NSObject {
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     var onActivationConfirmed: ((SwitcherHistoryIdentity, pid_t) -> Void)?
     private var pendingActivationPIDs = Set<pid_t>()
+    private var pendingRuntimeQASessionsByPID: [pid_t: String] = [:]
 
     override init() {
         super.init()
@@ -205,10 +286,8 @@ final class AppSwitcher: NSObject {
             name: SwitcherPreferences.didChangeNotification, object: nil
         )
 
-        // Warm cache asynchronously. Do NOT wait — getItems() will return whatever
-        // is currently cached (empty on first call, but refreshCacheIfNeeded will
-        // populate it from onItemsChanged callbacks).
-        warmCache(force: true)
+        // The owning controller wires callbacks before starting the first build.
+        // Starting here races its synchronous prime during application launch.
     }
 
     @objc private func appActivated(_ notification: Notification) {
@@ -257,6 +336,17 @@ final class AppSwitcher: NSObject {
     /// Non-blocking. Returns cached items immediately — never waits for a
     /// pending thumbnail capture. Kicks off a background refresh if stale.
     func getItems() -> [SwitcherItem] {
+        if !Self.hasScreenRecordingPermission() {
+            let cached = cachedItemsSnapshot()
+            if !cached.isEmpty, cached.allSatisfy({ $0.previewImage == nil }) {
+                if shouldRefresh() {
+                    warmCache(force: false)
+                }
+                return cached
+            }
+            return skeletonOnlyItemsForDeniedCapture()
+        }
+
         // Return cached items immediately without waiting.
         // Trigger a background refresh if stale.
         let cached = cachedItemsSnapshot()
@@ -264,7 +354,8 @@ final class AppSwitcher: NSObject {
             return primeCacheIfNeeded()
         }
 
-        if shouldRefresh() {
+        let needsFirstPreviewCapture = cached.contains { $0.previewImage == nil }
+        if needsFirstPreviewCapture || shouldRefresh() {
             warmCache(force: false)
         }
         return cached
@@ -306,27 +397,26 @@ final class AppSwitcher: NSObject {
         return didDispatch
     }
 
-    /// Populate a fast provisional cache synchronously when the app is first
-    /// invoked and the background builder has not produced anything yet.
-    /// This keeps the first Alt-Tab reveal from stalling on the empty-cache path.
+    /// Populate a provisional window list when the background builder has not
+    /// produced anything yet. Preview capture always remains on `buildQueue` so
+    /// controller construction and hotkey installation never wait on it.
     @discardableResult
     func primeCacheIfNeeded() -> [SwitcherItem] {
+        if !Self.hasScreenRecordingPermission() {
+            return skeletonOnlyItemsForDeniedCapture()
+        }
+
         let existing = cachedItemsSnapshot()
         guard existing.isEmpty else { return existing }
 
         let context = enumerateWindows()
         let preservedPreviews = cachedPreviewSnapshot()
-        let primedItems = synchronousPrimeItems(
-            from: context,
-            previewFallbacks: preservedPreviews
-        )
-        let provisionalItems = primedItems.isEmpty ? assembleItems(
+        let provisionalItems = assembleItems(
             from: context,
             capturePreviews: false,
             previewFallbacks: preservedPreviews,
             allowPreviewlessItems: true
-        ) : primedItems
-
+        )
         cacheLock.lock()
         if _cachedItems.isEmpty {
             _cachedItems = provisionalItems
@@ -344,37 +434,62 @@ final class AppSwitcher: NSObject {
         return snapshot
     }
 
-    private func synchronousPrimeItems(
-        from context: BuildContext,
-        previewFallbacks: [String: PreviewCacheEntry]
-    ) -> [SwitcherItem] {
-        guard synchronousPrimePreviewWindowLimit > 0 else { return [] }
-        if #available(macOS 10.15, *) {
-            guard CGPreflightScreenCaptureAccess() else { return [] }
-        }
-
-        let primedContext = BuildContext(
-            candidates: Array(context.candidates.prefix(synchronousPrimePreviewWindowLimit)),
-            runningApps: context.runningApps,
-            allWindows: context.allWindows,
-            appsByPID: context.appsByPID
+    private func skeletonOnlyItemsForDeniedCapture() -> [SwitcherItem] {
+        let context = enumerateWindows()
+        let skeletonItems = assembleItems(
+            from: context,
+            capturePreviews: false,
+            previewFallbacks: [:],
+            allowPreviewlessItems: true
         )
 
-        return assembleItems(
-            from: primedContext,
-            capturePreviews: true,
-            previewFallbacks: previewFallbacks,
-            allowPreviewlessItems: false
-        )
+        cacheLock.lock()
+        _cachedItems = skeletonItems
+        previewCache.removeAll()
+        stalePreviewKeys.removeAll()
+        previewCacheBytes = 0
+        cacheLock.unlock()
+        return skeletonItems
     }
 
     private func shouldRefresh() -> Bool {
-        Date().timeIntervalSince(lastRefresh) > refreshInterval
+        cacheLock.lock()
+        let refreshRequired = Date().timeIntervalSince(lastRefresh) > refreshInterval
+        cacheLock.unlock()
+        return refreshRequired
     }
 
     func warmCache(force: Bool = false) {
         buildQueue.async { [weak self] in
             self?.refreshCacheIfNeeded(force: force)
+        }
+    }
+
+    func resetCacheForRuntimeQA(completion: (() -> Void)? = nil) {
+        guard RuntimeQAEvidenceRecorder.shared.isEnabled else {
+            completion?()
+            return
+        }
+        buildQueue.sync {
+            self.cacheLock.lock()
+            self._cachedItems.removeAll()
+            self.previewCache.removeAll()
+            self.stalePreviewKeys.removeAll()
+            self.previewCacheBytes = 0
+            self.lastRefresh = .distantPast
+            self.cacheLock.unlock()
+            RuntimeQAEvidenceRecorder.shared.recordCacheReset()
+        }
+        completion?()
+    }
+
+    func waitForRuntimeQAIdle(completion: @escaping () -> Void) {
+        guard RuntimeQAEvidenceRecorder.shared.isEnabled else {
+            completion()
+            return
+        }
+        buildQueue.async {
+            DispatchQueue.main.async(execute: completion)
         }
     }
 
@@ -396,7 +511,13 @@ final class AppSwitcher: NSObject {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.activationPolicy == .regular,
               app.bundleIdentifier != Bundle.main.bundleIdentifier else { return nil }
-        return currentFrontmostIdentity(for: app)
+        let identity = currentFrontmostIdentity(for: app)
+        if let identity {
+            // NSWorkspace does not emit an app-activation notification when
+            // focus moves between windows of the already-frontmost app.
+            history.noteActivation(identity)
+        }
+        return identity
     }
 
     // MARK: - Two-phase cache build
@@ -414,14 +535,51 @@ final class AppSwitcher: NSObject {
         isRefreshing = true
 
         // ── Phase 1: Reuse cached previews immediately ──────────────────────
+        let now = Date()
         let context = enumerateWindows()
-        let preservedPreviews = cachedPreviewSnapshot()
-        let shouldAllowPreviewlessItems = cachedItemsSnapshot().isEmpty
+        let cachedItems = cachedItemsSnapshot()
+        if Self.shouldPreserveCachedItems(
+            cachedItemCount: cachedItems.count,
+            enumeratedCandidateCount: context.candidates.count,
+            consecutiveEmptyEnumerations: consecutiveEmptyEnumerations,
+            maximumRetries: maximumEmptyEnumerationRetries
+        ) {
+            consecutiveEmptyEnumerations += 1
+            isRefreshing = false
+            os_log(
+                .info,
+                log: appSwitcherLog,
+                "Transient empty window enumeration; preserving %{public}d cached items (retry %{public}d/%{public}d)",
+                cachedItems.count,
+                consecutiveEmptyEnumerations,
+                maximumEmptyEnumerationRetries
+            )
+            buildQueue.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.refreshCacheIfNeeded(force: true)
+            }
+            return
+        }
+        consecutiveEmptyEnumerations = context.candidates.isEmpty
+            ? consecutiveEmptyEnumerations + 1
+            : 0
+        let screenRecordingGranted = Self.hasScreenRecordingPermission()
+        let preservedPreviews = screenRecordingGranted ? cachedPreviewSnapshot() : [:]
         let provisionalItems = assembleItems(
             from: context,
             capturePreviews: false,
             previewFallbacks: preservedPreviews,
-            allowPreviewlessItems: shouldAllowPreviewlessItems
+            allowPreviewlessItems: true
+        )
+        let refreshPreviewKeys = previewKeysNeedingRefresh(
+            for: context.candidates,
+            previewFallbacks: preservedPreviews,
+            now: now
+        )
+        let cachedPreviewCount = provisionalItems.lazy.filter { $0.previewImage != nil }.count
+        let captureOperationID = RuntimeQAEvidenceRecorder.shared.beginCaptureRefresh(
+            totalItems: provisionalItems.count,
+            cachedPreviewCount: cachedPreviewCount,
+            requestedPreviewCount: refreshPreviewKeys.count
         )
 
         cacheLock.lock()
@@ -429,9 +587,8 @@ final class AppSwitcher: NSObject {
         cacheLock.unlock()
 
         // Notify UI immediately — existing thumbnails stay in place while the
-        // fresh capture pass updates anything new or changed. Once the cache is
-        // warm, previewless windows are held back from this provisional pass so
-        // the grid does not regress to large icon-only tiles.
+        // fresh capture pass updates anything new or changed. New or
+        // uncapturable windows remain visible with their app identity.
         DispatchQueue.main.async { [weak self] in
             self?.onItemsChanged?(provisionalItems)
         }
@@ -442,24 +599,57 @@ final class AppSwitcher: NSObject {
         buildQueue.async { [weak self] in
             guard let self else { return }
 
-            if #available(macOS 10.15, *) {
-                if !CGPreflightScreenCaptureAccess() {
-                    os_log(.error, log: appSwitcherLog,
-                           "Screen Recording permission not granted — thumbnails will be unavailable. Grant access in System Settings > Privacy & Security > Screen Recording.")
-                }
+            if !screenRecordingGranted {
+                os_log(.default, log: appSwitcherLog,
+                       "Screen Recording permission not granted - using skeleton-only previews.")
             }
 
-            let fullItems = self.assembleItems(
-                from: context,
-                capturePreviews: true,
-                previewFallbacks: preservedPreviews
+            let fullItems: [SwitcherItem]
+            var successfulCaptureCount = 0
+            if !screenRecordingGranted || refreshPreviewKeys.isEmpty {
+                fullItems = provisionalItems
+            } else {
+                let screenCaptureWindows = self.screenCaptureKitWindowSnapshot()
+                fullItems = self.assembleItems(
+                    from: context,
+                    capturePreviews: true,
+                    previewFallbacks: preservedPreviews,
+                    allowPreviewlessItems: true,
+                    screenCaptureWindows: screenCaptureWindows,
+                    refreshPreviewKeys: refreshPreviewKeys,
+                    onCaptureAttempt: { succeeded in
+                        if succeeded { successfulCaptureCount += 1 }
+                    }
+                )
+            }
+
+            let capturedPreviewCount = fullItems.lazy.filter { $0.previewImage != nil }.count
+            os_log(
+                .default,
+                log: appSwitcherLog,
+                "Preview refresh permission=%{public}d candidates=%{public}d requested=%{public}d captured=%{public}d",
+                screenRecordingGranted ? 1 : 0,
+                context.candidates.count,
+                refreshPreviewKeys.count,
+                capturedPreviewCount
+            )
+            RuntimeQAEvidenceRecorder.shared.finishCaptureRefresh(
+                operationID: captureOperationID,
+                totalItems: fullItems.count,
+                requestedPreviewCount: refreshPreviewKeys.count,
+                successfulPreviewCount: successfulCaptureCount
             )
 
             self.cacheLock.lock()
             self._cachedItems = fullItems
+            if !screenRecordingGranted {
+                self.previewCache.removeAll()
+                self.stalePreviewKeys.removeAll()
+                self.previewCacheBytes = 0
+            }
             self.updatePreviewCacheLocked(with: fullItems)
-            self.cacheLock.unlock()
             self.lastRefresh = Date()
+            self.cacheLock.unlock()
             self.isRefreshing = false
 
             // Notify UI again — thumbnails now available.
@@ -475,13 +665,11 @@ final class AppSwitcher: NSObject {
     /// the icon-only and thumbnail assembly phases.
     private struct BuildContext {
         let candidates: [WindowCandidate]
-        let runningApps: [NSRunningApplication]
-        let allWindows: [[String: Any]]
-        let appsByPID: [pid_t: NSRunningApplication]
     }
 
     /// Phase 1 core: enumerate windows, filter, sort, limit — no preview I/O.
     private func enumerateWindows() -> BuildContext {
+        let capturePermissionGranted = Self.hasScreenRecordingPermission()
         let runningApps = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != Bundle.main.bundleIdentifier }
 
@@ -489,28 +677,35 @@ final class AppSwitcher: NSObject {
             runningApps.map { ($0.processIdentifier, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        let allowedWindowPoliciesByPID = switcherDisplayWindowIDsByPID(for: runningApps)
+        let allowedWindowPoliciesByPID = Self.policiesWithPerApplicationFallback(
+            switcherDisplayWindowIDsByPID(for: runningApps)
+        )
 
         let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let candidates = prunedDuplicateWindowSurfaces(from:
-            deduplicatedCandidates(
-                from: allWindows.enumerated().compactMap { index, info in
-                    makeCandidate(
-                        from: info,
-                        orderIndex: index,
-                        appsByPID: appsByPID,
-                        allowedWindowPoliciesByPID: allowedWindowPoliciesByPID
-                    )
-                }
-            )
+        let candidates = deduplicatedCandidates(
+            from: allWindows.enumerated().compactMap { index, info in
+                makeCandidate(
+                    from: info,
+                    orderIndex: index,
+                    appsByPID: appsByPID,
+                    allowedWindowPoliciesByPID: allowedWindowPoliciesByPID,
+                    allowUnsharedWindows: !capturePermissionGranted
+                )
+            }
         ).sorted(by: compareCandidates)
 
         let scopedCandidates = visibilityScopedCandidates(candidates)
+        os_log(
+            .info,
+            log: appSwitcherLog,
+            "Window enumeration apps=%{public}d surfaces=%{public}d candidates=%{public}d scoped=%{public}d",
+            runningApps.count,
+            allWindows.count,
+            candidates.count,
+            scopedCandidates.count
+        )
         return BuildContext(
-            candidates: limitedByApp(scopedCandidates),
-            runningApps: runningApps,
-            allWindows: allWindows,
-            appsByPID: appsByPID
+            candidates: scopedCandidates
         )
     }
 
@@ -522,19 +717,43 @@ final class AppSwitcher: NSObject {
         from context: BuildContext,
         capturePreviews: Bool,
         previewFallbacks: [String: PreviewCacheEntry],
-        allowPreviewlessItems: Bool = false
+        allowPreviewlessItems: Bool = false,
+        screenCaptureWindows: [CGWindowID: SCWindow] = [:],
+        refreshPreviewKeys: Set<String>? = nil,
+        onCaptureAttempt: ((Bool) -> Void)? = nil
     ) -> [SwitcherItem] {
+        let now = Date()
+        var reusedPreviewKeys = Set<String>()
         let windowItems: [SwitcherItem] = context.candidates.compactMap { candidate -> SwitcherItem? in
             let previewKey = candidate.previewCacheKey
             let preview: NSImage?
             let backdrop: NSImage?
             if capturePreviews {
-                let assets = capturePreviewAssets(for: candidate)
-                preview = assets?.thumbnail ?? reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
-                backdrop = assets?.backdrop ?? previewFallbacks[previewKey]?.backdropImage ?? preview
+                if let refreshPreviewKeys, !refreshPreviewKeys.contains(previewKey) {
+                    let cachedPreview = previewFallbacks[previewKey]
+                    preview = cachedPreview?.image
+                    backdrop = cachedPreview?.backdropImage ?? preview
+                } else {
+                    let assets = capturePreviewAssets(
+                        for: candidate,
+                        screenCaptureWindow: screenCaptureWindows[candidate.id]
+                    )
+                    onCaptureAttempt?(assets != nil)
+                    preview = assets?.thumbnail ?? Self.reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
+                    backdrop = assets?.backdrop ?? previewFallbacks[previewKey]?.backdropImage ?? preview
+                }
             } else {
-                preview = previewFallbacks[previewKey]?.image
-                backdrop = previewFallbacks[previewKey]?.backdropImage ?? preview
+                let immediate = bestImmediatePreview(for: previewKey, from: previewFallbacks)
+                preview = immediate.previewImage
+                backdrop = immediate.backdropImage
+                enqueueBackgroundRefreshIfStale(
+                    previewKey: previewKey,
+                    now: now,
+                    previewFallbacks: previewFallbacks
+                )
+                if immediate.previewImage != nil || immediate.backdropImage != nil {
+                    reusedPreviewKeys.insert(previewKey)
+                }
             }
 
             guard Self.shouldDisplayWindowItem(
@@ -550,6 +769,7 @@ final class AppSwitcher: NSObject {
                 subtitle: candidate.appName,
                 icon: candidate.appIcon,
                 previewImage: preview,
+                isSkeletonOnly: preview == nil && allowPreviewlessItems,
                 backdropImage: backdrop,
                 backdropFrame: candidate.bounds,
                 backdropSourceScreenFrame: candidate.screenFrame,
@@ -561,99 +781,14 @@ final class AppSwitcher: NSObject {
                     self?.activateWindow(candidate)
                 }
             }
-
-        let representedWindowPIDs = Set(context.candidates.map(\.ownerPID))
-        let representedWindowAppIdentifiers = Set(context.candidates.map(\.sourceAppIdentifier))
-        var seenFallbackAppIdentifiers = Set<String>()
-
-        let fallbackItems: [SwitcherItem] = context.runningApps
-            .sorted(by: compareApps)
-            .compactMap { app in
-                let sourceAppIdentifier = sourceAppIdentifier(for: app)
-                let appName = app.localizedName ?? "Application"
-
-                guard !preferences.excludesApp(identifier: sourceAppIdentifier, appName: appName) else {
-                    return nil
-                }
-
-                guard Self.shouldIncludeFallbackApp(
-                    processIdentifier: app.processIdentifier,
-                    sourceAppIdentifier: sourceAppIdentifier,
-                    representedWindowPIDs: representedWindowPIDs,
-                    representedWindowAppIdentifiers: representedWindowAppIdentifiers,
-                    seenFallbackAppIdentifiers: &seenFallbackAppIdentifiers
-                ) else {
-                    return nil
-                }
-
-                let identity = SwitcherHistoryIdentity.appFallback(
-                    bundleID: sourceAppIdentifier,
-                    pid: app.processIdentifier
-                )
-
-                let representativeCandidate = fallbackPreviewCandidate(
-                    for: app,
-                    allWindows: context.allWindows,
-                    appsByPID: context.appsByPID
-                )
-                let previewKey = representativeCandidate?.previewCacheKey ?? identity.stableKey
-                let representativeAssets: PreviewAssets?
-                if capturePreviews, let representativeCandidate {
-                    representativeAssets = capturePreviewAssets(for: representativeCandidate)
-                } else {
-                    representativeAssets = nil
-                }
-                let cachedRepresentative = representativeCandidate.flatMap { previewFallbacks[$0.previewCacheKey] }
-                let previewImage = representativeAssets?.thumbnail
-                    ?? reusablePhaseTwoFallback(from: cachedRepresentative)
-                let backdropImage = representativeAssets?.backdrop
-                    ?? cachedRepresentative?.backdropImage
-                    ?? previewImage
-
-                return SwitcherItem(
-                    title: appName,
-                    subtitle: "",
-                    icon: app.icon,
-                    previewImage: previewImage,
-                    backdropImage: backdropImage,
-                    backdropFrame: representativeCandidate?.bounds,
-                    backdropSourceScreenFrame: representativeCandidate?.screenFrame,
-                    previewCacheKey: previewKey,
-                    historyIdentity: identity,
-                    sourceAppIdentifier: sourceAppIdentifier,
-                    kind: .appFallback
-                ) { [weak self] in
-                    self?.activateFallbackApplication(app, identity: identity)
-                }
-            }
-
-        return windowItems + fallbackItems
+        if !capturePreviews {
+            markPreviewCacheAccessed(keys: reusedPreviewKeys, at: now)
+        }
+        return windowItems
     }
 
-    private func fallbackPreviewCandidate(
-        for app: NSRunningApplication,
-        allWindows: [[String: Any]],
-        appsByPID: [pid_t: NSRunningApplication]
-    ) -> WindowCandidate? {
-        prunedDuplicateWindowSurfaces(from:
-            deduplicatedCandidates(
-                from: allWindows.enumerated().compactMap { index, info in
-                    makeCandidate(
-                        from: info,
-                        orderIndex: index,
-                        includeBackgroundWindows: true,
-                        restrictToPID: app.processIdentifier,
-                        appsByPID: appsByPID
-                    )
-                }
-            )
-        ).sorted(by: compareCandidates).first
-    }
-
-    private func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {
-        guard let entry else { return nil }
-        guard Date().timeIntervalSince(entry.capturedAt) <= maximumPhaseTwoFallbackAge else { return nil }
-        return entry.image
+    static func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {
+        entry?.image
     }
 
     static func shouldIncludeFallbackApp(
@@ -663,9 +798,12 @@ final class AppSwitcher: NSObject {
         representedWindowAppIdentifiers: Set<String>,
         seenFallbackAppIdentifiers: inout Set<String>
     ) -> Bool {
-        guard !representedWindowPIDs.contains(processIdentifier) else { return false }
-        guard !representedWindowAppIdentifiers.contains(sourceAppIdentifier) else { return false }
-        return seenFallbackAppIdentifiers.insert(sourceAppIdentifier).inserted
+        _ = processIdentifier
+        _ = sourceAppIdentifier
+        _ = representedWindowPIDs
+        _ = representedWindowAppIdentifiers
+        _ = seenFallbackAppIdentifiers
+        return false
     }
 
     static func shouldDisplayWindowItem(
@@ -673,50 +811,214 @@ final class AppSwitcher: NSObject {
         capturePreviews: Bool,
         allowPreviewlessItems: Bool = false
     ) -> Bool {
+        _ = capturePreviews
         if previewImage != nil { return true }
-        return !capturePreviews && allowPreviewlessItems
+        return allowPreviewlessItems
+    }
+
+    static func shouldPreserveCachedItems(
+        cachedItemCount: Int,
+        enumeratedCandidateCount: Int,
+        consecutiveEmptyEnumerations: Int,
+        maximumRetries: Int
+    ) -> Bool {
+        cachedItemCount > 0
+            && enumeratedCandidateCount == 0
+            && consecutiveEmptyEnumerations < maximumRetries
+    }
+
+    static func hasScreenRecordingPermission() -> Bool {
+        if #available(macOS 10.15, *) {
+            return CGPreflightScreenCaptureAccess()
+        }
+        return true
     }
 
     private func updatePreviewCacheLocked(with items: [SwitcherItem]) {
+        let now = Date()
+        let activeKeys = Set(items.map(\.previewCacheKey))
+
         for item in items {
             guard let preview = item.previewImage ?? item.backdropImage else { continue }
-            previewCache[item.previewCacheKey] = PreviewCacheEntry(
-                image: item.previewImage ?? preview,
+            let cachedImage = item.previewImage ?? preview
+            let entry = Self.updatedPreviewCacheEntry(
+                existing: previewCache[item.previewCacheKey],
+                image: cachedImage,
                 backdropImage: item.backdropImage,
-                capturedAt: Date()
+                now: now,
+                byteCost: byteCost(previewImage: cachedImage, backdropImage: item.backdropImage)
             )
+            if let existing = previewCache[item.previewCacheKey] {
+                previewCacheBytes -= existing.byteCost
+            }
+            previewCache[item.previewCacheKey] = entry
+            stalePreviewKeys.remove(item.previewCacheKey)
+            previewCacheBytes += entry.byteCost
         }
 
-        guard previewCache.count > maxPreviewCacheEntries else { return }
+        pruneInactivePreviewCacheEntriesLocked(activeKeys: activeKeys, now: now)
+        trimPreviewCacheToBudgetLocked(now: now)
+    }
 
-        let activeKeys = Set(items.map(\.previewCacheKey))
-        previewCache = previewCache.filter { activeKeys.contains($0.key) }
+    static func updatedPreviewCacheEntry(
+        existing: PreviewCacheEntry?,
+        image: NSImage,
+        backdropImage: NSImage?,
+        now: Date,
+        byteCost: Int
+    ) -> PreviewCacheEntry {
+        if var existing, existing.image === image {
+            existing.lastAccessAt = now
+            return existing
+        }
+        return PreviewCacheEntry(
+            image: image,
+            backdropImage: backdropImage,
+            capturedAt: now,
+            lastAccessAt: now,
+            byteCost: byteCost
+        )
+    }
 
-        if previewCache.count > maxPreviewCacheEntries {
-            let overflow = previewCache.count - maxPreviewCacheEntries
-            let oldestKeys = previewCache
-                .sorted { $0.value.capturedAt < $1.value.capturedAt }
-                .prefix(overflow)
-                .map(\.key)
-            for key in oldestKeys {
-                previewCache.removeValue(forKey: key)
-            }
+    private func bestImmediatePreview(
+        for key: String,
+        from previewFallbacks: [String: PreviewCacheEntry]
+    ) -> (previewImage: NSImage?, backdropImage: NSImage?) {
+        guard let entry = previewFallbacks[key] else { return (nil, nil) }
+        return (entry.image, entry.backdropImage ?? entry.image)
+    }
+
+    private func enqueueBackgroundRefreshIfStale(
+        previewKey: String,
+        now: Date,
+        previewFallbacks: [String: PreviewCacheEntry]
+    ) {
+        guard let entry = previewFallbacks[previewKey] else { return }
+        guard now.timeIntervalSince(entry.capturedAt) >= previewSoftTTL else { return }
+        cacheLock.lock()
+        stalePreviewKeys.insert(previewKey)
+        cacheLock.unlock()
+    }
+
+    private func previewKeysNeedingRefresh(
+        for candidates: [WindowCandidate],
+        previewFallbacks: [String: PreviewCacheEntry],
+        now: Date
+    ) -> Set<String> {
+        let candidateKeys = Set(candidates.map(\.previewCacheKey))
+        let cachedKeys = Set(previewFallbacks.keys)
+        let missingKeys = candidateKeys.subtracting(cachedKeys)
+        let staleByAge = candidateKeys.filter { key in
+            guard let entry = previewFallbacks[key] else { return false }
+            return now.timeIntervalSince(entry.capturedAt) >= previewSoftTTL
+        }
+
+        cacheLock.lock()
+        let staleBySignal = stalePreviewKeys.intersection(candidateKeys)
+        stalePreviewKeys.subtract(staleBySignal)
+        cacheLock.unlock()
+
+        return missingKeys.union(staleByAge).union(staleBySignal)
+    }
+
+    private func markPreviewCacheAccessed(keys: Set<String>, at now: Date) {
+        guard !keys.isEmpty else { return }
+        cacheLock.lock()
+        for key in keys {
+            guard var entry = previewCache[key] else { continue }
+            entry.lastAccessAt = now
+            previewCache[key] = entry
+        }
+        cacheLock.unlock()
+    }
+
+    private func pruneInactivePreviewCacheEntriesLocked(activeKeys: Set<String>, now: Date) {
+        let removableKeys = previewCache.compactMap { key, entry -> String? in
+            guard !activeKeys.contains(key) else { return nil }
+            guard now.timeIntervalSince(entry.capturedAt) >= previewHardTTL else { return nil }
+            return key
+        }
+        for key in removableKeys {
+            guard let removed = previewCache.removeValue(forKey: key) else { continue }
+            stalePreviewKeys.remove(key)
+            previewCacheBytes -= removed.byteCost
         }
     }
 
-    /// Keep at most N windows per application. 0 = unlimited.
-    private func limitedByApp(_ candidates: [WindowCandidate]) -> [WindowCandidate] {
-        let limit = preferences.maxWindowsPerApp
-        guard limit > 0 else { return candidates }
-
-        var countByApp: [String: Int] = [:]
-        return candidates.filter { candidate in
-            let key = candidate.sourceAppIdentifier
-            let current = countByApp[key, default: 0]
-            guard current < limit else { return false }
-            countByApp[key] = current + 1
-            return true
+    private func trimPreviewCacheToBudgetLocked(now: Date) {
+        let evictionKeys = Self.previewCacheEvictionKeys(
+            entries: previewCache,
+            totalBytes: previewCacheBytes,
+            maxBytes: maxPreviewCacheBytes,
+            now: now,
+            hardTTL: previewHardTTL
+        )
+        for key in evictionKeys {
+            guard let removed = previewCache.removeValue(forKey: key) else { continue }
+            stalePreviewKeys.remove(key)
+            previewCacheBytes -= removed.byteCost
         }
+    }
+
+    static func previewCacheEvictionKeys(
+        entries: [String: PreviewCacheEntry],
+        totalBytes: Int,
+        maxBytes: Int,
+        now: Date,
+        hardTTL: TimeInterval
+    ) -> [String] {
+        guard totalBytes > maxBytes else { return [] }
+
+        var remainingBytes = totalBytes
+        var evictionKeys: [String] = []
+        var selectedKeys = Set<String>()
+
+        let hardExpiredEntries = entries
+            .filter { now.timeIntervalSince($0.value.capturedAt) >= hardTTL }
+            .sorted(by: comparePreviewCacheAge)
+        for (key, entry) in hardExpiredEntries where remainingBytes > maxBytes {
+            evictionKeys.append(key)
+            selectedKeys.insert(key)
+            remainingBytes -= entry.byteCost
+        }
+
+        if remainingBytes > maxBytes {
+            let lruEntries = entries
+                .filter { !selectedKeys.contains($0.key) }
+                .sorted(by: comparePreviewCacheAge)
+            for (key, entry) in lruEntries where remainingBytes > maxBytes {
+                evictionKeys.append(key)
+                remainingBytes -= entry.byteCost
+            }
+        }
+        return evictionKeys
+    }
+
+    private static func comparePreviewCacheAge(
+        _ lhs: Dictionary<String, PreviewCacheEntry>.Element,
+        _ rhs: Dictionary<String, PreviewCacheEntry>.Element
+    ) -> Bool {
+        if lhs.value.lastAccessAt != rhs.value.lastAccessAt {
+            return lhs.value.lastAccessAt < rhs.value.lastAccessAt
+        }
+        return lhs.key < rhs.key
+    }
+
+    private func byteCost(previewImage: NSImage, backdropImage: NSImage?) -> Int {
+        let previewCost = imageByteCost(previewImage)
+        guard let backdropImage, backdropImage !== previewImage else { return previewCost }
+        return previewCost + imageByteCost(backdropImage)
+    }
+
+    private func imageByteCost(_ image: NSImage) -> Int {
+        if let bitmapRep = image.representations
+            .compactMap({ $0 as? NSBitmapImageRep })
+            .max(by: { $0.pixelsWide * $0.pixelsHigh < $1.pixelsWide * $1.pixelsHigh }) {
+            return max(1, bitmapRep.pixelsWide * bitmapRep.pixelsHigh * 4)
+        }
+        let fallbackWidth = max(1, Int(image.size.width.rounded()))
+        let fallbackHeight = max(1, Int(image.size.height.rounded()))
+        return fallbackWidth * fallbackHeight * 4
     }
 
     private func visibilityScopedCandidates(_ candidates: [WindowCandidate]) -> [WindowCandidate] {
@@ -770,18 +1072,16 @@ final class AppSwitcher: NSObject {
     private func currentFrontmostIdentity(for app: NSRunningApplication) -> SwitcherHistoryIdentity? {
         let allowedWindowPoliciesByPID = switcherDisplayWindowIDsByPID(for: [app])
         let windows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
-        let candidates = prunedDuplicateWindowSurfaces(from:
-            deduplicatedCandidates(
-                from: windows.enumerated().compactMap { index, info in
-                    makeCandidate(
-                        from: info,
-                        orderIndex: index,
-                        includeBackgroundWindows: true,
-                        restrictToPID: app.processIdentifier,
-                        allowedWindowPoliciesByPID: allowedWindowPoliciesByPID
-                    )
-                }
-            )
+        let candidates = deduplicatedCandidates(
+            from: windows.enumerated().compactMap { index, info in
+                makeCandidate(
+                    from: info,
+                    orderIndex: index,
+                    includeBackgroundWindows: true,
+                    restrictToPID: app.processIdentifier,
+                    allowedWindowPoliciesByPID: allowedWindowPoliciesByPID
+                )
+            }
         ).sorted(by: compareCandidates)
 
         if let focusedWindowID = focusedWindowID(for: app.processIdentifier) {
@@ -831,6 +1131,8 @@ final class AppSwitcher: NSObject {
     // MARK: - Window activation
 
     private func activateFallbackApplication(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity) {
+        ProductionSignpost.activationRequested()
+        recordActivationRequested()
         markPendingActivation(app.processIdentifier)
         schedulePendingActivationTimeout(for: app.processIdentifier)
         activateApplication(app, activateAllWindows: true)
@@ -851,6 +1153,8 @@ final class AppSwitcher: NSObject {
 
     private func activateWindow(_ candidate: WindowCandidate) {
         guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else { return }
+        ProductionSignpost.activationRequested()
+        recordActivationRequested()
         markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID)
 
@@ -958,13 +1262,13 @@ final class AppSwitcher: NSObject {
 
     private func ensureApplicationFrontmost(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity, attempt: Int) {
         guard currentSystemFrontmostPID() != app.processIdentifier else {
-            confirmActivation(identity: identity, pid: app.processIdentifier)
+            confirmActivation(identity: identity, pid: app.processIdentifier, verification: "applicationOnly")
             return
         }
         guard attempt < activationRetryLimit else {
             // Retries exhausted — record the history anyway so recency ordering
             // stays correct even when the app was slow to become frontmost.
-            confirmActivation(identity: identity, pid: app.processIdentifier)
+            confirmActivation(identity: identity, pid: app.processIdentifier, verification: "applicationOnly")
             return
         }
 
@@ -972,7 +1276,7 @@ final class AppSwitcher: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard self.currentSystemFrontmostPID() != app.processIdentifier else {
-                self.confirmActivation(identity: identity, pid: app.processIdentifier)
+                self.confirmActivation(identity: identity, pid: app.processIdentifier, verification: "applicationOnly")
                 return
             }
             self.activateApplication(app, activateAllWindows: true)
@@ -982,7 +1286,7 @@ final class AppSwitcher: NSObject {
 
     private func ensureWindowFrontmost(_ candidate: WindowCandidate, attempt: Int) {
         guard !isFrontmostWindow(candidate) else {
-            confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
+            confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID, verification: "exactWindow")
             return
         }
         guard attempt < activationRetryLimit,
@@ -990,7 +1294,7 @@ final class AppSwitcher: NSObject {
             // Retries exhausted — if the app is at least frontmost, confirm with
             // whatever identity we have so the history still gets updated.
             if currentSystemFrontmostPID() == candidate.ownerPID {
-                confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
+                confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID, verification: "frontmostApplicationOnly")
             }
             return
         }
@@ -999,7 +1303,7 @@ final class AppSwitcher: NSObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self else { return }
             guard !self.isFrontmostWindow(candidate) else {
-                self.confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID)
+                self.confirmActivation(identity: candidate.historyIdentity, pid: candidate.ownerPID, verification: "exactWindow")
                 return
             }
             self.activateApplication(app, activateAllWindows: true)
@@ -1010,12 +1314,27 @@ final class AppSwitcher: NSObject {
     private func schedulePendingActivationTimeout(for pid: pid_t) {
         DispatchQueue.main.asyncAfter(deadline: .now() + pendingActivationTimeout) { [weak self] in
             guard let self else { return }
-            _ = self.clearPendingActivation(pid)
+            guard self.clearPendingActivation(pid) else { return }
+            let sessionID = self.pendingRuntimeQASessionsByPID.removeValue(forKey: pid)
+            RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+                event: "activationResult",
+                sessionID: sessionID,
+                success: false,
+                verification: "timeout"
+            ))
+            RuntimeQAEvidenceRecorder.shared.finishSession(
+                id: sessionID,
+                success: false,
+                verification: "activationTimeout"
+            )
         }
     }
 
     private func markPendingActivation(_ pid: pid_t) {
         pendingActivationPIDs.insert(pid)
+        if let sessionID = RuntimeQAEvidenceRecorder.shared.currentSessionID() {
+            pendingRuntimeQASessionsByPID[pid] = sessionID
+        }
     }
 
     @discardableResult
@@ -1023,10 +1342,34 @@ final class AppSwitcher: NSObject {
         pendingActivationPIDs.remove(pid) != nil
     }
 
-    private func confirmActivation(identity: SwitcherHistoryIdentity, pid: pid_t) {
+    private func confirmActivation(
+        identity: SwitcherHistoryIdentity,
+        pid: pid_t,
+        verification: String
+    ) {
         guard clearPendingActivation(pid) else { return }
+        let sessionID = pendingRuntimeQASessionsByPID.removeValue(forKey: pid)
+        ProductionSignpost.activationConfirmed()
+        RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+            event: "activationResult",
+            sessionID: sessionID,
+            success: verification == "exactWindow",
+            verification: verification
+        ))
+        RuntimeQAEvidenceRecorder.shared.finishSession(
+            id: sessionID,
+            success: verification == "exactWindow",
+            verification: verification
+        )
         history.noteActivation(identity)
         onActivationConfirmed?(identity, pid)
+    }
+
+    private func recordActivationRequested() {
+        RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+            event: "activationRequested",
+            sessionID: RuntimeQAEvidenceRecorder.shared.currentSessionID()
+        ))
     }
 
     private func application(for item: SwitcherItem) -> NSRunningApplication? {
@@ -1137,7 +1480,8 @@ final class AppSwitcher: NSObject {
         includeBackgroundWindows: Bool? = nil,
         restrictToPID: pid_t? = nil,
         appsByPID: [pid_t: NSRunningApplication]? = nil,
-        allowedWindowPoliciesByPID: [pid_t: AllowedWindowPolicy] = [:]
+        allowedWindowPoliciesByPID: [pid_t: AllowedWindowPolicy] = [:],
+        allowUnsharedWindows: Bool = false
     ) -> WindowCandidate? {
         guard let ownerPIDNumber = windowInfo[kCGWindowOwnerPID as String] as? NSNumber else { return nil }
         let ownerPID = ownerPIDNumber.int32Value
@@ -1170,14 +1514,21 @@ final class AppSwitcher: NSObject {
         let hasExplicitTitle = !title.isEmpty
         let windowID = (windowInfo[kCGWindowNumber as String] as? NSNumber)?.uint32Value ?? 0
         guard windowID != 0 else { return nil }
-        guard Self.isAllowedWindowID(windowID, policy: allowedWindowPoliciesByPID[ownerPID]) else { return nil }
-
         let isOnScreen = (windowInfo[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
+        let windowPolicy = allowedWindowPoliciesByPID[ownerPID]
+        guard Self.isAllowedWindowID(windowID, policy: windowPolicy) else { return nil }
+        if windowPolicy == .fallbackHeuristics, !isOnScreen, !hasExplicitTitle {
+            return nil
+        }
+
         let allowBackground = includeBackgroundWindows ?? (preferences.windowVisibilityScope == .allSpaces)
         if !allowBackground && !isOnScreen { return nil }
 
         let sharingState = (windowInfo[kCGWindowSharingState as String] as? NSNumber)?.intValue ?? 1
-        guard sharingState != 0 else { return nil }
+        guard Self.shouldAllowWindowSharingState(
+            sharingState,
+            allowUnsharedWindows: allowUnsharedWindows
+        ) else { return nil }
 
         let area = bounds.width * bounds.height
         let appName = app.localizedName ?? (windowInfo[kCGWindowOwnerName as String] as? String) ?? "Application"
@@ -1228,29 +1579,6 @@ final class AppSwitcher: NSObject {
         )
     }
 
-    private func prunedDuplicateWindowSurfaces(from candidates: [WindowCandidate]) -> [WindowCandidate] {
-        Self.pruneDuplicateWindowSurfaces(
-            candidates,
-            shouldCollapse: { lhs, rhs in
-                Self.areLikelyDuplicateWindowSurfaces(lhs, rhs)
-            },
-            prefersReplacement: { lhs, rhs in
-                Self.prefersReplacementCandidate(
-                    isOnScreen: lhs.isOnScreen,
-                    title: lhs.windowTitle,
-                    bounds: lhs.bounds,
-                    sortScore: lhs.sortScore,
-                    orderIndex: lhs.orderIndex,
-                    overIsOnScreen: rhs.isOnScreen,
-                    overTitle: rhs.windowTitle,
-                    overBounds: rhs.bounds,
-                    overSortScore: rhs.sortScore,
-                    overOrderIndex: rhs.orderIndex
-                )
-            }
-        )
-    }
-
     private func switcherDisplayWindowIDsByPID(for apps: [NSRunningApplication]) -> [pid_t: AllowedWindowPolicy] {
         var result: [pid_t: AllowedWindowPolicy] = [:]
         result.reserveCapacity(apps.count)
@@ -1263,16 +1591,21 @@ final class AppSwitcher: NSObject {
     private func switcherDisplayWindowIDs(for app: NSRunningApplication) -> AllowedWindowPolicy {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
+        let windowQueryResult = AXUIElementCopyAttributeValue(
+            axApp,
+            kAXWindowsAttribute as CFString,
+            &value
+        )
         let windows: [AXUIElement]
-        if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+        if windowQueryResult == .success,
            let resolvedWindows = value as? [AXUIElement] {
             windows = resolvedWindows
         } else {
             windows = []
         }
 
-        let displayIDs = windows
-            .filter { isSwitcherDisplayWindow($0) }
+        let displayWindows = windows.filter { isSwitcherDisplayWindow($0) }
+        let displayIDs = displayWindows
             .compactMap { AXWindowIDLookup.windowID(for: $0) }
 
         let preferredIDs = [
@@ -1284,7 +1617,9 @@ final class AppSwitcher: NSObject {
 
         return Self.allowedWindowPolicy(
             displayWindowIDs: Set(displayIDs),
-            preferredWindowIDs: preferredIDs
+            preferredWindowIDs: preferredIDs,
+            hasEligibleAXWindows: !displayWindows.isEmpty,
+            axWindowQuerySucceeded: windowQueryResult == .success
         )
     }
 
@@ -1293,7 +1628,8 @@ final class AppSwitcher: NSObject {
             role: axString(for: axWindow, attribute: kAXRoleAttribute as CFString),
             subrole: axString(for: axWindow, attribute: kAXSubroleAttribute as CFString),
             parentRole: parentRole(for: axWindow),
-            isMinimized: axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString)
+            isMinimized: axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString),
+            allowMinimizedStandardWindow: preferences.windowVisibilityScope == .allSpaces
         )
     }
 
@@ -1302,6 +1638,8 @@ final class AppSwitcher: NSObject {
         switch effectivePolicy {
         case .unrestricted:
             return true
+        case .fallbackHeuristics:
+            return true
         case .restricted(let allowedWindowIDs):
             return allowedWindowIDs.contains(windowID)
         case .noneTrusted:
@@ -1309,9 +1647,33 @@ final class AppSwitcher: NSObject {
         }
     }
 
+    static func policiesWithPerApplicationFallback(
+        _ policies: [pid_t: AllowedWindowPolicy]
+    ) -> [pid_t: AllowedWindowPolicy] {
+        policies.mapValues { policy in
+            switch policy {
+            case .noneTrusted:
+                return .fallbackHeuristics
+            case .restricted(let windowIDs) where windowIDs.isEmpty:
+                return .fallbackHeuristics
+            case .unrestricted, .fallbackHeuristics, .restricted:
+                return policy
+            }
+        }
+    }
+
+    static func shouldAllowWindowSharingState(
+        _ sharingState: Int,
+        allowUnsharedWindows: Bool
+    ) -> Bool {
+        sharingState != 0 || allowUnsharedWindows
+    }
+
     static func allowedWindowPolicy(
         displayWindowIDs: Set<CGWindowID>,
-        preferredWindowIDs: [CGWindowID]
+        preferredWindowIDs: [CGWindowID],
+        hasEligibleAXWindows: Bool = false,
+        axWindowQuerySucceeded: Bool = true
     ) -> AllowedWindowPolicy {
         let preferredSet = Set(preferredWindowIDs)
         if !displayWindowIDs.isEmpty {
@@ -1320,6 +1682,10 @@ final class AppSwitcher: NSObject {
 
         if !preferredSet.isEmpty {
             return .restricted(preferredSet)
+        }
+
+        if hasEligibleAXWindows || !axWindowQuerySucceeded {
+            return .fallbackHeuristics
         }
 
         return .noneTrusted
@@ -1338,13 +1704,16 @@ final class AppSwitcher: NSObject {
         subrole: String?,
         parentRole: String?,
         isMinimized: Bool,
-        allowFloating: Bool = false
+        allowFloating: Bool = false,
+        allowMinimizedStandardWindow: Bool = false
     ) -> Bool {
         guard role == (kAXWindowRole as String) else { return false }
-        guard !isMinimized else { return false }
         guard parentRole != (kAXWindowRole as String) else { return false }
 
         guard let subrole else { return false }
+        if isMinimized {
+            return allowMinimizedStandardWindow && subrole == (kAXStandardWindowSubrole as String)
+        }
         if isSwitcherDisplaySubrole(subrole) { return true }
         if allowFloating && subrole == (kAXFloatingWindowSubrole as String) { return true }
         return false
@@ -1357,34 +1726,154 @@ final class AppSwitcher: NSObject {
         let backdrop: NSImage
     }
 
-    private func capturePreviewAssets(for candidate: WindowCandidate) -> PreviewAssets? {
-        guard let backdrop = captureBackdropImage(for: candidate) else { return nil }
+    private func capturePreviewAssets(
+        for candidate: WindowCandidate,
+        screenCaptureWindow: SCWindow?
+    ) -> PreviewAssets? {
+        let signpostID = ProductionSignpost.captureStarted()
+        defer { ProductionSignpost.captureFinished(signpostID) }
+        guard let backdrop = captureBackdropImage(
+            for: candidate,
+            screenCaptureWindow: screenCaptureWindow
+        ) else { return nil }
         return PreviewAssets(
             thumbnail: downscaledPreview(backdrop),
             backdrop: backdrop
         )
     }
 
-    private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
-        // AltTab prefers the WindowServer hardware capture path with explicit
-        // full-size / best-resolution flags because it produces cleaner edges
-        // and avoids the white gutter artifacts that CGWindowListCreateImage
-        // can introduce around some windows.
-        if let image = SkyLightCapture.captureWindow(candidate.id) {
-            return preparedWindowCaptureImage(image)
+    private func captureBackdropImage(
+        for candidate: WindowCandidate,
+        screenCaptureWindow: SCWindow?
+    ) -> NSImage? {
+        if #available(macOS 14.0, *) {
+            if let screenCaptureWindow,
+               let image = screenCaptureKitImage(for: screenCaptureWindow) {
+                if let prepared = Self.preparedSupportedWindowCapture(image) {
+                    os_log(
+                        .default,
+                        log: appSwitcherLog,
+                        "Preview capture strategy=ScreenCaptureKit accepted=1 width=%{public}d height=%{public}d",
+                        Int(prepared.size.width.rounded()),
+                        Int(prepared.size.height.rounded())
+                    )
+                    return prepared
+                }
+                os_log(.default, log: appSwitcherLog,
+                       "Preview capture strategy=ScreenCaptureKit accepted=0 reason=blank")
+            }
+            // Keep a bounded compatibility path for systems where shareable
+            // content discovery fails despite Screen Recording permission.
+            // The private WindowServer and Core Graphics calls run only inside
+            // the single-worker gate below, never on the switcher's build queue.
+            let windowID = candidate.id
+            let bounds = candidate.bounds
+            let fallback = legacyCaptureGate.run(timeout: 0.75) {
+                AppSwitcher.captureWithLegacyStrategies(windowID: windowID, bounds: bounds)
+            }
+            if fallback == nil {
+                os_log(.error, log: appSwitcherLog,
+                       "Legacy preview capture unavailable or timed out")
+            }
+            return fallback
         }
 
+        // macOS 13 compatibility path.
+        return Self.captureWithLegacyStrategies(windowID: candidate.id, bounds: candidate.bounds)
+    }
+
+    private static func captureWithLegacyStrategies(
+        windowID: CGWindowID,
+        bounds: CGRect
+    ) -> NSImage? {
+        if let image = SkyLightCapture.captureWindow(windowID),
+           let prepared = preparedWindowCaptureImage(image) {
+            return prepared
+        }
+        return captureWithCoreGraphics(windowID: windowID, bounds: bounds)
+    }
+
+    private static func captureWithCoreGraphics(
+        windowID: CGWindowID,
+        bounds: CGRect
+    ) -> NSImage? {
         let framedBest: CGWindowImageOption = [.bestResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
+        if let image = cgCapture(.null, .optionIncludingWindow, windowID, framedBest, minW: 80, minH: 60) { return image }
+        if let image = cgCapture(bounds, .optionIncludingWindow, windowID, framedBest, minW: 80, minH: 60) { return image }
 
         let croppedBest: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
+        if let image = cgCapture(.null, .optionIncludingWindow, windowID, croppedBest, minW: 80, minH: 60) { return image }
+        if let image = cgCapture(bounds, .optionIncludingWindow, windowID, croppedBest, minW: 80, minH: 60) { return image }
         let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
+        return cgCapture(.null, .optionIncludingWindow, windowID, nominal, minW: 40, minH: 30)
+    }
 
-        return nil
+    private func screenCaptureKitWindowSnapshot(timeout: TimeInterval = 2.0) -> [CGWindowID: SCWindow] {
+        guard #available(macOS 14.0, *) else { return [:] }
+
+        let semaphore = DispatchSemaphore(value: 0)
+        let result = LockedCaptureResult<SCShareableContent>()
+        DispatchQueue.main.async {
+            SCShareableContent.getExcludingDesktopWindows(
+                false,
+                onScreenWindowsOnly: false
+            ) { content, error in
+                if let error {
+                    let nsError = error as NSError
+                    os_log(.error, log: appSwitcherLog,
+                           "ScreenCaptureKit enumeration failed code=%{public}d", nsError.code)
+                }
+                result.store(content)
+                semaphore.signal()
+            }
+        }
+
+        guard semaphore.wait(timeout: .now() + timeout) == .success,
+              let content = result.load() else {
+            os_log(.error, log: appSwitcherLog, "ScreenCaptureKit enumeration timed out")
+            return [:]
+        }
+        return Dictionary(
+            content.windows.map { ($0.windowID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    @available(macOS 14.0, *)
+    private func screenCaptureKitImage(
+        for window: SCWindow,
+        timeout: TimeInterval = 2.0
+    ) -> CGImage? {
+        let configuration = SCStreamConfiguration()
+        let longestEdge = max(window.frame.width, window.frame.height)
+        let scale = longestEdge > 0 ? min(2.0, 2_200 / longestEdge) : 1.0
+        configuration.width = max(1, Int((window.frame.width * scale).rounded()))
+        configuration.height = max(1, Int((window.frame.height * scale).rounded()))
+        configuration.showsCursor = false
+
+        let filter = SCContentFilter(desktopIndependentWindow: window)
+        let semaphore = DispatchSemaphore(value: 0)
+        let result = LockedCaptureResult<CGImage>()
+        DispatchQueue.main.async {
+            SCScreenshotManager.captureImage(
+                contentFilter: filter,
+                configuration: configuration
+            ) { image, error in
+                if let error {
+                    let nsError = error as NSError
+                    os_log(.error, log: appSwitcherLog,
+                           "ScreenCaptureKit screenshot failed code=%{public}d", nsError.code)
+                }
+                result.store(image)
+                semaphore.signal()
+            }
+        }
+
+        guard semaphore.wait(timeout: .now() + timeout) == .success else {
+            os_log(.error, log: appSwitcherLog, "ScreenCaptureKit screenshot timed out")
+            return nil
+        }
+        return result.load()
     }
 
     /// Cap thumbnails at maxWidth pixels wide using a CoreGraphics context.
@@ -1413,8 +1902,8 @@ final class AppSwitcher: NSObject {
         return NSImage(cgImage: downscaled, size: NSSize(width: targetW, height: targetH))
     }
 
-    private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
-                           _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+    private static func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+                                  _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
         let prepared = Self.presentationPreparedWindowCapture(cgImage)
         guard prepared.width >= minW, prepared.height >= minH,
@@ -1422,12 +1911,24 @@ final class AppSwitcher: NSObject {
         return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
     }
 
-    private func preparedWindowCaptureImage(_ image: NSImage) -> NSImage? {
+    private static func preparedWindowCaptureImage(_ image: NSImage) -> NSImage? {
         guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return image }
         let prepared = Self.presentationPreparedWindowCapture(cgImage)
         guard Self.isPresentationUsefulWindowCapture(prepared) else { return nil }
         guard prepared.width != cgImage.width || prepared.height != cgImage.height else { return image }
         return NSImage(cgImage: prepared, size: NSSize(width: prepared.width, height: prepared.height))
+    }
+
+    static func preparedSupportedWindowCapture(_ cgImage: CGImage) -> NSImage? {
+        let prepared = presentationPreparedWindowCapture(cgImage)
+        guard prepared.width >= 40, prepared.height >= 30,
+              !isImageEffectivelyBlank(prepared) else {
+            return nil
+        }
+        return NSImage(
+            cgImage: prepared,
+            size: NSSize(width: prepared.width, height: prepared.height)
+        )
     }
 
     static func presentationPreparedWindowCapture(_ cgImage: CGImage) -> CGImage {
@@ -1448,20 +1949,26 @@ final class AppSwitcher: NSObject {
         let insetLimit = max(0, min(maxInset, min(width / 4, height / 4)))
         guard insetLimit > 0 else { return cgImage }
 
-        func alphaOffset(for base: Int) -> Int {
-            switch cgImage.alphaInfo {
-            case .premultipliedFirst, .first, .noneSkipFirst:
-                return base
-            default:
-                return base + bpp - 1
-            }
+        let alphaByteOffset: Int?
+        switch cgImage.alphaInfo {
+        case .premultipliedFirst, .first:
+            alphaByteOffset = cgImage.bitmapInfo.contains(.byteOrder32Little) ? bpp - 1 : 0
+        case .premultipliedLast, .last:
+            alphaByteOffset = cgImage.bitmapInfo.contains(.byteOrder32Little) ? 0 : bpp - 1
+        default:
+            alphaByteOffset = nil
+        }
+
+        func hasVisibleAlpha(at base: Int) -> Bool {
+            guard let alphaByteOffset else { return true }
+            let alphaIndex = base + alphaByteOffset
+            return alphaIndex >= 0 && alphaIndex < len && ptr[alphaIndex] >= alphaThreshold
         }
 
         func rowHasOpaquePixels(_ y: Int) -> Bool {
             for x in 0..<width {
                 let base = y * bytesPerRow + x * bpp
-                let alphaIndex = alphaOffset(for: base)
-                if alphaIndex >= 0, alphaIndex < len, ptr[alphaIndex] >= alphaThreshold {
+                if hasVisibleAlpha(at: base) {
                     return true
                 }
             }
@@ -1471,8 +1978,7 @@ final class AppSwitcher: NSObject {
         func columnHasOpaquePixels(_ x: Int) -> Bool {
             for y in 0..<height {
                 let base = y * bytesPerRow + x * bpp
-                let alphaIndex = alphaOffset(for: base)
-                if alphaIndex >= 0, alphaIndex < len, ptr[alphaIndex] >= alphaThreshold {
+                if hasVisibleAlpha(at: base) {
                     return true
                 }
             }
@@ -1538,80 +2044,18 @@ final class AppSwitcher: NSObject {
     }
 
     private static func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
-        let len = CFDataGetLength(data)
-        let bpp = cgImage.bitsPerPixel / 8
-        guard bpp >= 4 else { return false }
-
-        let bpr = cgImage.bytesPerRow
-        let w = cgImage.width, h = cgImage.height
-        var opaque = 0
-        for r in 0..<3 {
-            for c in 0..<3 {
-                let x = (c + 1) * w / 4, y = (r + 1) * h / 4
-                let off = y * bpr + x * bpp
-                let alpha: Int
-                switch cgImage.alphaInfo {
-                case .premultipliedFirst, .first, .noneSkipFirst: alpha = off
-                default: alpha = off + bpp - 1
-                }
-                if alpha >= 0, alpha < len, ptr[alpha] > 10 { opaque += 1 }
-            }
-        }
-        return opaque < 2
+        guard let samples = normalizedCaptureSamples(cgImage) else { return true }
+        return samples.filter { $0.alpha > 10 }.count < 2
     }
 
     private static func isImageEffectivelyBlack(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
-        let len = CFDataGetLength(data)
-        let bpp = cgImage.bitsPerPixel / 8
-        guard bpp >= 4 else { return false }
-
-        let bpr = cgImage.bytesPerRow
-        let w = cgImage.width
-        let h = cgImage.height
-        guard w > 0, h > 0 else { return true }
-
-        var luminances: [Double] = []
-        luminances.reserveCapacity(16)
-
-        func alphaIndex(for base: Int) -> Int {
-            switch cgImage.alphaInfo {
-            case .premultipliedFirst, .first, .noneSkipFirst:
-                return base
-            default:
-                return base + bpp - 1
-            }
-        }
-
-        func colorIndices(for base: Int) -> (Int, Int, Int) {
-            switch cgImage.alphaInfo {
-            case .premultipliedFirst, .first, .noneSkipFirst:
-                return (base + 1, base + 2, base + 3)
-            default:
-                return (base, base + 1, base + 2)
-            }
-        }
-
-        for r in 0..<4 {
-            for c in 0..<4 {
-                let x = max(0, min(w - 1, (c + 1) * w / 5))
-                let y = max(0, min(h - 1, (r + 1) * h / 5))
-                let base = y * bpr + x * bpp
-                let alpha = alphaIndex(for: base)
-                guard alpha >= 0, alpha < len, ptr[alpha] > 10 else { continue }
-
-                let (rIndex, gIndex, bIndex) = colorIndices(for: base)
-                guard rIndex < len, gIndex < len, bIndex < len else { continue }
-
-                let red = Double(ptr[rIndex]) / 255.0
-                let green = Double(ptr[gIndex]) / 255.0
-                let blue = Double(ptr[bIndex]) / 255.0
-                let luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
-                luminances.append(luminance)
-            }
+        guard let samples = normalizedCaptureSamples(cgImage) else { return true }
+        let luminances = samples.compactMap { sample -> Double? in
+            guard sample.alpha > 10 else { return nil }
+            let red = Double(sample.red) / 255.0
+            let green = Double(sample.green) / 255.0
+            let blue = Double(sample.blue) / 255.0
+            return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
         }
 
         guard !luminances.isEmpty else { return true }
@@ -1621,6 +2065,50 @@ final class AppSwitcher: NSObject {
         let averageLuminance = luminances.reduce(0, +) / Double(luminances.count)
 
         return averageLuminance < 0.07 && (maxLuminance - minLuminance) < 0.035
+    }
+
+    private struct CaptureSample {
+        let red: UInt8
+        let green: UInt8
+        let blue: UInt8
+        let alpha: UInt8
+    }
+
+    /// WindowServer images use several byte orders. Normalize a tiny copy so
+    /// capture validation never interprets a color channel as alpha.
+    private static func normalizedCaptureSamples(_ cgImage: CGImage) -> [CaptureSample]? {
+        guard cgImage.width > 0, cgImage.height > 0 else { return nil }
+
+        let dimension = 5
+        let bytesPerRow = dimension * 4
+        var bytes = [UInt8](repeating: 0, count: bytesPerRow * dimension)
+        let didDraw = bytes.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(
+                data: buffer.baseAddress,
+                width: dimension,
+                height: dimension,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                    | CGBitmapInfo.byteOrder32Big.rawValue
+            ) else {
+                return false
+            }
+            context.interpolationQuality = .low
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: dimension, height: dimension))
+            return true
+        }
+        guard didDraw else { return nil }
+
+        return stride(from: 0, to: bytes.count, by: 4).map { offset in
+            CaptureSample(
+                red: bytes[offset],
+                green: bytes[offset + 1],
+                blue: bytes[offset + 2],
+                alpha: bytes[offset + 3]
+            )
+        }
     }
 
     // MARK: - AX helpers
@@ -1670,64 +2158,16 @@ final class AppSwitcher: NSObject {
     }
 
     static func previewCacheKey(
-        for historyIdentity: SwitcherHistoryIdentity,
-        title: String,
-        bounds: CGRect,
-        sourceAppIdentifier: String
+        ownerPID: pid_t,
+        windowID: CGWindowID
     ) -> String {
-        let normalizedTitle = title
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        let normalizedBounds = [
-            Int(bounds.origin.x.rounded()),
-            Int(bounds.origin.y.rounded()),
-            Int(bounds.width.rounded()),
-            Int(bounds.height.rounded())
-        ]
-        return [
-            historyIdentity.stableKey,
-            sourceAppIdentifier.lowercased(),
-            normalizedTitle,
-            normalizedBounds.map(String.init).joined(separator: ",")
-        ].joined(separator: "|")
+        "window:\(ownerPID):\(windowID)"
     }
 
     static func deduplicateCandidateProbes(_ candidates: [WindowCandidateDeduplicationProbe]) -> [WindowCandidateDeduplicationProbe] {
         deduplicateCandidates(
             candidates,
             identityKey: { .init(ownerPID: $0.ownerPID, windowID: $0.windowID) },
-            prefersReplacement: { lhs, rhs in
-                prefersReplacementCandidate(
-                    isOnScreen: lhs.isOnScreen,
-                    title: lhs.title,
-                    bounds: lhs.bounds,
-                    sortScore: lhs.sortScore,
-                    orderIndex: lhs.orderIndex,
-                    overIsOnScreen: rhs.isOnScreen,
-                    overTitle: rhs.title,
-                    overBounds: rhs.bounds,
-                    overSortScore: rhs.sortScore,
-                    overOrderIndex: rhs.orderIndex
-                )
-            }
-        )
-    }
-
-    static func pruneDuplicateCandidateSurfaceProbes(_ candidates: [WindowCandidateDeduplicationProbe]) -> [WindowCandidateDeduplicationProbe] {
-        pruneDuplicateWindowSurfaces(
-            candidates,
-            shouldCollapse: { lhs, rhs in
-                areLikelyDuplicateWindowSurfaces(
-                    ownerPID: lhs.ownerPID,
-                    title: lhs.title,
-                    bounds: lhs.bounds,
-                    hasExplicitTitle: lhs.hasExplicitTitle,
-                    againstOwnerPID: rhs.ownerPID,
-                    againstTitle: rhs.title,
-                    againstBounds: rhs.bounds,
-                    againstHasExplicitTitle: rhs.hasExplicitTitle
-                )
-            },
             prefersReplacement: { lhs, rhs in
                 prefersReplacementCandidate(
                     isOnScreen: lhs.isOnScreen,
@@ -1767,77 +2207,6 @@ final class AppSwitcher: NSObject {
             let key = identityKey(candidate)
             return bestByIdentity.removeValue(forKey: key)
         }
-    }
-
-    private static func pruneDuplicateWindowSurfaces<T>(
-        _ candidates: [T],
-        shouldCollapse: (T, T) -> Bool,
-        prefersReplacement: (T, T) -> Bool
-    ) -> [T] {
-        var kept: [T] = []
-
-        for candidate in candidates {
-            if let existingIndex = kept.firstIndex(where: { shouldCollapse(candidate, $0) }) {
-                if prefersReplacement(candidate, kept[existingIndex]) {
-                    kept[existingIndex] = candidate
-                }
-            } else {
-                kept.append(candidate)
-            }
-        }
-
-        return kept
-    }
-
-    private static func areLikelyDuplicateWindowSurfaces(_ lhs: WindowCandidate, _ rhs: WindowCandidate) -> Bool {
-        areLikelyDuplicateWindowSurfaces(
-            ownerPID: lhs.ownerPID,
-            title: lhs.windowTitle,
-            bounds: lhs.bounds,
-            hasExplicitTitle: lhs.hasExplicitTitle,
-            againstOwnerPID: rhs.ownerPID,
-            againstTitle: rhs.windowTitle,
-            againstBounds: rhs.bounds,
-            againstHasExplicitTitle: rhs.hasExplicitTitle
-        )
-    }
-
-    private static func areLikelyDuplicateWindowSurfaces(
-        ownerPID lhsOwnerPID: pid_t,
-        title lhsTitle: String,
-        bounds lhsBounds: CGRect,
-        hasExplicitTitle lhsHasExplicitTitle: Bool,
-        againstOwnerPID rhsOwnerPID: pid_t,
-        againstTitle rhsTitle: String,
-        againstBounds rhsBounds: CGRect,
-        againstHasExplicitTitle rhsHasExplicitTitle: Bool
-    ) -> Bool {
-        guard lhsOwnerPID == rhsOwnerPID else { return false }
-
-        let normalizedLHSTitle = lhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let normalizedRHSTitle = rhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if lhsHasExplicitTitle && rhsHasExplicitTitle && normalizedLHSTitle != normalizedRHSTitle {
-            return false
-        }
-
-        let lhsArea = lhsBounds.width * lhsBounds.height
-        let rhsArea = rhsBounds.width * rhsBounds.height
-        guard lhsArea > 0, rhsArea > 0 else { return false }
-
-        let overlapArea = lhsBounds.intersection(rhsBounds).area
-        let overlapRatio = overlapArea / min(lhsArea, rhsArea)
-        let centerDistance = hypot(lhsBounds.midX - rhsBounds.midX, lhsBounds.midY - rhsBounds.midY)
-        let sameFrame =
-            abs(lhsBounds.minX - rhsBounds.minX) <= 2 &&
-            abs(lhsBounds.minY - rhsBounds.minY) <= 2 &&
-            abs(lhsBounds.width - rhsBounds.width) <= 2 &&
-            abs(lhsBounds.height - rhsBounds.height) <= 2
-
-        if sameFrame {
-            return true
-        }
-
-        return overlapRatio >= 0.92 && centerDistance <= 110
     }
 
     private static func prefersReplacementCandidate(
@@ -1896,10 +2265,8 @@ private struct WindowCandidate {
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }
     var previewCacheKey: String {
         AppSwitcher.previewCacheKey(
-            for: historyIdentity,
-            title: windowTitle,
-            bounds: bounds,
-            sourceAppIdentifier: sourceAppIdentifier
+            ownerPID: ownerPID,
+            windowID: id
         )
     }
 }

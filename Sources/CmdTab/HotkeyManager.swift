@@ -18,6 +18,7 @@ final class HotkeyManager {
     private let preferences = SwitcherPreferences.shared
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var installationEnabled = false
 
     private var cmdDown = false
     private var optDown = false
@@ -28,6 +29,8 @@ final class HotkeyManager {
     private var showUIWorkItem: DispatchWorkItem?
     private var triggerState = HotkeyTriggerState()
     private var alternateTriggerState = AlternateModifierTriggerState()
+    private var pendingRuntimeQASessionID: String?
+    private var runtimeQASessionIDForCurrentCallback: String?
     private let currentUptime: () -> TimeInterval
 
     init(
@@ -36,7 +39,6 @@ final class HotkeyManager {
     ) {
         self.switcher = switcher
         self.currentUptime = currentUptime
-        install()
     }
 
     deinit {
@@ -50,11 +52,15 @@ final class HotkeyManager {
     // MARK: - Setup
 
     private func install() {
+        guard eventTap == nil else { return }
         let mask: CGEventMask =
             (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.keyUp.rawValue) |
             (1 << CGEventType.flagsChanged.rawValue) |
-            (1 << CGEventType.scrollWheel.rawValue)
+            (1 << CGEventType.scrollWheel.rawValue) |
+            (1 << CGEventType.leftMouseDown.rawValue) |
+            (1 << CGEventType.rightMouseDown.rawValue) |
+            (1 << CGEventType.otherMouseDown.rawValue)
 
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
 
@@ -80,6 +86,16 @@ final class HotkeyManager {
 
         eventTap = tap
         runLoopSource = source
+    }
+
+    func start() {
+        installationEnabled = true
+        install()
+    }
+
+    func retryInstallationIfNeeded() {
+        guard installationEnabled else { return }
+        install()
     }
 
     private func uninstallTap() {
@@ -140,9 +156,21 @@ final class HotkeyManager {
         showUIWorkItem = nil
     }
 
-    private func clearPendingTrigger() {
+    private func clearPendingTrigger(
+        finishRuntimeSession: Bool = false,
+        verification: String = "triggerCleared"
+    ) {
         cancelScheduledReveal()
         triggerState.cancelPendingTrigger()
+        let sessionID = pendingRuntimeQASessionID
+        pendingRuntimeQASessionID = nil
+        if finishRuntimeSession {
+            RuntimeQAEvidenceRecorder.shared.finishSession(
+                id: sessionID,
+                success: false,
+                verification: verification
+            )
+        }
     }
 
     private func scheduleReveal(for revealAtUptime: TimeInterval) {
@@ -207,10 +235,14 @@ final class HotkeyManager {
             scheduleReveal(for: atUptime)
 
         case let .showOverlay(reverse, modifier):
-            switcher?.showOrAdvance(reverse: reverse)
+            switcher?.showOrAdvance(
+                reverse: reverse,
+                runtimeQASessionID: pendingRuntimeQASessionID
+            )
             schedulePostShowModifierCheck(for: modifier)
 
         case let .quickSwitch(reverse):
+            pendingRuntimeQASessionID = nil
             dispatchToMain { [weak self] in
                 self?.switcher?.commitTriggerSession(reverse: reverse)
             }
@@ -240,8 +272,14 @@ final class HotkeyManager {
     ) {
         guard let physicalKey = PhysicalModifierTriggerKey(flagsChangedKeyCode: keyCode) else { return }
         let isDown = toggleModifierState(for: physicalKey)
-
         let triggerMode = preferences.alternateTrigger
+        if isDown {
+            alternateTriggerState.noteInterveningModifierDown(
+                key: physicalKey,
+                mode: triggerMode,
+                now: uptime(for: eventTimestamp)
+            )
+        }
         let shouldActivate = alternateTriggerState.handleModifierChange(
             physicalKey,
             isDown: isDown,
@@ -277,7 +315,8 @@ final class HotkeyManager {
     private func handleTabTrigger(
         modifier: HotkeyModifier,
         reverse: Bool,
-        triggeredAtUptime: TimeInterval? = nil
+        triggeredAtUptime: TimeInterval? = nil,
+        runtimeQASessionID: String? = nil
     ) {
         guard let switcher else { return }
         if switcher.isVisible {
@@ -293,6 +332,16 @@ final class HotkeyManager {
             startedAtUptime: triggeredAtUptime ?? currentUptime()
         ) else {
             return
+        }
+
+        if let runtimeQASessionID,
+           case let .scheduleReveal(revealDeadlineUptime) = action {
+            pendingRuntimeQASessionID = runtimeQASessionID
+            RuntimeQAEvidenceRecorder.shared.beginSession(
+                id: runtimeQASessionID,
+                eventUptime: triggeredAtUptime ?? currentUptime(),
+                revealDeadlineUptime: revealDeadlineUptime
+            )
         }
 
         performTriggerAction(action)
@@ -320,12 +369,23 @@ final class HotkeyManager {
         clearPendingTrigger()
     }
 
+    /// Called whenever the switcher is dismissed without committing a selection.
+    /// This prevents the later modifier release from becoming a hidden
+    /// quick-switch action for the dismissed session.
+    func clearTriggerStateFromDismissal() {
+        clearPendingTrigger(
+            finishRuntimeSession: true,
+            verification: "dismissedWithoutCommit"
+        )
+    }
+
     // MARK: - Event handling
 
     /// The CGEvent.tap callback. This MUST return as fast as possible (< 20 ms).
     /// All heavy work is dispatched asynchronously via `dispatchToMain`.
     private func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let start = DispatchTime.now()
+        runtimeQASessionIDForCurrentCallback = nil
 
         let result = handleInner(proxy: proxy, type: type, event: event)
 
@@ -334,6 +394,15 @@ final class HotkeyManager {
         if elapsedMs > 5 {
             os_log(.info, log: hotkeyLog, "Event tap callback took %.2f ms (type=%{public}d) — target < 20 ms", elapsedMs, type.rawValue)
         }
+        let runtimeQARecorder = RuntimeQAEvidenceRecorder.shared
+        let callbackSessionID = runtimeQASessionIDForCurrentCallback ?? (
+            runtimeQARecorder.isEnabled ? runtimeQARecorder.currentSessionID() : nil
+        )
+        let pendingCallbackSample = runtimeQARecorder.prepareEventTapCallback(
+            sessionID: callbackSessionID
+        )
+        pendingCallbackSample?.complete(startUptimeNanoseconds: start.uptimeNanoseconds)
+        runtimeQASessionIDForCurrentCallback = nil
 
         return result
     }
@@ -342,6 +411,11 @@ final class HotkeyManager {
     private func handleInner(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            RuntimeQAEvidenceRecorder.shared.recordEventTapDisabled()
+            clearPendingTrigger(
+                finishRuntimeSession: true,
+                verification: "eventTapDisabled"
+            )
             os_log(.info, log: hotkeyLog, "Event tap re-enabled after system disable (type=%{public}d)", type.rawValue)
             leftCommandDown = false
             leftOptionDown = false
@@ -374,6 +448,11 @@ final class HotkeyManager {
             }
 
         case .keyDown:
+            alternateTriggerState.noteInterveningKeyDown(
+                key: nil,
+                mode: preferences.alternateTrigger,
+                now: uptime(for: event.timestamp)
+            )
             if shouldBypassForActiveTextInput() {
                 return Unmanaged.passRetained(event)
             }
@@ -383,11 +462,13 @@ final class HotkeyManager {
             let commandHeld = cmdDown || event.flags.contains(.maskCommand)
             let optionHeld = optDown || event.flags.contains(.maskAlternate)
             let isAutorepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
-            alternateTriggerState.noteInterveningKeyDown(now: uptime(for: event.timestamp))
 
             if keyCode == 53 {
                 let wasPendingOrVisible = triggerState.hasPendingTrigger || switcher?.isVisible == true
-                clearPendingTrigger()
+                clearPendingTrigger(
+                    finishRuntimeSession: true,
+                    verification: "escape"
+                )
                 if switcher?.isVisible == true {
                     dispatchToMain { [weak self] in
                         self?.switcher?.cancelAndHide()
@@ -399,41 +480,40 @@ final class HotkeyManager {
             // Tab key — both ⌘Tab and ⌥Tab trigger the same app switcher.
             if keyCode == 48 {
                 if commandHeld && !optionHeld {
-                    let shouldHandleShortcut = MainActor.assumeIsolated {
-                        LicensingController.shared.shouldHandleCustomSwitcherShortcut()
-                    }
-                    guard shouldHandleShortcut else {
-                        clearPendingTrigger()
-                        return Unmanaged.passRetained(event)
-                    }
-
                     if isAutorepeat && triggerState.hasPendingTrigger && switcher?.isVisible != true {
                         return nil
                     }
                     let triggerUptime = uptime(for: event.timestamp)
+                    let runtimeQASessionID = RuntimeQAEvidenceRecorder.shared.isEnabled
+                        ? (switcher?.isVisible == true
+                            ? RuntimeQAEvidenceRecorder.shared.currentSessionID()
+                            : RuntimeQAEvidenceRecorder.shared.makeSessionID())
+                        : nil
+                    runtimeQASessionIDForCurrentCallback = runtimeQASessionID
+                    ProductionSignpost.hotkeyReceived()
                     noteStandardShortcutForAlternateTrigger(now: triggerUptime)
                     dispatchToMain { [weak self] in
                         self?.handleTabTrigger(
                             modifier: .command,
                             reverse: shift,
-                            triggeredAtUptime: triggerUptime
+                            triggeredAtUptime: triggerUptime,
+                            runtimeQASessionID: runtimeQASessionID
                         )
                     }
                     return nil
                 }
 
                 if optionHeld && !commandHeld {
-                    let shouldHandleShortcut = MainActor.assumeIsolated {
-                        LicensingController.shared.shouldHandleCustomSwitcherShortcut()
-                    }
-                    guard shouldHandleShortcut else {
-                        clearPendingTrigger()
-                        return Unmanaged.passRetained(event)
-                    }
-
-                    noteStandardShortcutForAlternateTrigger(now: uptime(for: event.timestamp))
+                    let triggerUptime = uptime(for: event.timestamp)
+                    ProductionSignpost.hotkeyReceived()
+                    noteStandardShortcutForAlternateTrigger(now: triggerUptime)
                     dispatchToMain { [weak self] in
-                        self?.handleTabTrigger(modifier: .option, reverse: shift)
+                        self?.handleTabTrigger(
+                            modifier: .option,
+                            reverse: shift,
+                            triggeredAtUptime: triggerUptime,
+                            runtimeQASessionID: nil
+                        )
                     }
                     return nil
                 }
@@ -500,6 +580,15 @@ final class HotkeyManager {
             guard let switcher, switcher.isVisible else { break }
             guard event.getIntegerValueField(.scrollWheelEventIsContinuous) != 0 else { break }
             break
+
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            guard let switcher, switcher.isVisible else { break }
+            dispatchToMain { [weak self] in
+                // CGEvent coordinates use Quartz display space, while NSWindow
+                // frames use Cocoa screen space. Read the canonical Cocoa
+                // pointer location on the main thread before comparing frames.
+                self?.switcher?.dismissIfClickIsOutsideSwitcher(at: NSEvent.mouseLocation)
+            }
 
         default:
             break
@@ -755,11 +844,32 @@ struct AlternateModifierTriggerState {
         return true
     }
 
-    mutating func noteInterveningKeyDown(now _: TimeInterval) {
-        guard var activePress else { return }
-        activePress.wasInterrupted = true
-        self.activePress = activePress
-        pendingDoubleTap = nil
+    mutating func noteInterveningKeyDown(
+        key: PhysicalModifierTriggerKey?,
+        mode: AlternateTriggerMode,
+        now _: TimeInterval
+    ) {
+        guard mode.activationKind == .doubleTap,
+              let monitoredKey = mode.monitoredKey else {
+            return
+        }
+        guard key != monitoredKey else {
+            return
+        }
+        resetPendingDoubleTap(for: monitoredKey)
+    }
+
+    mutating func noteInterveningModifierDown(
+        key: PhysicalModifierTriggerKey,
+        mode: AlternateTriggerMode,
+        now _: TimeInterval
+    ) {
+        guard mode.activationKind == .doubleTap,
+              let monitoredKey = mode.monitoredKey,
+              key != monitoredKey else {
+            return
+        }
+        resetPendingDoubleTap(for: monitoredKey)
     }
 
     mutating func noteStandardShortcut(using _: PhysicalModifierTriggerKey, now _: TimeInterval) {
@@ -771,6 +881,14 @@ struct AlternateModifierTriggerState {
         pendingDoubleTap = nil
         suppressedReleaseKey = nil
         triggeredCombination = nil
+    }
+
+    private mutating func resetPendingDoubleTap(for monitoredKey: PhysicalModifierTriggerKey) {
+        if var activePress, activePress.key == monitoredKey {
+            activePress.wasInterrupted = true
+            self.activePress = activePress
+        }
+        pendingDoubleTap = nil
     }
 
     private mutating func pruneExpiredState(now: TimeInterval) {
@@ -812,7 +930,7 @@ struct HotkeyTriggerPolicy: Equatable {
         switch modifier {
         case .command:
             return HotkeyTriggerPolicy(
-                revealDelay: 0,
+                revealDelay: 0.1,
                 ignoresRepeatedTabBeforeReveal: true,
                 earlyReleaseAction: .quickSwitch
             )

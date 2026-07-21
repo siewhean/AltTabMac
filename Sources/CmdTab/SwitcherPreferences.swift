@@ -7,6 +7,7 @@ final class SwitcherPreferences: ObservableObject {
     private let includeBackgroundWindowsKey = "includeBackgroundWindows"
     private let windowVisibilityScopeKey = "windowVisibilityScope"
     private let launchAtLoginKey = "launchAtLogin"
+    /// Deprecated/unused by switcher enumeration, retained to preserve existing persisted defaults.
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
     private let enableVibrancyKey = "enableVibrancy"
     private let showSelectedPreviewBackdropKey = "showSelectedPreviewBackdrop"
@@ -27,7 +28,7 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(launchAtLogin, forKey: launchAtLoginKey) }
     }
 
-    /// Max windows shown per application. 0 = show all (unlimited).
+    /// Deprecated/unused by switcher enumeration. Kept for backward compatibility with existing defaults.
     @Published var maxWindowsPerApp: Int {
         didSet { persist(maxWindowsPerApp, forKey: maxWindowsPerAppKey) }
     }
@@ -75,7 +76,9 @@ final class SwitcherPreferences: ObservableObject {
         self.windowVisibilityScope = defaults.string(forKey: windowVisibilityScopeKey)
             .flatMap(WindowVisibilityScope.init(rawValue:))
             ?? (legacyIncludeBackgroundWindows ? .allSpaces : .visibleSpaces)
-        self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
+        self.launchAtLogin = Self.launchAtLoginValue(
+            storedValue: defaults.object(forKey: launchAtLoginKey) as? Bool
+        )
         self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 3
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
         self.showSelectedPreviewBackdrop = defaults.object(forKey: showSelectedPreviewBackdropKey) as? Bool ?? false
@@ -87,6 +90,10 @@ final class SwitcherPreferences: ObservableObject {
             .flatMap(AlternateTriggerMode.init(rawValue:)) ?? .disabled
         self.excludedAppsText = defaults.string(forKey: excludedAppsKey) ?? ""
         self.ignoredWindowTitlesText = defaults.string(forKey: ignoredWindowTitlesKey) ?? ""
+    }
+
+    static func launchAtLoginValue(storedValue: Bool?) -> Bool {
+        storedValue ?? false
     }
 
     private func persist(_ value: Any, forKey key: String) {

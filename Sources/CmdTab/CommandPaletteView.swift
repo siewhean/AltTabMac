@@ -142,11 +142,12 @@ private struct PaletteRowView: View {
     let isSelected: Bool
 
     private var primaryText: String {
-        item.subtitle.isEmpty ? item.title : item.subtitle
+        item.displayAppName
     }
 
     private var secondaryText: String? {
-        guard !item.subtitle.isEmpty, item.title != item.subtitle else { return nil }
+        guard !item.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              item.title != item.subtitle else { return nil }
         return item.title
     }
 

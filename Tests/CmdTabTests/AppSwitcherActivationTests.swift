@@ -6,6 +6,64 @@ import AppKit
 /// ensures subsequent app switches work correctly and windows are ordered in
 /// true MRU order rather than grouped by application.
 final class AppSwitcherActivationTests: XCTestCase {
+    func testBoundedCaptureGateReturnsSuccessfulResult() {
+        let gate = BoundedCaptureGate<Int>(label: "CmdTabTests.BoundedCapture.Success")
+
+        XCTAssertEqual(gate.run(timeout: 0.1) { 42 }, 42)
+    }
+
+    func testBoundedCaptureGateSkipsConcurrentAttemptAfterTimeout() {
+        let gate = BoundedCaptureGate<Int>(label: "CmdTabTests.BoundedCapture.Timeout")
+        let release = DispatchSemaphore(value: 0)
+        let startedAt = CFAbsoluteTimeGetCurrent()
+
+        XCTAssertNil(gate.run(timeout: 0.02) {
+            _ = release.wait(timeout: .now() + 0.5)
+            return 1
+        })
+        XCTAssertLessThan(CFAbsoluteTimeGetCurrent() - startedAt, 0.15)
+
+        let secondInvocationRan = LockedCaptureResult<Bool>()
+        XCTAssertNil(gate.run(timeout: 0.02) {
+            secondInvocationRan.store(true)
+            return 2
+        })
+        XCTAssertNil(secondInvocationRan.load())
+
+        release.signal()
+        let completionDeadline = Date().addingTimeInterval(0.2)
+        while Date() < completionDeadline {
+            if gate.run(timeout: 0.02, operation: { 3 }) == 3 { return }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
+        XCTFail("Gate did not close after the timed-out operation completed")
+    }
+
+    func testSwitcherItemUsesApplicationNameForDisplay() {
+        let item = SwitcherItem(
+            title: "Document 1",
+            subtitle: "Preview",
+            icon: nil,
+            previewImage: nil,
+            historyIdentity: .appFallback(bundleID: "com.apple.Preview", pid: nil),
+            activate: {}
+        )
+
+        XCTAssertEqual(item.displayAppName, "Preview")
+    }
+
+    func testSwitcherItemFallsBackToWindowTitleWhenApplicationNameIsMissing() {
+        let item = SwitcherItem(
+            title: "Document 1",
+            subtitle: "  ",
+            icon: nil,
+            previewImage: nil,
+            historyIdentity: .appFallback(bundleID: "com.example.app", pid: nil),
+            activate: {}
+        )
+
+        XCTAssertEqual(item.displayAppName, "Document 1")
+    }
 
     // MARK: - SwitcherHistoryStore deduplication
 
@@ -252,10 +310,10 @@ final class AppSwitcherActivationTests: XCTestCase {
         )
     }
 
-    func testFallbackAppsAreDeduplicatedByApplicationIdentifier() {
+    func testFallbackAppsAreDisabledEvenWithoutRepresentedWindows() {
         var seen = Set<String>()
 
-        XCTAssertTrue(
+        XCTAssertFalse(
             AppSwitcher.shouldIncludeFallbackApp(
                 processIdentifier: 101,
                 sourceAppIdentifier: "com.apple.finder",
@@ -264,23 +322,14 @@ final class AppSwitcherActivationTests: XCTestCase {
                 seenFallbackAppIdentifiers: &seen
             )
         )
-
-        XCTAssertFalse(
-            AppSwitcher.shouldIncludeFallbackApp(
-                processIdentifier: 202,
-                sourceAppIdentifier: "com.apple.finder",
-                representedWindowPIDs: [],
-                representedWindowAppIdentifiers: [],
-                seenFallbackAppIdentifiers: &seen
-            )
-        )
     }
 
-    func testPreviewlessWindowTilesAreDroppedInFinalThumbnailPass() {
+    func testPreviewlessWindowTilesRemainWhenFallbackPresentationIsAllowed() {
         XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: NSImage(size: NSSize(width: 10, height: 10)), capturePreviews: true))
         XCTAssertFalse(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false))
         XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: false, allowPreviewlessItems: true))
+        XCTAssertTrue(AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true, allowPreviewlessItems: true))
     }
 
     func testPresentationUsefulWindowCaptureRejectsSolidBlackImage() {
@@ -289,6 +338,18 @@ final class AppSwitcherActivationTests: XCTestCase {
         }
 
         XCTAssertFalse(AppSwitcher.isPresentationUsefulWindowCapture(image))
+        XCTAssertNotNil(
+            AppSwitcher.preparedSupportedWindowCapture(image),
+            "A successful supported capture may legitimately contain a black window"
+        )
+    }
+
+    func testSupportedWindowCaptureRejectsTransparentOutput() {
+        let image = makeCGImage(width: 120, height: 80) { _, _ in
+            (0, 0, 0, 0)
+        }
+
+        XCTAssertNil(AppSwitcher.preparedSupportedWindowCapture(image))
     }
 
     func testPresentationUsefulWindowCaptureKeepsDarkImageWithVisibleContent() {
@@ -300,6 +361,31 @@ final class AppSwitcherActivationTests: XCTestCase {
         }
 
         XCTAssertTrue(AppSwitcher.isPresentationUsefulWindowCapture(image))
+    }
+
+    func testPresentationUsefulWindowCaptureHandlesWindowServerByteOrder() {
+        let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
+            | CGBitmapInfo.byteOrder32Little.rawValue
+        let context = CGContext(
+            data: nil,
+            width: 120,
+            height: 80,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: bitmapInfo
+        )!
+        context.setFillColor(CGColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: 120, height: 80))
+        context.setFillColor(CGColor(red: 0.18, green: 0.72, blue: 0.46, alpha: 1))
+        context.fill(CGRect(x: 60, y: 0, width: 60, height: 80))
+
+        let image = context.makeImage()!
+        XCTAssertTrue(AppSwitcher.isPresentationUsefulWindowCapture(image))
+
+        let trimmed = AppSwitcher.trimmedWindowCapture(image)
+        XCTAssertEqual(trimmed.width, image.width)
+        XCTAssertEqual(trimmed.height, image.height)
     }
 
     func testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID() {
@@ -357,13 +443,13 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertEqual(deduplicated, [first, second])
     }
 
-    func testSemanticDuplicateSurfacePruningCollapsesOverlappingSameAppClones() {
-        let smallerUntitledSurface = WindowCandidateDeduplicationProbe(
+    func testDistinctWindowIDsSurviveIdenticalSameAppTitleAndFrame() {
+        let firstWindow = WindowCandidateDeduplicationProbe(
             ownerPID: 101,
             windowID: 77,
             title: "Arc",
             hasExplicitTitle: false,
-            bounds: CGRect(x: 1516, y: 385, width: 600, height: 600),
+            bounds: CGRect(x: 1496, y: 300, width: 749, height: 938),
             orderIndex: 2,
             sortScore: 410,
             isOnScreen: true
@@ -379,12 +465,12 @@ final class AppSwitcherActivationTests: XCTestCase {
             isOnScreen: true
         )
 
-        let pruned = AppSwitcher.pruneDuplicateCandidateSurfaceProbes([smallerUntitledSurface, largerWindow])
+        let deduplicated = AppSwitcher.deduplicateCandidateProbes([firstWindow, largerWindow])
 
-        XCTAssertEqual(pruned, [largerWindow])
+        XCTAssertEqual(deduplicated, [firstWindow, largerWindow])
     }
 
-    func testSemanticDuplicateSurfacePruningKeepsSeparateWindowsWhenOverlapIsLimited() {
+    func testDistinctWindowIDsSurviveOverlappingSameAppSurfaces() {
         let first = WindowCandidateDeduplicationProbe(
             ownerPID: 101,
             windowID: 77,
@@ -406,9 +492,9 @@ final class AppSwitcherActivationTests: XCTestCase {
             isOnScreen: true
         )
 
-        let pruned = AppSwitcher.pruneDuplicateCandidateSurfaceProbes([first, second])
+        let deduplicated = AppSwitcher.deduplicateCandidateProbes([first, second])
 
-        XCTAssertEqual(pruned, [first, second])
+        XCTAssertEqual(deduplicated, [first, second])
     }
 
     /// Empty items list returns empty.
@@ -556,22 +642,108 @@ final class AppSwitcherActivationTests: XCTestCase {
                        "Frontmost should be at the end")
     }
 
-    func testPreviewCacheKeyChangesWhenWindowMetadataChanges() {
-        let identity = SwitcherHistoryIdentity.appWindow(pid: 404, windowID: 77)
+    func testPreviewCacheKeyStaysStableForSameWindowIdentity() {
         let firstKey = AppSwitcher.previewCacheKey(
-            for: identity,
-            title: "Calendar",
-            bounds: CGRect(x: 0, y: 0, width: 1200, height: 800),
-            sourceAppIdentifier: "com.apple.iCal"
+            ownerPID: 404,
+            windowID: 77
         )
         let secondKey = AppSwitcher.previewCacheKey(
-            for: identity,
-            title: "Software Update",
-            bounds: CGRect(x: 0, y: 0, width: 1200, height: 800),
-            sourceAppIdentifier: "com.apple.iCal"
+            ownerPID: 404,
+            windowID: 77
         )
 
-        XCTAssertNotEqual(firstKey, secondKey, "Changing the window title should invalidate stale preview reuse")
+        XCTAssertEqual(firstKey, secondKey)
+    }
+
+    func testPreviewCacheKeyDiffersForDifferentWindowIdentities() {
+        let firstKey = AppSwitcher.previewCacheKey(
+            ownerPID: 404,
+            windowID: 77
+        )
+        let secondKey = AppSwitcher.previewCacheKey(
+            ownerPID: 404,
+            windowID: 78
+        )
+
+        XCTAssertNotEqual(firstKey, secondKey)
+    }
+
+    func testPhaseTwoReusesStaleCachedPreviewAfterCaptureFailure() {
+        let image = NSImage(size: NSSize(width: 320, height: 180))
+        let capturedAt = Date(timeIntervalSince1970: 1_000)
+        let entry = AppSwitcher.PreviewCacheEntry(
+            image: image,
+            backdropImage: nil,
+            capturedAt: capturedAt,
+            lastAccessAt: capturedAt,
+            byteCost: 320 * 180 * 4
+        )
+
+        let fallback = AppSwitcher.reusablePhaseTwoFallback(from: entry)
+
+        XCTAssertTrue(fallback === image, "A stale preview remains usable until normal cache eviction")
+    }
+
+    func testReusedStalePreviewDoesNotResetCaptureTimestamp() {
+        let image = NSImage(size: NSSize(width: 320, height: 180))
+        let capturedAt = Date(timeIntervalSince1970: 1_000)
+        let existing = AppSwitcher.PreviewCacheEntry(
+            image: image,
+            backdropImage: nil,
+            capturedAt: capturedAt,
+            lastAccessAt: capturedAt,
+            byteCost: 320 * 180 * 4
+        )
+        let accessedAt = Date(timeIntervalSince1970: 10_000)
+
+        let updated = AppSwitcher.updatedPreviewCacheEntry(
+            existing: existing,
+            image: image,
+            backdropImage: nil,
+            now: accessedAt,
+            byteCost: existing.byteCost
+        )
+
+        XCTAssertEqual(updated.capturedAt, capturedAt)
+        XCTAssertEqual(updated.lastAccessAt, accessedAt)
+    }
+
+    func testPreviewCacheTrimEvictsHardExpiredThenLeastRecentlyUsedEntries() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let image = NSImage(size: NSSize(width: 10, height: 10))
+        let entries = [
+            "hard-expired": AppSwitcher.PreviewCacheEntry(
+                image: image,
+                backdropImage: nil,
+                capturedAt: now.addingTimeInterval(-181),
+                lastAccessAt: now.addingTimeInterval(-1),
+                byteCost: 40
+            ),
+            "least-recent": AppSwitcher.PreviewCacheEntry(
+                image: image,
+                backdropImage: nil,
+                capturedAt: now.addingTimeInterval(-10),
+                lastAccessAt: now.addingTimeInterval(-9),
+                byteCost: 40
+            ),
+            "most-recent": AppSwitcher.PreviewCacheEntry(
+                image: image,
+                backdropImage: nil,
+                capturedAt: now.addingTimeInterval(-10),
+                lastAccessAt: now.addingTimeInterval(-0.5),
+                byteCost: 40
+            ),
+        ]
+
+        let evictionKeys = AppSwitcher.previewCacheEvictionKeys(
+            entries: entries,
+            totalBytes: 120,
+            maxBytes: 40,
+            now: now,
+            hardTTL: 180
+        )
+
+        XCTAssertEqual(evictionKeys, ["hard-expired", "least-recent"])
     }
 
     func testAllowedWindowIDDefaultsToTrueWhenNoPolicyExists() {
@@ -611,6 +783,102 @@ final class AppSwitcherActivationTests: XCTestCase {
         )
     }
 
+    func testAllowedWindowPolicyFallsBackWhenEligibleAXWindowsCannotResolveIDs() {
+        XCTAssertEqual(
+            AppSwitcher.allowedWindowPolicy(
+                displayWindowIDs: [],
+                preferredWindowIDs: [],
+                hasEligibleAXWindows: true
+            ),
+            .fallbackHeuristics
+        )
+        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, policy: .fallbackHeuristics))
+    }
+
+    func testAllowedWindowPolicyFallsBackWhenAXWindowQueryFails() {
+        XCTAssertEqual(
+            AppSwitcher.allowedWindowPolicy(
+                displayWindowIDs: [],
+                preferredWindowIDs: [],
+                axWindowQuerySucceeded: false
+            ),
+            .fallbackHeuristics
+        )
+    }
+
+    func testAllUntrustedPoliciesUsePerApplicationHeuristicFallback() {
+        let resolved = AppSwitcher.policiesWithPerApplicationFallback([
+            101: .noneTrusted,
+            202: .noneTrusted,
+        ])
+
+        XCTAssertEqual(resolved[101], .fallbackHeuristics)
+        XCTAssertEqual(resolved[202], .fallbackHeuristics)
+    }
+
+    func testPerApplicationFallbackPreservesExactPolicyAndRecoversUntrustedApp() {
+        let original: [pid_t: AppSwitcher.AllowedWindowPolicy] = [
+            101: .restricted([77]),
+            202: .noneTrusted,
+        ]
+
+        let resolved = AppSwitcher.policiesWithPerApplicationFallback(original)
+
+        XCTAssertEqual(resolved[101], .restricted([77]))
+        XCTAssertEqual(resolved[202], .fallbackHeuristics)
+    }
+
+    func testTransientEmptyEnumerationPreservesWarmItemsForBoundedRetries() {
+        XCTAssertTrue(AppSwitcher.shouldPreserveCachedItems(
+            cachedItemCount: 4,
+            enumeratedCandidateCount: 0,
+            consecutiveEmptyEnumerations: 0,
+            maximumRetries: 2
+        ))
+        XCTAssertTrue(AppSwitcher.shouldPreserveCachedItems(
+            cachedItemCount: 4,
+            enumeratedCandidateCount: 0,
+            consecutiveEmptyEnumerations: 1,
+            maximumRetries: 2
+        ))
+        XCTAssertFalse(AppSwitcher.shouldPreserveCachedItems(
+            cachedItemCount: 4,
+            enumeratedCandidateCount: 0,
+            consecutiveEmptyEnumerations: 2,
+            maximumRetries: 2
+        ))
+    }
+
+    func testEmptyEnumerationDoesNotPreserveWithoutWarmItemsOrWhenCandidatesExist() {
+        XCTAssertFalse(AppSwitcher.shouldPreserveCachedItems(
+            cachedItemCount: 0,
+            enumeratedCandidateCount: 0,
+            consecutiveEmptyEnumerations: 0,
+            maximumRetries: 2
+        ))
+        XCTAssertFalse(AppSwitcher.shouldPreserveCachedItems(
+            cachedItemCount: 4,
+            enumeratedCandidateCount: 1,
+            consecutiveEmptyEnumerations: 0,
+            maximumRetries: 2
+        ))
+    }
+
+    func testUnsharedWindowsAreOnlyAllowedForPermissionDeniedSkeletons() {
+        XCTAssertFalse(AppSwitcher.shouldAllowWindowSharingState(
+            0,
+            allowUnsharedWindows: false
+        ))
+        XCTAssertTrue(AppSwitcher.shouldAllowWindowSharingState(
+            0,
+            allowUnsharedWindows: true
+        ))
+        XCTAssertTrue(AppSwitcher.shouldAllowWindowSharingState(
+            1,
+            allowUnsharedWindows: false
+        ))
+    }
+
     func testAllowedWindowIDRejectsAllWindowsWhenPolicyIsNoneTrusted() {
         XCTAssertFalse(AppSwitcher.isAllowedWindowID(77, policy: .noneTrusted))
     }
@@ -643,13 +911,34 @@ final class AppSwitcherActivationTests: XCTestCase {
         )
     }
 
-    func testShouldAllowAXWindowRejectsMinimizedWindows() {
+    func testShouldAllowAXWindowRejectsMinimizedWindowsInVisibleSpacesScope() {
         XCTAssertFalse(
             AppSwitcher.shouldAllowAXWindow(
                 role: kAXWindowRole as String,
                 subrole: kAXStandardWindowSubrole as String,
                 parentRole: nil,
                 isMinimized: true
+            )
+        )
+    }
+
+    func testShouldAllowAXWindowIncludesMinimizedStandardWindowsInAllSpacesScope() {
+        XCTAssertTrue(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: kAXStandardWindowSubrole as String,
+                parentRole: nil,
+                isMinimized: true,
+                allowMinimizedStandardWindow: true
+            )
+        )
+        XCTAssertFalse(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: kAXFloatingWindowSubrole as String,
+                parentRole: nil,
+                isMinimized: true,
+                allowMinimizedStandardWindow: true
             )
         )
     }

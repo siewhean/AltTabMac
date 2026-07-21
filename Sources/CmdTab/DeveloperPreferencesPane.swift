@@ -1,5 +1,6 @@
 import SwiftUI
 
+#if DEBUG
 struct DeveloperPreferencesPane: View {
     @ObservedObject var settings: DeveloperSettings
     @ObservedObject var licensingController: LicensingController
@@ -29,7 +30,7 @@ struct DeveloperPreferencesPane: View {
     private var channelCard: some View {
         DeveloperCard(
             title: "Release Channel",
-            subtitle: "Keep stable behavior untouched, or switch this Mac into a local test profile."
+            subtitle: "Keep stable behavior for normal use, or run this Mac in a local test profile."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 Picker("Release Channel", selection: $settings.releaseChannel) {
@@ -66,7 +67,7 @@ struct DeveloperPreferencesPane: View {
     private var scenarioCard: some View {
         DeveloperCard(
             title: "Licensing Scenarios",
-            subtitle: "These presets only apply while the release channel is set to Test."
+            subtitle: "Use these presets only in Test mode."
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(DeveloperLicensingScenario.allCases) { scenario in
@@ -119,7 +120,7 @@ struct DeveloperPreferencesPane: View {
                 }
 
                 if settings.releaseChannel == .stable {
-                    Text("Stable mode ignores the scenario presets. Switch to Test when you want the simulated trial or license states to take effect.")
+                    Text("Stable mode ignores scenario presets. Switch to Test first, then use presets to simulate trial or license states.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.56))
                         .fixedSize(horizontal: false, vertical: true)
@@ -131,7 +132,7 @@ struct DeveloperPreferencesPane: View {
     private var liveToolsCard: some View {
         DeveloperCard(
             title: "Live Trial Tools",
-            subtitle: "Use the first action to leave test mode. Use the second only when you want to reset the real trial on this Mac."
+            subtitle: "The first action exits test mode. The second resets the real trial state on this Mac."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 12) {
@@ -157,12 +158,12 @@ struct DeveloperPreferencesPane: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Use Saved Stable State leaves test mode and shows the real saved license or trial state already stored on this Mac.")
+                        Text("Use Saved Stable State to exit test mode and return to the real saved license or trial state on this Mac.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.56))
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text("Reset Real Trial leaves test mode, clears the saved license and server-backed trial registration on this Mac, and returns the app to the registration-required state.")
+                        Text("Reset Real Trial exits test mode, clears saved license + server trial data, and returns CmdTab to registration-required state.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.56))
                         .fixedSize(horizontal: false, vertical: true)
@@ -174,7 +175,7 @@ struct DeveloperPreferencesPane: View {
     private var generatorCard: some View {
         DeveloperCard(
             title: "Test License Generator",
-            subtitle: "Generate a real signed license from your local developer key for activation and purchase-flow testing."
+            subtitle: "Generate a real signed license with your local developer key for activation and checkout flow checks."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -260,6 +261,7 @@ struct DeveloperPreferencesPane: View {
         }
     }
 }
+#endif
 
 private struct DeveloperCard<Content: View>: View {
     let title: String

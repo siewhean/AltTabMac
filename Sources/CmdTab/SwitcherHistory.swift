@@ -142,34 +142,10 @@ enum SwitcherOrdering {
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
         let historyEntries = history.snapshot()
-        let visibleCountByPID = Dictionary(grouping: items.compactMap(\.historyIdentity.ownerPID), by: { $0 })
-            .mapValues(\.count)
-
-        // For real window tiles, preserve exact window recency only. Falling back
-        // to an app-level rank for windows causes separate windows from the same
-        // application to collapse into the same recency bucket and appear grouped
-        // together. App-level fallback remains valid for true app fallback tiles,
-        // and is also safe for window tiles when there is only one visible item
-        // for that application in the current snapshot.
-        func rank(for item: SwitcherItem) -> Int? {
-            if let exact = historyEntries.firstIndex(of: item.historyIdentity) {
-                return exact
-            }
-            if item.kind == .appWindow,
-               let pid = item.historyIdentity.ownerPID,
-               visibleCountByPID[pid] == 1 {
-                return history.rankForApp(bundleID: item.sourceAppIdentifier, pid: pid)
-            }
-            if item.kind == .appFallback,
-               let pid = item.historyIdentity.ownerPID {
-                return history.rankForApp(bundleID: item.sourceAppIdentifier, pid: pid)
-            }
-            return nil
-        }
 
         let ranked = items.enumerated().sorted { lhs, rhs in
-            let lhsRank = rank(for: lhs.element)
-            let rhsRank = rank(for: rhs.element)
+            let lhsRank = historyEntries.firstIndex(of: lhs.element.historyIdentity)
+            let rhsRank = historyEntries.firstIndex(of: rhs.element.historyIdentity)
 
             switch (lhsRank, rhsRank) {
             case let (.some(lhsRank), .some(rhsRank)):

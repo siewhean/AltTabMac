@@ -5,6 +5,14 @@ import XCTest
 
 @MainActor
 final class LicensingControllerTests: XCTestCase {
+    func testDeveloperPaneAvailabilityMatchesBuildConfiguration() {
+#if DEBUG
+        XCTAssertEqual(PreferencesPaneSelection(rawValue: "developer"), .developer)
+#else
+        XCTAssertNil(PreferencesPaneSelection(rawValue: "developer"))
+#endif
+    }
+
     func testUnregisteredWithoutServerTrialClaim() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let trialStore = MemoryTrialStartDateStore(date: Calendar.current.date(byAdding: .day, value: -2, to: now))
@@ -43,11 +51,13 @@ final class LicensingControllerTests: XCTestCase {
         let licenseStore = MemoryLicenseKeyStore()
         let activationStore = MemoryLicenseActivationMetadataStore()
         let payloadCacheStore = MemoryLicensedPayloadCacheStore()
+        let signedTokenCacheStore = MemorySignedLicenseTokenCacheStore()
         let controller = makeController(
             trialStore: trialStore,
             licenseStore: licenseStore,
             activationMetadataStore: activationStore,
             payloadCacheStore: payloadCacheStore,
+            signedTokenCacheStore: signedTokenCacheStore,
             currentDate: { now },
             publicKeyBase64: materials.publicKeyBase64
         )
@@ -71,6 +81,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertEqual(licenseStore.value, token)
         XCTAssertEqual(activatedAt, now)
         XCTAssertEqual(payloadCacheStore.payload?.licenseID, "LIC-123")
+        XCTAssertEqual(signedTokenCacheStore.token, token)
     }
 
     func testInvalidLicenseIsRejected() {
@@ -93,6 +104,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertTrue(controller.shouldHandleCustomSwitcherShortcut())
     }
 
+#if DEBUG
     func testDeveloperExpiredTrialOverrideInTestChannel() {
         let materials = makeSigningMaterials()
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
@@ -134,7 +146,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertEqual(activatedAt, now)
     }
 
-    func testCachedRealLicenseWinsOverDeveloperOverride() {
+    func testVerifiedCachedRealLicenseWinsOverDeveloperOverride() throws {
         let materials = makeSigningMaterials()
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let developerSettings = DeveloperSettings(defaults: defaults, keyPrefix: "CmdTab.test")
@@ -142,17 +154,16 @@ final class LicensingControllerTests: XCTestCase {
         developerSettings.licensingScenario = .expiredTrial
 
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let payload = SignedLicensePayload(
-            version: 1,
-            product: "cmdtab",
+        let token = try signedToken(
             email: "real@example.com",
+            name: "Real License",
             licenseID: "LIC-REAL",
-            issuedAt: ISO8601DateFormatter().string(from: now),
-            purchaserName: "Real License"
+            privateKey: materials.privateKey,
+            issuedAt: now
         )
 
         let controller = makeController(
-            payloadCacheStore: MemoryLicensedPayloadCacheStore(payload: payload),
+            signedTokenCacheStore: MemorySignedLicenseTokenCacheStore(token: token),
             currentDate: { now },
             publicKeyBase64: materials.publicKeyBase64,
             developerSettings: developerSettings
@@ -193,8 +204,9 @@ final class LicensingControllerTests: XCTestCase {
 
         XCTAssertEqual(daysRemaining, 13)
     }
+#endif
 
-    func testCachedPayloadPreventsSilentFallbackPromptPath() throws {
+    func testUnsignedPayloadCacheCannotUnlockApp() {
         let materials = makeSigningMaterials()
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let payload = SignedLicensePayload(
@@ -217,16 +229,45 @@ final class LicensingControllerTests: XCTestCase {
             publicKeyBase64: materials.publicKeyBase64
         )
 
-        guard case let .licensed(cachedPayload, activatedAt) = controller.status else {
-            return XCTFail("Expected cached licensed state")
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected unsigned cached payload to be rejected")
         }
 
-        XCTAssertEqual(cachedPayload.licenseID, "LIC-CACHED")
+        XCTAssertFalse(controller.hasUnlockedAccess)
+        XCTAssertNil(payloadCacheStore.payload)
+        XCTAssertEqual(licenseStore.silentLoadCount, 1)
+    }
+
+    func testVerifiedSignedTokenCacheAvoidsKeychainDuringPassiveRefresh() throws {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let licenseStore = MemoryLicenseKeyStore()
+        let token = try signedToken(
+            email: "cached@example.com",
+            name: "Cached User",
+            licenseID: "LIC-CACHED",
+            privateKey: materials.privateKey,
+            issuedAt: now
+        )
+
+        let controller = makeController(
+            licenseStore: licenseStore,
+            activationMetadataStore: MemoryLicenseActivationMetadataStore(date: now),
+            signedTokenCacheStore: MemorySignedLicenseTokenCacheStore(token: token),
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        guard case let .licensed(payload, activatedAt) = controller.status else {
+            return XCTFail("Expected verified cached licensed state")
+        }
+        XCTAssertEqual(payload.licenseID, "LIC-CACHED")
         XCTAssertEqual(activatedAt, now)
+        controller.refreshStatus()
         XCTAssertEqual(licenseStore.silentLoadCount, 0)
     }
 
-    func testNoCachedPayloadDoesNotTouchKeychainDuringPassiveRefresh() {
+    func testMissingSignedTokenAttemptsSilentKeychainMigrationOnlyOnce() {
         let materials = makeSigningMaterials()
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let trialStore = MemoryTrialStartDateStore(date: now)
@@ -243,7 +284,38 @@ final class LicensingControllerTests: XCTestCase {
             return XCTFail("Expected unregistered state")
         }
 
-        XCTAssertEqual(licenseStore.silentLoadCount, 0)
+        XCTAssertEqual(licenseStore.silentLoadCount, 1)
+        controller.refreshStatus()
+        XCTAssertEqual(licenseStore.silentLoadCount, 1)
+    }
+
+    func testVerifiedKeychainMigrationPersistsSignedTokenToCurrentStore() throws {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let token = try signedToken(
+            email: "migrated@example.com",
+            name: "Migrated User",
+            licenseID: "LIC-MIGRATED",
+            privateKey: materials.privateKey,
+            issuedAt: now
+        )
+        let licenseStore = MemoryLicenseKeyStore()
+        licenseStore.value = token
+        let signedTokenStore = MemorySignedLicenseTokenCacheStore()
+
+        let controller = makeController(
+            licenseStore: licenseStore,
+            signedTokenCacheStore: signedTokenStore,
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        guard case let .licensed(payload, _) = controller.status else {
+            return XCTFail("Expected migrated keychain token to unlock CmdTab")
+        }
+        XCTAssertEqual(payload.licenseID, "LIC-MIGRATED")
+        XCTAssertEqual(signedTokenStore.token, token)
+        XCTAssertEqual(licenseStore.value, token)
     }
 
     func testStartTrialRegistrationActivatesTrialState() async {
@@ -301,6 +373,7 @@ final class LicensingControllerTests: XCTestCase {
         }
     }
 
+#if DEBUG
     func testActivatingRealLicenseInTestModeSwitchesScenarioToLive() throws {
         let materials = makeSigningMaterials()
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
@@ -336,6 +409,7 @@ final class LicensingControllerTests: XCTestCase {
 
         XCTAssertEqual(payload.licenseID, "LIC-123")
     }
+#endif
 
     private func makeController(
         trialStore: TrialStartDateStore = MemoryTrialStartDateStore(),
@@ -343,6 +417,7 @@ final class LicensingControllerTests: XCTestCase {
         licenseStore: LicenseKeyStore = MemoryLicenseKeyStore(),
         activationMetadataStore: LicenseActivationMetadataStore = MemoryLicenseActivationMetadataStore(),
         payloadCacheStore: LicensedPayloadCacheStore = MemoryLicensedPayloadCacheStore(),
+        signedTokenCacheStore: SignedLicenseTokenCacheStore = MemorySignedLicenseTokenCacheStore(),
         installIDStore: AppInstallIDStore = MemoryAppInstallIDStore(),
         serverClient: CmdTabServerClient = MockCmdTabServerClient(),
         currentDate: @escaping () -> Date = Date.init,
@@ -355,6 +430,7 @@ final class LicensingControllerTests: XCTestCase {
             licenseStore: licenseStore,
             activationMetadataStore: activationMetadataStore,
             payloadCacheStore: payloadCacheStore,
+            signedTokenCacheStore: signedTokenCacheStore,
             installIDStore: installIDStore,
             serverClient: serverClient,
             currentDate: currentDate,
@@ -521,6 +597,26 @@ private final class MemoryLicensedPayloadCacheStore: LicensedPayloadCacheStore {
 
     func clearPayload() {
         payload = nil
+    }
+}
+
+private final class MemorySignedLicenseTokenCacheStore: SignedLicenseTokenCacheStore {
+    var token: String?
+
+    init(token: String? = nil) {
+        self.token = token
+    }
+
+    func loadToken() -> String? {
+        token
+    }
+
+    func saveToken(_ token: String) {
+        self.token = token
+    }
+
+    func clearToken() {
+        token = nil
     }
 }
 

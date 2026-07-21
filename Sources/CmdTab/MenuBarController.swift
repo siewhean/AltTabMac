@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 final class MenuBarController {
 
     private static var sharedStatusItem: NSStatusItem?

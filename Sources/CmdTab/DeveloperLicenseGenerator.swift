@@ -2,6 +2,7 @@ import AppKit
 import CryptoKit
 import Foundation
 
+#if DEBUG
 struct DeveloperGeneratedLicense {
     let token: String
     let payload: SignedLicensePayload
@@ -74,3 +75,4 @@ private extension Data {
             .replacingOccurrences(of: "=", with: "")
     }
 }
+#endif

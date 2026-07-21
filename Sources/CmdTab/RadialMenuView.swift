@@ -269,7 +269,7 @@ private struct RadialItemView: View {
             .scaleEffect(isSelected ? 1.18 : 1.0)
             .animation(.spring(response: 0.18, dampingFraction: 0.72), value: isSelected)
 
-            Text(item.title)
+            Text(item.displayAppName)
                 .font(.system(size: 10, weight: isSelected ? .semibold : .regular, design: .rounded))
                 .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.60))
                 .lineLimit(1)

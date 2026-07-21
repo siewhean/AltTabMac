@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 
+#if DEBUG
 enum AppReleaseChannel: String, CaseIterable, Identifiable {
     case stable
     case test
@@ -111,3 +112,17 @@ final class DeveloperSettings: ObservableObject {
         licensingScenario = .live
     }
 }
+#else
+@MainActor
+final class DeveloperSettings {
+    static let shared = DeveloperSettings()
+
+    init(
+        defaults: UserDefaults = .standard,
+        keyPrefix: String = "CmdTab.developer"
+    ) {
+        _ = defaults
+        _ = keyPrefix
+    }
+}
+#endif

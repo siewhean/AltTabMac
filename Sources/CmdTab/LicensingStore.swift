@@ -61,6 +61,12 @@ protocol LicensedPayloadCacheStore {
     func clearPayload()
 }
 
+protocol SignedLicenseTokenCacheStore {
+    func loadToken() -> String?
+    func saveToken(_ token: String)
+    func clearToken()
+}
+
 final class UserDefaultsTrialStartDateStore: TrialStartDateStore {
     private let defaults: UserDefaults
     private let key: String
@@ -186,6 +192,31 @@ final class UserDefaultsLicensedPayloadCacheStore: LicensedPayloadCacheStore {
     }
 }
 
+final class UserDefaultsSignedLicenseTokenCacheStore: SignedLicenseTokenCacheStore {
+    private let defaults: UserDefaults
+    private let key: String
+
+    init(
+        defaults: UserDefaults = .standard,
+        key: String = "CmdTab.licensing.cachedSignedToken"
+    ) {
+        self.defaults = defaults
+        self.key = key
+    }
+
+    func loadToken() -> String? {
+        defaults.string(forKey: key)
+    }
+
+    func saveToken(_ token: String) {
+        defaults.set(token, forKey: key)
+    }
+
+    func clearToken() {
+        defaults.removeObject(forKey: key)
+    }
+}
+
 enum LicenseKeyStoreError: Error {
     case unexpectedStatus(OSStatus)
     case invalidData
@@ -194,13 +225,16 @@ enum LicenseKeyStoreError: Error {
 final class KeychainLicenseKeyStore: LicenseKeyStore {
     private let service: String
     private let account: String
+    private let legacyAccounts: [String]
 
     init(
         service: String = "CmdTab.licensing.licenseKey",
-        account: String = Bundle.main.bundleIdentifier ?? "com.user.CmdTab"
+        account: String = Bundle.main.bundleIdentifier ?? "net.cmdtab.app",
+        legacyAccounts: [String] = ["com.user.CmdTab"]
     ) {
         self.service = service
         self.account = account
+        self.legacyAccounts = legacyAccounts.filter { $0 != account }
     }
 
     func loadLicenseKey() -> String? {
@@ -212,6 +246,18 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
     }
 
     private func loadLicenseKey(allowsAuthenticationUI: Bool) -> String? {
+        for candidateAccount in [account] + legacyAccounts {
+            if let value = loadLicenseKey(
+                account: candidateAccount,
+                allowsAuthenticationUI: allowsAuthenticationUI
+            ) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func loadLicenseKey(account: String, allowsAuthenticationUI: Bool) -> String? {
         let context = LAContext()
         context.interactionNotAllowed = !allowsAuthenticationUI
 
@@ -264,14 +310,16 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
     }
 
     func clearLicenseKey() throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw LicenseKeyStoreError.unexpectedStatus(status)
+        for candidateAccount in [account] + legacyAccounts {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: candidateAccount,
+            ]
+            let status = SecItemDelete(query as CFDictionary)
+            guard status == errSecSuccess || status == errSecItemNotFound else {
+                throw LicenseKeyStoreError.unexpectedStatus(status)
+            }
         }
     }
 }

@@ -135,7 +135,31 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2"])
     }
 
-    func testSingleVisibleTileCanUseAppLevelFallbackWhenWindowIdentityChanges() {
+    func testWindowTilesIgnoreAppFallbackEntriesInHistoryStore() {
+        let finderW1 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 10)
+        let arcW1 = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 20)
+        let finderW2 = SwitcherHistoryIdentity.appWindow(pid: 101, windowID: 30)
+
+        let rawItems = [
+            makeItem(title: "Finder W1", appID: "com.apple.finder", identity: finderW1),
+            makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: arcW1),
+            makeItem(title: "Finder W2", appID: "com.apple.finder", identity: finderW2),
+        ]
+
+        let store = SwitcherHistoryStore()
+        store.noteActivation(.appFallback(bundleID: "com.apple.finder", pid: 101))
+        store.noteActivation(.appFallback(bundleID: "company.thebrowser.Browser", pid: 202))
+
+        let ordered = SwitcherOrdering.orderedItems(
+            rawItems,
+            history: store,
+            currentFrontmost: nil
+        )
+
+        XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2"])
+    }
+
+    func testWindowOrderingDoesNotUseAppLevelFallbackWhenWindowIdentityChanges() {
         let pdfGearCurrent = SwitcherHistoryIdentity.appWindow(pid: 707, windowID: 71)
         let notebookLMCurrent = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 21)
         let telegramCurrent = SwitcherHistoryIdentity.appWindow(pid: 303, windowID: 31)
@@ -161,7 +185,7 @@ final class SwitcherOrderingTests: XCTestCase {
             currentFrontmost: pdfGearCurrent
         )
 
-        XCTAssertEqual(ordered.map(\.title), ["NotebookLM", "Telegram", "PDFgear"])
+        XCTAssertEqual(ordered.map(\.title), ["Telegram", "NotebookLM", "PDFgear"])
     }
 
     func testMultipleVisibleWindowsUseMostRecentVisibleSamePIDFrontmostFallback() {

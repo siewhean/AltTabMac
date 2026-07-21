@@ -18,6 +18,12 @@ struct TrialClaimDTO: Decodable {
     let osVersion: String?
 }
 
+struct LicenseStatusResponse: Decodable {
+    let ok: Bool
+    let revoked: Bool?
+    let status: String?
+}
+
 protocol CmdTabServerClient {
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord
     func sendAppTelemetry(
@@ -28,6 +34,14 @@ protocol CmdTabServerClient {
         appVersion: String,
         osVersion: String
     ) async
+
+    func isLicenseRevoked(licenseID: String, installID: String) async -> Bool?
+}
+
+extension CmdTabServerClient {
+    func isLicenseRevoked(licenseID: String, installID: String) async -> Bool? {
+        return nil
+    }
 }
 
 enum CmdTabServerClientError: LocalizedError {
@@ -110,6 +124,31 @@ final class LiveCmdTabServerClient: CmdTabServerClient {
             // Best-effort only.
         }
     }
+
+    func isLicenseRevoked(licenseID: String, installID: String) async -> Bool? {
+        var request = URLRequest(url: LicensingConfiguration.licenseStatusAPIURL)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "licenseId": licenseID,
+            "installId": installID,
+        ])
+
+        do {
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...499).contains(httpResponse.statusCode) else {
+                return nil
+            }
+            let decoded = try JSONDecoder().decode(LicenseStatusResponse.self, from: data)
+            guard decoded.ok else {
+                return nil
+            }
+            return decoded.revoked
+        } catch {
+            return nil
+        }
+    }
 }
 
 @MainActor
@@ -138,8 +177,13 @@ final class AppTelemetryReporter {
     }
 
     func startSession(licensingController: LicensingController) {
+        guard TelemetryPreferences.shared.isEnabled else {
+            stopSession()
+            return
+        }
         let installID = installID()
         Task {
+            await licensingController.refreshRemoteLicenseStatus(force: true)
             await client.sendAppTelemetry(
                 installID: installID,
                 eventName: "app_activation",
@@ -153,9 +197,10 @@ final class AppTelemetryReporter {
         heartbeatTask?.cancel()
         heartbeatTask = Task { [weak self] in
             guard let self else { return }
-            while !Task.isCancelled {
+                while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 60 * 60 * 1_000_000_000)
                 if Task.isCancelled { break }
+                await licensingController.refreshRemoteLicenseStatus()
                 await client.sendAppTelemetry(
                     installID: installID,
                     eventName: "app_heartbeat",
@@ -168,7 +213,13 @@ final class AppTelemetryReporter {
         }
     }
 
+    func stopSession() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
+    }
+
     func trackLicenseActivation(licensingController: LicensingController) {
+        guard TelemetryPreferences.shared.isEnabled else { return }
         let installID = installID()
         Task {
             await client.sendAppTelemetry(
@@ -183,6 +234,7 @@ final class AppTelemetryReporter {
     }
 
     func trackTrialStarted(licensingController: LicensingController) {
+        guard TelemetryPreferences.shared.isEnabled else { return }
         let installID = installID()
         Task {
             await client.sendAppTelemetry(

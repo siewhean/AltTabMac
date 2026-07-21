@@ -1,8 +1,9 @@
 import AppKit
 import Darwin
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private static let reopenSettingsNotification = Notification.Name("CmdTab.ReopenSettings")
+    private static let reopenSwitcherNotification = Notification.Name("CmdTab.ReopenSwitcher")
 
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
@@ -13,14 +14,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
-            notifyExistingInstanceToShowSettings()
+            notifyExistingInstanceToShowSwitcher()
             activateExistingInstanceIfPossible()
             shouldAllowTermination = true
             NSApp.terminate(nil)
             return
         }
 
+        LegacyAppIdentityMigration.runIfNeeded()
         NSApp.setActivationPolicy(.accessory)
+        ProductionSignpost.prepare()
 
         switcher = SwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
@@ -39,11 +42,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switcher.onClickCommit = { [weak self] in
             self?.hotkeyManager?.clearTriggerStateFromClickCommit()
         }
+        switcher.onDismiss = { [weak self] committingSelection in
+            if committingSelection {
+                self?.hotkeyManager?.clearTriggerStateFromClickCommit()
+            } else {
+                self?.hotkeyManager?.clearTriggerStateFromDismissal()
+            }
+        }
         switcher.onLicenseAccessRequired = { [weak self] in
             self?.preferencesWindowController?.showLicensing()
         }
 
-        AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
+        applyTelemetryPreference()
+        Task {
+            await LicensingController.shared.refreshRemoteLicenseStatus(force: true)
+        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -51,25 +64,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: SwitcherPreferences.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleTelemetryPreferencesDidChange),
+            name: TelemetryPreferences.didChangeNotification,
+            object: nil
+        )
         DistributedNotificationCenter.default().addObserver(
             self,
-            selector: #selector(handleReopenSettingsRequest),
-            name: Self.reopenSettingsNotification,
+            selector: #selector(handleReopenSwitcherRequest),
+            name: Self.reopenSwitcherNotification,
             object: nil
         )
 
-        if !AXIsProcessTrusted() {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        }
-
-        if #available(macOS 10.15, *) {
-            if !CGPreflightScreenCaptureAccess() {
-                _ = CGRequestScreenCaptureAccess()
-            }
+        DispatchQueue.main.async {
+            PermissionOnboardingController.presentIfNeeded()
+            self.hotkeyManager.start()
         }
 
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        PermissionOnboardingController.presentIfNeeded()
+        hotkeyManager?.start()
+        switcher?.refreshPreviewCache()
+        Task {
+            await LicensingController.shared.refreshRemoteLicenseStatus(force: true)
+        }
     }
 
     private func acquireSingletonLock() -> Bool {
@@ -101,9 +123,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
     }
 
-    private func notifyExistingInstanceToShowSettings() {
+    private func notifyExistingInstanceToShowSwitcher() {
         DistributedNotificationCenter.default().post(
-            name: Self.reopenSettingsNotification,
+            name: Self.reopenSwitcherNotification,
             object: Bundle.main.bundleIdentifier,
             userInfo: nil
         )
@@ -113,8 +135,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
     }
 
-    @objc private func handleReopenSettingsRequest() {
-        preferencesWindowController?.show(initialPane: .general)
+    @objc private func handleTelemetryPreferencesDidChange() {
+        applyTelemetryPreference()
+    }
+
+    private func applyTelemetryPreference() {
+        if TelemetryPreferences.shared.isEnabled {
+            AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
+        } else {
+            AppTelemetryReporter.shared.stopSession()
+        }
+    }
+
+    @objc private func handleReopenSwitcherRequest() {
+        switcher?.showStandalone()
     }
 
     func requestTermination() {
@@ -123,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        AppTelemetryReporter.shared.stopSession()
         DistributedNotificationCenter.default().removeObserver(self)
         if singletonLockFileDescriptor >= 0 {
             flock(singletonLockFileDescriptor, LOCK_UN)
@@ -136,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        preferencesWindowController?.show()
+        switcher?.showStandalone()
         return true
     }
 }

@@ -138,24 +138,22 @@ struct ClassicItemCardView: View {
                     x: 0, y: 0
                 )
 
-            if item.previewImage != nil {
-                HStack(spacing: 7) {
-                    if let icon = item.icon {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .interpolation(.high)
-                            .frame(width: 24, height: 24)
-                    }
-                    Text(item.title)
-                        .font(.system(size: 15, weight: isSelected ? .semibold : .regular, design: .rounded))
-                        .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.75))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+            HStack(spacing: 7) {
+                if let icon = item.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 24, height: 24)
                 }
-                .padding(.top, 8)
-                .padding(.bottom, 2)
-                .frame(width: layout.cardWidth, alignment: .center)
+                Text(item.displayAppName)
+                    .font(.system(size: 15, weight: isSelected ? .semibold : .regular, design: .rounded))
+                    .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.75))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+            .frame(width: layout.cardWidth, alignment: .center)
         }
         .frame(width: layout.cardWidth, height: layout.cardHeight, alignment: .top)
         .contentShape(Rectangle())

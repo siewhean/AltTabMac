@@ -351,4 +351,177 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
     }
+
+    func testDoubleTapInterruptedByNonTargetKeyDownResetsPendingTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 90.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 90.08
+            )
+        )
+
+        state.noteInterveningKeyDown(
+            key: nil,
+            mode: .rightCommandDoubleTap,
+            now: 90.12
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 90.20
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 90.28
+            )
+        )
+    }
+
+    func testDoubleTapInterruptedByOtherModifierDownResetsPendingTap() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 100.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 100.08
+            )
+        )
+
+        state.noteInterveningModifierDown(
+            key: .rightOption,
+            mode: .rightCommandDoubleTap,
+            now: 100.12
+        )
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 100.20
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 100.28
+            )
+        )
+    }
+
+    func testPureConsecutiveDoubleTapStillActivatesWithoutInterruption() {
+        var state = AlternateModifierTriggerState()
+
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 110.0
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 110.08
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: true,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 110.20
+            )
+        )
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightCommandDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 110.28
+            )
+        )
+    }
 }

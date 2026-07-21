@@ -27,6 +27,7 @@ struct SwitcherItem: Identifiable {
     let subtitle: String
     let icon: NSImage?
     let previewImage: NSImage?
+    let isSkeletonOnly: Bool
     let backdropImage: NSImage?
     let backdropFrame: CGRect?
     let backdropSourceScreenFrame: CGRect?
@@ -37,11 +38,20 @@ struct SwitcherItem: Identifiable {
     let dedupeKey: String
     let activate: () -> Void
 
+    var displayAppName: String {
+        let appName = subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !appName.isEmpty { return appName }
+
+        let windowTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return windowTitle.isEmpty ? "Application" : windowTitle
+    }
+
     init(
         title: String,
         subtitle: String,
         icon: NSImage?,
         previewImage: NSImage?,
+        isSkeletonOnly: Bool = false,
         backdropImage: NSImage? = nil,
         backdropFrame: CGRect? = nil,
         backdropSourceScreenFrame: CGRect? = nil,
@@ -58,6 +68,7 @@ struct SwitcherItem: Identifiable {
         self.subtitle = subtitle
         self.icon = icon
         self.previewImage = previewImage
+        self.isSkeletonOnly = isSkeletonOnly
         self.backdropImage = backdropImage
         self.backdropFrame = backdropFrame
         self.backdropSourceScreenFrame = backdropSourceScreenFrame

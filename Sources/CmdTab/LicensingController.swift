@@ -83,18 +83,24 @@ final class LicensingController: ObservableObject {
     @Published private(set) var isStartingTrial = false
     @Published private(set) var trialMessage: LicensingMessage?
     @Published private(set) var licenseMessage: LicensingMessage?
+    private let licenseStatusCheckInterval: TimeInterval = 60
+    private var lastLicenseStatusCheckAt: Date = .distantPast
 
     private let trialStore: TrialStartDateStore
     private let trialClaimStore: TrialClaimStore
     private let licenseStore: LicenseKeyStore
     private let activationMetadataStore: LicenseActivationMetadataStore
     private let payloadCacheStore: LicensedPayloadCacheStore
+    private let signedTokenCacheStore: SignedLicenseTokenCacheStore
     private let installIDStore: AppInstallIDStore
     private let serverClient: CmdTabServerClient
     private let currentDate: () -> Date
     private let publicKeyDERBase64: String
+    private var didAttemptKeychainMigration = false
+#if DEBUG
     private let developerSettings: DeveloperSettings
     private let iso8601 = ISO8601DateFormatter()
+#endif
 
     init(
         trialStore: TrialStartDateStore = UserDefaultsTrialStartDateStore(),
@@ -102,6 +108,7 @@ final class LicensingController: ObservableObject {
         licenseStore: LicenseKeyStore = KeychainLicenseKeyStore(),
         activationMetadataStore: LicenseActivationMetadataStore = UserDefaultsLicenseActivationMetadataStore(),
         payloadCacheStore: LicensedPayloadCacheStore = UserDefaultsLicensedPayloadCacheStore(),
+        signedTokenCacheStore: SignedLicenseTokenCacheStore = UserDefaultsSignedLicenseTokenCacheStore(),
         installIDStore: AppInstallIDStore = UserDefaultsAppInstallIDStore(),
         serverClient: CmdTabServerClient = LiveCmdTabServerClient(),
         currentDate: @escaping () -> Date = Date.init,
@@ -113,15 +120,41 @@ final class LicensingController: ObservableObject {
         self.licenseStore = licenseStore
         self.activationMetadataStore = activationMetadataStore
         self.payloadCacheStore = payloadCacheStore
+        self.signedTokenCacheStore = signedTokenCacheStore
         self.installIDStore = installIDStore
         self.serverClient = serverClient
         self.currentDate = currentDate
         self.publicKeyDERBase64 = publicKeyDERBase64
+#if DEBUG
         self.developerSettings = developerSettings ?? .shared
+#endif
 
         self.status = .unregistered
 
         refreshStatus()
+    }
+
+    @MainActor
+    func refreshRemoteLicenseStatus(force: Bool = false) async {
+        guard case let .licensed(payload, _) = status else { return }
+
+        let now = currentDate()
+        if !force && now.timeIntervalSince(lastLicenseStatusCheckAt) < licenseStatusCheckInterval {
+            return
+        }
+        lastLicenseStatusCheckAt = now
+
+        let revoked = await serverClient.isLicenseRevoked(
+            licenseID: payload.licenseID,
+            installID: installID,
+        )
+
+        guard revoked == true else { return }
+        clearLicense()
+        licenseMessage = LicensingMessage(
+            tone: .error,
+            text: "Your CmdTab license is no longer active. Buy or restore a valid license to continue using the switcher.",
+        )
     }
 
     var hasUnlockedAccess: Bool {
@@ -165,15 +198,17 @@ final class LicensingController: ObservableObject {
     func refreshStatus() {
         let now = currentDate()
 
-        if let cachedPayload = payloadCacheStore.loadPayload() {
-            status = .licensed(payload: cachedPayload, activatedAt: activationMetadataStore.loadActivationDate())
+        if let verifiedPayload = loadVerifiedCachedLicense() {
+            status = .licensed(payload: verifiedPayload, activatedAt: activationMetadataStore.loadActivationDate())
             return
         }
 
+#if DEBUG
         if let overrideStatus = developerOverrideStatus(now: now) {
             status = overrideStatus
             return
         }
+#endif
 
         if let claim = trialClaimStore.loadClaim(),
            let startedAt = claim.startedDate,
@@ -285,12 +320,15 @@ final class LicensingController: ObservableObject {
             try? licenseStore.clearLicenseKey()
             activationMetadataStore.clearActivationDate()
             payloadCacheStore.clearPayload()
+            signedTokenCacheStore.clearToken()
             enteredLicenseKey = ""
         }
 
+#if DEBUG
         if developerSettings.releaseChannel == .test {
             developerSettings.licensingScenario = .live
         }
+#endif
 
         refreshStatus()
         trialMessage = LicensingMessage(
@@ -314,11 +352,15 @@ final class LicensingController: ObservableObject {
             try licenseStore.saveLicenseKey(normalized)
             activationMetadataStore.saveActivationDate(currentDate())
             payloadCacheStore.savePayload(payload)
+            signedTokenCacheStore.saveToken(normalized)
+#if DEBUG
             if developerSettings.releaseChannel == .test {
                 developerSettings.licensingScenario = .live
             }
+#endif
             enteredLicenseKey = normalized
             status = .licensed(payload: payload, activatedAt: activationMetadataStore.loadActivationDate())
+            lastLicenseStatusCheckAt = .distantPast
             licenseMessage = LicensingMessage(
                 tone: .success,
                 text: "CmdTab is now activated for \(payload.email)."
@@ -337,7 +379,9 @@ final class LicensingController: ObservableObject {
         try? licenseStore.clearLicenseKey()
         activationMetadataStore.clearActivationDate()
         payloadCacheStore.clearPayload()
+        signedTokenCacheStore.clearToken()
         enteredLicenseKey = ""
+        lastLicenseStatusCheckAt = .distantPast
         refreshStatus()
         licenseMessage = LicensingMessage(
             tone: .warning,
@@ -346,7 +390,8 @@ final class LicensingController: ObservableObject {
     }
 
     @discardableResult
-    func ensureUsageAllowed(openLicensing: () -> Void) -> Bool {
+    func ensureUsageAllowed(openLicensing: () -> Void) async -> Bool {
+        await refreshRemoteLicenseStatus(force: true)
         refreshStatus()
         guard !status.isExpired, !status.requiresTrialRegistration else {
             if status.requiresTrialRegistration {
@@ -417,6 +462,31 @@ final class LicensingController: ObservableObject {
             .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
     }
 
+    private func loadVerifiedCachedLicense() -> SignedLicensePayload? {
+        if let cachedToken = signedTokenCacheStore.loadToken() {
+            if let payload = try? validateLicenseKey(cachedToken) {
+                return payload
+            }
+            signedTokenCacheStore.clearToken()
+            payloadCacheStore.clearPayload()
+        }
+
+        guard !didAttemptKeychainMigration else { return nil }
+        didAttemptKeychainMigration = true
+        guard let storedToken = licenseStore.loadLicenseKeySilently(),
+              let payload = try? validateLicenseKey(storedToken) else {
+            payloadCacheStore.clearPayload()
+            return nil
+        }
+
+        let normalized = normalizeToken(storedToken)
+        try? licenseStore.saveLicenseKey(normalized)
+        signedTokenCacheStore.saveToken(normalized)
+        payloadCacheStore.savePayload(payload)
+        return payload
+    }
+
+#if DEBUG
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
         guard developerSettings.releaseChannel == .test else { return nil }
 
@@ -461,6 +531,7 @@ final class LicensingController: ObservableObject {
             )
         }
     }
+#endif
 
     private static func daysRemaining(until endDate: Date, now: Date) -> Int {
         let components = Calendar.current.dateComponents([.day], from: now, to: endDate)

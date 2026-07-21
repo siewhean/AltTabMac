@@ -15,4 +15,5 @@ enum LicensingConfiguration {
     static let siteBaseURL = URL(string: "https://cmdtab.net")!
     static let trialStartAPIURL = URL(string: "https://cmdtab.net/api/trial/start")!
     static let appTelemetryAPIURL = URL(string: "https://cmdtab.net/api/app-telemetry")!
+    static let licenseStatusAPIURL = URL(string: "https://cmdtab.net/api/license/status")!
 }

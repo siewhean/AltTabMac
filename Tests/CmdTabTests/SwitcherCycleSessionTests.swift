@@ -31,7 +31,7 @@ final class SwitcherCycleSessionTests: XCTestCase {
         XCTAssertEqual(secondSession.commitSelection().title, "Finder")
     }
 
-    func testInitialSelectionSkipsOtherWindowsFromCurrentApp() throws {
+    func testInitialSelectionCanTargetAnotherWindowFromCurrentApp() throws {
         let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
         let arcWindow = makeItem(title: "Arc Window", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
         let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
@@ -46,7 +46,25 @@ final class SwitcherCycleSessionTests: XCTestCase {
             )
         )
 
-        XCTAssertEqual(session.commitSelection().title, "Finder")
+        XCTAssertEqual(session.commitSelection().title, "Arc Window")
+    }
+
+    func testReverseInitialSelectionCanTargetAnotherWindowFromCurrentApp() throws {
+        let notebookLM = makeItem(title: "NotebookLM", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 21))
+        let arcWindow = makeItem(title: "Arc Window", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22))
+        let finder = makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11))
+
+        let session = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [finder, arcWindow, notebookLM],
+                currentFrontmost: notebookLM.historyIdentity,
+                reverse: true,
+                pinsSnapshot: true
+            )
+        )
+
+        XCTAssertEqual(session.commitSelection().title, "Arc Window")
     }
 
     func testHoldToCycleAdvancesForwardBeforeCommit() throws {

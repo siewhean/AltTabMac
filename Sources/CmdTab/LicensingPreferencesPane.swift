@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LicensingPreferencesPane: View {
     @ObservedObject var controller: LicensingController
+    @StateObject private var telemetryPreferences = TelemetryPreferences.shared
     @State private var showConfetti = false
     @State private var confettiBurstID = 0
     @State private var lastStatusSignature = ""
@@ -11,6 +12,7 @@ struct LicensingPreferencesPane: View {
             VStack(alignment: .leading, spacing: 20) {
                 statusCard
                 activationCard
+                telemetryCard
             }
             .zIndex(0)
 
@@ -39,10 +41,30 @@ struct LicensingPreferencesPane: View {
         }
     }
 
+    private var telemetryCard: some View {
+        LicensingCard(
+            title: "Diagnostics & Privacy",
+            subtitle: "Optional diagnostics keep reliability checks running without collecting window titles, thumbnails, or app content."
+        ) {
+            Toggle(isOn: $telemetryPreferences.isEnabled) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Share anonymous usage diagnostics")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("Sends a random install ID plus app/macos versions, license state, and heartbeat events. Activated license IDs are included only after activation.")
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.58))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .toggleStyle(.switch)
+        }
+    }
+
     private var statusCard: some View {
         LicensingCard(
             title: "License Status",
-            subtitle: "CmdTab starts with a server-backed 14-day trial, then unlocks permanently with a signed license."
+            subtitle: "CmdTab starts with a server-backed 14-day trial, then unlocks permanently when you activate a signed license."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .center, spacing: 14) {
@@ -98,9 +120,9 @@ struct LicensingPreferencesPane: View {
 
     private var accessCard: some View {
         LicensingCard(
-            title: controller.status.requiresTrialRegistration ? "Start your 14-day trial" : "Activate This Mac",
+            title: controller.status.requiresTrialRegistration ? "Start your 14-day trial" : "Activate this Mac",
             subtitle: controller.status.requiresTrialRegistration
-                ? "Register this Mac with your email before you use CmdTab. This prevents trial abuse across resets and reinstalls."
+                ? "Register this Mac with your email before using CmdTab. This keeps the trial fair across resets and reinstalls."
                 : "Paste the signed license key from your purchase email to unlock CmdTab on this Mac."
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -122,7 +144,7 @@ struct LicensingPreferencesPane: View {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
                         } else {
-                            Text("Start Free Trial")
+                        Text("Start free trial")
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -178,7 +200,7 @@ struct LicensingPreferencesPane: View {
     private func licensedThankYouCard(payload: SignedLicensePayload) -> some View {
         LicensingCard(
             title: "Thanks for supporting CmdTab",
-            subtitle: "Hope you enjoy using CmdTab."
+            subtitle: "Thanks for supporting CmdTab. We hope it feels great in daily use."
         ) {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -186,7 +208,7 @@ struct LicensingPreferencesPane: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
 
-                    Text("If you ever need purchase or activation help, you can open the Help page from here.")
+                        Text("If you need purchase or activation help, open the Help page from here.")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.58))
                         .fixedSize(horizontal: false, vertical: true)

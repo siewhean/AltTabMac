@@ -1,5 +1,8 @@
 import AppKit
+import os.log
 import SwiftUI
+
+private let switcherWindowLog = OSLog(subsystem: "CmdTab", category: "SwitcherWindowController")
 
 // MARK: - SwitcherPanel
 
@@ -96,7 +99,14 @@ final class SwitcherWindowController {
     private var paletteFullItemCount: Int = 0
     private var mirroredPanels: [ObjectIdentifier: SwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
+    private var pendingStandalonePresentation = false
+    private var standalonePresentationRetryCount = 0
+    private var standalonePresentationRetryWorkItem: DispatchWorkItem?
+    private var runtimeQASessionID: String?
+    private var runtimeQAFirstPopulatedFrameRecorded = false
     private var lastObservedStyle: SwitcherStyle
+    private var outsideClickMonitor: Any?
+    private var localOutsideClickMonitor: Any?
 
     /// Most recently observed frontmost app PID from NSWorkspace. A short-lived
     /// override is layered on top after switcher commits so quick re-presses
@@ -111,6 +121,7 @@ final class SwitcherWindowController {
     /// before the modifier-release event fires. Without this, releasing Cmd after
     /// a mouse-click commit causes a second, spurious activation.
     var onClickCommit: (() -> Void)?
+    var onDismiss: ((Bool) -> Void)?
     var onLicenseAccessRequired: (() -> Void)?
 
     init() {
@@ -118,8 +129,16 @@ final class SwitcherWindowController {
         buildPanel()
         buildBackdropPanel()
         wireDataSources()
-        _ = appSwitcher.primeCacheIfNeeded()
-        appSwitcher.warmCache(force: true)
+        // Enumeration and capture must not delay HotkeyManager construction.
+        // The background refresh publishes a complete provisional list first.
+        let runtimeQAEnvironment = ProcessInfo.processInfo.environment
+        if RuntimeQAEvidenceRecorder.shared.isEnabled,
+           runtimeQAEnvironment["CMDTAB_RUNTIME_QA_COLD_START"] == "1" {
+            appSwitcher.resetCacheForRuntimeQA()
+        } else {
+            appSwitcher.warmCache(force: true)
+        }
+        installOutsideClickMonitor()
 
         // Seed activeFrontmostPID from the OS's current frontmost app.
         if let frontmost = NSWorkspace.shared.frontmostApplication,
@@ -129,32 +148,34 @@ final class SwitcherWindowController {
         }
     }
 
+    deinit {
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+        }
+        if let localOutsideClickMonitor {
+            NSEvent.removeMonitor(localOutsideClickMonitor)
+        }
+    }
+
     // MARK: - Public API (called from HotkeyManager on main thread)
 
-    func showOrAdvance(reverse: Bool = false) {
-        if !viewModel.isVisible {
-            guard startSession(reverse: reverse) else { return }
-            showPanel()
-            return
+    func showOrAdvance(reverse: Bool = false, runtimeQASessionID: String? = nil) {
+        Task { @MainActor [weak self] in
+            await self?.showOrAdvanceAsync(reverse: reverse, runtimeQASessionID: runtimeQASessionID)
         }
-
-        if preferences.switcherStyle == .radialMenu {
-            moveSelectionInRadialMenu(by: reverse ? -1 : 1)
-            return
-        }
-
-        session?.advance(reverse: reverse)
-        syncViewModelSelection()
     }
 
     func commitTriggerSession(reverse: Bool = false) {
-        guard startSession(reverse: reverse) else { return }
-        commitCurrentSelection()
+        Task { @MainActor [weak self] in
+            await self?.commitTriggerSessionAsync(reverse: reverse)
+        }
     }
 
     func showStandalone() {
-        guard startSession(reverse: false) else { return }
-        showPanel(makeKey: true)
+        pendingStandalonePresentation = true
+        Task { @MainActor [weak self] in
+            await self?.showStandaloneAsync()
+        }
     }
 
     func applyStyleChangeFromSettings() {
@@ -180,8 +201,11 @@ final class SwitcherWindowController {
             return
         }
 
-        guard startSession(reverse: false) else { return }
-        showPanel(makeKey: false)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard await self.startSessionAsync(reverse: false) else { return }
+            showPanel(makeKey: false)
+        }
     }
 
     func moveSelection(by delta: Int) {
@@ -310,6 +334,31 @@ final class SwitcherWindowController {
         self.panel = panel
     }
 
+    private func installOutsideClickMonitor() {
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            self?.dismissIfClickIsOutsideSwitcher(at: NSEvent.mouseLocation)
+        }
+        localOutsideClickMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] event in
+            guard let self else { return event }
+            let screenLocation = self.panel.convertToScreen(
+                NSRect(origin: event.locationInWindow, size: .zero)
+            ).origin
+            self.dismissIfClickIsOutsideSwitcher(at: screenLocation)
+            return event
+        }
+    }
+
+    func dismissIfClickIsOutsideSwitcher(at screenLocation: NSPoint) {
+        guard viewModel.isVisible else { return }
+        let visibleFrames = [panel.frame] + mirroredPanels.values.map(\.frame)
+        guard !visibleFrames.contains(where: { $0.contains(screenLocation) }) else { return }
+        hidePanel()
+    }
+
     private func buildBackdropPanel() {
         let panel = SwitcherBackdropPanel(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
@@ -431,16 +480,85 @@ final class SwitcherWindowController {
         )
     }
 
-    private func startSession(reverse: Bool) -> Bool {
-        let hasAccess = MainActor.assumeIsolated {
-            LicensingController.shared.ensureUsageAllowed(openLicensing: { [weak self] in
-                self?.onLicenseAccessRequired?()
-            })
+    private func ensureUsageAllowed() async -> Bool {
+        let isAllowed = await LicensingController.shared.ensureUsageAllowed {
+            self.onLicenseAccessRequired?()
         }
-        guard hasAccess else {
+        os_log(.info, log: switcherWindowLog, "Usage access allowed=%{public}@", String(isAllowed))
+        return isAllowed
+    }
+
+    private func showOrAdvanceAsync(reverse: Bool, runtimeQASessionID: String? = nil) async {
+        if !viewModel.isVisible {
+            self.runtimeQASessionID = runtimeQASessionID
+            runtimeQAFirstPopulatedFrameRecorded = false
+            guard await startSessionAsync(reverse: reverse) else {
+                RuntimeQAEvidenceRecorder.shared.finishSession(
+                    id: runtimeQASessionID,
+                    success: false,
+                    verification: "sessionUnavailable"
+                )
+                self.runtimeQASessionID = nil
+                return
+            }
+            showPanel()
+            return
+        }
+
+        if preferences.switcherStyle == .radialMenu {
+            moveSelectionInRadialMenu(by: reverse ? -1 : 1)
+            return
+        }
+
+        let fromIndex = session?.selectedIndex
+        let itemCount = session?.items.count ?? 0
+        session?.advance(reverse: reverse)
+        syncViewModelSelection()
+        if let fromIndex, itemCount > 0 {
+            let expectedIndex = (fromIndex + (reverse ? -1 : 1) + itemCount) % itemCount
+            RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+                event: "selectionStep",
+                sessionID: self.runtimeQASessionID,
+                totalItems: itemCount,
+                fromIndex: fromIndex,
+                toIndex: session?.selectedIndex,
+                expectedIndex: expectedIndex,
+                direction: reverse ? "reverse" : "forward",
+                success: session?.selectedIndex == expectedIndex
+            ))
+        }
+    }
+
+    private func commitTriggerSessionAsync(reverse: Bool) async {
+        guard await startSessionAsync(reverse: reverse) else { return }
+        commitCurrentSelection()
+    }
+
+    private func showStandaloneAsync() async {
+        guard await ensureUsageAllowed() else {
+            clearStandalonePresentationRequest()
+            return
+        }
+        guard installSession(reverse: false) else {
+            appSwitcher.warmCache(force: true)
+            scheduleStandalonePresentationRetry()
+            return
+        }
+        clearStandalonePresentationRequest()
+        showPanel(makeKey: true)
+    }
+
+    private func startSessionAsync(reverse: Bool) async -> Bool {
+        guard await ensureUsageAllowed() else { return false }
+        return installSession(reverse: reverse)
+    }
+
+    private func installSession(reverse: Bool) -> Bool {
+        guard let newSession = makeSession(reverse: reverse) else {
+            os_log(.info, log: switcherWindowLog, "Session installation deferred because the item snapshot is empty")
             return false
         }
-        guard let newSession = makeSession(reverse: reverse) else { return false }
+        os_log(.info, log: switcherWindowLog, "Session installed with items=%{public}d", newSession.items.count)
         session = newSession
         if preferences.switcherStyle == .commandPalette {
             paletteFullItemCount = newSession.items.count
@@ -449,9 +567,43 @@ final class SwitcherWindowController {
         return true
     }
 
+    private func scheduleStandalonePresentationRetry() {
+        guard standalonePresentationRetryWorkItem == nil else {
+            return
+        }
+        guard standalonePresentationRetryCount < 12 else {
+            clearStandalonePresentationRequest()
+            return
+        }
+
+        standalonePresentationRetryCount += 1
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.standalonePresentationRetryWorkItem = nil
+            guard self.pendingStandalonePresentation else { return }
+            _ = self.appSwitcher.primeCacheIfNeeded()
+            self.showStandalone()
+        }
+        standalonePresentationRetryWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15, execute: workItem)
+    }
+
+    private func clearStandalonePresentationRequest() {
+        standalonePresentationRetryWorkItem?.cancel()
+        standalonePresentationRetryWorkItem = nil
+        standalonePresentationRetryCount = 0
+        pendingStandalonePresentation = false
+    }
+
     private func wireDataSources() {
-        appSwitcher.onItemsChanged = { [weak self] _ in
-            self?.refreshVisibleItemsIfNeeded()
+        appSwitcher.onItemsChanged = { [weak self] refreshedItems in
+            guard let self else { return }
+            if self.pendingStandalonePresentation, !refreshedItems.isEmpty {
+                self.showStandalone()
+                return
+            }
+            self.refreshVisibleItemsIfNeeded()
+            self.recordFirstPopulatedFrameIfNeeded()
         }
         appSwitcher.onActivationConfirmed = { [weak self] identity, pid in
             guard let self else { return }
@@ -712,9 +864,15 @@ final class SwitcherWindowController {
         panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
         viewModel.isVisible = true
+        ProductionSignpost.overlayPresented()
+        recordPanelOrderedAndFirstFrame()
     }
 
-    private func hidePanel() {
+    private func hidePanel(committingSelection: Bool = false) {
+        onDismiss?(committingSelection)
+        if viewModel.isVisible {
+            ProductionSignpost.overlayDismissed()
+        }
         viewModel.isVisible = false
         panel.alphaValue = 0
         panel.orderOut(nil)
@@ -733,6 +891,80 @@ final class SwitcherWindowController {
         viewModel.hoveredIndex = nil
         viewModel.suppressHoverSelection = true
         viewModel.searchQuery = ""
+        runtimeQASessionID = nil
+        runtimeQAFirstPopulatedFrameRecorded = false
+    }
+
+    private func recordPanelOrderedAndFirstFrame() {
+        guard RuntimeQAEvidenceRecorder.shared.isEnabled,
+              let runtimeQASessionID else { return }
+        let totalItems = viewModel.items.count
+        let cachedPreviewCount = viewModel.items.lazy.filter { $0.previewImage != nil }.count
+        let duplicateCount = totalItems - Set(viewModel.items.map(\.dedupeKey)).count
+        let maximumWindowsPerApplication = Dictionary(
+            grouping: viewModel.items.compactMap { item in item.historyIdentity.ownerPID },
+            by: { $0 }
+        ).values.map(\.count).max() ?? 0
+        let expectedMRUItems = SwitcherOrdering.orderedItems(
+            viewModel.items,
+            historyEntries: history.snapshot(),
+            currentFrontmost: session?.initialFrontmostIdentity
+        )
+        let strictMRUOrderValid = expectedMRUItems.map(\.historyIdentity) == viewModel.items.map(\.historyIdentity)
+
+        RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+            event: "panelOrdered",
+            sessionID: runtimeQASessionID,
+            totalItems: totalItems,
+            cachedPreviewCount: cachedPreviewCount,
+            duplicateCount: duplicateCount,
+            maximumWindowsPerApplication: maximumWindowsPerApplication,
+            strictMRUOrderValid: strictMRUOrderValid
+        ))
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  self.viewModel.isVisible,
+                  self.runtimeQASessionID == runtimeQASessionID else { return }
+            self.panel.contentView?.displayIfNeeded()
+            RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+                event: "firstFrameCommitted",
+                sessionID: runtimeQASessionID,
+                totalItems: totalItems,
+                cachedPreviewCount: cachedPreviewCount,
+                duplicateCount: duplicateCount,
+                maximumWindowsPerApplication: maximumWindowsPerApplication,
+                strictMRUOrderValid: strictMRUOrderValid
+            ))
+            if cachedPreviewCount > 0 {
+                self.runtimeQAFirstPopulatedFrameRecorded = true
+            }
+        }
+    }
+
+    private func recordFirstPopulatedFrameIfNeeded() {
+        guard RuntimeQAEvidenceRecorder.shared.isEnabled,
+              viewModel.isVisible,
+              !runtimeQAFirstPopulatedFrameRecorded,
+              let runtimeQASessionID else { return }
+        let successfulPreviewCount = viewModel.items.lazy.filter { $0.previewImage != nil }.count
+        guard successfulPreviewCount > 0 else { return }
+        runtimeQAFirstPopulatedFrameRecorded = true
+        let totalItems = viewModel.items.count
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self,
+                  self.viewModel.isVisible,
+                  self.runtimeQASessionID == runtimeQASessionID else { return }
+            self.panel.contentView?.displayIfNeeded()
+            RuntimeQAEvidenceRecorder.shared.emit(RuntimeQARecord(
+                event: "firstPopulatedFrame",
+                sessionID: runtimeQASessionID,
+                totalItems: totalItems,
+                successfulPreviewCount: successfulPreviewCount,
+                success: true
+            ))
+        }
     }
 
     private func presentationScreen(for style: SwitcherStyle) -> NSScreen? {
@@ -822,7 +1054,7 @@ final class SwitcherWindowController {
             searchMemory.noteSelection(query: rememberedQuery, identity: selectedItem.historyIdentity)
         }
 
-        hidePanel()
+        hidePanel(committingSelection: true)
         DispatchQueue.main.async { [weak self] in
             self?.activateSelection(selectedItem)
         }

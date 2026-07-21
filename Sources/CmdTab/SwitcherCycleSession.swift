@@ -7,6 +7,7 @@ struct SwitcherCycleSession {
     private(set) var items: [SwitcherItem]
     private(set) var selectedIndex: Int
     private(set) var selectedIdentity: SwitcherHistoryIdentity
+    let initialFrontmostIdentity: SwitcherHistoryIdentity?
 
     init?(
         mode: SwitcherMode,
@@ -20,6 +21,7 @@ struct SwitcherCycleSession {
         self.mode = mode
         self.pinsSnapshot = pinsSnapshot
         self.items = items
+        self.initialFrontmostIdentity = currentFrontmost
         self.selectedIndex = Self.initialSelectionIndex(
             items: items,
             currentFrontmost: currentFrontmost,
@@ -155,22 +157,20 @@ struct SwitcherCycleSession {
     ) -> Int {
         guard items.count > 1 else { return 0 }
 
-        let currentPID = currentFrontmost?.ownerPID
-
         if reverse {
             let frontmostWasMovedToEnd = currentFrontmost != nil && items.last?.historyIdentity == currentFrontmost
             let fallbackIndex = frontmostWasMovedToEnd ? max(0, items.count - 2) : items.count - 1
 
-            guard let currentPID else { return fallbackIndex }
+            guard let currentFrontmost else { return fallbackIndex }
             if let reverseIndex = stride(from: fallbackIndex, through: 0, by: -1).first(where: {
-                items[$0].historyIdentity.ownerPID != currentPID
+                items[$0].historyIdentity != currentFrontmost
             }) {
                 return reverseIndex
             }
             return fallbackIndex
         }
 
-        guard let currentPID else { return 0 }
-        return items.firstIndex(where: { $0.historyIdentity.ownerPID != currentPID }) ?? 0
+        guard let currentFrontmost else { return 0 }
+        return items.firstIndex(where: { $0.historyIdentity != currentFrontmost }) ?? 0
     }
 }

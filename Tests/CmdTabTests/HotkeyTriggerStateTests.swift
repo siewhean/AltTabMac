@@ -7,7 +7,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 10.0),
-            equals: 10.0
+            equals: 10.1
         )
 
         XCTAssertEqual(
@@ -22,6 +22,9 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         _ = state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 1.0)
 
+        XCTAssertNil(
+            state.handleRevealDeadline(now: 1.099, heldModifiers: [.command])
+        )
         XCTAssertEqual(
             state.handleRevealDeadline(now: 1.1, heldModifiers: [.command]),
             .showOverlay(reverse: false, modifier: .command)
@@ -34,7 +37,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 2.0),
-            equals: 2.0
+            equals: 2.1
         )
         XCTAssertNil(
             state.registerHiddenTabTrigger(modifier: .command, reverse: true, startedAtUptime: 2.05)
@@ -44,7 +47,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
         XCTAssertEqual(state.pendingModifier, .command)
         XCTAssertEqual(pendingTrigger.reverse, false)
         XCTAssertEqual(pendingTrigger.startedAtUptime, 2.0, accuracy: 0.0001)
-        XCTAssertEqual(pendingTrigger.revealAtUptime, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(pendingTrigger.revealAtUptime, 2.1, accuracy: 0.0001)
     }
 
     func testReverseCommandTriggerPreservesReverseFlagForQuickSwitchAndReveal() {
@@ -84,6 +87,17 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         XCTAssertFalse(state.hasPendingTrigger)
         XCTAssertNil(state.handleModifierRelease(.command, switcherVisible: false))
+    }
+
+    func testDismissalCancellationPreventsModifierReleaseAction() {
+        var state = HotkeyTriggerState()
+
+        _ = state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 9.0)
+        _ = state.handleRevealDeadline(now: 9.1, heldModifiers: [.command])
+        state.cancelPendingTrigger()
+
+        XCTAssertNil(state.handleModifierRelease(.command, switcherVisible: false))
+        XCTAssertFalse(state.hasPendingTrigger)
     }
 
     func testOptionTriggerReschedulesOnRepeatedTab() throws {

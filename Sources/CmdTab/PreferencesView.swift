@@ -7,10 +7,13 @@ struct PreferencesView: View {
     let onRefreshPreviews: () -> Void
     let onApplySwitcherStyle: (SwitcherStyle) -> Void
     @StateObject private var licensingController = LicensingController.shared
+#if DEBUG
     @StateObject private var developerSettings = DeveloperSettings.shared
+#endif
     @State private var selectedPane: PreferencesPaneSelection
     @StateObject private var appExclusionCatalog = AppExclusionCatalog()
     @State private var isAppExclusionPickerPresented = false
+    @State private var permissionStatusRevision = 0
     private let headerLogo = PreferencesAssets.headerLogo
 
     init(
@@ -71,7 +74,7 @@ struct PreferencesView: View {
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
 
-                Text("Tune how applications and windows appear in the switcher. The settings below prioritize stability, recency ordering, and fast previews of each visual style.")
+                Text("Fine-tune how app and window previews are organized in CmdTab, with faster switching, stable ordering, and cleaner style previews.")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.66))
                     .fixedSize(horizontal: false, vertical: true)
@@ -147,11 +150,13 @@ struct PreferencesView: View {
             shortcutsSection
         case .licensing:
             LicensingPreferencesPane(controller: licensingController)
+#if DEBUG
         case .developer:
             DeveloperPreferencesPane(
                 settings: developerSettings,
                 licensingController: licensingController
             )
+#endif
         case .system:
             startupSection
             permissionsSection
@@ -159,10 +164,10 @@ struct PreferencesView: View {
     }
 
     private var triggerSection: some View {
-        SettingsCard(title: "Hot Swap Shortcut", subtitle: "Set an optional quick double-tap or side-matched modifier chord for immediate switching. The normal `⌘Tab` path still works exactly the same.") {
+        SettingsCard(title: "Hot Swap Shortcut", subtitle: "Set a fast double-tap or modifier combo for instant switching. `⌘Tab` still works as your standard shortcut.") {
             SettingsMenuPickerRow(
                 title: "Shortcut",
-                subtitle: "Choose whether hot swap should listen for a left or right modifier key, then double-tap that key to jump straight to the most recent app or window without opening the switcher.",
+                subtitle: "Pick which modifier key to use, then double-tap it to jump to your last app or window immediately.",
                 selection: $preferences.alternateTrigger,
                 options: hotSwapShortcutOptions
             )
@@ -189,9 +194,9 @@ struct PreferencesView: View {
     }
 
     private var feedbackSection: some View {
-        SettingsCard(title: "Feedback", subtitle: "Report bugs or propose changes directly from CmdTab.") {
+        SettingsCard(title: "Feedback", subtitle: "Tell us about bugs, edge cases, and ideas right from CmdTab.") {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Use the actions below to open a prefilled message for bug reports or feature requests.")
+                Text("Use these quick actions to send a prefilled bug report or feature request.")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.58))
                     .fixedSize(horizontal: false, vertical: true)
@@ -230,10 +235,10 @@ struct PreferencesView: View {
     }
 
     private var switcherSection: some View {
-        SettingsCard(title: "Switcher", subtitle: "Control what shows up when you press the shortcut.") {
+        SettingsCard(title: "Switcher", subtitle: "Decide which windows and apps appear when you open CmdTab.") {
             SettingsMenuPickerRow(
                 title: "Window Visibility",
-                subtitle: "Choose whether CmdTab focuses on the current space, visible spaces, or every space.",
+                subtitle: "Choose whether CmdTab looks at the current space, visible spaces, or all spaces.",
                 selection: $preferences.windowVisibilityScope,
                 options: WindowVisibilityScope.allCases.map { ($0, $0.title) }
             )
@@ -242,34 +247,16 @@ struct PreferencesView: View {
 
             SettingsMenuPickerRow(
                 title: "Display Target",
-                subtitle: "Choose where the switcher should appear when multiple displays are connected.",
+                subtitle: "Choose where CmdTab opens when you are using multiple displays.",
                 selection: $preferences.displayPlacement,
                 options: SwitcherDisplayPreference.allCases.map { ($0, $0.title) }
             )
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            HStack(alignment: .center, spacing: 16) {
-                SettingsRowText(
-                    title: "Max windows per application",
-                    subtitle: "Limit the number of windows shown for each app. Set to 0 to show all windows."
-                )
-                Spacer()
-                Picker("", selection: $preferences.maxWindowsPerApp) {
-                    Text("All").tag(0)
-                    ForEach(1...10, id: \.self) { count in
-                        Text("\(count)").tag(count)
-                    }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 80)
-            }
-
-            Divider().overlay(Color.white.opacity(0.08))
-
             SettingsSelectableAppsRow(
                 title: "Exclude Apps",
-                subtitle: "Select the applications you want CmdTab to hide from the switcher.",
+                subtitle: "Hide noisy apps you never want to switch to.",
                 selectedApps: selectedExcludedApps,
                 hasUnresolvedEntries: hasUnresolvedExcludedApps,
                 onSelectApps: { isAppExclusionPickerPresented = true }
@@ -287,11 +274,11 @@ struct PreferencesView: View {
     }
 
     private var appearanceSection: some View {
-        SettingsCard(title: "Appearance", subtitle: "Preview each style inline before applying it.") {
+        SettingsCard(title: "Appearance", subtitle: "Preview each layout first, then apply the one that feels right.") {
             VStack(alignment: .leading, spacing: 10) {
                 SettingsRowText(
                     title: "Switcher Style",
-                    subtitle: "Each preview below is a static mock of the style so you can see the look immediately."
+                    subtitle: "Every style below is shown as a quick preview before you switch to it."
                 )
 
                 HStack(alignment: .top, spacing: 12) {
@@ -308,12 +295,13 @@ struct PreferencesView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .id(permissionStatusRevision)
 
             Divider().overlay(Color.white.opacity(0.08))
 
             SettingsToggleRow(
                 title: "Liquid Glass (vibrancy)",
-                subtitle: "Use a more transparent frosted-glass background that lets more of the desktop show through behind the switcher.",
+                subtitle: "Enable a translucent look so your desktop is still visible behind CmdTab.",
                 isOn: $preferences.enableVibrancy
             )
 
@@ -321,37 +309,37 @@ struct PreferencesView: View {
 
             SettingsToggleRow(
                 title: "Show selected window behind the switcher",
-                subtitle: "Project the currently selected app window into the background of the Alt-Tab overlay so you can preview it before switching.",
+                subtitle: "See the selected app window behind CmdTab so you can confirm before switching.",
                 isOn: $preferences.showSelectedPreviewBackdrop
             )
         }
     }
 
     private var startupSection: some View {
-        SettingsCard(title: "Startup", subtitle: "Keep the switcher ready every time you sign in.") {
+        SettingsCard(title: "Startup", subtitle: "Keep CmdTab ready automatically every time you sign in.") {
             SettingsToggleRow(
                 title: "Launch CmdTab at login",
-                subtitle: "Start automatically when you log in so the switcher is always available.",
+                subtitle: "Start CmdTab automatically at login so it is always ready.",
                 isOn: $preferences.launchAtLogin
             )
         }
     }
 
     private var shortcutsSection: some View {
-        SettingsCard(title: "Shortcuts", subtitle: "Current control surface. Quick actions fire while the switcher is visible.") {
-            ShortcutRow(shortcut: "⌘ Tab", detail: "Open the primary switcher")
+        SettingsCard(title: "Shortcuts", subtitle: "Primary keys and quick actions available while the switcher is open.") {
+                ShortcutRow(shortcut: "⌘ Tab", detail: "Open the main switcher")
             Divider().overlay(Color.white.opacity(0.08))
-            ShortcutRow(shortcut: "⌥ Tab", detail: "Open the same switcher with the alternate modifier")
+                ShortcutRow(shortcut: "⌥ Tab", detail: "Open the same switcher using the alternate modifier")
             if preferences.alternateTrigger != .disabled {
                 Divider().overlay(Color.white.opacity(0.08))
-                ShortcutRow(shortcut: preferences.alternateTrigger.shortcutLabel, detail: "Immediate hot swap to the most recent item")
+                ShortcutRow(shortcut: preferences.alternateTrigger.shortcutLabel, detail: "Jump to the most recent item instantly")
             }
             Divider().overlay(Color.white.opacity(0.08))
-            ShortcutRow(shortcut: "Arrow Keys", detail: "Move through the grid")
+                ShortcutRow(shortcut: "Arrow Keys", detail: "Move between candidates")
             Divider().overlay(Color.white.opacity(0.08))
-            ShortcutRow(shortcut: "Return", detail: "Activate the selected item")
+                ShortcutRow(shortcut: "Return", detail: "Open the selected app or window")
             Divider().overlay(Color.white.opacity(0.08))
-            ShortcutRow(shortcut: "Esc", detail: "Cancel the current switcher session")
+                ShortcutRow(shortcut: "Esc", detail: "Close CmdTab without switching")
 
             Divider().overlay(Color.white.opacity(0.08))
 
@@ -365,7 +353,7 @@ struct PreferencesView: View {
     }
 
     private var permissionsSection: some View {
-        SettingsCard(title: "Permissions", subtitle: "CmdTab depends on Accessibility and Screen Recording.") {
+        SettingsCard(title: "Permissions", subtitle: "CmdTab needs Accessibility and Screen Recording to keep you in control.") {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(PermissionDiagnostics.allStatuses().enumerated()), id: \.offset) { index, status in
                     PermissionStatusRow(status: status)
@@ -379,7 +367,7 @@ struct PreferencesView: View {
 
             SettingsButtonRow(
                 title: "Open Accessibility Settings",
-                subtitle: "Required for intercepting the global shortcut.",
+                subtitle: "Required for catching the global shortcut reliably.",
                 buttonTitle: "Open"
             ) {
                 openSystemSettingsPane("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
@@ -388,12 +376,22 @@ struct PreferencesView: View {
             Divider().overlay(Color.white.opacity(0.08))
 
             SettingsButtonRow(
-                title: "Open Screen Recording Settings",
-                subtitle: "Required for live thumbnails of application windows.",
-                buttonTitle: "Open"
+                title: "Request Screen Recording Access",
+                subtitle: "Lets this signed CmdTab build capture live thumbnails for previews.",
+                buttonTitle: "Request"
             ) {
-                openSystemSettingsPane("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+                requestScreenRecordingAccess()
             }
+        }
+    }
+
+    private func requestScreenRecordingAccess() {
+        let granted = PermissionDiagnostics.requestScreenRecordingAccess()
+        permissionStatusRevision += 1
+        onRefreshPreviews()
+
+        if !granted {
+            openSystemSettingsPane("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
         }
     }
 
@@ -592,7 +590,7 @@ private struct SettingsSelectableAppsRow: View {
             }
 
             if hasUnresolvedEntries {
-                Text("Some older manual exclusion entries could not be matched to installed apps. Re-select them from the picker if you still want to keep them.")
+                Text("Some older exclusion entries no longer match installed apps. Re-select them from the picker to keep them hidden.")
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.40))
             }
