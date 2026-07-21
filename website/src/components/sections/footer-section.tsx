@@ -7,9 +7,14 @@ import { siteConfig } from "@/content/site";
 
 const productLinks = [
   { href: "/features/window-switcher", label: "Window switcher" },
+  { href: "/features/classic-grid", label: "Classic Grid" },
+  { href: "/features/command-palette", label: "Command Palette" },
+  { href: "/features/radial-menu", label: "Radial Menu" },
+  { href: "/features/quick-actions", label: "Quick Actions" },
   { href: "/evidence", label: "Testing and evidence" },
   { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
   { href: "/compare/mac-window-switchers", label: "Switcher landscape" },
+  { href: "/compare/cmdtab-vs-alttab", label: "CmdTab vs AltTab" },
   { href: "/compare/cmdtab-vs-macos-command-tab", label: "CmdTab vs macOS" },
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },
@@ -39,11 +44,11 @@ export function FooterSection() {
             />
             <div>
               <p className="text-lg font-medium tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-sm text-subdued">Individual window switching for macOS.</p>
+              <p className="text-sm text-subdued">Standalone macOS window-switcher app.</p>
             </div>
           </div>
           <p className="max-w-xl text-sm leading-7 text-subdued">
-            CmdTab shows eligible Mac windows as separate recent-use targets with previews, search, quick actions, and configurable Space and display scope.
+            CmdTab is separate from Apple’s built-in Command-Tab shortcut. It shows eligible Mac windows as individual recent-use targets with previews, search, quick actions, and configurable Space and display scope.
           </p>
           <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <Button href="/trial">{siteConfig.ctas.primary}</Button>
