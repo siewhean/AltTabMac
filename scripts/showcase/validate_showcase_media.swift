@@ -120,7 +120,10 @@ struct ShowcaseMediaValidator {
         guard asset.posterBytes >= 80_000, asset.posterBytes <= 3_500_000 else {
             throw ValidationError.failed("\(asset.id) poster size is implausible: \(asset.posterBytes)")
         }
-        guard asset.videoBytes >= 120_000, asset.videoBytes <= 8_000_000 else {
+        // A short, mostly static H.264 loop can be well below 120 KB without being
+        // broken. Track validation, duration, dimensions, audio absence, and visual
+        // variance provide the substantive checks.
+        guard asset.videoBytes >= 50_000, asset.videoBytes <= 8_000_000 else {
             throw ValidationError.failed("\(asset.id) video size is implausible: \(asset.videoBytes)")
         }
         guard asset.videoCodec == "H.264" else {
@@ -160,6 +163,7 @@ struct ShowcaseMediaValidator {
             throw ValidationError.failed("Poster byte count diverges from manifest for \(asset.id)")
         }
         try validateImageVariance(cgImage, name: asset.poster)
+        try validateSwitcherRegionVariance(cgImage, name: asset.poster)
     }
 
     private static func validateVideo(
@@ -218,36 +222,81 @@ struct ShowcaseMediaValidator {
     }
 
     private static func validateImageVariance(_ image: CGImage, name: String) throws {
+        let stats = try imageStats(
+            image,
+            xRange: 0..<image.width,
+            yRange: 0..<image.height,
+            horizontalSamples: 24,
+            verticalSamples: 18
+        )
+
+        guard stats.bucketCount >= 18 else {
+            throw ValidationError.failed("\(name) appears visually blank or uniform")
+        }
+        guard stats.meanLuminance >= 5, stats.meanLuminance <= 245 else {
+            throw ValidationError.failed("\(name) has implausible mean luminance \(stats.meanLuminance)")
+        }
+    }
+
+    /// The surrounding desktop is intentionally decorative, so whole-image
+    /// variance alone cannot catch a blank switcher panel. Sample the central
+    /// product region separately and require both color variety and luminance
+    /// deviation. This would have rejected the first LazyVGrid/LazyVStack pass.
+    private static func validateSwitcherRegionVariance(_ image: CGImage, name: String) throws {
+        let xRange = Int(Double(image.width) * 0.12)..<Int(Double(image.width) * 0.88)
+        let yRange = Int(Double(image.height) * 0.14)..<Int(Double(image.height) * 0.78)
+        let stats = try imageStats(
+            image,
+            xRange: xRange,
+            yRange: yRange,
+            horizontalSamples: 30,
+            verticalSamples: 22
+        )
+
+        guard stats.bucketCount >= 14, stats.luminanceStandardDeviation >= 3.0 else {
+            throw ValidationError.failed(
+                "\(name) central switcher region appears blank: buckets=\(stats.bucketCount), luminanceSD=\(stats.luminanceStandardDeviation)"
+            )
+        }
+    }
+
+    private static func imageStats(
+        _ image: CGImage,
+        xRange: Range<Int>,
+        yRange: Range<Int>,
+        horizontalSamples: Int,
+        verticalSamples: Int
+    ) throws -> (bucketCount: Int, meanLuminance: Double, luminanceStandardDeviation: Double) {
         guard let dataProvider = image.dataProvider,
               let data = dataProvider.data,
               let bytes = CFDataGetBytePtr(data) else {
-            throw ValidationError.failed("Could not sample pixels from \(name)")
+            throw ValidationError.failed("Could not sample image pixels")
         }
 
         let bytesPerPixel = max(1, image.bitsPerPixel / 8)
         let bytesPerRow = image.bytesPerRow
+        let xStep = max(1, xRange.count / max(1, horizontalSamples))
+        let yStep = max(1, yRange.count / max(1, verticalSamples))
         var buckets = Set<Int>()
-        var luminanceTotal = 0.0
-        var sampleCount = 0
+        var luminances: [Double] = []
 
-        for y in stride(from: 0, to: image.height, by: max(1, image.height / 18)) {
-            for x in stride(from: 0, to: image.width, by: max(1, image.width / 24)) {
+        for y in stride(from: yRange.lowerBound, to: yRange.upperBound, by: yStep) {
+            for x in stride(from: xRange.lowerBound, to: xRange.upperBound, by: xStep) {
                 let offset = y * bytesPerRow + x * bytesPerPixel
-                let red = Int(bytes[offset])
-                let green = Int(bytes[offset + min(1, bytesPerPixel - 1)])
-                let blue = Int(bytes[offset + min(2, bytesPerPixel - 1)])
-                buckets.insert((red / 24) * 100 + (green / 24) * 10 + (blue / 24))
-                luminanceTotal += 0.2126 * Double(red) + 0.7152 * Double(green) + 0.0722 * Double(blue)
-                sampleCount += 1
+                let first = Int(bytes[offset])
+                let second = Int(bytes[offset + min(1, bytesPerPixel - 1)])
+                let third = Int(bytes[offset + min(2, bytesPerPixel - 1)])
+                buckets.insert((first / 24) * 100 + (second / 24) * 10 + (third / 24))
+                luminances.append(0.2126 * Double(first) + 0.7152 * Double(second) + 0.0722 * Double(third))
             }
         }
 
-        let meanLuminance = luminanceTotal / Double(max(1, sampleCount))
-        guard buckets.count >= 18 else {
-            throw ValidationError.failed("\(name) appears visually blank or uniform")
-        }
-        guard meanLuminance >= 5, meanLuminance <= 245 else {
-            throw ValidationError.failed("\(name) has implausible mean luminance \(meanLuminance)")
-        }
+        let mean = luminances.reduce(0, +) / Double(max(1, luminances.count))
+        let variance = luminances.reduce(0) { partial, value in
+            let delta = value - mean
+            return partial + delta * delta
+        } / Double(max(1, luminances.count))
+
+        return (buckets.count, mean, sqrt(variance))
     }
 }
