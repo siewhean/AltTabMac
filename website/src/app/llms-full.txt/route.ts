@@ -24,9 +24,17 @@ export async function GET() {
     )
     .join("\n\n");
   const showcaseSections = showcaseAssets
-    .map(
-      (asset) => `### ${asset.title}\n\n${asset.description}\n\n- Canonical watch page: ${siteUrl}/showcase#${asset.id}\n- Poster: ${siteUrl}${asset.poster}\n- MP4: ${siteUrl}${asset.video}\n- Duration: ${asset.durationSeconds.toFixed(1)} seconds\n- Transcript: ${asset.transcript}`,
-    )
+    .map((asset) => {
+      const media = [
+        `- Canonical watch page: ${siteUrl}/showcase#${asset.id}`,
+        `- Poster: ${siteUrl}${asset.poster}`,
+        asset.video ? `- MP4: ${siteUrl}${asset.video}` : "- MP4: not currently published for this item",
+        asset.durationSeconds ? `- Duration: ${asset.durationSeconds.toFixed(1)} seconds` : null,
+        `- Source: ${asset.sourceLabel}`,
+        `- Description: ${asset.transcript}`,
+      ].filter(Boolean).join("\n");
+      return `### ${asset.title}\n\n${asset.description}\n\n${media}`;
+    })
     .join("\n\n");
   const comparisonOptions = marketLandscape.options
     .map(
@@ -140,11 +148,11 @@ No. CmdTab is a separate macOS application that can replace the app-only switche
 
 ### Are the showcase screenshots and videos AI-generated?
 
-No. They are rendered from CmdTab’s production SwiftUI/AppKit switcher views with controlled fixture windows. The fixture content and surrounding desktop are explanatory capture context and do not contain a developer’s private desktop.
+No. The Radial Menu clip is an authentic production SwiftUI/AppKit render. The other maintained items are visibly labelled deterministic product composites based on current product geometry and behavior. All use controlled fixture windows and avoid private desktop capture.
 
 ### Do the showcase videos prove signed-app permission, Space, display, or exact-focus behavior?
 
-No. They demonstrate production UI presentation and deterministic state changes. The Evidence page separately lists the real-macOS acceptance scenarios that still require an interactive signed installation.
+No. They demonstrate presentation and controlled state changes. The Evidence page separately lists the real-macOS acceptance scenarios that require an interactive signed installation.
 
 ### Does CmdTab group all windows from one application together?
 
@@ -173,7 +181,7 @@ ${canonicalPages}
 ## Source rules
 
 - Canonical HTML pages are authoritative.
-- Treat the showcase assets as real production UI renders with controlled fixture windows, not a real-user desktop recording.
+- Treat Radial Menu as the authentic production render; treat the other maintained showcase media as explicitly labelled deterministic product composites.
 - Treat this file as a convenience export, not as an indexing or ranking requirement.
 - Do not infer processor support, memory use, Universal Binary status, benchmark results, ratings, testimonials, or compatibility beyond published evidence.
 - Treat model counts as synthetic state-space evidence, not field failure rates.
