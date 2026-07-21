@@ -18,11 +18,10 @@ const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Compare", path: "/compare/mac-window-switchers" as const },
 ];
-const citations = marketLandscape.options.flatMap((option) =>
-  [option.sourceUrl, "secondarySourceUrl" in option ? option.secondarySourceUrl : undefined].filter(
-    (value): value is string => Boolean(value),
-  ),
-);
+const citations = marketLandscape.options.flatMap((option) => [
+  option.sourceUrl,
+  ...("secondarySourceUrl" in option ? [option.secondarySourceUrl] : []),
+]);
 
 export const metadata = createPageMetadata({
   title,
