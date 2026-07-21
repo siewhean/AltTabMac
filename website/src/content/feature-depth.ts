@@ -21,6 +21,11 @@ export type FeatureDepthContent = {
   }>;
 };
 
+export const featureDepthSectionLabels = {
+  bestFit: "Best fit",
+  tradeoffs: "Tradeoffs and limits",
+} as const;
+
 export const featureDepth = {
   classicGrid: {
     slug: "classic-grid",
