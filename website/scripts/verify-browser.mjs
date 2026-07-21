@@ -6,8 +6,11 @@ import { resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 const baseUrl = (process.env.VERIFY_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
+const localRun = /^http:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(baseUrl);
 const root = process.cwd();
-const routes = JSON.parse(readFileSync(resolve(root, "src/content/public-routes.json"), "utf8")).map((entry) => entry.path);
+const routes = JSON.parse(readFileSync(resolve(root, "src/content/public-routes.json"), "utf8")).map(
+  (entry) => entry.path,
+);
 const artifactDir = resolve(root, process.env.VERIFY_ARTIFACT_DIR || "verification-artifacts");
 mkdirSync(artifactDir, { recursive: true });
 
@@ -17,17 +20,17 @@ function findChrome() {
     const result = spawnSync("which", [candidate], { encoding: "utf8" });
     if (result.status === 0 && result.stdout.trim()) return result.stdout.trim();
   }
-  throw new Error("Chrome/Chromium executable not found");
+  throw new Error("Chrome or Chromium was not found");
 }
 
 async function waitForJson(url, timeoutMs = 20_000) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
     try {
       const response = await fetch(url);
       if (response.ok) return await response.json();
     } catch {
-      // Retry while Chrome starts.
+      // Chrome has not exposed the debugging endpoint yet.
     }
     await sleep(150);
   }
@@ -44,15 +47,26 @@ class CDPClient {
 
   async open() {
     await new Promise((resolveOpen, rejectOpen) => {
-      const timer = setTimeout(() => rejectOpen(new Error("Timed out opening Chrome DevTools websocket")), 10_000);
-      this.socket.addEventListener("open", () => {
-        clearTimeout(timer);
-        resolveOpen();
-      }, { once: true });
-      this.socket.addEventListener("error", (event) => {
-        clearTimeout(timer);
-        rejectOpen(new Error(`Chrome DevTools websocket error: ${event.message || "unknown"}`));
-      }, { once: true });
+      const timer = setTimeout(
+        () => rejectOpen(new Error("Timed out opening the Chrome DevTools websocket")),
+        10_000,
+      );
+      this.socket.addEventListener(
+        "open",
+        () => {
+          clearTimeout(timer);
+          resolveOpen();
+        },
+        { once: true },
+      );
+      this.socket.addEventListener(
+        "error",
+        (event) => {
+          clearTimeout(timer);
+          rejectOpen(new Error(`Chrome DevTools websocket error: ${event.message || "unknown"}`));
+        },
+        { once: true },
+      );
     });
     this.socket.addEventListener("message", (event) => this.handleMessage(event.data));
   }
@@ -67,8 +81,9 @@ class CDPClient {
       else pending.resolve(message.result || {});
       return;
     }
-    const listeners = this.listeners.get(message.method) || [];
-    for (const listener of [...listeners]) listener(message.params || {});
+    for (const listener of [...(this.listeners.get(message.method) || [])]) {
+      listener(message.params || {});
+    }
   }
 
   send(method, params = {}) {
@@ -83,10 +98,15 @@ class CDPClient {
     const listeners = this.listeners.get(method) || [];
     listeners.push(listener);
     this.listeners.set(method, listeners);
-    return () => this.listeners.set(method, (this.listeners.get(method) || []).filter((item) => item !== listener));
+    return () => {
+      this.listeners.set(
+        method,
+        (this.listeners.get(method) || []).filter((candidate) => candidate !== listener),
+      );
+    };
   }
 
-  waitFor(method, timeoutMs = 20_000) {
+  waitFor(method, timeoutMs = 25_000) {
     return new Promise((resolveEvent, rejectEvent) => {
       const cleanup = this.on(method, (params) => {
         clearTimeout(timer);
@@ -105,40 +125,52 @@ class CDPClient {
   }
 }
 
-function routeSlug(path) {
+function slug(path) {
   return path === "/" ? "home" : path.slice(1).replaceAll("/", "-");
+}
+
+function expectedLocalVercelNoise(message) {
+  return (
+    localRun &&
+    (message.includes("/_vercel/insights/") || message.includes("/_vercel/speed-insights/"))
+  );
 }
 
 const chrome = findChrome();
 const debuggingPort = 9222 + Math.floor(Math.random() * 500);
-const chromeLog = resolve(artifactDir, "chrome.log");
-const chromeProcess = spawn(chrome, [
-  "--headless=new",
-  "--no-sandbox",
-  "--disable-dev-shm-usage",
-  "--disable-gpu",
-  "--hide-scrollbars",
-  `--remote-debugging-port=${debuggingPort}`,
-  `--user-data-dir=/tmp/cmdtab-chrome-${process.pid}`,
-  "about:blank",
-], {
-  stdio: ["ignore", "ignore", "pipe"],
-});
-let chromeLogText = "";
+const chromeLogPath = resolve(artifactDir, "chrome.log");
+const chromeProcess = spawn(
+  chrome,
+  [
+    "--headless=new",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--hide-scrollbars",
+    `--remote-debugging-port=${debuggingPort}`,
+    `--user-data-dir=/tmp/cmdtab-chrome-${process.pid}`,
+    "about:blank",
+  ],
+  { stdio: ["ignore", "ignore", "pipe"] },
+);
+let chromeLog = "";
 chromeProcess.stderr.on("data", (chunk) => {
-  chromeLogText += chunk.toString();
+  chromeLog += chunk.toString();
 });
 
 const failures = [];
 const report = [];
 const fail = (message) => failures.push(message);
+let client;
 
 try {
   await waitForJson(`http://127.0.0.1:${debuggingPort}/json/version`);
-  const targetResponse = await fetch(`http://127.0.0.1:${debuggingPort}/json/new?about:blank`, { method: "PUT" });
-  assert.equal(targetResponse.ok, true, "could not create Chrome page target");
+  const targetResponse = await fetch(`http://127.0.0.1:${debuggingPort}/json/new?about:blank`, {
+    method: "PUT",
+  });
+  assert.equal(targetResponse.ok, true, "could not create a Chrome page target");
   const target = await targetResponse.json();
-  const client = new CDPClient(target.webSocketDebuggerUrl);
+  client = new CDPClient(target.webSocketDebuggerUrl);
   await client.open();
   await Promise.all([
     client.send("Page.enable"),
@@ -176,44 +208,69 @@ try {
       const exceptions = [];
       const failedRequests = [];
       const badResponses = [];
+      const requestUrls = new Map();
       const cleanups = [
+        client.on("Network.requestWillBeSent", ({ requestId, request }) => {
+          requestUrls.set(requestId, String(request?.url || ""));
+        }),
         client.on("Runtime.exceptionThrown", ({ exceptionDetails }) => {
-          exceptions.push(exceptionDetails?.exception?.description || exceptionDetails?.text || "unknown exception");
+          exceptions.push(
+            exceptionDetails?.exception?.description || exceptionDetails?.text || "unknown exception",
+          );
         }),
         client.on("Runtime.consoleAPICalled", ({ type, args }) => {
-          if (["error", "assert"].includes(type)) {
-            consoleErrors.push(args?.map((item) => item.value || item.description || "").join(" ") || type);
-          }
+          if (!["error", "assert"].includes(type)) return;
+          const message =
+            args?.map((item) => item.value || item.description || "").join(" ") || type;
+          if (!expectedLocalVercelNoise(message)) consoleErrors.push(message);
         }),
         client.on("Log.entryAdded", ({ entry }) => {
-          if (["error", "warning"].includes(entry?.level) && !String(entry?.text || "").includes("favicon")) {
-            consoleErrors.push(`${entry.level}: ${entry.text}`);
-          }
+          if (entry?.level !== "error") return;
+          const message = `${entry.level}: ${entry.text || ""}`;
+          if (!expectedLocalVercelNoise(message)) consoleErrors.push(message);
         }),
         client.on("Network.loadingFailed", ({ requestId, errorText, canceled }) => {
-          if (!canceled && !String(errorText).includes("ERR_ABORTED")) failedRequests.push(`${requestId}: ${errorText}`);
+          if (canceled || String(errorText).includes("ERR_ABORTED")) return;
+          const url = requestUrls.get(requestId) || "unknown URL";
+          if (!expectedLocalVercelNoise(url)) failedRequests.push(`${errorText}: ${url}`);
         }),
         client.on("Network.responseReceived", ({ response, type }) => {
           const url = String(response?.url || "");
-          if (url.startsWith(baseUrl) && !url.includes("/_vercel/") && Number(response?.status || 0) >= 400) {
-            badResponses.push(`${type || "resource"} ${response.status} ${url}`);
+          const status = Number(response?.status || 0);
+          if (
+            url.startsWith(baseUrl) &&
+            status >= 400 &&
+            !expectedLocalVercelNoise(url)
+          ) {
+            badResponses.push(`${type || "resource"} ${status} ${url}`);
           }
         }),
       ];
 
-      const loaded = client.waitFor("Page.loadEventFired", 25_000);
+      const loaded = client.waitFor("Page.loadEventFired");
       await client.send("Page.navigate", { url: `${baseUrl}${path}` });
       await loaded;
-      await sleep(500);
+      await sleep(350);
+
       await client.send("Runtime.evaluate", {
         expression: `new Promise(async (resolve) => {
+          if (document.fonts?.ready) await document.fonts.ready;
           const max = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-          for (let y = 0; y <= max; y += Math.max(500, window.innerHeight * 0.8)) {
+          for (let y = 0; y <= max; y += Math.max(450, window.innerHeight * 0.7)) {
             window.scrollTo(0, y);
-            await new Promise((r) => setTimeout(r, 25));
+            await new Promise((done) => setTimeout(done, 60));
           }
+          await Promise.race([
+            Promise.all([...document.images].map((image) => image.complete
+              ? Promise.resolve()
+              : new Promise((done) => {
+                  image.addEventListener('load', done, { once: true });
+                  image.addEventListener('error', done, { once: true });
+                }))),
+            new Promise((done) => setTimeout(done, 8000)),
+          ]);
           window.scrollTo(0, 0);
-          await new Promise((r) => setTimeout(r, 250));
+          await new Promise((done) => setTimeout(done, 300));
           resolve(true);
         })`,
         awaitPromise: true,
@@ -222,15 +279,21 @@ try {
 
       const evaluated = await client.send("Runtime.evaluate", {
         expression: `(() => {
+          const visible = (element) => {
+            const style = getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+          };
           const images = [...document.images];
-          const visiblePrimaryLinks = [...document.querySelectorAll('header a, header button, header summary')]
-            .filter((element) => {
-              const style = getComputedStyle(element);
-              const rect = element.getBoundingClientRect();
-              return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
-            })
-            .map((element) => (element.textContent || element.getAttribute('aria-label') || '').trim())
-            .filter(Boolean);
+          const scrollableTables = [...document.querySelectorAll('table')]
+            .map((table) => ({ table, container: table.parentElement }))
+            .filter(({ table, container }) => container && table.scrollWidth > container.clientWidth + 2)
+            .map(({ container }) => ({
+              role: container.getAttribute('role'),
+              tabIndex: container.tabIndex,
+              overflowX: getComputedStyle(container).overflowX,
+              ariaLabel: container.getAttribute('aria-label'),
+            }));
           return {
             url: location.href,
             title: document.title,
@@ -242,32 +305,113 @@ try {
             horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - window.innerWidth,
             brokenImages: images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.src),
             incompleteImages: images.filter((image) => !image.complete).map((image) => image.currentSrc || image.src),
-            visiblePrimaryLinks,
+            visibleHeaderControls: [...document.querySelectorAll('header a, header button, header summary')]
+              .filter(visible)
+              .map((element) => (element.textContent || element.getAttribute('aria-label') || '').trim())
+              .filter(Boolean),
+            mobileMenuPresent: Boolean(document.querySelector('header details nav[aria-label="Mobile navigation"]')),
+            unnamedVisibleControls: [...document.querySelectorAll('a, button, summary')]
+              .filter(visible)
+              .filter((element) => !(element.textContent || element.getAttribute('aria-label') || element.getAttribute('title') || '').trim())
+              .map((element) => element.outerHTML.slice(0, 180)),
+            scrollableTables,
           };
         })()`,
         returnByValue: true,
       });
       const result = evaluated.result?.value || {};
-      report.push({ profile: profile.name, path, ...result, consoleErrors, exceptions, failedRequests, badResponses });
 
-      if (result.readyState !== "complete") fail(`${profile.name} ${path}: document did not reach complete state`);
-      if (result.bodyTextLength < 250) fail(`${profile.name} ${path}: body is suspiciously short`);
+      let mobileMenuResult = null;
+      if (profile.mobile) {
+        const menuEvaluation = await client.send("Runtime.evaluate", {
+          expression: `new Promise(async (resolve) => {
+            const details = document.querySelector('header details');
+            if (!details) return resolve({ present: false, visibleLinks: 0 });
+            details.open = true;
+            await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+            const links = [...details.querySelectorAll('nav a')].filter((link) => {
+              const style = getComputedStyle(link);
+              const rect = link.getBoundingClientRect();
+              return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            });
+            resolve({ present: true, visibleLinks: links.length });
+          })`,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        mobileMenuResult = menuEvaluation.result?.value || {};
+        if (path === "/" && mobileMenuResult.present) {
+          const menuScreenshot = await client.send("Page.captureScreenshot", {
+            format: "png",
+            fromSurface: true,
+          });
+          writeFileSync(
+            resolve(artifactDir, "mobile-home-menu-open.png"),
+            Buffer.from(menuScreenshot.data, "base64"),
+          );
+        }
+        await client.send("Runtime.evaluate", {
+          expression: `(() => { const details = document.querySelector('header details'); if (details) details.open = false; })()`,
+        });
+      }
+
+      report.push({
+        profile: profile.name,
+        path,
+        ...result,
+        mobileMenuResult,
+        consoleErrors,
+        exceptions,
+        failedRequests,
+        badResponses,
+      });
+
+      if (result.readyState !== "complete") fail(`${profile.name} ${path}: document did not finish loading`);
+      if (result.bodyTextLength < 250) fail(`${profile.name} ${path}: rendered body is suspiciously short`);
       if (result.h1Count !== 1) fail(`${profile.name} ${path}: expected one H1, found ${result.h1Count}`);
-      if (result.errorOverlay) fail(`${profile.name} ${path}: framework error overlay is visible`);
-      if (result.horizontalOverflow > 4) fail(`${profile.name} ${path}: horizontal overflow is ${result.horizontalOverflow}px`);
-      if (result.brokenImages?.length) fail(`${profile.name} ${path}: broken images ${result.brokenImages.join(", ")}`);
-      if (result.incompleteImages?.length) fail(`${profile.name} ${path}: images did not finish loading ${result.incompleteImages.join(", ")}`);
+      if (result.errorOverlay) fail(`${profile.name} ${path}: a framework error overlay is visible`);
+      if (result.horizontalOverflow > 4) {
+        fail(`${profile.name} ${path}: document has ${result.horizontalOverflow}px of horizontal overflow`);
+      }
+      if (result.brokenImages?.length) {
+        fail(`${profile.name} ${path}: broken images ${result.brokenImages.join(", ")}`);
+      }
+      if (result.incompleteImages?.length) {
+        fail(`${profile.name} ${path}: images did not finish loading ${result.incompleteImages.join(", ")}`);
+      }
+      if (result.unnamedVisibleControls?.length) {
+        fail(`${profile.name} ${path}: visible controls lack accessible names`);
+      }
+      for (const table of result.scrollableTables || []) {
+        if (table.role !== "region" || table.tabIndex < 0 || !table.ariaLabel) {
+          fail(`${profile.name} ${path}: a horizontally scrollable table is not an accessible named keyboard region`);
+        }
+        if (!["auto", "scroll"].includes(table.overflowX)) {
+          fail(`${profile.name} ${path}: a wide table is clipped instead of horizontally scrollable`);
+        }
+      }
       if (consoleErrors.length) fail(`${profile.name} ${path}: console errors ${consoleErrors.join(" | ")}`);
       if (exceptions.length) fail(`${profile.name} ${path}: runtime exceptions ${exceptions.join(" | ")}`);
       if (failedRequests.length) fail(`${profile.name} ${path}: failed requests ${failedRequests.join(" | ")}`);
       if (badResponses.length) fail(`${profile.name} ${path}: bad same-origin responses ${badResponses.join(" | ")}`);
-      if (profile.mobile && path !== "/" && (result.visiblePrimaryLinks?.length || 0) < 2) {
-        fail(`mobile ${path}: header exposes fewer than two visible navigation controls`);
+      if (profile.mobile) {
+        if ((result.visibleHeaderControls?.length || 0) < 2) {
+          fail(`mobile ${path}: header exposes fewer than two visible navigation controls`);
+        }
+        if (!mobileMenuResult?.present || mobileMenuResult.visibleLinks < 6) {
+          fail(`mobile ${path}: mobile navigation does not expose the maintained site links`);
+        }
       }
 
       if (screenshotRoutes.has(path)) {
-        const screenshot = await client.send("Page.captureScreenshot", { format: "png", fromSurface: true });
-        writeFileSync(resolve(artifactDir, `${profile.name}-${routeSlug(path)}.png`), Buffer.from(screenshot.data, "base64"));
+        const screenshot = await client.send("Page.captureScreenshot", {
+          format: "png",
+          fromSurface: true,
+        });
+        writeFileSync(
+          resolve(artifactDir, `${profile.name}-${slug(path)}.png`),
+          Buffer.from(screenshot.data, "base64"),
+        );
       }
       cleanups.forEach((cleanup) => cleanup());
     }
@@ -279,45 +423,53 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  const loaded = client.waitFor("Page.loadEventFired", 25_000);
+  const homeLoaded = client.waitFor("Page.loadEventFired");
   await client.send("Page.navigate", { url: `${baseUrl}/` });
-  await loaded;
+  await homeLoaded;
   await sleep(700);
   const interaction = await client.send("Runtime.evaluate", {
     expression: `new Promise(async (resolve) => {
-      const buttonByText = (text) => [...document.querySelectorAll('button')].find((button) => button.textContent.includes(text));
-      const pause = buttonByText('Pause auto-demo');
-      if (pause) pause.click();
-      const commandPalette = buttonByText('Command Palette');
-      if (!commandPalette) return resolve({ ok: false, reason: 'Command Palette control missing' });
-      commandPalette.click();
-      await new Promise((r) => setTimeout(r, 450));
+      const buttonByText = (text) => [...document.querySelectorAll('button')]
+        .find((button) => button.textContent.includes(text));
+      buttonByText('Pause auto-demo')?.click();
+      const paletteButton = buttonByText('Command Palette');
+      if (!paletteButton) return resolve({ ok: false, reason: 'Command Palette control missing' });
+      paletteButton.click();
+      await new Promise((done) => setTimeout(done, 450));
       const input = document.querySelector('input[placeholder="Type to filter…"]');
-      if (!input) return resolve({ ok: false, reason: 'Command Palette input missing after mode change' });
+      if (!input) return resolve({ ok: false, reason: 'Command Palette input missing' });
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
       setter.call(input, 'Spotify');
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      await new Promise((r) => setTimeout(r, 250));
-      const bodyText = document.body.innerText;
+      await new Promise((done) => setTimeout(done, 300));
+      const text = document.body.innerText;
       resolve({
-        ok: bodyText.includes('Spotify') && !bodyText.includes('No matches'),
+        ok: input.value === 'Spotify' && text.includes('Spotify') && text.includes('Deep work mix') && !text.includes('No matches'),
         value: input.value,
-        resultTextPresent: bodyText.includes('Deep work mix'),
+        resultTextPresent: text.includes('Deep work mix'),
       });
     })`,
     awaitPromise: true,
     returnByValue: true,
   });
   const interactionResult = interaction.result?.value || {};
-  if (!interactionResult.ok || interactionResult.value !== "Spotify" || !interactionResult.resultTextPresent) {
+  if (!interactionResult.ok) {
     fail(`homepage interactive demo failed: ${JSON.stringify(interactionResult)}`);
   }
-
-  client.close();
+} catch (error) {
+  fail(`browser harness failed: ${error.stack || error.message || String(error)}`);
 } finally {
+  try {
+    client?.close();
+  } catch {
+    // Best effort.
+  }
   chromeProcess.kill("SIGTERM");
-  writeFileSync(chromeLog, chromeLogText);
-  writeFileSync(resolve(artifactDir, "browser-report.json"), JSON.stringify({ baseUrl, report, failures }, null, 2));
+  writeFileSync(chromeLogPath, chromeLog);
+  writeFileSync(
+    resolve(artifactDir, "browser-report.json"),
+    JSON.stringify({ baseUrl, routes, report, failures }, null, 2),
+  );
 }
 
 if (failures.length) {
@@ -326,4 +478,6 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Browser verification passed for ${routes.length} routes at desktop and mobile viewports, plus the live demo interaction.`);
+console.log(
+  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, mobile navigation, accessible wide tables, and the live demo interaction.`,
+);
