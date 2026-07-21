@@ -84,8 +84,17 @@ export default function CmdTabVsMacOSPage() {
         <div className="mb-8">
           <LastReviewed date={productFacts.reviewedAt} />
         </div>
-        <div className="overflow-x-auto rounded-[24px] border border-white/10">
-          <table className="min-w-[760px] w-full border-collapse text-left text-sm">
+        <p id="comparison-scroll-hint" className="mb-3 text-xs leading-5 text-subdued md:hidden">
+          Swipe or use the arrow keys inside the table to compare all three columns.
+        </p>
+        <div
+          role="region"
+          aria-label="Comparison of macOS Cmd+Tab and CmdTab"
+          aria-describedby="comparison-scroll-hint"
+          tabIndex={0}
+          className="overflow-x-auto rounded-[24px] border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+        >
+          <table className="w-full min-w-[760px] border-collapse text-left text-sm">
             <thead className="bg-white/[0.05] text-text">
               <tr>
                 <th className="px-5 py-4 font-medium">Capability</th>
