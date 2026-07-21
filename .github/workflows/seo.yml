@@ -22,7 +22,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: website
@@ -49,3 +49,40 @@ jobs:
 
       - name: Build production website
         run: npx next build --webpack
+
+      - name: Start production server
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3000 > /tmp/cmdtab-next.log 2>&1 &
+          echo $! > /tmp/cmdtab-next.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/cmdtab-next.log
+          exit 1
+
+      - name: Verify rendered metadata, schema, links, and headers
+        run: npm run rendered:check
+
+      - name: Verify desktop, mobile, and interactive browser behavior
+        run: npm run browser:check
+
+      - name: Collect verification evidence
+        if: always()
+        run: |
+          mkdir -p verification-artifacts
+          cp /tmp/cmdtab-next.log verification-artifacts/next-server.log 2>/dev/null || true
+          if [ -f /tmp/cmdtab-next.pid ]; then
+            kill "$(cat /tmp/cmdtab-next.pid)" 2>/dev/null || true
+          fi
+
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmdtab-seo-browser-verification
+          path: website/verification-artifacts
+          if-no-files-found: warn
+          retention-days: 7
