@@ -27,8 +27,10 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/features/window-switcher",
-  image: "/showcase/overview-poster.png",
-  imageAlt: "Real CmdTab production window-switcher render with individual Mac windows",
+  image: "/showcase/overview-poster.webp",
+  imageAlt: "CmdTab window-switcher product overview using controlled fixture windows",
+  imageWidth: 720,
+  imageHeight: 450,
 });
 
 const steps = [
@@ -111,7 +113,7 @@ export default function WindowSwitcherFeaturePage() {
         </div>
         <ShowcaseVideo asset={overview} priority />
         <p className="mt-4 text-sm leading-7 text-subdued">
-          The loop is rendered from production switcher views with controlled fixture windows. It is not an AI-generated mockup or a recording of a private desktop.
+          The overview is a deterministic, non-AI product composite based on the current interface geometry and documented behavior contract. Controlled fixtures replace private desktop content.
         </p>
       </SectionShell>
 
