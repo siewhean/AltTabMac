@@ -37,7 +37,10 @@ export function ShowcaseVideo({
     if (!video || prefersReducedMotion) return;
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
         if (entry.isIntersecting && entry.intersectionRatio >= 0.45) {
           void video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
         } else {
