@@ -89,6 +89,11 @@ for (const required of [
 ]) {
   assert.ok(structuredData.includes(required), `structured data is missing ${required}`);
 }
+assert.match(structuredData, /getCommerceConfig/, "software offers must use the visible commerce configuration");
+assert.match(structuredData, /commerce\.trialDownloadUrl/, "trial structured data must require a configured download URL");
+assert.match(structuredData, /commerce\.checkoutUrl/, "founder offer structured data must require a configured checkout URL");
+assert.match(structuredData, /commerce\.standardCheckoutUrl/, "standard offer structured data must require a configured checkout URL");
+assert.match(structuredData, /offers\.length > 0/, "empty or unavailable offers must not be emitted as InStock");
 
 const homePage = read("src/app/page.tsx");
 assert.match(homePage, /ProductFactsSection/, "homepage must publish factual product data");
