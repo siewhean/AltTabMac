@@ -35,16 +35,17 @@ The PR now verifies the built production server rather than relying only on sour
 - validates `robots.txt`, `sitemap.xml`, `llms.txt`, the web manifest, IndexNow key behavior, private-route headers, API noindex behavior, 404 handling, and security headers;
 - renders all public routes at desktop and mobile sizes in headless Chrome;
 - checks browser exceptions, console errors, failed requests, broken images, unfinished images, document overflow, unnamed controls, mobile navigation, and accessible handling of wide tables;
-- captures visual evidence for the homepage, feature page, guide, comparison, FAQ, buy, privacy, and an opened mobile menu;
+- captures visual evidence for the homepage, feature page, guide, comparison, FAQ, buy, privacy, and an opened mobile menu from a deterministic top-of-page position;
 - exercises the homepage switcher demo by changing to Command Palette and filtering to Spotify.
 
 The verification pass found and repaired issues that source-only checks did not expose:
 
 - public subpages had no usable mobile navigation;
+- the opened mobile menu needed an opaque surface so page copy could not compete with navigation labels;
 - the Privacy route lacked the shared site header and footer;
 - the comparison table needed a named, keyboard-focusable horizontal-scroll region on narrow screens;
 - local Vercel analytics endpoints and lazy images needed explicit browser-harness handling without hiding real network failures;
-- Chrome startup and profile cleanup needed deterministic CI behavior;
+- Chrome startup, screenshot position, and profile cleanup needed deterministic CI behavior;
 - structured trial and purchase offers were marked `InStock` even when no public download or checkout URL was configured.
 
 Structured offers are now emitted only when the same deployment configuration exposes the corresponding visible commerce action.
