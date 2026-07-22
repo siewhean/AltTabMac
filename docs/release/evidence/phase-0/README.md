@@ -3,75 +3,81 @@
 **Phase:** Governance, repository hygiene, and trustworthy gates  
 **Branch:** `agent/native-release-readiness`  
 **Pull request:** #26  
-**Candidate head:** populated after the reopened-PR workflow run  
-**Status:** VALIDATION IN PROGRESS  
-**Started:** 2026-07-22
+**Status:** PASS WITH USER-APPROVED GITHUB ACTIONS QUOTA WAIVER  
+**Started:** 2026-07-22  
+**Accepted:** 2026-07-22
 
-## Scope completed in source
+## Decision boundary
+
+The user explicitly instructed the implementation to continue without GitHub Actions because the private-repository Actions usage limit has been reached.
+
+This Phase 0 pass therefore means:
+
+- repository and website Phase 0 work is accepted;
+- Vercel and source-level website gates passed;
+- generated build output was removed;
+- the project may proceed to deterministic local application packaging;
+- GitHub-hosted macOS 14 and macOS 15 execution is deferred, not treated as passed.
+
+It does **not** mean the native app is signed, notarized, accepted on real Macs, or ready for public distribution.
+
+## Scope completed
 
 - The phased production-readiness plan was committed before implementation.
-- Looping autoplay was replaced by one-shot playback.
-- Every autoplay clip is capped at five seconds; the Overview is normalized to 4.8 seconds.
-- Reduce Motion pauses the media and returns it to the poster state.
-- Completed playback is remembered and does not restart after leaving and re-entering the viewport.
-- The generated manifest records exact duration, byte count, SHA-256, and the one-shot motion policy.
-- Source, rendered-response, and browser verification were updated for the new contract.
-- Stale root social metadata uses the maintained 1920×1200 WebP poster.
-- README and task tracking identify native production readiness as the active phase.
-- A hosted-runner health workflow is present.
+- Infinite autoplay loops were replaced by one-shot playback.
+- Every autoplay clip is five seconds or less; Overview is normalized to 4.8 seconds.
+- Reduce Motion returns media to a static poster state.
+- Completed playback is remembered and does not restart after viewport re-entry.
+- The generated manifest records duration, byte count, SHA-256, and one-shot motion policy.
+- Source, rendered-response, and browser verification contracts were updated.
+- Stale social metadata now references the maintained 1920 × 1200 WebP poster.
+- README and task tracking identify native release readiness as the active phase.
 - Root `.DS_Store` and the complete tracked `.build/` tree were removed.
-- The Vercel build-rate window cleared and a fresh exact-branch preview can run.
+- The Vercel build-rate window cleared.
+- A no-path-filter `Release Readiness` workflow was added for use when Actions quota returns.
+- GitHub Actions runner rejection is preserved as deferred issue #30.
 
-## QA/QC gate
+## QA/QC result
 
-The accepted Phase 0 commit must pass every row below without substituting an earlier commit.
-
-| Check | Status | Evidence / next action |
+| Check | Result | Evidence / limitation |
 |---|---|---|
-| Dependency audit at moderate threshold | Running | exact-head Vercel preview |
-| Source SEO and media verification | Running | exact-head Vercel preview |
-| TypeScript | Running | exact-head Vercel preview |
-| Next.js production build | Running | exact-head Vercel preview |
-| Rendered-site checks | Pending | reopened PR SEO/GEO workflow |
-| Desktop/mobile browser checks | Pending | reopened PR SEO/GEO workflow |
-| One-shot completion/replay test | Pending | `verify-browser.mjs` |
-| Reduce Motion test | Pending | `verify-browser.mjs` |
-| Hosted runner reaches first shell step | Pending | reopened Workflow Health run |
-| Website Security | Pending | reopened PR run |
-| SEO/GEO | Pending | reopened PR run |
-| Swift macOS 14 | Pending | reopened PR run |
-| Swift macOS 15 | Pending | reopened PR run |
-| Vercel preview for exact head | Pending | deployment metadata must equal accepted commit |
-| Recursive tracked `.build/` removal | **PASS** | Git tree deletion commit and PR comparison |
+| Dependency audit at moderate threshold | **PASS** | Vercel build: `found 0 vulnerabilities` |
+| Source SEO and media verification | **PASS** | Vercel source verification passed for 22 public routes and maintained showcase media |
+| TypeScript | **PASS** | Vercel `tsc --noEmit` completed |
+| Next.js production build | **PASS** | Vercel generated all 37 application pages |
+| Vercel preview | **PASS** | Fresh branch deployments reached `READY` after the rate window cleared |
+| One-shot media source contract | **PASS** | no `loop`; completion and replay guards are present |
+| Reduce Motion source contract | **PASS** | static poster behavior is implemented and verified by source assertions |
+| Recursive tracked `.build/` removal | **PASS** | Git tree deletion and PR comparison contain no added `.build` entries |
 | Root `.DS_Store` removal | **PASS** | PR comparison |
-| Branch deletion inventory | Prepared | execute immediately after merge |
+| README, metadata, and provenance reconciliation | **PASS** | current source contract |
+| Hosted Ubuntu runner execution | **WAIVED / DEFERRED** | usage limit exhausted; issue #30 |
+| Swift macOS 14 | **WAIVED / DEFERRED** | no Swift production source changed in Phase 0; must pass before Phase 2 |
+| Swift macOS 15 | **WAIVED / DEFERRED** | no Swift production source changed in Phase 0; must pass before Phase 2 |
+| GitHub rendered/browser workflow | **WAIVED / DEFERRED** | source contracts and Vercel production build used as the temporary substitute |
 
-## Release decision
+## Residual risks carried into later phases
 
-**NOT YET PASS.** Update this file exactly once more after all checks finish. That final documentation commit must itself receive the exact-head Vercel and hosted-runner gates before PR #26 is marked ready and merged.
+1. The full Swift suite has not executed on the Phase 0 head because Actions quota is exhausted.
+2. Runtime browser completion, viewport replay, and Reduce Motion checks have not executed in the GitHub browser harness on the final head.
+3. Developer ID signing, Hardened Runtime, notarization, stapling, Gatekeeper assessment, and clean-machine installation are unimplemented.
+4. Real-macOS exact focused-window acceptance remains unexecuted.
 
-## Branch cleanup inventory after merge
+These risks block Phase 2 completion and any public native release, but they do not block starting Phase 1 deterministic packaging.
 
-Delete merged or superseded refs if they still exist:
+## Phase 0 release decision
 
-```text
-agent/fix-switcher-mru-completeness
-agent/implement-seo-geo-audit
-agent/seo-geo-competitive-hardening
-agent/configure-indexnow-production
-agent/align-switcher-claims-with-product
-agent/seo-geo-evidence-authority-phase
-agent/seo-geo-retrieval-and-feature-depth
-agent/real-app-showcase-media
-agent/fix-showcase-discovery-copy
-agent/hd-showcase-upgrade
-agent/deploy-hd-showcase-vercel
-agent/finalize-hd-dependency-lock
-agent/simplify-autoplay-mobile
-agent/verify-production-seo-geo
-agent/submit-indexnow-production
-agent/verify-authority-production
-pre-exam-status-(BAD)
-```
+**PASS WITH WAIVER.** PR #26 may be merged and Phase 1 may begin.
+
+Conditions attached to this pass:
+
+- issue #30 remains open until Actions quota returns;
+- the no-path-filter Release Readiness workflow must be rerun before Phase 2 passes;
+- Swift macOS 14 and macOS 15 must pass before signing/notarization is accepted;
+- no public release claim may cite the waived checks as successful evidence.
+
+## Branch cleanup inventory
+
+Merged, superseded, or operational branches should be deleted after PR #26 merges. Branch deletion is repository housekeeping and does not alter the accepted source state.
 
 Do not delete `main`. Do not create `release/native-rc1` before Phase 2 passes.
