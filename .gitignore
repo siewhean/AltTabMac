@@ -12,6 +12,8 @@ DerivedData/
 
 # Packaged app and debug symbols
 CmdTab.app/
+dist/
+release-artifacts/
 *.dSYM/
 *.dSYM.zip
 
