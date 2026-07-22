@@ -1,4 +1,5 @@
 import Foundation
+import LocalAuthentication
 import Security
 
 enum CmdTabBundleIdentity {
@@ -106,13 +107,14 @@ struct BundleIdentityMigration {
         }
 
         var legacyResult: CFTypeRef?
+        let legacyContext = nonInteractiveAuthenticationContext()
         let legacyQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: legacyAccount,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
+            kSecUseAuthenticationContext as String: legacyContext,
         ]
         let legacyStatus = SecItemCopyMatching(legacyQuery as CFDictionary, &legacyResult)
         switch legacyStatus {
@@ -146,13 +148,20 @@ struct BundleIdentityMigration {
     }
 
     private static func keychainItemStatus(service: String, account: String) -> OSStatus {
+        let context = nonInteractiveAuthenticationContext()
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail,
+            kSecUseAuthenticationContext as String: context,
         ]
         return SecItemCopyMatching(query as CFDictionary, nil)
+    }
+
+    private static func nonInteractiveAuthenticationContext() -> LAContext {
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        return context
     }
 }
