@@ -6,7 +6,7 @@
     "dev": "next dev",
     "predev": "npm run showcase:generate",
     "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
-    "release:config-check": "python3 ../scripts/release/release_config.py verify-repository",
+    "release:config-check": "python3 ../scripts/release/release_config.py verify-repository && python3 ../scripts/release/verify-phase2-source.py",
     "prebuild": "npm run release:config-check && npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",
