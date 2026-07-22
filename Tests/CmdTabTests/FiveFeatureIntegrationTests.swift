@@ -35,7 +35,10 @@ final class FiveFeatureIntegrationTests: XCTestCase {
             descriptor: descriptor(identity: currentIdentity, title: "Current")
         )
 
-        XCTAssertEqual(history.snapshot().prefix(2), [currentIdentity, restoredIdentity])
+        XCTAssertEqual(
+            Array(history.snapshot().prefix(2)),
+            [currentIdentity, restoredIdentity]
+        )
     }
 
     func testProfileConfigurationCombinesMinimizedWorkspaceAndAppFilterPolicies() {
