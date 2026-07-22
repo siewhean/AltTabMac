@@ -115,7 +115,9 @@ fi
 python3 - "${LOG_JSON}" <<'PY'
 import json, sys
 from pathlib import Path
-issues = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("issues") or []
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+issues = data.get("issues") or []
 if issues:
     for issue in issues:
         print(f"{issue.get('severity', 'unknown')}: {issue.get('path', 'unknown path')}: {issue.get('message', 'no message')}", file=sys.stderr)
