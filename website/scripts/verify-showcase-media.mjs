@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
@@ -9,6 +10,7 @@ import ffmpegPath from "ffmpeg-static";
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path));
 const readText = (path) => read(path).toString("utf8");
+const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 const manifest = JSON.parse(readText("public/showcase/manifest.json"));
 
 const HD_WIDTH = 1920;
@@ -85,7 +87,10 @@ for (const asset of manifest.assets) {
 
   const posterPath = `public/showcase/${asset.poster}`;
   const poster = read(posterPath);
-  assert.ok(statSync(resolve(root, posterPath)).size >= 20_000, `${asset.id} poster is implausibly small for HD`);
+  const posterStat = statSync(resolve(root, posterPath));
+  assert.ok(posterStat.size >= 20_000, `${asset.id} poster is implausibly small for HD`);
+  assert.equal(asset.posterBytes, posterStat.size, `${asset.id} poster byte count diverges from manifest`);
+  assert.equal(asset.posterSha256, sha256(poster), `${asset.id} poster checksum diverges from manifest`);
   const dimensions = webpDimensions(poster, asset.poster);
   assert.deepEqual(dimensions, { width: HD_WIDTH, height: HD_HEIGHT }, `${asset.id} WebP dimensions diverge from HD contract`);
 
@@ -97,7 +102,10 @@ for (const asset of manifest.assets) {
     assert.ok(asset.durationSeconds <= MAX_AUTOPLAY_SECONDS, `${asset.id} exceeds the autoplay motion limit`);
     const videoPath = `public/showcase/${asset.video}`;
     const video = read(videoPath);
+    const videoStat = statSync(resolve(root, videoPath));
     assert.ok(video.length >= 100_000 && video.length <= 15_000_000, `${asset.id} MP4 size is implausible for HD`);
+    assert.equal(asset.videoBytes, videoStat.size, `${asset.id} video byte count diverges from manifest`);
+    assert.equal(asset.videoSha256, sha256(video), `${asset.id} video checksum diverges from manifest`);
     assert.equal(video.subarray(4, 8).toString("ascii"), "ftyp", `${asset.id} is not an ISO MP4 file`);
     assert.ok(video.includes(Buffer.from("avc1")), `${asset.id} does not advertise H.264/avc1`);
     const moovIndex = video.indexOf(Buffer.from("moov"));
@@ -163,4 +171,4 @@ for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Univers
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
 }
 
-console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets and ${manifest.assets.filter((asset) => asset.video).length} silent one-shot H.264 videos at 30 fps.`);
+console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets and ${manifest.assets.filter((asset) => asset.video).length} silent one-shot H.264 videos at 30 fps with exact manifest checksums.`);
