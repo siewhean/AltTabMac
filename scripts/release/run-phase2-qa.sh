@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 SOURCE_VERIFY_TOOL="${ROOT_DIR}/scripts/release/verify-phase2-source.py"
+DISTRIBUTION_RECORD_TOOL="${ROOT_DIR}/scripts/release/write-distribution-record.py"
 EVIDENCE_DIR="${CMDTAB_PHASE2_EVIDENCE_DIR:-${ROOT_DIR}/dist/phase2-evidence}"
 ARTIFACT_DIR="${CMDTAB_PHASE2_ARTIFACT_DIR:-${ROOT_DIR}/dist/phase2}"
 TEMP_ROOT="$(mktemp -d /tmp/cmdtab-phase2-qa.XXXXXX)"
@@ -25,7 +26,7 @@ write_manual_checks() {
 Complete these checks against the final ZIP recorded in \`artifact-path.txt\`:
 
 - [ ] Download or transfer the ZIP to a clean, non-development macOS account.
-- [ ] Confirm the ZIP checksum matches \`final-artifact.sha256\`.
+- [ ] Confirm the ZIP checksum matches \`final-artifact.sha256\` and \`distribution-record.json\`.
 - [ ] Extract the ZIP and confirm Gatekeeper identifies the expected developer.
 - [ ] Launch CmdTab without bypassing Gatekeeper.
 - [ ] Confirm CmdTab appears in the menu bar and remains absent from the Dock and native Command-Tab switcher.
@@ -152,12 +153,10 @@ printf '\n== Independent distribution verification ==\n'
 bash "${ROOT_DIR}/scripts/release/verify-distribution.sh" "${SIGNED_APP}" "${FINAL_ZIP}"
 
 printf '\n== Evidence capture ==\n'
+SIGNED_MANIFEST="${EVIDENCE_DIR}/signed-bundle-manifest.json"
 python3 "${ROOT_DIR}/scripts/release/write-bundle-manifest.py" \
-  "${SIGNED_APP}" "${EVIDENCE_DIR}/signed-bundle-manifest.json" >/dev/null
-(
-  cd "$(dirname "${FINAL_ZIP}")"
-  shasum -a 256 "$(basename "${FINAL_ZIP}")"
-) > "${EVIDENCE_DIR}/final-artifact.sha256"
+  "${SIGNED_APP}" "${SIGNED_MANIFEST}" >/dev/null
+cp "${FINAL_ZIP}.sha256" "${EVIDENCE_DIR}/final-artifact.sha256"
 printf '%s\n' "${FINAL_ZIP}" > "${EVIDENCE_DIR}/artifact-path.txt"
 printf '%s\n' "${COMMIT_SHA}" > "${EVIDENCE_DIR}/commit.txt"
 sw_vers > "${EVIDENCE_DIR}/macos.txt"
@@ -167,6 +166,20 @@ codesign -d --verbose=4 "${SIGNED_APP}" > /dev/null 2> "${EVIDENCE_DIR}/codesign
 codesign -d --entitlements - "${SIGNED_APP}" > "${EVIDENCE_DIR}/embedded-entitlements.plist" 2> "${EVIDENCE_DIR}/embedded-entitlements.stderr"
 xcrun stapler validate -v "${SIGNED_APP}" > "${EVIDENCE_DIR}/stapler-validation.txt" 2>&1
 spctl --assess --type execute --verbose=4 "${SIGNED_APP}" > "${EVIDENCE_DIR}/gatekeeper-assessment.txt" 2>&1
+
+SUBMISSION_ID="$(cat "${NOTARY_EVIDENCE_DIR}/submission-id.txt")"
+python3 "${DISTRIBUTION_RECORD_TOOL}" \
+  --release-config "${ROOT_DIR}/release/ReleaseConfig.json" \
+  --source-commit "${COMMIT_SHA}" \
+  --unsigned-manifest "${EVIDENCE_DIR}/unsigned-bundle-manifest.json" \
+  --signed-manifest "${SIGNED_MANIFEST}" \
+  --final-artifact "${FINAL_ZIP}" \
+  --notary-result "${NOTARY_EVIDENCE_DIR}/notary-result.json" \
+  --notary-log "${NOTARY_EVIDENCE_DIR}/notary-log.json" \
+  --submission-id "${SUBMISSION_ID}" \
+  --signing-identity "${CMDTAB_DEVELOPER_IDENTITY}" \
+  --team-id "${CMDTAB_TEAM_ID}" \
+  --output "${EVIDENCE_DIR}/distribution-record.json" >/dev/null
 
 printf '\nPhase 2 automated distribution QA passed.\n'
 printf 'Final artifact: %s\n' "${FINAL_ZIP}"
