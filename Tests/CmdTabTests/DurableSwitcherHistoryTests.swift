@@ -181,7 +181,9 @@ final class DurableSwitcherHistoryTests: XCTestCase {
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
         let data = try Data(contentsOf: file)
-        let decoded = try JSONDecoder().decode(DurableWindowHistoryFile.self, from: data)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(DurableWindowHistoryFile.self, from: data)
         XCTAssertEqual(decoded.schemaVersion, DurableWindowHistoryFile.currentSchemaVersion)
         XCTAssertEqual(decoded.records.count, 1)
         XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("Private Title"))
