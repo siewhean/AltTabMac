@@ -442,14 +442,14 @@ final class SwitcherProfileStore: ObservableObject {
             validationIssues = [.noProfiles]
             return false
         }
-        let previousCount = profiles.count
-        profiles.removeAll { $0.id == profileID }
-        guard profiles.count != previousCount else { return false }
-        let issues = SwitcherProfileValidator.issues(in: profiles)
+        let candidate = profiles.filter { $0.id != profileID }
+        guard candidate.count != profiles.count else { return false }
+        let issues = SwitcherProfileValidator.issues(in: candidate)
         guard issues.isEmpty else {
             validationIssues = issues
             return false
         }
+        profiles = candidate
         normalizeValidateAndPublish(persist: true)
         return true
     }
