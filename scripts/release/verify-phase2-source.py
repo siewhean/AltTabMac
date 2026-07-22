@@ -115,7 +115,7 @@ def main() -> None:
     require(sign, "deepest-first", "sign-app.sh")
     reject(sign, "--timestamp=none", "sign-app.sh")
     reject(sign, "--sign -", "sign-app.sh")
-    reject(sign, "codesign --deep", "sign-app.sh")
+    reject(sign, "\n    --deep", "sign-app.sh")
 
     zip_source = texts["zip"]
     require(zip_source, "ditto -c -k --sequesterRsrc --keepParent", "create-zip.sh")
