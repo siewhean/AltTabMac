@@ -89,7 +89,10 @@ cleanup() {
 trap cleanup EXIT
 
 printf '%s\n' "${AUTH_MODE}" > "${AUTH_MODE_PATH}"
-shasum -a 256 "${ZIP_PATH}" > "${ZIP_CHECKSUM_PATH}"
+(
+  cd "$(dirname "${ZIP_PATH}")"
+  shasum -a 256 "$(basename "${ZIP_PATH}")"
+) > "${ZIP_CHECKSUM_PATH}"
 
 # Keep credentials out of command logs: only the authentication mode is printed.
 printf 'Submitting %s to Apple notarization using %s authentication.\n' \
@@ -103,23 +106,33 @@ xcrun notarytool submit \
 
 mv "${TMP_RESULT}" "${RESULT_JSON}"
 
-readarray -t RESULT_FIELDS < <(
-  python3 - "${RESULT_JSON}" <<'PY'
+SUBMISSION_ID="$(python3 - "${RESULT_JSON}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-path = Path(sys.argv[1])
-data = json.loads(path.read_text(encoding="utf-8"))
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 print(data.get("id", ""))
-print(data.get("status", ""))
-print(data.get("message", ""))
 PY
-)
+)"
+STATUS="$(python3 - "${RESULT_JSON}" <<'PY'
+import json
+import sys
+from pathlib import Path
 
-SUBMISSION_ID="${RESULT_FIELDS[0]:-}"
-STATUS="${RESULT_FIELDS[1]:-}"
-MESSAGE="${RESULT_FIELDS[2]:-}"
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(data.get("status", ""))
+PY
+)"
+MESSAGE="$(python3 - "${RESULT_JSON}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(str(data.get("message", "")).replace("\n", " "))
+PY
+)"
 
 [[ -n "${SUBMISSION_ID}" ]] || fail "notarytool response did not contain a submission ID"
 printf '%s\n' "${SUBMISSION_ID}" > "${SUBMISSION_ID_PATH}"
