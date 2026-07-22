@@ -16,15 +16,21 @@ export function ShowcaseVideo({
   showCaption?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const hasCompletedRef = useRef(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
 
   useEffect(() => {
     if (!asset.video) return;
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const applyPreference = () => {
-      setPrefersReducedMotion(mediaQuery.matches);
-      if (mediaQuery.matches) videoRef.current?.pause();
+      const reduced = mediaQuery.matches;
+      setPrefersReducedMotion(reduced);
+      if (reduced) {
+        const video = videoRef.current;
+        video?.pause();
+        if (video) video.currentTime = 0;
+      }
     };
 
     applyPreference();
@@ -34,11 +40,12 @@ export function ShowcaseVideo({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!asset.video || !video) return;
+    if (!asset.video || !video || prefersReducedMotion) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry?.isIntersecting && entry.intersectionRatio >= 0.35 && !prefersReducedMotion) {
+        if (hasCompletedRef.current) return;
+        if (entry?.isIntersecting && entry.intersectionRatio >= 0.35) {
           void video.play().catch(() => undefined);
         } else {
           video.pause();
@@ -49,7 +56,7 @@ export function ShowcaseVideo({
 
     observer.observe(video);
     return () => observer.disconnect();
-  }, [asset.video, prefersReducedMotion]);
+  }, [asset.video, prefersReducedMotion, priority]);
 
   const descriptionId = showCaption ? `${asset.id}-media-description` : undefined;
 
@@ -63,11 +70,13 @@ export function ShowcaseVideo({
             poster={asset.poster}
             width={asset.videoWidth}
             height={asset.videoHeight}
-            autoPlay={priority && !prefersReducedMotion}
             muted
-            loop
             playsInline
             preload={priority ? "auto" : "metadata"}
+            data-autoplay-mode="one-shot"
+            onEnded={() => {
+              hasCompletedRef.current = true;
+            }}
             aria-label={showCaption ? undefined : asset.title}
             aria-describedby={descriptionId}
           >

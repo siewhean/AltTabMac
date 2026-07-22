@@ -1,0 +1,147 @@
+name: Release Readiness
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-readiness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-health:
+    name: Repository and runner health
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Confirm hosted runner assignment
+        run: |
+          set -euo pipefail
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          echo "sha=${GITHUB_SHA}"
+          echo "head_ref=${GITHUB_HEAD_REF}"
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify repository hygiene
+        run: |
+          set -euo pipefail
+          test -z "$(git ls-files .build)"
+          test -z "$(git ls-files | grep -E '(^|/)\.DS_Store$' || true)"
+          test -s docs/release/native-production-readiness-plan.md
+          git diff --check
+
+  website-release-gate:
+    name: Website Security, SEO, GEO, and browser QA
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
+      BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm run security:deps
+      - name: Verify source SEO, media, and copy contracts
+        run: npm run seo:check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build production website
+        run: npx next build --webpack
+      - name: Start production server
+        run: |
+          npm run start -- --hostname 127.0.0.1 --port 3000 > /tmp/cmdtab-next.log 2>&1 &
+          echo $! > /tmp/cmdtab-next.pid
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/cmdtab-next.log
+          exit 1
+      - name: Verify rendered website contracts
+        run: |
+          set -euo pipefail
+          mkdir -p verification-artifacts
+          npm run rendered:check 2>&1 | tee verification-artifacts/rendered-check.log
+          npm run webmaster:check 2>&1 | tee verification-artifacts/webmaster-check.log
+          npm run evidence:check 2>&1 | tee verification-artifacts/evidence-check.log
+          npm run retrieval:check 2>&1 | tee verification-artifacts/retrieval-check.log
+          npm run showcase:responses 2>&1 | tee verification-artifacts/showcase-responses.log
+          npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
+      - name: Collect website evidence
+        if: always()
+        run: |
+          mkdir -p verification-artifacts
+          cp /tmp/cmdtab-next.log verification-artifacts/next-server.log 2>/dev/null || true
+          cp public/showcase/manifest.json verification-artifacts/showcase-manifest.json 2>/dev/null || true
+          if [ -f /tmp/cmdtab-next.pid ]; then
+            kill "$(cat /tmp/cmdtab-next.pid)" 2>/dev/null || true
+          fi
+      - name: Upload website evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-0-website-verification
+          path: website/verification-artifacts
+          if-no-files-found: warn
+          retention-days: 14
+
+  swift-release-gate:
+    name: Swift ${{ matrix.runner }}
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+          - macos-14
+          - macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - name: Confirm hosted macOS runner assignment
+        run: |
+          set -euo pipefail
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          echo "sha=${GITHUB_SHA}"
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify pre-fix model evidence
+        run: |
+          python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/switcher-model.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/switcher-model.json').read_text())
+          assert result['mru_selection']['meaningful_sequences_checked'] == 19_500
+          assert result['mru_selection']['strict_mru_selection_mismatches'] == 3_900
+          assert result['preview_completeness']['preview_success_configurations_checked'] == 126
+          assert result['preview_completeness']['completeness_failures'] == 120
+          PY
+      - name: Run strict MRU and completeness regressions
+        run: swift test --scratch-path /tmp/CmdTab-focused-${{ matrix.runner }} --filter StrictMRUAndCompletenessRegressionTests
+      - name: Run complete Swift suite
+        run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
+      - name: Check patch hygiene
+        run: git diff --check

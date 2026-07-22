@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "predev": "npm run showcase:generate",
-    "showcase:generate": "node scripts/generate-hd-showcase-media.mjs",
+    "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
     "prebuild": "npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",

@@ -1,5 +1,60 @@
 # Todo
 
+## 2026-07-22 — Native Production Readiness
+
+Canonical plan: `docs/release/native-production-readiness-plan.md`
+
+### Phase 0 — Governance, hygiene, and trustworthy gates
+
+- [x] Commit the phased implementation and QA/QC plan before implementation.
+- [x] Create a dedicated `agent/native-release-readiness` branch from current `main`.
+- [x] Replace looping showcase autoplay with one-shot playback of no more than five seconds.
+- [x] Add Reduce Motion behavior and browser-level replay checks.
+- [x] Keep generated media byte counts and SHA-256 values exact after normalization.
+- [x] Correct stale PNG/1280×800 social metadata and stale media provenance in README.
+- [x] Add a hosted-runner workflow-health diagnostic.
+- [x] Remove tracked root `.DS_Store` and `.build/.lock` files.
+- [ ] Remove every remaining tracked file under `.build/` from the repository index.
+- [ ] Confirm all GitHub Actions jobs reach checkout and at least one shell step.
+- [ ] Pass Swift macOS 14 and macOS 15 workflows on one exact head.
+- [ ] Pass Website Security and SEO/GEO workflows on one exact head.
+- [ ] Pass the exact Vercel preview and desktop/mobile browser suites.
+- [ ] Record the completed Phase 0 evidence and branch-deletion inventory.
+
+### Phase 1 — Deterministic local app bundle
+
+- [ ] Select and document the permanent bundle identifier.
+- [ ] Add one-command release build and `.app` assembly scripts.
+- [ ] Add minimal entitlements with source-backed reasons.
+- [ ] Add bundle-layout, metadata, architecture, and ad-hoc signature verification.
+- [ ] Build twice from clean scratch directories and record reproducibility evidence.
+
+### Phase 2 — Developer ID distribution
+
+- [ ] Add secure Developer ID signing with Hardened Runtime and timestamp.
+- [ ] Add `notarytool` submission and persisted notarization logs.
+- [ ] Staple and validate the ticket.
+- [ ] Pass strict codesign and Gatekeeper assessment.
+- [ ] Pass clean-account installation and launch.
+
+### Phase 3 — Real macOS P0 acceptance
+
+- [ ] Build deterministic multi-window fixture applications.
+- [ ] Record requested, selected, committed, and actual focused identities.
+- [ ] Execute permissions, input, Space, display, fullscreen, Stage Manager, Secure Input, sleep/wake, and rapid-input rows.
+- [ ] Require actual focused `CGWindowID` evidence for every P0 row.
+
+### Later phases
+
+- [ ] Isolate private APIs behind explicit capability providers.
+- [ ] Implement minimized-window restoration.
+- [ ] Implement true workspace/Space/Stage Manager identity.
+- [ ] Implement configurable scoped shortcut profiles.
+- [ ] Implement durable MRU restoration across app restarts.
+- [ ] Implement expanded exact-window actions.
+- [ ] Add signed updates, rollback, crash diagnostics, and privacy-safe support bundles.
+- [ ] Complete owner-operated security, mail, WAF, sender-domain, and incident-response controls.
+
 ## 2026-07-20 — Independent SEO And GEO Competitive Hardening
 
 - [x] Review PR #11 as a separate specialist branch rather than silently modifying the first pass.

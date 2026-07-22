@@ -1,6 +1,7 @@
 name: Swift
 
 # Protect the public completeness and exact-window MRU contract on every app change.
+# Phase 0 revalidates the exact release-readiness head on both supported hosted macOS runners.
 on:
   push:
     paths:

@@ -4,7 +4,7 @@ export const siteConfig = {
   description:
     "CmdTab is a standalone macOS window-switcher app, separate from Apple’s built-in Command-Tab shortcut, with individual window previews, search, quick actions, and exact-window recency.",
   defaultSiteUrl: "https://cmdtab.net",
-  socialImagePath: "/showcase/overview-poster.png",
+  socialImagePath: "/showcase/overview-poster.webp",
   nav: [
     { label: "Modes", href: "#modes" },
     { label: "Showcase", href: "/showcase" },

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
@@ -9,13 +10,15 @@ import ffmpegPath from "ffmpeg-static";
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path));
 const readText = (path) => read(path).toString("utf8");
+const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 const manifest = JSON.parse(readText("public/showcase/manifest.json"));
 
 const HD_WIDTH = 1920;
 const HD_HEIGHT = 1200;
 const HD_FPS = 30;
+const MAX_AUTOPLAY_SECONDS = 5;
 const expected = new Map([
-  ["overview", { poster: "overview-poster.webp", video: "overview.mp4", duration: 8 }],
+  ["overview", { poster: "overview-poster.webp", video: "overview.mp4", duration: 4.8 }],
   ["classic-grid", { poster: "classic-grid-poster.webp", video: null }],
   ["command-palette", { poster: "command-palette-poster.webp", video: null }],
   ["radial-menu", { poster: "radial-menu-poster.webp", video: "radial-menu.mp4", duration: 5 }],
@@ -66,6 +69,9 @@ assert.match(manifest.fixturePolicy, /no AI-generated product screenshots/i, "AI
 assert.match(manifest.qualityPolicy, /1920x1200/i, "HD dimensions are missing from the quality policy");
 assert.match(manifest.qualityPolicy, /30 fps/i, "30 fps is missing from the quality policy");
 assert.match(manifest.disclosure, /Every showcase asset is a deterministic HD product composite/i, "HD composite disclosure is missing");
+assert.match(manifest.motionPolicy, /run once/i, "one-shot autoplay policy is missing");
+assert.match(manifest.motionPolicy, /no more than five seconds/i, "autoplay duration boundary is missing");
+assert.match(manifest.motionPolicy, /reduced motion/i, "reduced-motion policy is missing");
 assert.deepEqual(new Set(manifest.assets.map((asset) => asset.id)), new Set(expected.keys()), "showcase asset IDs changed");
 
 for (const asset of manifest.assets) {
@@ -81,7 +87,10 @@ for (const asset of manifest.assets) {
 
   const posterPath = `public/showcase/${asset.poster}`;
   const poster = read(posterPath);
-  assert.ok(statSync(resolve(root, posterPath)).size >= 20_000, `${asset.id} poster is implausibly small for HD`);
+  const posterStat = statSync(resolve(root, posterPath));
+  assert.ok(posterStat.size >= 20_000, `${asset.id} poster is implausibly small for HD`);
+  assert.equal(asset.posterBytes, posterStat.size, `${asset.id} poster byte count diverges from manifest`);
+  assert.equal(asset.posterSha256, sha256(poster), `${asset.id} poster checksum diverges from manifest`);
   const dimensions = webpDimensions(poster, asset.poster);
   assert.deepEqual(dimensions, { width: HD_WIDTH, height: HD_HEIGHT }, `${asset.id} WebP dimensions diverge from HD contract`);
 
@@ -90,9 +99,13 @@ for (const asset of manifest.assets) {
     assert.equal(asset.videoHeight, HD_HEIGHT, `${asset.id} video must be HD height`);
     assert.equal(asset.frameRate, HD_FPS, `${asset.id} video must be 30 fps`);
     assert.ok(Math.abs(asset.durationSeconds - contract.duration) <= 0.06, `${asset.id} duration changed`);
+    assert.ok(asset.durationSeconds <= MAX_AUTOPLAY_SECONDS, `${asset.id} exceeds the autoplay motion limit`);
     const videoPath = `public/showcase/${asset.video}`;
     const video = read(videoPath);
+    const videoStat = statSync(resolve(root, videoPath));
     assert.ok(video.length >= 100_000 && video.length <= 15_000_000, `${asset.id} MP4 size is implausible for HD`);
+    assert.equal(asset.videoBytes, videoStat.size, `${asset.id} video byte count diverges from manifest`);
+    assert.equal(asset.videoSha256, sha256(video), `${asset.id} video checksum diverges from manifest`);
     assert.equal(video.subarray(4, 8).toString("ascii"), "ftyp", `${asset.id} is not an ISO MP4 file`);
     assert.ok(video.includes(Buffer.from("avc1")), `${asset.id} does not advertise H.264/avc1`);
     const moovIndex = video.indexOf(Buffer.from("moov"));
@@ -124,6 +137,7 @@ assert.doesNotMatch(showcaseContent, /production-swiftui-render|authentic produc
 assert.match(showcaseContent, /1920 × 1200/i, "visible HD dimensions are missing");
 assert.match(showcaseContent, /not AI-generated/i, "visible showcase disclosure must reject AI-generated media");
 assert.match(showcaseContent, /controlled fixture windows/i, "visible fixture disclosure is missing");
+assert.match(showcaseContent, /run once for no more than five seconds/i, "visible autoplay boundary is missing");
 assert.match(showcasePage, /createVideoStructuredData/, "showcase page is missing VideoObject markup");
 assert.match(showcasePage, /headingAs="h1"/, "showcase page is missing its page-level H1");
 assert.match(showcasePage, /breadcrumbs=\{breadcrumbs\}/, "showcase page is missing visible breadcrumbs");
@@ -133,14 +147,18 @@ assert.match(player, /asset\.video \?/, "showcase player must distinguish video 
 assert.match(player, /<video/, "showcase player must render native video elements when a clip exists");
 assert.match(player, /<img/, "showcase player must render a poster fallback when a clip does not exist");
 assert.match(player, /poster=\{asset\.poster\}/, "showcase player must use a stable poster URL");
-assert.match(player, /autoPlay=\{priority && !prefersReducedMotion\}/, "priority showcase media must autoplay");
-assert.match(player, /video\.play\(\)/, "non-priority showcase media must autoplay when visible");
+assert.match(player, /data-autoplay-mode="one-shot"/, "showcase player must declare one-shot autoplay");
+assert.match(player, /hasCompletedRef/, "showcase player must remember completed playback");
+assert.match(player, /onEnded/, "showcase player must freeze after one playback");
+assert.match(player, /video\.play\(\)/, "showcase media must autoplay when visible");
 assert.match(player, /muted/, "showcase player must be muted");
 assert.match(player, /playsInline/, "showcase player must play inline");
 assert.match(player, /prefers-reduced-motion/, "showcase player must respect reduced motion");
+assert.doesNotMatch(player, /\bloop\b/, "showcase autoplay must not loop");
 assert.doesNotMatch(player, /togglePlayback|<button|Read the media description|<details/, "showcase media must not expose playback or transcript controls");
 assert.match(structuredData, /videos = assets\.filter/, "VideoObject generation must exclude poster-only entries");
 assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=moderate", "dependency audit must fail on moderate advisories");
+assert.match(packageJson.scripts["showcase:generate"], /normalize-showcase-autoplay/, "build must normalize autoplay duration");
 assert.ok(
   packageJson.scripts.prebuild.includes("showcase:generate") || packageJson.scripts["seo:check"].includes("showcase:generate"),
   "Vercel prebuild path must generate HD media",
@@ -153,4 +171,4 @@ for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Univers
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
 }
 
-console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets and ${manifest.assets.filter((asset) => asset.video).length} silent 30 fps H.264 videos.`);
+console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets and ${manifest.assets.filter((asset) => asset.video).length} silent one-shot H.264 videos at 30 fps with exact manifest checksums.`);

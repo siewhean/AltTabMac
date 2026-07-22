@@ -13,7 +13,7 @@ import "./globals.css";
 
 const siteUrl = getSiteUrl();
 const defaultTitle = `${siteConfig.name} macOS window switcher for individual windows and search`;
-const defaultShowcasePoster = "/showcase/overview-poster.png";
+const defaultShowcasePoster = "/showcase/overview-poster.webp";
 
 function webmasterVerification(): Metadata["verification"] {
   const google = process.env.GOOGLE_SITE_VERIFICATION?.trim();
@@ -68,9 +68,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: defaultShowcasePoster,
-        width: 1280,
-        height: 800,
-        alt: "Real CmdTab production window-switcher render using controlled fixture windows",
+        width: 1920,
+        height: 1200,
+        alt: "CmdTab HD product showcase using controlled fixture windows",
       },
     ],
   },
