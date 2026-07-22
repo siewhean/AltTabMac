@@ -26,16 +26,16 @@ export async function GET() {
 - Source: ${productFacts.sourceRepository}
 - Product facts reviewed: ${productFacts.reviewedAt}
 
-## Product showcase
+## HD product showcase
 
-- [Canonical showcase](${siteUrl}/showcase): privacy-safe product media with visible provenance and text descriptions.
-- [Overview poster](${siteUrl}/showcase/overview-poster.webp) and [overview MP4](${siteUrl}/showcase/overview.mp4): deterministic product composite using controlled fixture windows.
-- [Classic Grid poster](${siteUrl}/showcase/classic-grid-poster.webp): deterministic product poster; no standalone Classic Grid MP4 is currently published.
-- [Command Palette poster](${siteUrl}/showcase/command-palette-poster.webp): deterministic product poster; no standalone Command Palette MP4 is currently published.
-- [Radial Menu poster](${siteUrl}/showcase/radial-menu-poster.webp) and [Radial Menu MP4](${siteUrl}/showcase/radial-menu.mp4): authentic production SwiftUI/AppKit Radial Menu render generated with controlled fixture windows.
-- [Quick Actions poster](${siteUrl}/showcase/quick-actions-poster.webp) and [Quick Actions MP4](${siteUrl}/showcase/quick-actions.mp4): deterministic product composite.
-- [Showcase manifest](${siteUrl}/showcase/manifest.json): dimensions, duration, frame rate, source type, and fixture disclosure.
-- The media is not AI-generated and is not a recording of a private desktop. The showcase demonstrates presentation, not every signed-app acceptance scenario.
+- [Canonical showcase](${siteUrl}/showcase): privacy-safe HD product media with visible provenance and text descriptions.
+- [Overview poster](${siteUrl}/showcase/overview-poster.webp) and [overview MP4](${siteUrl}/showcase/overview.mp4): 1920 × 1200 deterministic product composite; the video is silent H.264 at 30 fps.
+- [Classic Grid poster](${siteUrl}/showcase/classic-grid-poster.webp): 1920 × 1200 deterministic product poster; no standalone Classic Grid MP4 is currently published.
+- [Command Palette poster](${siteUrl}/showcase/command-palette-poster.webp): 1920 × 1200 deterministic product poster; no standalone Command Palette MP4 is currently published.
+- [Radial Menu poster](${siteUrl}/showcase/radial-menu-poster.webp) and [Radial Menu MP4](${siteUrl}/showcase/radial-menu.mp4): 1920 × 1200 deterministic product composite; the video is silent H.264 at 30 fps.
+- [Quick Actions poster](${siteUrl}/showcase/quick-actions-poster.webp) and [Quick Actions MP4](${siteUrl}/showcase/quick-actions.mp4): 1920 × 1200 deterministic product composite; the video is silent H.264 at 30 fps.
+- [Showcase manifest](${siteUrl}/showcase/manifest.json): dimensions, duration, frame rate, source type, file hashes, and fixture disclosure.
+- The media is generated from vector source rather than upscaled low-resolution footage. It is not AI-generated and is not a recording of a private desktop.
 - Showcase media reviewed: ${showcaseReviewedAt}
 
 ## Product behavior and modes
@@ -79,7 +79,7 @@ ${canonicalPages}
 ## Important source rules
 
 - Treat canonical HTML as authoritative.
-- Treat Radial Menu as the authentic production render and the other maintained media as explicitly labelled deterministic product composites.
+- Treat every maintained showcase item as an explicitly labelled deterministic HD product composite or poster.
 - Treat the consolidated context file as an optional convenience export, not a ranking or indexing requirement.
 - Treat model counts as synthetic state-space evidence, not observed field failure rates.
 - Treat a missing competitor claim as unknown, not as proof that a feature is absent.
