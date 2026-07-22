@@ -21,7 +21,7 @@ export function HeroSection() {
           className="hero-enter relative z-40 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl lg:gap-6"
           style={{ "--enter-delay": "60ms" } as CSSProperties}
         >
-          <a aria-label="CmdTab homepage" className="inline-flex min-w-0 items-center gap-3" href="/">
+          <a aria-label="CmdTab homepage" className="inline-flex min-h-12 min-w-12 items-center gap-3" href="/">
             <Image
               src="/brand/cmdtab.png"
               alt="CmdTab app icon"
