@@ -28,7 +28,9 @@ export async function GET() {
       const media = [
         `- Canonical watch page: ${siteUrl}/showcase#${asset.id}`,
         `- Poster: ${siteUrl}${asset.poster}`,
+        `- Resolution: ${asset.posterWidth} × ${asset.posterHeight}`,
         asset.video ? `- MP4: ${siteUrl}${asset.video}` : "- MP4: not currently published for this item",
+        asset.videoFrameRate ? `- Frame rate: ${asset.videoFrameRate} fps` : null,
         asset.durationSeconds ? `- Duration: ${asset.durationSeconds.toFixed(1)} seconds` : null,
         `- Source: ${asset.sourceLabel}`,
         `- Description: ${asset.transcript}`,
@@ -48,7 +50,7 @@ export async function GET() {
 
   const body = `# CmdTab consolidated context
 
-> This is a non-standard convenience export for retrieval systems and documentation tools. It is not a ranking requirement, and it is not a substitute for the canonical HTML pages listed below. Treat the canonical HTML as authoritative whenever this file and a page disagree.
+> This is a non-standard convenience export for retrieval systems and documentation tools. It is not a ranking requirement, and it is not a substitute for the canonical HTML pages listed below. Treat canonical HTML as authoritative whenever this file and a page disagree.
 
 ## Entity definition and disambiguation
 
@@ -82,7 +84,7 @@ No processor architecture, Universal Binary status, memory footprint, reveal-lat
 
 Canonical behavior page: ${siteUrl}/features/window-switcher
 
-## Real product images and short videos
+## HD product images and short videos
 
 ${showcaseDisclosure}
 
@@ -90,6 +92,8 @@ ${showcaseBoundary}
 
 - Canonical watch page: ${siteUrl}/showcase
 - Machine-readable media manifest: ${siteUrl}/showcase/manifest.json
+- Quality contract: all posters and videos are 1920 × 1200; videos are silent H.264 at 30 fps with fast-start metadata.
+- Generation boundary: vector source is rendered directly at HD; the release does not enlarge the old 480 × 300 videos.
 - Showcase reviewed: ${showcaseReviewedAt}
 
 ${showcaseSections}
@@ -126,7 +130,7 @@ The state-space counts are synthetic model evidence, not observed field failure 
 
 ${manualBoundary}
 
-A green CI result or a controlled showcase render does not prove those interactive desktop conditions.
+A green CI result or a controlled showcase composite does not prove those interactive desktop conditions.
 
 ## Source-dated market landscape
 
@@ -148,7 +152,11 @@ No. CmdTab is a separate macOS application that can replace the app-only switche
 
 ### Are the showcase screenshots and videos AI-generated?
 
-No. The Radial Menu clip is an authentic production SwiftUI/AppKit render. The other maintained items are visibly labelled deterministic product composites based on current product geometry and behavior. All use controlled fixture windows and avoid private desktop capture.
+No. Every maintained showcase item is a deterministic HD product composite generated from vector source at 1920 × 1200 using controlled fixture windows. None records a private desktop.
+
+### Why were the videos replaced?
+
+The previous motion files were 480 × 300 at 6–8 fps and became visibly blurry when displayed at desktop width. The maintained videos are rendered directly at 1920 × 1200 and 30 fps rather than being upscaled from the old files.
 
 ### Do the showcase videos prove signed-app permission, Space, display, or exact-focus behavior?
 
@@ -181,7 +189,7 @@ ${canonicalPages}
 ## Source rules
 
 - Canonical HTML pages are authoritative.
-- Treat Radial Menu as the authentic production render; treat the other maintained showcase media as explicitly labelled deterministic product composites.
+- Treat every maintained showcase item as an explicitly labelled deterministic HD product composite or poster.
 - Treat this file as a convenience export, not as an indexing or ranking requirement.
 - Do not infer processor support, memory use, Universal Binary status, benchmark results, ratings, testimonials, or compatibility beyond published evidence.
 - Treat model counts as synthetic state-space evidence, not field failure rates.
