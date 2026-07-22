@@ -24,6 +24,7 @@ SCRIPTS = {
     "verify": ROOT / "scripts" / "release" / "verify-distribution.sh",
     "runner": ROOT / "scripts" / "release" / "run-phase2-qa.sh",
 }
+DISTRIBUTION_RECORD_TOOL = ROOT / "scripts" / "release" / "write-distribution-record.py"
 
 
 def fail(message: str) -> None:
@@ -70,6 +71,17 @@ def validate_shell_syntax() -> None:
             fail(f"{label} failed bash -n: {detail}")
 
 
+def read_python_tool(path: Path) -> str:
+    if not path.is_file():
+        fail(f"Missing Phase 2 Python tool: {path.relative_to(ROOT)}")
+    text = path.read_text(encoding="utf-8")
+    try:
+        compile(text, str(path), "exec")
+    except SyntaxError as error:
+        fail(f"{path.name} has invalid Python syntax: {error}")
+    return text
+
+
 def main() -> None:
     texts = {label: read_script(label, path) for label, path in SCRIPTS.items()}
     validate_shell_syntax()
@@ -100,8 +112,10 @@ def main() -> None:
     require(sign, "--generate-entitlement-der", "sign-app.sh")
     require(sign, "--entitlements", "sign-app.sh")
     require(sign, "TeamIdentifier=", "sign-app.sh")
+    require(sign, "deepest-first", "sign-app.sh")
     reject(sign, "--timestamp=none", "sign-app.sh")
     reject(sign, "--sign -", "sign-app.sh")
+    reject(sign, "codesign --deep", "sign-app.sh")
 
     zip_source = texts["zip"]
     require(zip_source, "ditto -c -k --sequesterRsrc --keepParent", "create-zip.sh")
@@ -134,6 +148,24 @@ def main() -> None:
     require(verify, "TeamIdentifier=", "verify-distribution.sh")
     require(verify, "embedded entitlements differ", "verify-distribution.sh")
 
+    distribution_record = read_python_tool(DISTRIBUTION_RECORD_TOOL)
+    for required in (
+        "sourceCommit",
+        "unsignedInput",
+        "signedBundle",
+        "finalArtifact",
+        "submissionId",
+        "hardenedRuntimeVerified",
+        "secureTimestampVerified",
+        "entitlementsVerified",
+        "gatekeeperVerified",
+        "stapleVerified",
+        "issueCount",
+    ):
+        require(distribution_record, required, DISTRIBUTION_RECORD_TOOL.name)
+    reject(distribution_record, "password", DISTRIBUTION_RECORD_TOOL.name)
+    reject(distribution_record, "privateKey", DISTRIBUTION_RECORD_TOOL.name)
+
     runner = texts["runner"]
     for required in (
         "phase2-preflight.sh",
@@ -144,6 +176,8 @@ def main() -> None:
         "notarize-app.sh",
         "staple-app.sh",
         "verify-distribution.sh",
+        "write-distribution-record.py",
+        "distribution-record.json",
         "AUTOMATED_PASS",
         "manual-checks.md",
     ):
