@@ -39,13 +39,16 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   fail "signing must run on macOS"
 fi
 
-for tool in codesign security ditto plutil python3; do
+for tool in codesign security ditto plutil python3 xattr sed wc tr; do
   command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
 done
 
 [[ -d "${INPUT_APP}" ]] || fail "input app does not exist: ${INPUT_APP}"
 [[ -n "${SIGNING_IDENTITY}" ]] || fail "CMDTAB_DEVELOPER_IDENTITY is required"
 [[ -n "${EXPECTED_TEAM_ID}" ]] || fail "CMDTAB_TEAM_ID is required"
+[[ "${EXPECTED_TEAM_ID}" =~ ^[A-Z0-9]{10}$ ]] || fail "CMDTAB_TEAM_ID must be a 10-character uppercase alphanumeric Team ID"
+[[ "${SIGNING_IDENTITY}" == Developer\ ID\ Application:* ]] || fail "CMDTAB_DEVELOPER_IDENTITY must name a Developer ID Application certificate"
+[[ "${SIGNING_IDENTITY}" == *"(${EXPECTED_TEAM_ID})"* ]] || fail "signing identity does not contain the expected Team ID"
 [[ "${SIGNING_IDENTITY}" != "-" ]] || fail "ad-hoc identity is not valid for Phase 2"
 [[ -f "${ENTITLEMENTS_PATH}" ]] || fail "entitlements file does not exist: ${ENTITLEMENTS_PATH}"
 plutil -lint "${ENTITLEMENTS_PATH}" >/dev/null
@@ -71,10 +74,16 @@ python3 "${CONFIG_TOOL}" verify-repository
 "${VERIFY_TOOL}" "${INPUT_APP}" "${INPUT_SIGNING}"
 
 IDENTITIES="$(security find-identity -v -p codesigning 2>&1 || true)"
-grep -Fq "\"${SIGNING_IDENTITY}\"" <<<"${IDENTITIES}" || {
+MATCHING_IDENTITIES="$(printf '%s\n' "${IDENTITIES}" | grep -F "\"${SIGNING_IDENTITY}\"" || true)"
+MATCH_COUNT="$(printf '%s\n' "${MATCHING_IDENTITIES}" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
+if [[ "${MATCH_COUNT}" == "0" ]]; then
   printf '%s\n' "${IDENTITIES}" >&2
   fail "the requested signing identity is not available in the active keychain search list"
-}
+fi
+if [[ "${MATCH_COUNT}" != "1" ]]; then
+  printf '%s\n' "${IDENTITIES}" >&2
+  fail "the requested signing identity is ambiguous; expected one match, found ${MATCH_COUNT}"
+fi
 
 rm -rf "${OUTPUT_APP}"
 mkdir -p "$(dirname "${OUTPUT_APP}")"
@@ -104,17 +113,38 @@ sign_nested_code() {
 }
 
 # Sign nested bundles and standalone nested executables deepest-first. The current
-# bundle has none, but this keeps future helpers/frameworks from being signed only
-# through an unsafe blanket --deep operation.
+# bundle has none, but future helpers/frameworks must be signed before their parent
+# containers without relying on codesign --deep.
 while IFS= read -r code_path; do
   [[ -n "${code_path}" ]] || continue
-  [[ "${code_path}" != "${MAIN_EXECUTABLE}" ]] || continue
   sign_nested_code "${code_path}"
 done < <(
-  find "${OUTPUT_APP}/Contents" -depth \
-    \( -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' \) \
-       -o -type f -perm -111 \) \
-    -print | LC_ALL=C sort -r
+  python3 - "${OUTPUT_APP}/Contents" "${MAIN_EXECUTABLE}" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+contents = Path(sys.argv[1])
+main_executable = Path(sys.argv[2]).resolve()
+bundle_suffixes = {".framework", ".xpc", ".appex", ".app"}
+candidates: set[Path] = set()
+
+for root, directories, files in os.walk(contents):
+    root_path = Path(root)
+    for directory in directories:
+        path = root_path / directory
+        if path.suffix in bundle_suffixes:
+            candidates.add(path)
+    for filename in files:
+        path = root_path / filename
+        if path.resolve() == main_executable:
+            continue
+        if path.is_file() and os.access(path, os.X_OK):
+            candidates.add(path)
+
+for path in sorted(candidates, key=lambda item: (-len(item.parts), str(item))):
+    print(path)
+PY
 )
 
 codesign \
