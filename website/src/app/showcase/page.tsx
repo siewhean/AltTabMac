@@ -20,9 +20,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab app switcher showcase: polished images and short videos";
+const title = "CmdTab HD app switcher showcase: sharp images and 30 fps videos";
 const description =
-  "Explore privacy-safe CmdTab interface posters and short silent videos, including an authentic production Radial Menu render and clearly labelled deterministic product composites.";
+  "Explore privacy-safe 1920 × 1200 CmdTab interface posters and silent H.264 videos at 30 fps, generated from vector source with controlled fixture windows.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Showcase", path: "/showcase" as const },
@@ -33,9 +33,9 @@ export const metadata = createPageMetadata({
   description,
   path: "/showcase",
   image: "/showcase/overview-poster.webp",
-  imageAlt: "CmdTab product showcase with controlled fixture windows",
-  imageWidth: 720,
-  imageHeight: 450,
+  imageAlt: "Sharp 1920 by 1200 CmdTab HD product showcase with controlled fixture windows",
+  imageWidth: 1920,
+  imageHeight: 1200,
 });
 
 export default function ShowcasePage() {
@@ -59,9 +59,9 @@ export default function ShowcasePage() {
       <SectionShell
         headingAs="h1"
         breadcrumbs={breadcrumbs}
-        eyebrow="Product showcase"
-        title="See CmdTab move, search, and reflow"
-        description="The showcase combines an authentic production Radial Menu render with deterministic product composites for the other current surfaces. Controlled fixture windows make every asset privacy-safe and reproducible."
+        eyebrow="HD product showcase"
+        title="See CmdTab move, search, and reflow in HD"
+        description="Every maintained poster and video is generated at 1920 × 1200 from vector source. The three silent H.264 clips run at 30 fps, while controlled fixture windows keep the showcase privacy-safe and reproducible."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-4 border-b border-white/8 pb-8 sm:flex-row sm:items-start sm:justify-between">
@@ -87,8 +87,8 @@ export default function ShowcasePage() {
 
       <SectionShell
         eyebrow="Mode media"
-        title="A useful demonstration for every production surface"
-        description="Animated clips are used where validated motion is available; polished posters are used where a static view communicates the current interface more honestly. Every item has a stable URL and a visible source label."
+        title="A sharp demonstration for every production surface"
+        description="Animated clips are used where reviewed motion is available; HD posters are used where a static view communicates the current interface more honestly. Every item has a stable URL, explicit dimensions, and a visible source label."
         className="pt-0"
       >
         <div className="grid gap-12">
@@ -105,13 +105,19 @@ export default function ShowcasePage() {
                 <p className="mt-4 text-base leading-8 text-muted">{asset.description}</p>
                 <dl className="mt-7 grid gap-3 text-sm">
                   <div className="flex justify-between gap-4 border-b border-white/8 pb-3">
-                    <dt className="text-subdued">Poster</dt>
+                    <dt className="text-subdued">Resolution</dt>
                     <dd className="font-medium text-text">{asset.posterWidth} × {asset.posterHeight}</dd>
                   </div>
                   <div className="flex justify-between gap-4 border-b border-white/8 pb-3">
                     <dt className="text-subdued">Format</dt>
                     <dd className="font-medium text-text">{asset.video ? "Silent H.264 MP4 + WebP" : "WebP poster"}</dd>
                   </div>
+                  {asset.videoFrameRate ? (
+                    <div className="flex justify-between gap-4 border-b border-white/8 pb-3">
+                      <dt className="text-subdued">Frame rate</dt>
+                      <dd className="font-medium text-text">{asset.videoFrameRate} fps</dd>
+                    </div>
+                  ) : null}
                   {asset.durationSeconds ? (
                     <div className="flex justify-between gap-4 border-b border-white/8 pb-3">
                       <dt className="text-subdued">Duration</dt>
@@ -132,7 +138,7 @@ export default function ShowcasePage() {
       <SectionShell
         eyebrow="Continue"
         title="Inspect the behavior behind the media"
-        description="The showcase explains presentation. The feature and evidence pages document the exact current contract, limitations, and remaining signed-app validation boundary."
+        description="The HD showcase explains presentation. The feature and evidence pages document the exact current contract, limitations, and remaining signed-app validation boundary."
         className="pt-0"
       >
         <div className="grid gap-5 md:grid-cols-3">
