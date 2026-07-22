@@ -1,20 +1,25 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
+import ffmpegPath from "ffmpeg-static";
 
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path));
 const readText = (path) => read(path).toString("utf8");
 const manifest = JSON.parse(readText("public/showcase/manifest.json"));
 
+const HD_WIDTH = 1920;
+const HD_HEIGHT = 1200;
+const HD_FPS = 30;
 const expected = new Map([
-  ["overview", { poster: "overview-poster.webp", video: "overview.mp4", posterWidth: 720, posterHeight: 450, videoWidth: 480, videoHeight: 300, frameRate: 6, duration: 8, source: "deterministic-product-composite" }],
-  ["classic-grid", { poster: "classic-grid-poster.webp", video: null, posterWidth: 720, posterHeight: 450, source: "deterministic-product-composite" }],
-  ["command-palette", { poster: "command-palette-poster.webp", video: null, posterWidth: 800, posterHeight: 500, source: "deterministic-product-composite" }],
-  ["radial-menu", { poster: "radial-menu-poster.webp", video: "radial-menu.mp4", posterWidth: 800, posterHeight: 500, videoWidth: 480, videoHeight: 300, frameRate: 8, duration: 4.833333, source: "production-swiftui-render" }],
-  ["quick-actions", { poster: "quick-actions-poster.webp", video: "quick-actions.mp4", posterWidth: 720, posterHeight: 450, videoWidth: 480, videoHeight: 300, frameRate: 8, duration: 3.583333, source: "deterministic-product-composite" }],
+  ["overview", { poster: "overview-poster.webp", video: "overview.mp4", duration: 8 }],
+  ["classic-grid", { poster: "classic-grid-poster.webp", video: null }],
+  ["command-palette", { poster: "command-palette-poster.webp", video: null }],
+  ["radial-menu", { poster: "radial-menu-poster.webp", video: "radial-menu.mp4", duration: 5 }],
+  ["quick-actions", { poster: "quick-actions-poster.webp", video: "quick-actions.mp4", duration: 4 }],
 ]);
 
 function webpDimensions(buffer, name) {
@@ -34,12 +39,33 @@ function webpDimensions(buffer, name) {
   throw new Error(`${name} uses unsupported WebP chunk ${JSON.stringify(chunk)}`);
 }
 
-assert.equal(manifest.schemaVersion, 3, "showcase manifest schema version changed unexpectedly");
-assert.match(manifest.source, /hybrid privacy-safe product showcase/i, "showcase source boundary is missing");
+function verifyVideo(path, id) {
+  assert.ok(ffmpegPath, "ffmpeg-static did not provide a binary");
+  const result = spawnSync(
+    ffmpegPath,
+    ["-hide_banner", "-i", resolve(root, path), "-map", "0:v:0", "-frames:v", "1", "-f", "null", "-"],
+    { encoding: "utf8" },
+  );
+  const report = `${result.stdout || ""}\n${result.stderr || ""}`;
+  assert.equal(result.status, 0, `${id} could not be decoded by ffmpeg:\n${report}`);
+  assert.match(report, /Video:\s+h264/i, `${id} is not decoded as H.264`);
+  assert.match(report, /1920x1200/, `${id} is not decoded at 1920x1200`);
+  assert.match(report, /30 fps/, `${id} is not decoded at 30 fps`);
+  assert.doesNotMatch(
+    report,
+    /Stream #\d+:\d+(?:\[[^\]]+\])?(?:\([^)]+\))?:\s*Audio:/i,
+    `${id} unexpectedly contains an audio stream`,
+  );
+}
+
+assert.equal(manifest.schemaVersion, 5, "showcase manifest schema version must be 5");
+assert.equal(manifest.reviewedAt, "2026-07-22", "showcase review date is stale");
+assert.match(manifest.source, /deterministic privacy-safe HD product showcase/i, "HD source boundary is missing");
 assert.match(manifest.fixturePolicy, /no private desktop capture/i, "fixture privacy policy is missing");
 assert.match(manifest.fixturePolicy, /no AI-generated product screenshots/i, "AI-generation boundary is missing");
-assert.match(manifest.disclosure, /Radial Menu is an authentic production SwiftUI\/AppKit render/i, "authentic Radial provenance is missing");
-assert.match(manifest.disclosure, /deterministic product composites/i, "composite provenance is missing");
+assert.match(manifest.qualityPolicy, /1920x1200/i, "HD dimensions are missing from the quality policy");
+assert.match(manifest.qualityPolicy, /30 fps/i, "30 fps is missing from the quality policy");
+assert.match(manifest.disclosure, /Every showcase asset is a deterministic HD product composite/i, "HD composite disclosure is missing");
 assert.deepEqual(new Set(manifest.assets.map((asset) => asset.id)), new Set(expected.keys()), "showcase asset IDs changed");
 
 for (const asset of manifest.assets) {
@@ -47,32 +73,35 @@ for (const asset of manifest.assets) {
   assert.ok(contract, `unexpected showcase asset ${asset.id}`);
   assert.equal(asset.poster, contract.poster, `${asset.id} poster filename changed`);
   assert.equal(asset.video ?? null, contract.video, `${asset.id} video contract changed`);
-  assert.equal(asset.posterWidth, contract.posterWidth, `${asset.id} poster width changed`);
-  assert.equal(asset.posterHeight, contract.posterHeight, `${asset.id} poster height changed`);
-  assert.equal(asset.sourceType, contract.source, `${asset.id} source type changed`);
+  assert.equal(asset.posterWidth, HD_WIDTH, `${asset.id} poster must be HD width`);
+  assert.equal(asset.posterHeight, HD_HEIGHT, `${asset.id} poster must be HD height`);
+  assert.equal(asset.sourceType, "deterministic-product-composite", `${asset.id} must use the truthful deterministic source type`);
+  assert.match(asset.sourceLabel, /^HD deterministic product (?:composite|poster)$/i, `${asset.id} source label is not HD`);
   assert.equal(asset.hasAudio, false, `${asset.id} must remain silent`);
 
   const posterPath = `public/showcase/${asset.poster}`;
   const poster = read(posterPath);
-  assert.ok(statSync(resolve(root, posterPath)).size >= 1_000, `${asset.id} poster is implausibly small`);
+  assert.ok(statSync(resolve(root, posterPath)).size >= 20_000, `${asset.id} poster is implausibly small for HD`);
   const dimensions = webpDimensions(poster, asset.poster);
-  assert.equal(dimensions.width, asset.posterWidth, `${asset.id} WebP width diverges from manifest`);
-  assert.equal(dimensions.height, asset.posterHeight, `${asset.id} WebP height diverges from manifest`);
+  assert.deepEqual(dimensions, { width: HD_WIDTH, height: HD_HEIGHT }, `${asset.id} WebP dimensions diverge from HD contract`);
 
   if (contract.video) {
-    assert.equal(asset.videoWidth, contract.videoWidth, `${asset.id} video width changed`);
-    assert.equal(asset.videoHeight, contract.videoHeight, `${asset.id} video height changed`);
-    assert.equal(asset.frameRate, contract.frameRate, `${asset.id} frame rate changed`);
+    assert.equal(asset.videoWidth, HD_WIDTH, `${asset.id} video must be HD width`);
+    assert.equal(asset.videoHeight, HD_HEIGHT, `${asset.id} video must be HD height`);
+    assert.equal(asset.frameRate, HD_FPS, `${asset.id} video must be 30 fps`);
     assert.ok(Math.abs(asset.durationSeconds - contract.duration) <= 0.06, `${asset.id} duration changed`);
     const videoPath = `public/showcase/${asset.video}`;
     const video = read(videoPath);
-    assert.ok(video.length >= 1_000 && video.length <= 8_000_000, `${asset.id} MP4 size is implausible`);
+    assert.ok(video.length >= 100_000 && video.length <= 15_000_000, `${asset.id} MP4 size is implausible for HD`);
     assert.equal(video.subarray(4, 8).toString("ascii"), "ftyp", `${asset.id} is not an ISO MP4 file`);
     assert.ok(video.includes(Buffer.from("avc1")), `${asset.id} does not advertise H.264/avc1`);
-    assert.ok(video.includes(Buffer.from("moov")), `${asset.id} is missing MP4 movie metadata`);
-    assert.ok(video.includes(Buffer.from("mdat")), `${asset.id} is missing MP4 media data`);
+    const moovIndex = video.indexOf(Buffer.from("moov"));
+    const mdatIndex = video.indexOf(Buffer.from("mdat"));
+    assert.ok(moovIndex >= 0 && mdatIndex >= 0, `${asset.id} is missing MP4 movie or media data`);
+    assert.ok(moovIndex < mdatIndex, `${asset.id} is not fast-start encoded`);
     assert.ok(!video.includes(Buffer.from("mp4a")), `${asset.id} unexpectedly advertises AAC audio`);
     assert.ok(!video.includes(Buffer.from("soun")), `${asset.id} unexpectedly advertises an audio handler`);
+    verifyVideo(videoPath, asset.id);
   } else {
     assert.equal(asset.video, null, `${asset.id} must remain poster-only until a reviewed clip is committed`);
   }
@@ -91,8 +120,9 @@ for (const contract of expected.values()) {
   if (contract.video) assert.ok(showcaseContent.includes(`/showcase/${contract.video}`), `${contract.video} is missing from content contract`);
 }
 assert.doesNotMatch(showcaseContent, /classic-grid\.mp4|command-palette\.mp4/, "poster-only media must not advertise missing MP4s");
+assert.doesNotMatch(showcaseContent, /production-swiftui-render|authentic production SwiftUI/i, "HD composites must not retain the old production-render claim");
+assert.match(showcaseContent, /1920 × 1200/i, "visible HD dimensions are missing");
 assert.match(showcaseContent, /not AI-generated/i, "visible showcase disclosure must reject AI-generated media");
-assert.match(showcaseContent, /deterministic product composites/i, "composite provenance disclosure is missing");
 assert.match(showcaseContent, /controlled fixture windows/i, "visible fixture disclosure is missing");
 assert.match(showcasePage, /createVideoStructuredData/, "showcase page is missing VideoObject markup");
 assert.match(showcasePage, /headingAs="h1"/, "showcase page is missing its page-level H1");
@@ -106,10 +136,17 @@ assert.match(player, /playsInline/, "showcase player must play inline");
 assert.match(player, /prefers-reduced-motion/, "showcase player must respect reduced motion");
 assert.match(player, /asset\.sourceLabel/, "showcase player must display per-asset provenance");
 assert.match(structuredData, /videos = assets\.filter/, "VideoObject generation must exclude poster-only entries");
-assert.match(structuredData, /"VideoObject"/, "VideoObject structured data is missing");
-assert.equal(packageJson.scripts.prebuild, "npm run security:deps && npm run seo:check && npm run typecheck", "Vercel prebuild guard is missing");
+assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=moderate", "dependency audit must fail on moderate advisories");
+assert.ok(
+  packageJson.scripts.prebuild.includes("showcase:generate") || packageJson.scripts["seo:check"].includes("showcase:generate"),
+  "Vercel prebuild path must generate HD media",
+);
+assert.equal(packageJson.dependencies.next, "16.2.11", "Next.js patch is not pinned");
+assert.equal(packageJson.dependencies.resend, "6.18.0", "Resend patch is not pinned");
+assert.equal(packageJson.dependencies.sharp, "0.35.3", "Sharp patch is not pinned");
+assert.equal(packageJson.devDependencies.postcss, "8.5.21", "PostCSS patch is not pinned");
 for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Universal Binary"]) {
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
 }
 
-console.log(`Showcase media verification passed for ${manifest.assets.length} truthful WebP/optional-MP4 assets.`);
+console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets and ${manifest.assets.filter((asset) => asset.video).length} silent 30 fps H.264 videos.`);

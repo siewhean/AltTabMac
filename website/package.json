@@ -4,30 +4,34 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm run security:deps && npm run seo:check && npm run typecheck",
+    "predev": "npm run showcase:generate",
+    "showcase:generate": "node scripts/generate-hd-showcase-media.mjs",
+    "lock:export": "node -e \"const fs=require('node:fs');fs.mkdirSync('public/_build',{recursive:true});fs.copyFileSync('package-lock.json','public/_build/package-lock.json')\"",
+    "prebuild": "npm run lock:export && npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "seo:check": "node scripts/verify-seo.mjs && node scripts/verify-showcase-media.mjs && node scripts/verify-showcase-copy.mjs",
+    "seo:check": "npm run showcase:generate && node scripts/verify-seo.mjs && node scripts/verify-showcase-media.mjs && node scripts/verify-showcase-copy.mjs",
     "rendered:check": "python3 scripts/verify-rendered-site.py",
     "browser:check": "node scripts/verify-browser.mjs",
     "webmaster:check": "node scripts/verify-webmaster-metadata.mjs",
     "evidence:check": "node scripts/verify-public-evidence.mjs",
     "retrieval:check": "node scripts/verify-retrieval-surfaces.mjs",
-    "showcase:check": "node scripts/verify-showcase-media.mjs",
+    "showcase:check": "npm run showcase:generate && node scripts/verify-showcase-media.mjs",
     "showcase:responses": "node scripts/verify-showcase-responses.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
-    "security:deps": "npm audit --omit=dev --audit-level=high",
+    "security:deps": "npm audit --audit-level=moderate",
     "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "^16.2.10",
+    "next": "16.2.11",
     "postgres": "^3.4.8",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "resend": "^6.9.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "resend": "6.18.0",
+    "sharp": "0.35.3",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -35,8 +39,15 @@
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
+    "ffmpeg-static": "5.3.0",
+    "postcss": "8.5.21",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "postcss": "8.5.21",
+    "sharp": "0.35.3",
+    "svix": "1.98.0",
+    "uuid": "11.1.1"
   }
 }
