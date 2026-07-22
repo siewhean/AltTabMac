@@ -12,6 +12,8 @@ DerivedData/
 
 # Packaged app and debug symbols
 CmdTab.app/
+CmdTab.manifest.json
+CmdTab.sha256
 dist/
 release-artifacts/
 *.dSYM/
