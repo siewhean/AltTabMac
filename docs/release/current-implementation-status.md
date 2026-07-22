@@ -2,7 +2,7 @@
 
 **Updated:** 2026-07-23  
 **Canonical long-form plan:** `docs/release/native-production-readiness-plan.md`  
-**Current accepted integration commit:** `f37e47029344e191682bd02ade8d7daf4ea241bd`
+**Current accepted integration commit:** `44601c1503b17e9d953ec158c57e0390b2fdc274`
 
 ## Completed phases
 
@@ -32,6 +32,12 @@ Merged through PR #31:
 f37e47029344e191682bd02ade8d7daf4ea241bd
 ```
 
+Evidence reconciled through PR #33:
+
+```text
+44601c1503b17e9d953ec158c57e0390b2fdc274
+```
+
 Accepted evidence includes:
 
 - permanent bundle identifier `net.cmdtab.CmdTab`;
@@ -49,20 +55,59 @@ Accepted evidence includes:
 
 The complete record is `docs/release/evidence/phase-1/README.md`.
 
-## Active implementation order
+## Active phase — Phase 2 Developer ID distribution
 
-The next sequence is:
+Current branch:
 
 ```text
-Phase 1 evidence reconciliation
+agent/phase-2-developer-id-distribution
+```
+
+### Implemented in source
+
+- non-destructive credential and certificate preflight;
+- exact Developer ID identity and Team ID validation;
+- support for named `notarytool` profiles;
+- support for team and individual App Store Connect API keys;
+- API-key file-permission enforcement;
+- deterministic unsigned-input preservation;
+- nested-code-first Developer ID signing without using `codesign --deep` as a signing operation;
+- Hardened Runtime and secure timestamp requirements;
+- notarization-safe ZIP creation and checksum generation;
+- `notarytool submit --wait` result persistence;
+- mandatory detailed notarization log retrieval and issue rejection;
+- ticket stapling with propagation retry and validation;
+- strict codesign, exact-entitlement, Gatekeeper, and ZIP-extraction verification;
+- machine-readable distribution traceability record;
+- cross-platform shell syntax, credential-contract, entitlement, and record-fixture verification;
+- end-to-end Phase 2 evidence runner;
+- explicit clean-account, second-signed-build, Launch at Login, legacy migration, and rollback manual gates.
+
+### Not yet passed
+
+- Apple Developer Program and Team ownership have not been evidenced;
+- `net.cmdtab.CmdTab` registration has not been evidenced;
+- a Developer ID certificate has not been exercised;
+- notarization authentication has not passed preflight;
+- no signed artifact has been submitted, accepted, stapled, or Gatekeeper-assessed;
+- no clean-account install has been run;
+- no second signed build has proven stable TCC or Launch at Login identity;
+- issue #30 hosted workflows remain deferred.
+
+Phase 2 is therefore **source implemented / release NO-GO**.
+
+## Active implementation order
+
+```text
+Phase 2 source review
         ↓
-Phase 2 owner prerequisite confirmation
+Owner prerequisite and credential preflight
         ↓
-Developer ID signing and timestamping
+Signed/notarized/stapled automated macOS gate
         ↓
-Notarization and stapling
+Clean-account and second-signed-build acceptance
         ↓
-Gatekeeper and clean-account installation
+Restore issue #30 hosted gates
         ↓
 Private API capability providers
         ↓
@@ -74,28 +119,6 @@ release/native-rc1
 ```
 
 Optional switcher features do not enter this sequence before the first safe release candidate.
-
-## Active branch boundaries
-
-### Current branch
-
-```text
-agent/phase-1-evidence-reconciliation
-```
-
-Scope:
-
-- documentation and evidence reconciliation only;
-- no production Swift behavior change;
-- no release artifact change.
-
-### Next implementation branch
-
-```text
-agent/phase-2-developer-id-distribution
-```
-
-Do not create `release/native-rc1` until Developer ID signing, notarization, stapling, Gatekeeper, clean-account installation, capability-provider hardening, desktop acceptance, and release recovery have passed.
 
 ## Phase 2 owner prerequisites
 
@@ -109,7 +132,7 @@ The following must be confirmed before Phase 2 can be accepted:
 - first-RC architecture policy;
 - restored GitHub Actions allowance and passing issue #30 acceptance criteria.
 
-Local script implementation may begin before hosted capacity returns, but Phase 2 cannot receive a pass while issue #30 remains unresolved.
+Local script implementation may proceed before hosted capacity returns, but Phase 2 cannot receive a pass while issue #30 remains unresolved.
 
 ## Recommended first-RC architecture policy
 
@@ -121,7 +144,7 @@ Do not infer processor support from the minimum macOS version.
 
 - Reproducibility applies to the unsigned input bundle.
 - Secure timestamps and notarization metadata may make signed outputs nondeterministic.
-- Signed outputs require traceability to the exact unsigned manifest and checksum.
+- Signed outputs require traceability to the exact unsigned manifest, source commit, identity, Team ID, notarization submission, signed manifest, and final checksum.
 - Ad-hoc QA identity is not a public-distribution identity.
 - Website and support claims must match the exact accepted artifact.
 - A screenshot is not proof of exact-window activation; the full matrix must record the actual focused `CGWindowID`.
