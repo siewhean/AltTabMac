@@ -13,13 +13,10 @@ concurrency:
   group: release-readiness-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  IS_RELEASE_VALIDATION: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
-
 jobs:
   repository-health:
     name: Repository and runner health
-    if: ${{ env.IS_RELEASE_VALIDATION == 'true' }}
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -42,7 +39,7 @@ jobs:
 
   website-release-gate:
     name: Website Security, SEO, GEO, and browser QA
-    if: ${{ env.IS_RELEASE_VALIDATION == 'true' }}
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -112,7 +109,7 @@ jobs:
 
   swift-release-gate:
     name: Swift ${{ matrix.runner }}
-    if: ${{ env.IS_RELEASE_VALIDATION == 'true' }}
+    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     strategy:
       fail-fast: false
       matrix:
