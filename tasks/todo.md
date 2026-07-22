@@ -1,6 +1,6 @@
 # Todo
 
-## 2026-07-22 — Native Production Readiness
+## 2026-07-23 — Native Production Readiness
 
 Canonical plan: `docs/release/native-production-readiness-plan.md`
 
@@ -13,47 +13,80 @@ Canonical plan: `docs/release/native-production-readiness-plan.md`
 - [x] Keep generated media byte counts and SHA-256 values exact after normalization.
 - [x] Correct stale PNG/1280×800 social metadata and stale media provenance in README.
 - [x] Add a hosted-runner workflow-health diagnostic.
-- [x] Remove tracked root `.DS_Store` and `.build/.lock` files.
-- [ ] Remove every remaining tracked file under `.build/` from the repository index.
-- [ ] Confirm all GitHub Actions jobs reach checkout and at least one shell step.
-- [ ] Pass Swift macOS 14 and macOS 15 workflows on one exact head.
-- [ ] Pass Website Security and SEO/GEO workflows on one exact head.
-- [ ] Pass the exact Vercel preview and desktop/mobile browser suites.
-- [ ] Record the completed Phase 0 evidence and branch-deletion inventory.
+- [x] Remove the tracked root `.DS_Store` and complete `.build/` tree from the repository index.
+- [x] Record the Phase 0 evidence and branch-deletion inventory.
+- [x] Pass the accepted Vercel source, dependency, TypeScript, and production-build gate.
+- [ ] Confirm all GitHub Actions jobs reach checkout and at least one shell step when quota returns (issue #30).
+- [ ] Pass Swift macOS 14 and macOS 15 workflows on one exact head when quota returns (issue #30).
+- [ ] Pass Website Security, SEO/GEO, rendered, and browser workflows on one exact head when quota returns (issue #30).
+- [ ] Complete the live production deployment reconciliation tracked by PR #32 after Vercel build allowance is available.
 
-### Phase 1 — Deterministic local app bundle
+### Phase 1 — Deterministic local app bundle — ACCEPTED
 
-- [ ] Select and document the permanent bundle identifier.
-- [ ] Add one-command release build and `.app` assembly scripts.
-- [ ] Add minimal entitlements with source-backed reasons.
-- [ ] Add bundle-layout, metadata, architecture, and ad-hoc signature verification.
-- [ ] Build twice from clean scratch directories and record reproducibility evidence.
+Accepted source commit: `516a9476c01f4d59981f35dc44b6eb09dcd6d790`  
+Merged through PR #31: `f37e47029344e191682bd02ade8d7daf4ea241bd`
 
-### Phase 2 — Developer ID distribution
+- [x] Select and document the permanent bundle identifier `net.cmdtab.CmdTab`.
+- [x] Add one-command release build and deterministic `.app` assembly scripts.
+- [x] Add the empty reviewed entitlement baseline with source-backed boundaries.
+- [x] Add bundle-layout, metadata, architecture, quarantine, checksum, and ad-hoc signature verification.
+- [x] Build twice from the canonical clean scratch path and prove byte-for-byte unsigned reproducibility.
+- [x] Add rollback-safe migration from the legacy `com.user.CmdTab` defaults and Keychain identity.
+- [x] Pass bundle migration tests: 6/6.
+- [x] Add and pass Arc capture fallback regression tests: 3/3.
+- [x] Pass the complete Swift package suite: 132/132.
+- [x] Pass `scripts/release/run-phase1-qa.sh` with matching tested and evidence commits.
+- [x] Confirm menu-bar launch, Dock/native-switcher exclusion, Command-Tab interception, settings, deliberate quit/reopen, and permission re-grant behavior.
+- [x] Confirm Arc renders a real thumbnail and activates the selected Arc window.
+- [ ] Preserve the limitation that a real legacy beta profile migration was not separately observed during final manual QA; automated migration coverage passed.
 
-- [ ] Add secure Developer ID signing with Hardened Runtime and timestamp.
-- [ ] Add `notarytool` submission and persisted notarization logs.
+### Phase 2 — Developer ID distribution — ACTIVE NEXT PHASE
+
+Owner prerequisites:
+
+- [ ] Confirm Apple Developer Program membership and the intended Apple Developer Team ID.
+- [ ] Confirm `net.cmdtab.CmdTab` is registered to the intended Apple Developer team.
+- [ ] Confirm a valid `Developer ID Application` certificate is available in the signing environment.
+- [ ] Configure App Store Connect API credentials or a protected `notarytool` keychain profile.
+- [ ] Decide and document the first RC architecture policy; default recommendation is arm64-only until Universal Binary is independently built and verified.
+
+Implementation:
+
+- [ ] Add secure Developer ID signing with Hardened Runtime and secure timestamp.
+- [ ] Add deterministic unsigned-input manifesting before signing.
+- [ ] Add ZIP creation for notarization and direct distribution.
+- [ ] Add `notarytool` submission with persisted submission ID and notarization log.
 - [ ] Staple and validate the ticket.
 - [ ] Pass strict codesign and Gatekeeper assessment.
-- [ ] Pass clean-account installation and launch.
+- [ ] Verify stable Accessibility, Screen Recording, and Launch at Login identity across consecutive signed builds.
+- [ ] Pass clean-account download, installation, launch, quit, and relaunch.
+- [ ] Restore and pass the deferred GitHub Actions gates before Phase 2 acceptance (issue #30).
+- [ ] Record `docs/release/evidence/phase-2/` and make an explicit GO/NO-GO decision.
 
-### Phase 3 — Real macOS P0 acceptance
+### Phase 3 — Private API capability boundaries and real macOS acceptance
 
+- [ ] Capture a signed-baseline smoke record before provider refactoring.
+- [ ] Isolate private APIs behind explicit identity, capture, focus, and workspace capability providers.
 - [ ] Build deterministic multi-window fixture applications.
 - [ ] Record requested, selected, committed, and actual focused identities.
 - [ ] Execute permissions, input, Space, display, fullscreen, Stage Manager, Secure Input, sleep/wake, and rapid-input rows.
 - [ ] Require actual focused `CGWindowID` evidence for every P0 row.
 
-### Later phases
+### Release safety before optional features
 
-- [ ] Isolate private APIs behind explicit capability providers.
+- [ ] Add signed updates, stable/beta channels, rollback, tamper rejection, and interrupted-update recovery.
+- [ ] Add privacy-safe crash diagnostics and user-exportable support bundles.
+- [ ] Verify production trial, license activation, cached-license, and failure recovery paths.
+- [ ] Complete owner-operated security, mail, WAF, sender-domain, and incident-response controls.
+- [ ] Create `release/native-rc1` only after signing, provider isolation, the full desktop matrix, and release-safety infrastructure pass.
+
+### Optional feature expansion after the first safe RC
+
 - [ ] Implement minimized-window restoration.
-- [ ] Implement true workspace/Space/Stage Manager identity.
+- [ ] Implement true workspace/Space/Stage Manager identity where not already required for the supported contract.
 - [ ] Implement configurable scoped shortcut profiles.
 - [ ] Implement durable MRU restoration across app restarts.
 - [ ] Implement expanded exact-window actions.
-- [ ] Add signed updates, rollback, crash diagnostics, and privacy-safe support bundles.
-- [ ] Complete owner-operated security, mail, WAF, sender-domain, and incident-response controls.
 
 ## 2026-07-20 — Independent SEO And GEO Competitive Hardening
 
@@ -174,6 +207,6 @@ Canonical plan: `docs/release/native-production-readiness-plan.md`
 
 ## Review
 
-- `swift test --scratch-path /tmp/CmdTab-test` passed with 38 tests.
-- Follow-up fix anchored hidden `⌘Tab` timing to the event tap's original `CGEvent` timestamp instead of a later main-queue uptime sample.
-- Manual hotkey QA on a live macOS desktop is still pending.
+- `swift test --scratch-path /tmp/CmdTab-test` passed with 38 tests at the time of the original hotkey repair.
+- Follow-up fixes anchored hidden `⌘Tab` timing to the event tap's original `CGEvent` timestamp instead of a later main-queue uptime sample.
+- Live packaged-app hotkey QA is now complete under the Phase 1 acceptance record; the full current suite passed 132 tests.
