@@ -6,7 +6,7 @@ import Foundation
 ///   2. A SwiftUI view conforming to the style's layout
 ///   3. A SwitcherLayoutMetrics factory in SwitcherLayout.swift
 ///   4. A case in SwitcherWindowController.showPanel() for positioning
-enum SwitcherStyle: String, CaseIterable {
+enum SwitcherStyle: String, CaseIterable, Codable, Sendable {
     /// Horizontal grid of window thumbnail cards (the original macOS Exposé look).
     case classicGrid     = "classicGrid"
 
