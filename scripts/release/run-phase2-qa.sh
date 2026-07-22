@@ -55,15 +55,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-fail() {
-  echo "Phase 2 QA failed: $*" >&2
-  exit 1
-}
+fail() { echo "Phase 2 QA failed: $*" >&2; exit 1; }
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  fail "Phase 2 QA must run on macOS"
-fi
-
+if [[ "$(uname -s)" != "Darwin" ]]; then fail "Phase 2 QA must run on macOS"; fi
 for tool in bash python3 swift codesign security xcrun spctl ditto lipo plutil shasum git; do
   command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
 done
@@ -77,14 +71,12 @@ if [[ -n "${CMDTAB_NOTARY_PROFILE:-}" ]]; then
   fi
 else
   [[ -n "${CMDTAB_NOTARY_KEY_ID:-}" ]] || fail "CMDTAB_NOTARY_PROFILE or CMDTAB_NOTARY_KEY_ID is required"
-  [[ -n "${CMDTAB_NOTARY_ISSUER:-}" ]] || fail "CMDTAB_NOTARY_ISSUER is required for API-key authentication"
   [[ -n "${CMDTAB_NOTARY_KEY_PATH:-}" ]] || fail "CMDTAB_NOTARY_KEY_PATH is required for API-key authentication"
 fi
 
 rm -rf "${EVIDENCE_DIR}" "${ARTIFACT_DIR}"
 mkdir -p "${EVIDENCE_DIR}" "${ARTIFACT_DIR}"
 write_manual_checks "PENDING"
-
 exec > >(tee "${LOG_PATH}") 2>&1
 
 COMMIT_SHA="$(git -C "${ROOT_DIR}" rev-parse HEAD)"
@@ -154,8 +146,7 @@ bash "${ROOT_DIR}/scripts/release/verify-distribution.sh" "${SIGNED_APP}" "${FIN
 
 printf '\n== Evidence capture ==\n'
 SIGNED_MANIFEST="${EVIDENCE_DIR}/signed-bundle-manifest.json"
-python3 "${ROOT_DIR}/scripts/release/write-bundle-manifest.py" \
-  "${SIGNED_APP}" "${SIGNED_MANIFEST}" >/dev/null
+python3 "${ROOT_DIR}/scripts/release/write-bundle-manifest.py" "${SIGNED_APP}" "${SIGNED_MANIFEST}" >/dev/null
 cp "${FINAL_ZIP}.sha256" "${EVIDENCE_DIR}/final-artifact.sha256"
 printf '%s\n' "${FINAL_ZIP}" > "${EVIDENCE_DIR}/artifact-path.txt"
 printf '%s\n' "${COMMIT_SHA}" > "${EVIDENCE_DIR}/commit.txt"
