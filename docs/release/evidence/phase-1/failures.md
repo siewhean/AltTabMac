@@ -34,14 +34,30 @@ The second run removed signatures correctly and verified both bundles as unsigne
 
 SwiftPM and the linker can preserve absolute module or debug paths in Mach-O metadata. Comparing binaries produced with different scratch paths therefore mixed two variables: clean-build determinism and build-path sensitivity.
 
-**Resolution:** the reproducibility check now deletes and recreates one canonical scratch path before each build. This keeps the toolchain, source, flags, and absolute build path identical while still proving that no prior build output is reused. If binaries still differ, the script prints Mach-O UUIDs and the first differing byte offsets.
+**Resolution:** the reproducibility check deletes and recreates one canonical scratch path before each build. This keeps the toolchain, source, flags, and absolute build path identical while still proving that no prior build output is reused. If binaries still differ, the script prints Mach-O UUIDs and the first differing byte offsets.
 
 This Phase 1 gate proves repeatability on the same host, toolchain, source tree, and canonical release path. Cross-directory or cross-machine byte identity remains a separate claim and is not made.
 
+## Resolved from the third local macOS run
+
+### SwiftPM CLI did not enable deterministic linker mode
+
+The third run used the same cleaned canonical scratch path twice. Resources and Info.plist were byte-identical, but the executable UUIDs and hashes still differed:
+
+```text
+first UUID:  8BC88A32-696A-3C42-A03D-758F8035FA3D
+second UUID: C176A01A-4B96-3232-8572-75D662E8EFE3
+```
+
+The differing UUIDs prove that the release link was not operating in deterministic mode. SwiftPM CLI builds do not reliably inherit Xcode's `LD_DETERMINISTIC_MODE` build setting.
+
+**Resolution:** every CmdTab release build now passes `-Xlinker -reproducible` explicitly. This retains the required Mach-O build UUID while instructing `ld` to derive linker-generated metadata reproducibly. Repository verification requires the flag and rejects `-no_uuid`.
+
 ## Open
 
-- Re-run `scripts/release/run-phase1-qa.sh` on commit `ded7f0f48dc7c506ea115cbe30148a33117588a0` or later.
-- Confirm the two clean unsigned bundles from the same canonical build path are byte-for-byte reproducible.
+- Fetch commit `9ead97083eaad4dbe07640140ed2e4ab407d79c5` or later.
+- Run the focused `scripts/release/reproducibility-check.sh` first.
+- After the focused check passes, rerun `scripts/release/run-phase1-qa.sh` so one evidence directory records the complete accepted commit.
 - Complete the manual menu-bar, Dock, native switcher, migration, permission re-grant, and deliberate-quit observations.
 - Developer ID signing and notarization are intentionally out of scope until Phase 2.
 
