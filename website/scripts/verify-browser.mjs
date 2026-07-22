@@ -309,10 +309,14 @@ try {
           const images = [...document.images];
           const videos = [...document.querySelectorAll('video')].map((video) => ({
             autoplay: video.autoplay,
+            autoplayMode: video.dataset.autoplayMode || null,
             muted: video.muted,
             loop: video.loop,
             playsInline: video.playsInline,
             paused: video.paused,
+            ended: video.ended,
+            currentTime: video.currentTime,
+            duration: Number.isFinite(video.duration) ? video.duration : null,
             readyState: video.readyState,
             width: video.getBoundingClientRect().width,
             height: video.getBoundingClientRect().height,
@@ -463,8 +467,11 @@ try {
           fail(`${profile.name} ${path}: autoplay product video is missing`);
         } else {
           const firstVideo = result.videos[0];
-          if (!firstVideo.autoplay || !firstVideo.muted || !firstVideo.loop || !firstVideo.playsInline) {
-            fail(`${profile.name} ${path}: first video is not configured for silent inline autoplay`);
+          if (!firstVideo.muted || firstVideo.loop || !firstVideo.playsInline || firstVideo.autoplayMode !== "one-shot") {
+            fail(`${profile.name} ${path}: first video is not configured for silent one-shot inline autoplay`);
+          }
+          if (firstVideo.duration === null || firstVideo.duration > 5.05) {
+            fail(`${profile.name} ${path}: first autoplay video exceeds five seconds`);
           }
           if (firstVideo.paused || firstVideo.readyState < 2) {
             fail(`${profile.name} ${path}: first video did not start autoplaying`);
@@ -503,6 +510,78 @@ try {
       }
       cleanups.forEach((cleanup) => cleanup());
     }
+  }
+
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440,
+    height: 1000,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await client.send("Emulation.setEmulatedMedia", {
+    media: "screen",
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+  });
+  let loaded = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/` });
+  await loaded;
+  await sleep(900);
+  const oneShotEvaluation = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const video = document.querySelector('video');
+      if (!video) return resolve({ ok: false, reason: 'video missing' });
+      await new Promise((done) => {
+        if (video.readyState >= 1) done();
+        else video.addEventListener('loadedmetadata', done, { once: true });
+      });
+      video.currentTime = Math.max(0, video.duration - 0.12);
+      await video.play();
+      await new Promise((done) => setTimeout(done, 500));
+      window.scrollTo(0, document.body.scrollHeight);
+      await new Promise((done) => setTimeout(done, 200));
+      window.scrollTo(0, 0);
+      await new Promise((done) => setTimeout(done, 500));
+      resolve({
+        ok: video.ended && video.paused && !video.loop && video.dataset.autoplayMode === 'one-shot',
+        ended: video.ended,
+        paused: video.paused,
+        loop: video.loop,
+        currentTime: video.currentTime,
+        duration: video.duration,
+        autoplayMode: video.dataset.autoplayMode || null,
+      });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const oneShotResult = oneShotEvaluation.result?.value || {};
+  if (!oneShotResult.ok) {
+    fail(`one-shot autoplay replay guard failed: ${JSON.stringify(oneShotResult)}`);
+  }
+
+  await client.send("Emulation.setEmulatedMedia", {
+    media: "screen",
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
+  loaded = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/` });
+  await loaded;
+  await sleep(900);
+  const reducedMotionEvaluation = await client.send("Runtime.evaluate", {
+    expression: `(() => {
+      const video = document.querySelector('video');
+      if (!video) return { ok: false, reason: 'video missing' };
+      return {
+        ok: video.paused && video.currentTime <= 0.1,
+        paused: video.paused,
+        currentTime: video.currentTime,
+      };
+    })()`,
+    returnByValue: true,
+  });
+  const reducedMotionResult = reducedMotionEvaluation.result?.value || {};
+  if (!reducedMotionResult.ok) {
+    fail(`reduced-motion autoplay guard failed: ${JSON.stringify(reducedMotionResult)}`);
   }
 } catch (error) {
   fail(`browser harness failed: ${error.stack || error.message || String(error)}`);
@@ -543,5 +622,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, autoplay media, 44px targets, mobile navigation, and accessible wide tables.`,
+  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, one-shot autoplay, reduced-motion safety, 44px targets, mobile navigation, and accessible wide tables.`,
 );
