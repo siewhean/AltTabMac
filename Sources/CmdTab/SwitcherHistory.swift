@@ -1,6 +1,6 @@
 import Foundation
 
-enum SwitcherHistoryIdentity: Hashable {
+enum SwitcherHistoryIdentity: Hashable, Sendable {
     case appWindow(pid: Int32, windowID: UInt32)
     case appFallback(bundleID: String, pid: Int32?)
 
@@ -30,6 +30,11 @@ enum SwitcherHistoryIdentity: Hashable {
         }
     }
 
+    var windowID: UInt32? {
+        guard case let .appWindow(_, windowID) = self else { return nil }
+        return windowID
+    }
+
     func matches(bundleID: String?, pid: Int32?) -> Bool {
         switch self {
         case let .appWindow(identityPID, _):
@@ -50,12 +55,28 @@ final class SwitcherHistoryStore {
     static let shared = SwitcherHistoryStore()
 
     private let queue = DispatchQueue(label: "CmdTab.SwitcherHistoryStore")
+    private let durableStore: DurableSwitcherHistoryStore
     private var entries: [SwitcherHistoryIdentity] = []
+    private var restoredEntries: [SwitcherHistoryIdentity] = []
     private let maxEntries = 256
 
+    init(durableStore: DurableSwitcherHistoryStore = .shared) {
+        self.durableStore = durableStore
+    }
+
     func noteActivation(_ identity: SwitcherHistoryIdentity) {
+        noteActivation(identity, descriptor: nil)
+    }
+
+    func noteActivation(
+        _ identity: SwitcherHistoryIdentity,
+        descriptor: LiveWindowHistoryDescriptor?
+    ) {
         queue.sync {
             entries.removeAll {
+                $0 == identity || Self.isSupersededHistoryEntry($0, by: identity)
+            }
+            restoredEntries.removeAll {
                 $0 == identity || Self.isSupersededHistoryEntry($0, by: identity)
             }
             entries.insert(identity, at: 0)
@@ -63,22 +84,52 @@ final class SwitcherHistoryStore {
                 entries.removeLast(entries.count - maxEntries)
             }
         }
+
+        if let descriptor {
+            durableStore.noteActivation(descriptor: descriptor)
+        }
+    }
+
+    /// Matches persisted privacy-minimised records against the current live
+    /// catalogue. Current-session observations always remain above restored
+    /// ranks and one persisted record may map to at most one live identity.
+    func reconcileLiveWindows(_ descriptors: [LiveWindowHistoryDescriptor]) {
+        let restored = durableStore.restoredIdentities(for: descriptors)
+        queue.sync {
+            let current = Set(entries)
+            restoredEntries = restored.filter { !current.contains($0) }
+            if restoredEntries.count > maxEntries {
+                restoredEntries.removeLast(restoredEntries.count - maxEntries)
+            }
+        }
     }
 
     func rank(of identity: SwitcherHistoryIdentity) -> Int? {
         queue.sync {
-            entries.firstIndex(of: identity)
+            combinedEntriesLocked().firstIndex(of: identity)
         }
     }
 
     func rankForApp(bundleID: String?, pid: Int32?) -> Int? {
         queue.sync {
-            entries.firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
+            combinedEntriesLocked().firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
         }
     }
 
     func snapshot() -> [SwitcherHistoryIdentity] {
-        queue.sync { entries }
+        queue.sync { combinedEntriesLocked() }
+    }
+
+    func resetDurableHistory() {
+        durableStore.reset()
+        queue.sync {
+            restoredEntries.removeAll()
+        }
+    }
+
+    private func combinedEntriesLocked() -> [SwitcherHistoryIdentity] {
+        var seen = Set<SwitcherHistoryIdentity>()
+        return (entries + restoredEntries).filter { seen.insert($0).inserted }
     }
 
     private static func isSupersededHistoryEntry(
