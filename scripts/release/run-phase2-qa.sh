@@ -42,6 +42,7 @@ CHECKLIST
 
 cleanup() {
   local status=$?
+  mkdir -p "${EVIDENCE_DIR}"
   if [[ "${status}" == "0" ]]; then
     printf 'AUTOMATED_PASS\n' > "${RESULT_PATH}"
     write_manual_checks "AUTOMATED_PASS — manual clean-account acceptance remains required"
@@ -107,6 +108,9 @@ date -u '+utc=%Y-%m-%dT%H:%M:%SZ'
 printf '\n== Phase 2 source contract ==\n'
 python3 "${SOURCE_VERIFY_TOOL}"
 python3 "${CONFIG_TOOL}" verify-repository
+
+printf '\n== Credential and signing preflight ==\n'
+bash "${ROOT_DIR}/scripts/release/phase2-preflight.sh"
 
 printf '\n== Phase 1 regression gate ==\n'
 CMDTAB_PHASE1_EVIDENCE_DIR="${EVIDENCE_DIR}/phase1-regression" \
