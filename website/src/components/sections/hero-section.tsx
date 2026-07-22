@@ -36,9 +36,13 @@ export function HeroSection() {
             </div>
           </a>
 
-          <nav aria-label="Primary navigation" className="hidden items-center gap-6 text-sm text-muted lg:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-2 text-sm text-muted lg:flex">
             {siteConfig.nav.map((item) => (
-              <a key={item.href} href={item.href} className="transition-colors duration-200 hover:text-text">
+              <a
+                key={item.href}
+                href={item.href}
+                className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full px-3 transition-colors duration-200 hover:bg-white/[0.05] hover:text-text"
+              >
                 {item.label}
               </a>
             ))}
