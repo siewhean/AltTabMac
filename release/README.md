@@ -79,7 +79,7 @@ export CMDTAB_DEVELOPER_IDENTITY='Developer ID Application: Example Name (TEAMID
 export CMDTAB_TEAM_ID='TEAMID1234'
 ```
 
-The scripts reject ad-hoc identity `-`, require the requested identity to exist in the active keychain search list, enable Hardened Runtime, request an Apple secure timestamp, and verify the resulting authority and TeamIdentifier.
+The scripts reject ad-hoc identity `-`, require exactly one matching certificate in the active keychain search list, enable Hardened Runtime, request an Apple secure timestamp, and verify the resulting authority and TeamIdentifier.
 
 Do not run the signing scripts with `sudo`. Code signing depends on the signing user’s keychain context.
 
@@ -107,35 +107,55 @@ The app-specific password is entered into `notarytool` interactively when the pr
 
 #### App Store Connect API key
 
+Every API-key setup requires:
+
 ```bash
 export CMDTAB_NOTARY_KEY_ID='KEYID12345'
-export CMDTAB_NOTARY_ISSUER='00000000-0000-0000-0000-000000000000'
 export CMDTAB_NOTARY_KEY_PATH="$HOME/.private/AuthKey_KEYID12345.p8"
+chmod 600 "$CMDTAB_NOTARY_KEY_PATH"
 ```
 
-The `.p8` file must remain outside the repository and must never be copied into evidence or artifacts.
+A team API key additionally requires its issuer ID:
 
-Plaintext Apple ID password authentication is intentionally unsupported by this pipeline.
+```bash
+export CMDTAB_NOTARY_ISSUER='00000000-0000-0000-0000-000000000000'
+```
+
+Omit `CMDTAB_NOTARY_ISSUER` for an individual API key. Apple rejects an issuer supplied for an individual key.
+
+The `.p8` file must remain outside the repository and must never be copied into evidence or artifacts. Plaintext Apple ID password authentication is intentionally unsupported by this pipeline.
+
+### Non-destructive preflight
+
+Run this before an expensive build or Apple submission:
+
+```bash
+chmod +x scripts/release/*.sh
+./scripts/release/phase2-preflight.sh
+```
+
+It verifies the source contract, exact certificate match, Team ID, API-key file permissions when applicable, and `notarytool` authentication through `history`. It does not build, sign, submit, staple, or publish an artifact.
 
 ### Full Phase 2 automated run
 
 ```bash
-chmod +x scripts/release/*.sh
 ./scripts/release/run-phase2-qa.sh
 ```
 
 The runner performs:
 
-1. cross-platform Phase 2 source-contract verification;
+1. cross-platform Phase 2 source-contract and fixture verification;
 2. repository identity verification;
-3. the complete Phase 1 regression gate;
-4. deterministic unsigned app assembly and manifest capture;
-5. Developer ID signing with Hardened Runtime and secure timestamp;
-6. notarization ZIP creation;
-7. `notarytool submit --wait` and detailed log capture;
-8. ticket stapling and validation;
-9. final ZIP creation and SHA-256 generation;
-10. strict codesign, entitlement, Gatekeeper, and ZIP-extraction verification.
+3. credential and signing preflight;
+4. the complete Phase 1 regression gate;
+5. deterministic unsigned app assembly and manifest capture;
+6. Developer ID signing with Hardened Runtime and secure timestamp;
+7. notarization ZIP creation;
+8. `notarytool submit --wait` and mandatory issue-free log capture;
+9. ticket stapling and validation;
+10. final ZIP creation and SHA-256 generation;
+11. strict codesign, entitlement, Gatekeeper, and ZIP-extraction verification;
+12. machine-readable distribution-record generation.
 
 Default outputs:
 
@@ -152,7 +172,7 @@ A successful automated run writes:
 AUTOMATED_PASS
 ```
 
-This is not the final Phase 2 acceptance. Complete and review:
+This is not final Phase 2 acceptance. Complete and review:
 
 ```text
 dist/phase2-evidence/manual-checks.md
