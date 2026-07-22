@@ -24,7 +24,8 @@ Canonical plan: `docs/release/native-production-readiness-plan.md`
 ### Phase 1 — Deterministic local app bundle — ACCEPTED
 
 Accepted source commit: `516a9476c01f4d59981f35dc44b6eb09dcd6d790`  
-Merged through PR #31: `f37e47029344e191682bd02ade8d7daf4ea241bd`
+Merged through PR #31: `f37e47029344e191682bd02ade8d7daf4ea241bd`  
+Evidence reconciled through PR #33: `44601c1503b17e9d953ec158c57e0390b2fdc274`
 
 - [x] Select and document the permanent bundle identifier `net.cmdtab.CmdTab`.
 - [x] Add one-command release build and deterministic `.app` assembly scripts.
@@ -38,30 +39,49 @@ Merged through PR #31: `f37e47029344e191682bd02ade8d7daf4ea241bd`
 - [x] Pass `scripts/release/run-phase1-qa.sh` with matching tested and evidence commits.
 - [x] Confirm menu-bar launch, Dock/native-switcher exclusion, Command-Tab interception, settings, deliberate quit/reopen, and permission re-grant behavior.
 - [x] Confirm Arc renders a real thumbnail and activates the selected Arc window.
-- [ ] Preserve the limitation that a real legacy beta profile migration was not separately observed during final manual QA; automated migration coverage passed.
+- [x] Record the limitation that a real legacy beta profile migration was not separately observed during final manual QA; automated migration coverage passed.
 
-### Phase 2 — Developer ID distribution — ACTIVE NEXT PHASE
+### Phase 2 — Developer ID distribution — SOURCE IMPLEMENTED / NO-GO
 
 Owner prerequisites:
 
 - [ ] Confirm Apple Developer Program membership and the intended Apple Developer Team ID.
 - [ ] Confirm `net.cmdtab.CmdTab` is registered to the intended Apple Developer team.
 - [ ] Confirm a valid `Developer ID Application` certificate is available in the signing environment.
-- [ ] Configure App Store Connect API credentials or a protected `notarytool` keychain profile.
+- [ ] Configure a protected `notarytool` profile or App Store Connect team/individual API key.
 - [ ] Decide and document the first RC architecture policy; default recommendation is arm64-only until Universal Binary is independently built and verified.
 
-Implementation:
+Implemented source:
 
-- [ ] Add secure Developer ID signing with Hardened Runtime and secure timestamp.
-- [ ] Add deterministic unsigned-input manifesting before signing.
-- [ ] Add ZIP creation for notarization and direct distribution.
-- [ ] Add `notarytool` submission with persisted submission ID and notarization log.
+- [x] Add non-destructive certificate and notarization-authentication preflight.
+- [x] Add secure Developer ID signing with Hardened Runtime and secure timestamp requirements.
+- [x] Sign nested code deepest-first without using `codesign --deep` as a signing operation.
+- [x] Add deterministic unsigned-input manifesting before signing.
+- [x] Add notarization-safe ZIP creation, integrity testing, and SHA-256 sidecars.
+- [x] Add `notarytool submit --wait` with persisted result, submission ID, and mandatory issue-free log.
+- [x] Support keychain profiles plus team and individual App Store Connect API keys.
+- [x] Add ticket-stapling retry and validation.
+- [x] Add strict codesign, exact-entitlement, Gatekeeper, and ZIP-extracted-app verification.
+- [x] Add a machine-readable distribution record linking source, manifests, identity, Team ID, notarization, and artifact checksum.
+- [x] Add cross-platform `bash -n`, credential-contract, entitlement, and distribution-record fixture verification.
+- [x] Add `scripts/release/run-phase2-qa.sh` and the Phase 2 evidence/manual-acceptance template.
+- [x] Keep the legacy DMG entry point disabled rather than maintaining a second signing source of truth.
+
+Acceptance still required:
+
+- [ ] Pass `phase2-preflight.sh` with the real certificate and notarization credentials.
+- [ ] Run the full Phase 1 regression gate on the exact Phase 2 head.
+- [ ] Produce one real Developer ID-signed app with the expected authority and TeamIdentifier.
+- [ ] Receive an `Accepted` notarization result with an issue-free Apple log.
 - [ ] Staple and validate the ticket.
-- [ ] Pass strict codesign and Gatekeeper assessment.
+- [ ] Pass strict codesign and Gatekeeper assessment on the app and ZIP-extracted app.
+- [ ] Verify the final checksum and distribution record.
 - [ ] Verify stable Accessibility, Screen Recording, and Launch at Login identity across consecutive signed builds.
 - [ ] Pass clean-account download, installation, launch, quit, and relaunch.
+- [ ] Exercise a real legacy beta profile migration against the signed release candidate.
+- [ ] Test uninstall and rollback to the prior accepted build.
 - [ ] Restore and pass the deferred GitHub Actions gates before Phase 2 acceptance (issue #30).
-- [ ] Record `docs/release/evidence/phase-2/` and make an explicit GO/NO-GO decision.
+- [ ] Replace the tracked Phase 2 NO-GO with a final evidence-backed GO/NO-GO decision.
 
 ### Phase 3 — Private API capability boundaries and real macOS acceptance
 
