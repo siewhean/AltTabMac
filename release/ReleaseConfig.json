@@ -1,10 +1,15 @@
 {
-  "productName": "CmdTab",
+  "schemaVersion": 1,
+  "appName": "CmdTab",
   "executableName": "CmdTab",
   "bundleIdentifier": "net.cmdtab.CmdTab",
-  "version": "1.0.0",
+  "marketingVersion": "1.0.0",
   "buildNumber": "1",
-  "minimumMacOS": "13.0",
-  "packageConfiguration": "release",
-  "artifactDirectory": "dist"
+  "minimumSystemVersion": "13.0",
+  "iconFile": "CmdTab",
+  "packageType": "APPL",
+  "agentApplication": true,
+  "highResolutionCapable": true,
+  "architecturePolicy": "native-host-only-until-universal-build-is-verified",
+  "distributionChannel": "developer-id-direct"
 }
