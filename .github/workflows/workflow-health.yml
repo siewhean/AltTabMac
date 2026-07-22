@@ -1,0 +1,45 @@
+name: Workflow Health
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/workflow-health.yml
+      - docs/release/**
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/workflow-health.yml
+      - docs/release/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-health-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hosted-runner-health:
+    name: Hosted runner health
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Confirm runner assignment
+        run: |
+          set -euo pipefail
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          echo "repository=${GITHUB_REPOSITORY}"
+          echo "sha=${GITHUB_SHA}"
+          echo "event=${GITHUB_EVENT_NAME}"
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Confirm release plan exists
+        run: |
+          set -euo pipefail
+          test -s docs/release/native-production-readiness-plan.md
+          git diff --check
