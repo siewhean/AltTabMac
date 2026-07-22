@@ -1,0 +1,10 @@
+{
+  "productName": "CmdTab",
+  "executableName": "CmdTab",
+  "bundleIdentifier": "net.cmdtab.CmdTab",
+  "version": "1.0.0",
+  "buildNumber": "1",
+  "minimumMacOS": "13.0",
+  "packageConfiguration": "release",
+  "artifactDirectory": "dist"
+}
