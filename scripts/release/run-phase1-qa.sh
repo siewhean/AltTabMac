@@ -101,7 +101,7 @@ echo "== Two-build reproducibility =="
 echo
 echo "== Artifact inspection =="
 plutil -p "${APP_PATH}/Contents/Info.plist"
-codesign -d --verbose=4 --entitlements :- "${APP_PATH}" 2>&1
+codesign -d --verbose=4 --entitlements - "${APP_PATH}" 2>&1
 lipo -archs "${APP_PATH}/Contents/MacOS/CmdTab"
 
 cp "${ROOT_DIR}/dist/CmdTab.manifest.json" "${EVIDENCE_DIR}/bundle-manifest.json"
