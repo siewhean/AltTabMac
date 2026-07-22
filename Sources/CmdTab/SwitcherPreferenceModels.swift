@@ -1,6 +1,6 @@
 import Foundation
 
-enum WindowVisibilityScope: String, CaseIterable {
+enum WindowVisibilityScope: String, CaseIterable, Codable, Sendable {
     case currentSpaceOnly = "currentSpaceOnly"
     case visibleSpaces = "visibleSpaces"
     case allSpaces = "allSpaces"
@@ -19,16 +19,16 @@ enum WindowVisibilityScope: String, CaseIterable {
     var subtitle: String {
         switch self {
         case .currentSpaceOnly:
-            return "Limit the list to the screen and space you are actively using."
+            return "Limit the list to the managed space you are actively using when exact workspace information is available."
         case .visibleSpaces:
             return "Show windows that are currently visible across your displays."
         case .allSpaces:
-            return "Include hidden, minimized, and off-space windows when available."
+            return "Include hidden and off-space windows when macOS exposes them."
         }
     }
 }
 
-enum SwitcherDisplayPreference: String, CaseIterable {
+enum SwitcherDisplayPreference: String, CaseIterable, Codable, Sendable {
     case activeWindowDisplay = "activeWindowDisplay"
     case cursorDisplay = "cursorDisplay"
     case allDisplays = "allDisplays"
@@ -56,7 +56,7 @@ enum SwitcherDisplayPreference: String, CaseIterable {
     }
 }
 
-enum AlternateTriggerMode: String, CaseIterable {
+enum AlternateTriggerMode: String, CaseIterable, Codable, Sendable {
     case disabled = "disabled"
     case rightCommandTap = "rightCommandTap"
     case rightCommandDoubleTap = "rightCommandDoubleTap"
@@ -132,7 +132,7 @@ enum AlternateTriggerMode: String, CaseIterable {
     }
 }
 
-enum SwitcherQuickAction: String, CaseIterable {
+enum SwitcherQuickAction: String, CaseIterable, Codable, Sendable {
     case hideApp = "hideApp"
     case minimizeWindow = "minimizeWindow"
     case closeWindow = "closeWindow"
@@ -240,7 +240,7 @@ enum SwitcherQuickAction: String, CaseIterable {
     }
 }
 
-enum SwitcherQuickActionExecution: Equatable {
+enum SwitcherQuickActionExecution: Equatable, Sendable {
     case hideApp
     case minimizeWindow
     case closeWindow
