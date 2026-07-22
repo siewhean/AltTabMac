@@ -6,8 +6,38 @@ EVIDENCE_DIR="${CMDTAB_PHASE1_EVIDENCE_DIR:-${ROOT_DIR}/dist/phase1-evidence}"
 TEMP_ROOT="$(mktemp -d /tmp/cmdtab-phase1-qa.XXXXXX)"
 APP_PATH="${ROOT_DIR}/dist/CmdTab.app"
 LOG_PATH="${EVIDENCE_DIR}/commands.log"
+RESULT_PATH="${EVIDENCE_DIR}/result.txt"
+MANUAL_PATH="${EVIDENCE_DIR}/manual-checks.md"
+
+write_manual_checks() {
+  local automated_status="$1"
+  cat > "${MANUAL_PATH}" <<CHECKLIST
+# Phase 1 manual checks
+
+**Automated QA status:** ${automated_status}
+
+Complete these observations only after the automated status is PASS:
+
+- [ ] Launch \`dist/CmdTab.app\` successfully.
+- [ ] CmdTab appears in the menu bar.
+- [ ] CmdTab does not appear in the Dock.
+- [ ] CmdTab does not appear in the native Command-Tab switcher.
+- [ ] Settings opens from the menu-bar item.
+- [ ] An existing beta profile retains supported preferences, install ID, trial/license state, and search memory.
+- [ ] Accessibility re-grant guidance is clear if macOS treats the new bundle identifier as a new app.
+- [ ] Screen Recording re-grant guidance is clear if macOS treats the new bundle identifier as a new app.
+- [ ] The app can be quit deliberately from its own UI.
+CHECKLIST
+}
 
 cleanup() {
+  local status=$?
+  if [[ "${status}" == "0" ]]; then
+    printf 'PASS\n' > "${RESULT_PATH}"
+  else
+    printf 'FAIL (exit %s)\n' "${status}" > "${RESULT_PATH}"
+    write_manual_checks "FAIL — automated checks stopped before completion"
+  fi
   rm -rf "${TEMP_ROOT}"
 }
 trap cleanup EXIT
@@ -26,6 +56,7 @@ done
 
 rm -rf "${EVIDENCE_DIR}"
 mkdir -p "${EVIDENCE_DIR}"
+write_manual_checks "PENDING"
 
 exec > >(tee "${LOG_PATH}") 2>&1
 
@@ -78,24 +109,9 @@ cp "${ROOT_DIR}/dist/CmdTab.sha256" "${EVIDENCE_DIR}/checksums.txt"
 git -C "${ROOT_DIR}" rev-parse HEAD > "${EVIDENCE_DIR}/commit.txt"
 sw_vers > "${EVIDENCE_DIR}/macos.txt"
 swift --version > "${EVIDENCE_DIR}/swift-version.txt"
-
-cat > "${EVIDENCE_DIR}/manual-checks.md" <<'CHECKLIST'
-# Phase 1 manual checks
-
-The automated local checks passed. The following observations still require a person:
-
-- [ ] Launch `dist/CmdTab.app` successfully.
-- [ ] CmdTab appears in the menu bar.
-- [ ] CmdTab does not appear in the Dock.
-- [ ] CmdTab does not appear in the native Command-Tab switcher.
-- [ ] Settings opens from the menu-bar item.
-- [ ] An existing beta profile retains supported preferences, install ID, trial/license state, and search memory.
-- [ ] Accessibility re-grant guidance is clear if macOS treats the new bundle identifier as a new app.
-- [ ] Screen Recording re-grant guidance is clear if macOS treats the new bundle identifier as a new app.
-- [ ] The app can be quit deliberately from its own UI.
-CHECKLIST
+write_manual_checks "PASS"
 
 echo
 echo "Phase 1 automated local QA passed."
 echo "Evidence: ${EVIDENCE_DIR}"
-echo "Manual observations remain in ${EVIDENCE_DIR}/manual-checks.md"
+echo "Manual observations remain in ${MANUAL_PATH}"
