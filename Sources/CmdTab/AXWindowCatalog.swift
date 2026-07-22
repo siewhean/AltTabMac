@@ -15,6 +15,7 @@ struct AXWindowMetadata {
     let frame: CGRect?
     let isMinimized: Bool
     let isFullscreen: Bool
+    let isOnScreen: Bool
     let workspace: WindowWorkspaceSnapshot
 
     var isStandardSwitcherWindow: Bool {
@@ -156,6 +157,7 @@ final class AXWindowCatalog {
                     frame: frame,
                     isMinimized: minimized,
                     isFullscreen: fullscreen,
+                    isOnScreen: isOnScreen,
                     workspace: workspace
                 )
             }
