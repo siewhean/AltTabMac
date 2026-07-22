@@ -35,7 +35,14 @@ struct SwitcherItem: Identifiable {
     let historyIdentity: SwitcherHistoryIdentity
     let kind: SwitcherItemKind
     let dedupeKey: String
+    let isMinimized: Bool
+    let isFullscreen: Bool
+    let workspaceSnapshot: WindowWorkspaceSnapshot?
+    let historyDescriptor: LiveWindowHistoryDescriptor?
     let activate: () -> Void
+
+    var ownerPID: pid_t? { historyIdentity.ownerPID }
+    var windowID: CGWindowID? { historyIdentity.windowID }
 
     init(
         title: String,
@@ -50,6 +57,10 @@ struct SwitcherItem: Identifiable {
         sourceAppIdentifier: String? = nil,
         kind: SwitcherItemKind = .appWindow,
         dedupeKey: String? = nil,
+        isMinimized: Bool = false,
+        isFullscreen: Bool = false,
+        workspaceSnapshot: WindowWorkspaceSnapshot? = nil,
+        historyDescriptor: LiveWindowHistoryDescriptor? = nil,
         activate: @escaping () -> Void
     ) {
         let resolvedDedupeKey = dedupeKey ?? historyIdentity.stableKey
@@ -66,6 +77,10 @@ struct SwitcherItem: Identifiable {
         self.historyIdentity = historyIdentity
         self.kind = kind
         self.dedupeKey = resolvedDedupeKey
+        self.isMinimized = isMinimized
+        self.isFullscreen = isFullscreen
+        self.workspaceSnapshot = workspaceSnapshot
+        self.historyDescriptor = historyDescriptor
         self.activate = activate
     }
 }
