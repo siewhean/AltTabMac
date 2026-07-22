@@ -1,0 +1,209 @@
+import Foundation
+import XCTest
+@testable import CmdTab
+
+final class DurableSwitcherHistoryTests: XCTestCase {
+    func testPrivacyHashNeverContainsRawTitleOrURL() throws {
+        let descriptor = LiveWindowHistoryDescriptor(
+            identity: .appWindow(pid: 100, windowID: 7),
+            bundleIdentifier: "com.example.Editor",
+            title: "Secret Customer Roadmap",
+            documentURL: URL(fileURLWithPath: "/Users/test/Secret/Customer-Roadmap.txt"),
+            role: "AXWindow",
+            subrole: "AXStandardWindow",
+            bounds: CGRect(x: 10, y: 20, width: 900, height: 700),
+            displayIdentifier: "display-1",
+            workspaceKey: "workspace:display-1:1:user"
+        )
+        let record = DurableWindowHistoryRecord(
+            descriptor: descriptor,
+            activatedAt: Date(timeIntervalSince1970: 100)
+        )
+        let data = try JSONEncoder().encode(DurableWindowHistoryFile(records: [record]))
+        let text = String(decoding: data, as: UTF8.self)
+
+        XCTAssertFalse(text.contains("Secret Customer Roadmap"))
+        XCTAssertFalse(text.contains("Customer-Roadmap.txt"))
+        XCTAssertNotNil(record.titleHash)
+        XCTAssertNotNil(record.documentURLHash)
+        XCTAssertEqual(record.titleHash?.count, 64)
+    }
+
+    func testUniqueDocumentURLRestoresExactIdentity() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let oldDescriptor = descriptor(
+            identity: .appWindow(pid: 10, windowID: 1),
+            title: "Document",
+            url: URL(fileURLWithPath: "/tmp/document.txt"),
+            x: 0
+        )
+        let record = DurableWindowHistoryRecord(
+            descriptor: oldDescriptor,
+            activatedAt: now.addingTimeInterval(-60)
+        )
+        let newIdentity = SwitcherHistoryIdentity.appWindow(pid: 22, windowID: 99)
+        let live = descriptor(
+            identity: newIdentity,
+            title: "Renamed by App",
+            url: URL(fileURLWithPath: "/tmp/document.txt"),
+            x: 400
+        )
+
+        let matches = DurableHistoryMatcher.matches(
+            records: [record],
+            liveDescriptors: [live],
+            now: now,
+            expirationInterval: 10_000
+        )
+
+        XCTAssertEqual(matches.map(\.identity), [newIdentity])
+        XCTAssertGreaterThan(matches[0].confidence, 150)
+    }
+
+    func testDuplicateTitleIsRejectedAsAmbiguous() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let record = DurableWindowHistoryRecord(
+            descriptor: descriptor(
+                identity: .appWindow(pid: 10, windowID: 1),
+                title: "Untitled",
+                url: nil,
+                x: 0
+            ),
+            activatedAt: now.addingTimeInterval(-10)
+        )
+        let live = [
+            descriptor(
+                identity: .appWindow(pid: 20, windowID: 2),
+                title: "Untitled",
+                url: nil,
+                x: 0
+            ),
+            descriptor(
+                identity: .appWindow(pid: 20, windowID: 3),
+                title: "Untitled",
+                url: nil,
+                x: 0
+            ),
+        ]
+
+        XCTAssertTrue(
+            DurableHistoryMatcher.matches(
+                records: [record],
+                liveDescriptors: live,
+                now: now,
+                expirationInterval: 10_000
+            ).isEmpty
+        )
+    }
+
+    func testDifferentBundleNeverInheritsRank() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let record = DurableWindowHistoryRecord(
+            descriptor: descriptor(
+                identity: .appWindow(pid: 10, windowID: 1),
+                bundle: "com.example.first",
+                title: "Shared Title",
+                url: nil,
+                x: 0
+            ),
+            activatedAt: now
+        )
+        let live = descriptor(
+            identity: .appWindow(pid: 10, windowID: 1),
+            bundle: "com.example.second",
+            title: "Shared Title",
+            url: nil,
+            x: 0
+        )
+
+        XCTAssertTrue(
+            DurableHistoryMatcher.matches(
+                records: [record],
+                liveDescriptors: [live],
+                now: now,
+                expirationInterval: 10_000
+            ).isEmpty
+        )
+    }
+
+    func testStaleRecordExpires() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let record = DurableWindowHistoryRecord(
+            descriptor: descriptor(
+                identity: .appWindow(pid: 10, windowID: 1),
+                title: "Old",
+                url: nil,
+                x: 0
+            ),
+            activatedAt: Date(timeIntervalSince1970: 1)
+        )
+
+        XCTAssertTrue(
+            DurableHistoryMatcher.matches(
+                records: [record],
+                liveDescriptors: [
+                    descriptor(
+                        identity: .appWindow(pid: 20, windowID: 2),
+                        title: "Old",
+                        url: nil,
+                        x: 0
+                    )
+                ],
+                now: now,
+                expirationInterval: 100
+            ).isEmpty
+        )
+    }
+
+    func testStoreWritesVersionedFileWithOwnerOnlyPermissions() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DurableHistoryTests-\(UUID().uuidString)", isDirectory: true)
+        let file = directory.appendingPathComponent("history.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let store = DurableSwitcherHistoryStore(
+            fileURL: file,
+            maximumRecords: 10,
+            expirationInterval: 10_000
+        )
+        store.noteActivation(
+            descriptor: descriptor(
+                identity: .appWindow(pid: 11, windowID: 12),
+                title: "Private Title",
+                url: nil,
+                x: 24
+            ),
+            now: Date(timeIntervalSince1970: 100)
+        )
+        store.waitForPendingWrites()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
+        let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        let data = try Data(contentsOf: file)
+        let decoded = try JSONDecoder().decode(DurableWindowHistoryFile.self, from: data)
+        XCTAssertEqual(decoded.schemaVersion, DurableWindowHistoryFile.currentSchemaVersion)
+        XCTAssertEqual(decoded.records.count, 1)
+        XCTAssertFalse(String(decoding: data, as: UTF8.self).contains("Private Title"))
+    }
+
+    private func descriptor(
+        identity: SwitcherHistoryIdentity,
+        bundle: String = "com.example.Editor",
+        title: String,
+        url: URL?,
+        x: CGFloat
+    ) -> LiveWindowHistoryDescriptor {
+        LiveWindowHistoryDescriptor(
+            identity: identity,
+            bundleIdentifier: bundle,
+            title: title,
+            documentURL: url,
+            role: "AXWindow",
+            subrole: "AXStandardWindow",
+            bounds: CGRect(x: x, y: 0, width: 800, height: 600),
+            displayIdentifier: "display-1",
+            workspaceKey: "workspace:display-1:1:user"
+        )
+    }
+}
