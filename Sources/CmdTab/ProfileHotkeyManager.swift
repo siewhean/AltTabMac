@@ -13,6 +13,8 @@ final class ProfileHotkeyManager {
     private let preferences = SwitcherPreferences.shared
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var installRetryWorkItem: DispatchWorkItem?
+    private let installRetryDelay: TimeInterval = 1.0
 
     private var activeHoldMatch: ShortcutProfileMatch?
     private var swallowedKeyCodes = Set<Int64>()
@@ -28,10 +30,11 @@ final class ProfileHotkeyManager {
     ) {
         self.switcher = switcher
         self.profileStore = profileStore
-        install()
+        installOrScheduleRetry()
     }
 
     deinit {
+        installRetryWorkItem?.cancel()
         uninstallTap()
     }
 
@@ -40,7 +43,31 @@ final class ProfileHotkeyManager {
         swallowedKeyCodes.removeAll()
     }
 
+    private func installOrScheduleRetry() {
+        guard eventTap == nil else { return }
+        guard AXIsProcessTrusted() else {
+            scheduleInstallRetry()
+            return
+        }
+        install()
+        if eventTap == nil {
+            scheduleInstallRetry()
+        }
+    }
+
+    private func scheduleInstallRetry() {
+        guard installRetryWorkItem == nil else { return }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.installRetryWorkItem = nil
+            self.installOrScheduleRetry()
+        }
+        installRetryWorkItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + installRetryDelay, execute: item)
+    }
+
     private func install() {
+        guard eventTap == nil else { return }
         let mask: CGEventMask =
             (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.keyUp.rawValue) |
@@ -61,7 +88,11 @@ final class ProfileHotkeyManager {
             },
             userInfo: pointer
         ) else {
-            print("[CmdTab] ⚠️ Failed to create the profile shortcut event tap. Grant Accessibility permission and relaunch CmdTab.")
+            os_log(
+                .error,
+                log: profileHotkeyLog,
+                "Could not create event tap; Accessibility may be unavailable"
+            )
             return
         }
 
@@ -70,6 +101,9 @@ final class ProfileHotkeyManager {
         CGEvent.tapEnable(tap: tap, enable: true)
         eventTap = tap
         runLoopSource = source
+        installRetryWorkItem?.cancel()
+        installRetryWorkItem = nil
+        os_log(.info, log: profileHotkeyLog, "Profile event tap installed")
     }
 
     private func uninstallTap() {
@@ -112,7 +146,14 @@ final class ProfileHotkeyManager {
             leftOptionDown = false
             rightCommandDown = false
             rightOptionDown = false
-            if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: true) }
+            if let eventTap, AXIsProcessTrusted() {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            } else {
+                dispatchToMain { [weak self] in
+                    self?.uninstallTap()
+                    self?.scheduleInstallRetry()
+                }
+            }
             return nil
 
         case .flagsChanged:
