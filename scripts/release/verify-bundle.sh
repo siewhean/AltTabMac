@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 APP_PATH="${1:-}"
 EXPECTED_SIGNING="${2:-ad-hoc}"
+EXPECTED_DEVELOPER_IDENTITY="${CMDTAB_EXPECTED_DEVELOPER_IDENTITY:-}"
+EXPECTED_TEAM_ID="${CMDTAB_EXPECTED_TEAM_ID:-}"
 
 if [[ -z "${APP_PATH}" ]]; then
   echo "Usage: $0 /path/to/CmdTab.app [ad-hoc|unsigned|developer-id|any]" >&2
@@ -88,8 +90,31 @@ case "${EXPECTED_SIGNING}" in
       echo "Expected a Developer ID Application signature." >&2
       exit 1
     }
+    if [[ -n "${EXPECTED_DEVELOPER_IDENTITY}" ]]; then
+      grep -Fq "Authority=${EXPECTED_DEVELOPER_IDENTITY}" <<<"${SIGN_REPORT}" || {
+        echo "Developer ID authority does not match CMDTAB_EXPECTED_DEVELOPER_IDENTITY." >&2
+        exit 1
+      }
+    fi
     grep -q 'Runtime Version=' <<<"${SIGN_REPORT}" || {
       echo "Developer ID bundle is missing Hardened Runtime metadata." >&2
+      exit 1
+    }
+    grep -q 'Timestamp=' <<<"${SIGN_REPORT}" || {
+      echo "Developer ID bundle is missing a secure timestamp." >&2
+      exit 1
+    }
+    ACTUAL_TEAM_ID="$(sed -n 's/^TeamIdentifier=//p' <<<"${SIGN_REPORT}" | head -n 1)"
+    [[ -n "${ACTUAL_TEAM_ID}" && "${ACTUAL_TEAM_ID}" != "not set" ]] || {
+      echo "Developer ID bundle is missing a TeamIdentifier." >&2
+      exit 1
+    }
+    if [[ -n "${EXPECTED_TEAM_ID}" && "${ACTUAL_TEAM_ID}" != "${EXPECTED_TEAM_ID}" ]]; then
+      echo "Developer ID TeamIdentifier ${ACTUAL_TEAM_ID} does not match ${EXPECTED_TEAM_ID}." >&2
+      exit 1
+    fi
+    grep -q 'Signature=adhoc' <<<"${SIGN_REPORT}" && {
+      echo "Developer ID verification unexpectedly found an ad-hoc signature." >&2
       exit 1
     }
     ;;
@@ -109,3 +134,6 @@ printf '  version: %s (%s)\n' \
   "$(python3 "${CONFIG_TOOL}" get buildNumber)"
 printf '  architectures: %s\n' "${ARCHITECTURES}"
 printf '  signing: %s\n' "${EXPECTED_SIGNING}"
+if [[ "${EXPECTED_SIGNING}" == "developer-id" ]]; then
+  printf '  team-id: %s\n' "${ACTUAL_TEAM_ID}"
+fi
