@@ -2,45 +2,41 @@
 
 ## Open blockers
 
-### 1. GitHub Actions cannot assign hosted runners
+### 1. GitHub Actions hosted-runner execution
 
-On PR #26, Workflow Health, Website Security, and SEO/GEO all failed before their first step. Each job reports `steps: None` and no job log.
+Earlier PR #26 attempts assigned failed conclusions before any first step. Workflow Health, Website Security, and SEO/GEO reported `steps: None` and no logs.
 
-This rules out a source assertion as the immediate cause. The repository cannot treat these statuses as proof that the source failed or passed.
+The current exact head must be tested by reopening PR #26 after the Git tree cleanup, because GitHub API-authored commits do not reliably emit a pull-request synchronize workflow run.
 
-**Required disposition:** confirm account quota/billing, Actions policy, hosted-runner availability, repository permissions, and any spending limit. The Workflow Health job must print runner metadata and complete checkout before the gate is trusted.
+**Required disposition:** the reopened PR must assign Ubuntu and macOS hosted runners, print runner metadata, complete checkout, and execute every required test step.
 
-### 2. Vercel rejected the exact PR head before build
-
-The exact PR head received a Vercel failure status that links to the account build-rate limit. An earlier intermediate preview is READY, but it predates the final manifest checksum enforcement and Phase 0 evidence updates.
-
-**Required disposition:** wait for the build-rate window to clear or adjust the account limit, then require a READY preview whose deployment metadata names the exact accepted head.
-
-### 3. Recursive generated-output cleanup is incomplete
-
-The root `.build/.lock` and `.DS_Store` were removed, but the repository historically tracked a large `.build/` tree. The connector has not yet provided a recursive index-deletion operation for the directory.
-
-**Required disposition:** run `git rm -r --cached .build` from an authenticated checkout or create an equivalent Git tree deletion commit, then verify `git ls-files .build` returns no entries.
-
-### 4. Owner credentials are not available for signing and notarization
+### 2. Owner credentials are not available for signing and notarization
 
 No Developer ID Application identity, App Store Connect API credential, or notarization keychain profile has been supplied to the implementation environment.
 
 **Required disposition:** this is expected until Phase 2. Credentials must be provisioned through protected secrets, never committed.
 
-## Resolved failures during implementation
+## Resolved blockers
+
+### Vercel build-rate limit
+
+The account build-rate window cleared. Vercel accepted the exact Phase 0 candidate head and began a fresh preview build.
+
+### Recursive generated-output cleanup
+
+The entire tracked `.build/` tree was removed through one Git tree deletion commit. The PR comparison now contains only removals for historical `.build/` paths and no added `.build/` entry.
 
 ### Stale manifest after video normalization
 
 The first one-shot normalizer changed the Overview MP4 but did not update the manifest byte count and SHA-256.
 
-**Resolution:** the normalizer now recalculates and writes exact byte count and SHA-256 values, and the verifier compares every poster/video file against the manifest.
+**Resolution:** the normalizer recalculates and writes exact byte count and SHA-256 values, and the verifier compares every poster/video file against the manifest.
 
 ### Source metadata drift
 
-Root social metadata still referenced a PNG and 1280×800 dimensions while the maintained poster was a 1920×1200 WebP.
+Root social metadata referenced a PNG and 1280×800 dimensions while the maintained poster was a 1920×1200 WebP.
 
-**Resolution:** root metadata and `siteConfig.socialImagePath` now use the current WebP and dimensions.
+**Resolution:** root metadata and `siteConfig.socialImagePath` use the current WebP and dimensions.
 
 ### Infinite autoplay without visible controls
 
