@@ -127,14 +127,18 @@ assert.match(showcaseContent, /controlled fixture windows/i, "visible fixture di
 assert.match(showcasePage, /createVideoStructuredData/, "showcase page is missing VideoObject markup");
 assert.match(showcasePage, /headingAs="h1"/, "showcase page is missing its page-level H1");
 assert.match(showcasePage, /breadcrumbs=\{breadcrumbs\}/, "showcase page is missing visible breadcrumbs");
+assert.doesNotMatch(showcasePage, /<dl|<dt|<dd/, "mode media must not render metadata tables");
+assert.doesNotMatch(showcasePage, /Item \{String|Resolution|Silent H\.264 MP4 \+ WebP/, "mode media still contains verbose item metadata");
 assert.match(player, /asset\.video \?/, "showcase player must distinguish video and poster-only assets");
 assert.match(player, /<video/, "showcase player must render native video elements when a clip exists");
 assert.match(player, /<img/, "showcase player must render a poster fallback when a clip does not exist");
 assert.match(player, /poster=\{asset\.poster\}/, "showcase player must use a stable poster URL");
+assert.match(player, /autoPlay=\{priority && !prefersReducedMotion\}/, "priority showcase media must autoplay");
+assert.match(player, /video\.play\(\)/, "non-priority showcase media must autoplay when visible");
 assert.match(player, /muted/, "showcase player must be muted");
 assert.match(player, /playsInline/, "showcase player must play inline");
 assert.match(player, /prefers-reduced-motion/, "showcase player must respect reduced motion");
-assert.match(player, /asset\.sourceLabel/, "showcase player must display per-asset provenance");
+assert.doesNotMatch(player, /togglePlayback|<button|Read the media description|<details/, "showcase media must not expose playback or transcript controls");
 assert.match(structuredData, /videos = assets\.filter/, "VideoObject generation must exclude poster-only entries");
 assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=moderate", "dependency audit must fail on moderate advisories");
 assert.ok(
