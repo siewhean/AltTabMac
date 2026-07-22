@@ -191,6 +191,18 @@ def verify_repository(config: dict[str, Any]) -> None:
         "startup bundle-identity migration",
     )
 
+    build_tool = ROOT / "scripts" / "release" / "build-app.sh"
+    require_literal(
+        build_tool,
+        "BUILD_ARGUMENTS+=( -Xlinker -reproducible )",
+        "deterministic linker mode",
+    )
+    reject_literal(
+        build_tool,
+        "-no_uuid",
+        "release linker mode that removes the Mach-O UUID",
+    )
+
     package_tool = ROOT / "scripts" / "release" / "package-app.sh"
     require_literal(
         package_tool,
