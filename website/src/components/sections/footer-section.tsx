@@ -7,19 +7,12 @@ import { siteConfig } from "@/content/site";
 
 const productLinks = [
   { href: "/features/window-switcher", label: "Window switcher" },
-  { href: "/showcase", label: "Real app showcase" },
-  { href: "/features/classic-grid", label: "Classic Grid" },
-  { href: "/features/command-palette", label: "Command Palette" },
-  { href: "/features/radial-menu", label: "Radial Menu" },
-  { href: "/features/quick-actions", label: "Quick Actions" },
-  { href: "/evidence", label: "Testing and evidence" },
-  { href: "/guides/switch-between-windows-on-mac", label: "Mac window guide" },
-  { href: "/compare/mac-window-switchers", label: "Switcher landscape" },
-  { href: "/compare/cmdtab-vs-alttab", label: "CmdTab vs AltTab" },
-  { href: "/compare/cmdtab-vs-macos-command-tab", label: "CmdTab vs macOS" },
+  { href: "/showcase", label: "Showcase" },
+  { href: "/compare/mac-window-switchers", label: "Compare" },
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },
   { href: "/faq", label: "FAQ" },
+  { href: "/buy", label: "Buy" },
 ] as const;
 
 const companyLinks = [
@@ -30,10 +23,28 @@ const companyLinks = [
   { href: "/security", label: "Security" },
 ] as const;
 
+function FooterLinks({
+  label,
+  links,
+}: {
+  label: string;
+  links: ReadonlyArray<{ href: string; label: string }>;
+}) {
+  return (
+    <nav aria-label={label} className="mt-3 flex flex-col text-sm text-subdued">
+      {links.map((item) => (
+        <Link key={item.href} className="flex min-h-11 items-center hover:text-text" href={item.href}>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 export function FooterSection() {
   return (
-    <footer className="border-t border-white/8 px-5 py-10 sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(180px,0.75fr)_minmax(160px,0.65fr)]">
+    <footer className="border-t border-white/8 px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
+      <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(180px,0.75fr)_minmax(160px,0.65fr)] lg:gap-10">
         <MotionReveal className="space-y-4" direction="left">
           <div className="flex items-center gap-3">
             <Image
@@ -45,40 +56,47 @@ export function FooterSection() {
             />
             <div>
               <p className="text-lg font-medium tracking-[-0.03em] text-text">CmdTab</p>
-              <p className="text-sm text-subdued">Standalone macOS window-switcher app.</p>
+              <p className="text-sm text-subdued">Switch between individual Mac windows.</p>
             </div>
           </div>
-          <p className="max-w-xl text-sm leading-7 text-subdued">
-            CmdTab is separate from Apple’s built-in Command-Tab shortcut. It shows eligible Mac windows as individual recent-use targets with previews, search, quick actions, and configurable Space and display scope.
+          <p className="max-w-xl text-sm leading-6 text-subdued">
+            Previews, search, quick actions, and exact-window recency in one native macOS switcher.
           </p>
-          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-            <Button href="/trial">{siteConfig.ctas.primary}</Button>
-            <Button href="/showcase" variant="secondary">
-              Watch the app
+          <div className="flex w-full flex-col gap-3 pt-1 sm:w-auto sm:flex-row">
+            <Button href="/trial" className="w-full sm:w-auto">
+              {siteConfig.ctas.primary}
+            </Button>
+            <Button href="/showcase" variant="secondary" className="w-full sm:w-auto">
+              Watch CmdTab
             </Button>
           </div>
         </MotionReveal>
 
-        <MotionReveal direction="up" delay={80}>
+        <div className="grid gap-2 lg:hidden">
+          <details className="rounded-[18px] border border-white/8 bg-white/[0.025] px-4">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm font-medium text-text [&::-webkit-details-marker]:hidden">
+              Product
+              <span aria-hidden="true" className="text-cyan">+</span>
+            </summary>
+            <FooterLinks label="Product information" links={productLinks} />
+          </details>
+          <details className="rounded-[18px] border border-white/8 bg-white/[0.025] px-4">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between text-sm font-medium text-text [&::-webkit-details-marker]:hidden">
+              Company and support
+              <span aria-hidden="true" className="text-cyan">+</span>
+            </summary>
+            <FooterLinks label="Company and support" links={companyLinks} />
+          </details>
+        </div>
+
+        <MotionReveal direction="up" delay={80} className="hidden lg:block">
           <p className="type-eyebrow text-cyan">Product</p>
-          <nav aria-label="Product information" className="mt-4 flex flex-col gap-3 text-sm text-subdued">
-            {productLinks.map((item) => (
-              <Link key={item.href} className="hover:text-text" href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <FooterLinks label="Product information" links={productLinks} />
         </MotionReveal>
 
-        <MotionReveal direction="right" delay={120}>
+        <MotionReveal direction="right" delay={120} className="hidden lg:block">
           <p className="type-eyebrow text-cyan">Company and support</p>
-          <nav aria-label="Company and support" className="mt-4 flex flex-col gap-3 text-sm text-subdued">
-            {companyLinks.map((item) => (
-              <Link key={item.href} className="hover:text-text" href={item.href}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <FooterLinks label="Company and support" links={companyLinks} />
         </MotionReveal>
       </div>
     </footer>

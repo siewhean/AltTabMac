@@ -28,7 +28,7 @@ const variants = {
 } as const;
 
 const baseClassName =
-  "inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-3 text-sm font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-full px-6 py-3 text-[0.9375rem] font-medium tracking-[-0.01em] transition-[transform,background-color,border-color,color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-ink active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60";
 
 export function Button(props: LinkButtonProps): ReactElement;
 export function Button(props: NativeButtonProps): ReactElement;

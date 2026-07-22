@@ -124,13 +124,18 @@ assert.match(structuredData, /commerce\.standardCheckoutUrl/, "standard offer st
 assert.match(structuredData, /offers\.length > 0/, "empty or unavailable offers must not be emitted as InStock");
 
 const homePage = read("src/app/page.tsx");
-assert.match(homePage, /ProductFactsSection/, "homepage must publish factual product data");
-assert.match(homePage, /DiscoveryResourcesSection/, "homepage must link authoritative discovery resources");
-assert.match(homePage, /FaqSection/, "homepage must publish a focused FAQ entry point");
-const discoveryResources = read("src/components/sections/discovery-resources-section.tsx");
-assert.match(discoveryResources, /\/evidence/, "homepage resources must link the evidence ledger");
-assert.match(discoveryResources, /\/compare\/mac-window-switchers/, "homepage resources must link the market landscape");
-assert.match(discoveryResources, /\/compare\/cmdtab-vs-alttab/, "homepage resources must link the focused AltTab comparison");
+for (const requiredSection of ["HeroSection", "StylesSection", "FeatureBandsSection", "FooterSection"]) {
+  assert.match(homePage, new RegExp(requiredSection), `homepage is missing ${requiredSection}`);
+}
+assert.doesNotMatch(
+  homePage,
+  /ProductFactsSection|DiscoveryResourcesSection|FaqSection|WalkthroughSection|RealShowcaseSection/,
+  "homepage must keep long-form SEO and support material on its dedicated routes",
+);
+const mobileNavigation = read("src/components/ui/mobile-navigation.tsx");
+for (const discoveryPath of ["/evidence", "/compare/mac-window-switchers", "/faq"]) {
+  assert.ok(mobileNavigation.includes(discoveryPath), `mobile navigation must keep ${discoveryPath} easy to reach`);
+}
 const stylesSection = read("src/components/sections/styles-section.tsx");
 for (const featurePath of ["/features/classic-grid", "/features/command-palette", "/features/radial-menu"]) {
   assert.ok(stylesSection.includes(featurePath), `homepage mode cards must link ${featurePath}`);

@@ -5,11 +5,13 @@ export function ScreenshotFrame({
   className = "",
   caption,
   priority = false,
+  showCaption = true,
 }: {
   assetId: keyof typeof screenshotAssets;
   className?: string;
   caption?: string;
   priority?: boolean;
+  showCaption?: boolean;
 }) {
   const asset = screenshotAssets[assetId];
 
@@ -26,11 +28,11 @@ export function ScreenshotFrame({
           className="h-auto w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.005]"
         />
       </div>
-      {(caption || asset.caption) && (
+      {showCaption && (caption || asset.caption) ? (
         <figcaption className="mt-3 max-w-2xl text-sm leading-6 text-subdued">
           {caption ?? asset.caption}
         </figcaption>
-      )}
+      ) : null}
     </figure>
   );
 }

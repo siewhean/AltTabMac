@@ -27,19 +27,15 @@ export function SectionShell({
   const Heading = headingAs;
 
   return (
-    <section id={id} className={`relative px-5 py-20 sm:px-8 lg:px-10 ${className}`}>
+    <section id={id} className={`relative px-5 py-14 sm:px-8 sm:py-16 lg:px-10 lg:py-20 ${className}`}>
       <div className="mx-auto max-w-[1200px]">
         {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
         {(eyebrow || title || description) && (
-          <MotionReveal className="mb-10 max-w-3xl" direction="up">
-            {eyebrow ? <p className="type-eyebrow mb-4 text-cyan">{eyebrow}</p> : null}
-            {title ? (
-              <Heading className="type-section-title max-w-4xl text-text">
-                {title}
-              </Heading>
-            ) : null}
+          <MotionReveal className="mb-8 max-w-3xl sm:mb-10" direction="up">
+            {eyebrow ? <p className="type-eyebrow mb-3 text-cyan sm:mb-4">{eyebrow}</p> : null}
+            {title ? <Heading className="type-section-title max-w-4xl text-text">{title}</Heading> : null}
             {description ? (
-              <p className="type-body mt-4 max-w-2xl text-pretty text-muted sm:text-[1.0625rem]">
+              <p className="type-body mt-3 max-w-2xl text-pretty text-muted sm:mt-4 sm:text-[1.0625rem]">
                 {description}
               </p>
             ) : null}

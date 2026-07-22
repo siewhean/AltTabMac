@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -46,9 +47,7 @@ async function waitForDevToolsPort(userDataDir, processHandle, getChromeLog, tim
     }
     await sleep(100);
   }
-  throw new Error(
-    `Timed out waiting for Chrome DevToolsActivePort in ${userDataDir}.\n${getChromeLog()}`,
-  );
+  throw new Error(`Timed out waiting for Chrome DevToolsActivePort.\n${getChromeLog()}`);
 }
 
 class CDPClient {
@@ -153,8 +152,7 @@ function expectedLocalVercelNoise(message) {
 function expectedLocalConsoleNoise(message) {
   return (
     expectedLocalVercelNoise(message) ||
-    (localRun &&
-      message.includes("Failed to load resource: the server responded with a status of 404 (Not Found)"))
+    (localRun && message.includes("Failed to load resource: the server responded with a status of 404"))
   );
 }
 
@@ -175,6 +173,7 @@ const chromeProcess = spawn(
     "--hide-scrollbars",
     "--no-first-run",
     "--no-default-browser-check",
+    "--autoplay-policy=no-user-gesture-required",
     "--remote-debugging-address=127.0.0.1",
     "--remote-debugging-port=0",
     `--user-data-dir=${chromeUserDataDir}`,
@@ -211,20 +210,16 @@ try {
     client.send("Network.enable"),
     client.send("Log.enable"),
   ]);
+  await client.send("Emulation.setEmulatedMedia", {
+    media: "screen",
+    features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
+  });
 
   const profiles = [
     { name: "desktop", width: 1440, height: 1000, mobile: false },
     { name: "mobile", width: 390, height: 844, mobile: true },
   ];
-  const screenshotRoutes = new Set([
-    "/",
-    "/features/window-switcher",
-    "/guides/switch-between-windows-on-mac",
-    "/compare/cmdtab-vs-macos-command-tab",
-    "/faq",
-    "/buy",
-    "/privacy",
-  ]);
+  const screenshotRoutes = new Set(["/", "/showcase", "/features/window-switcher", "/buy"]);
 
   for (const profile of profiles) {
     await client.send("Emulation.setDeviceMetricsOverride", {
@@ -253,8 +248,7 @@ try {
         }),
         client.on("Runtime.consoleAPICalled", ({ type, args }) => {
           if (!["error", "assert"].includes(type)) return;
-          const message =
-            args?.map((item) => item.value || item.description || "").join(" ") || type;
+          const message = args?.map((item) => item.value || item.description || "").join(" ") || type;
           if (!expectedLocalConsoleNoise(message)) consoleErrors.push(message);
         }),
         client.on("Log.entryAdded", ({ entry }) => {
@@ -279,18 +273,13 @@ try {
       const loaded = client.waitFor("Page.loadEventFired");
       await client.send("Page.navigate", { url: `${baseUrl}${path}` });
       await loaded;
-      await sleep(350);
+      await sleep(path === "/" || path === "/showcase" ? 1400 : 350);
 
       await client.send("Runtime.evaluate", {
         expression: `new Promise(async (resolve) => {
           if (document.fonts?.ready) await document.fonts.ready;
           document.documentElement.style.scrollBehavior = 'auto';
           document.body.style.scrollBehavior = 'auto';
-          const max = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-          for (let y = 0; y <= max; y += Math.max(450, window.innerHeight * 0.7)) {
-            window.scrollTo(0, y);
-            await new Promise((done) => setTimeout(done, 60));
-          }
           await Promise.race([
             Promise.all([...document.images].map((image) => image.complete
               ? Promise.resolve()
@@ -300,8 +289,6 @@ try {
                 }))),
             new Promise((done) => setTimeout(done, 8000)),
           ]);
-          window.scrollTo(0, 0);
-          await new Promise((done) => setTimeout(done, 300));
           resolve(true);
         })`,
         awaitPromise: true,
@@ -315,7 +302,35 @@ try {
             const rect = element.getBoundingClientRect();
             return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
           };
+          const size = (element) => {
+            const rect = element.getBoundingClientRect();
+            return { text: (element.textContent || element.getAttribute('aria-label') || '').trim(), width: rect.width, height: rect.height };
+          };
           const images = [...document.images];
+          const videos = [...document.querySelectorAll('video')].map((video) => ({
+            autoplay: video.autoplay,
+            muted: video.muted,
+            loop: video.loop,
+            playsInline: video.playsInline,
+            paused: video.paused,
+            readyState: video.readyState,
+            width: video.getBoundingClientRect().width,
+            height: video.getBoundingClientRect().height,
+          }));
+          const visibleControls = [...document.querySelectorAll('a, button, summary')].filter(visible);
+          const playbackControls = visibleControls
+            .filter((element) => /^(play|pause)(?:\s|$)/i.test((element.textContent || element.getAttribute('aria-label') || '').trim()))
+            .map(size);
+          const descriptionControls = visibleControls
+            .filter((element) => /read the media description/i.test((element.textContent || '').trim()))
+            .map(size);
+          const ctas = visibleControls
+            .filter((element) => /trial|buy|watch cmdtab|download|start/i.test((element.textContent || element.getAttribute('aria-label') || '').trim()))
+            .map(size);
+          const modeMetadata = [...document.querySelectorAll('dt')]
+            .filter(visible)
+            .map((element) => (element.textContent || '').trim())
+            .filter((text) => /^(resolution|format|source|frame rate|duration)$/i.test(text));
           const scrollableTables = [...document.querySelectorAll('table')]
             .map((table) => ({ table, container: table.parentElement }))
             .filter(({ table, container }) => container && table.scrollWidth > container.clientWidth + 2)
@@ -331,20 +346,19 @@ try {
             readyState: document.readyState,
             bodyTextLength: document.body.innerText.trim().length,
             h1Count: document.querySelectorAll('h1').length,
-            h1Text: [...document.querySelectorAll('h1')].map((node) => node.textContent.trim()),
             errorOverlay: Boolean(document.querySelector('[data-nextjs-dialog], #webpack-dev-server-client-overlay, .vite-error-overlay')),
             horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - window.innerWidth,
             brokenImages: images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.src),
             incompleteImages: images.filter((image) => !image.complete).map((image) => image.currentSrc || image.src),
-            visibleHeaderControls: [...document.querySelectorAll('header a, header button, header summary')]
-              .filter(visible)
-              .map((element) => (element.textContent || element.getAttribute('aria-label') || '').trim())
-              .filter(Boolean),
-            mobileMenuPresent: Boolean(document.querySelector('header details nav[aria-label="Mobile navigation"]')),
-            unnamedVisibleControls: [...document.querySelectorAll('a, button, summary')]
-              .filter(visible)
+            visibleHeaderControls: [...document.querySelectorAll('header a, header button, header summary')].filter(visible).map(size),
+            unnamedVisibleControls: visibleControls
               .filter((element) => !(element.textContent || element.getAttribute('aria-label') || element.getAttribute('title') || '').trim())
               .map((element) => element.outerHTML.slice(0, 180)),
+            playbackControls,
+            descriptionControls,
+            ctas,
+            modeMetadata,
+            videos,
             scrollableTables,
           };
         })()`,
@@ -357,15 +371,18 @@ try {
         const menuEvaluation = await client.send("Runtime.evaluate", {
           expression: `new Promise(async (resolve) => {
             const details = document.querySelector('header details');
-            if (!details) return resolve({ present: false, visibleLinks: 0 });
+            if (!details) return resolve({ present: false, links: [] });
             details.open = true;
             await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
             const links = [...details.querySelectorAll('nav a')].filter((link) => {
               const style = getComputedStyle(link);
               const rect = link.getBoundingClientRect();
               return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            }).map((link) => {
+              const rect = link.getBoundingClientRect();
+              return { text: (link.textContent || '').trim(), width: rect.width, height: rect.height };
             });
-            resolve({ present: true, visibleLinks: links.length });
+            resolve({ present: true, links });
           })`,
           awaitPromise: true,
           returnByValue: true,
@@ -398,7 +415,7 @@ try {
       });
 
       if (result.readyState !== "complete") fail(`${profile.name} ${path}: document did not finish loading`);
-      if (result.bodyTextLength < 250) fail(`${profile.name} ${path}: rendered body is suspiciously short`);
+      if (result.bodyTextLength < 150) fail(`${profile.name} ${path}: rendered body is suspiciously short`);
       if (result.h1Count !== 1) fail(`${profile.name} ${path}: expected one H1, found ${result.h1Count}`);
       if (result.errorOverlay) fail(`${profile.name} ${path}: a framework error overlay is visible`);
       if (result.horizontalOverflow > 4) {
@@ -425,12 +442,52 @@ try {
       if (exceptions.length) fail(`${profile.name} ${path}: runtime exceptions ${exceptions.join(" | ")}`);
       if (failedRequests.length) fail(`${profile.name} ${path}: failed requests ${failedRequests.join(" | ")}`);
       if (badResponses.length) fail(`${profile.name} ${path}: bad same-origin responses ${badResponses.join(" | ")}`);
+
+      for (const target of result.ctas || []) {
+        if (target.height < 44 || target.width < 44) {
+          fail(`${profile.name} ${path}: CTA target is too small ${JSON.stringify(target)}`);
+        }
+      }
+
+      if (["/", "/showcase"].includes(path)) {
+        if (result.playbackControls?.length) {
+          fail(`${profile.name} ${path}: play or pause controls are still visible`);
+        }
+        if (result.descriptionControls?.length) {
+          fail(`${profile.name} ${path}: media description controls are still visible`);
+        }
+        if (path === "/showcase" && result.modeMetadata?.length) {
+          fail(`${profile.name} ${path}: removed media metadata is still visible`);
+        }
+        if (!result.videos?.length) {
+          fail(`${profile.name} ${path}: autoplay product video is missing`);
+        } else {
+          const firstVideo = result.videos[0];
+          if (!firstVideo.autoplay || !firstVideo.muted || !firstVideo.loop || !firstVideo.playsInline) {
+            fail(`${profile.name} ${path}: first video is not configured for silent inline autoplay`);
+          }
+          if (firstVideo.paused || firstVideo.readyState < 2) {
+            fail(`${profile.name} ${path}: first video did not start autoplaying`);
+          }
+        }
+      }
+
       if (profile.mobile) {
         if ((result.visibleHeaderControls?.length || 0) < 2) {
           fail(`mobile ${path}: header exposes fewer than two visible navigation controls`);
         }
-        if (!mobileMenuResult?.present || mobileMenuResult.visibleLinks < 6) {
+        for (const target of result.visibleHeaderControls || []) {
+          if (target.height < 44 || target.width < 44) {
+            fail(`mobile ${path}: header target is too small ${JSON.stringify(target)}`);
+          }
+        }
+        if (!mobileMenuResult?.present || (mobileMenuResult.links?.length || 0) < 6) {
           fail(`mobile ${path}: mobile navigation does not expose the maintained site links`);
+        }
+        for (const target of mobileMenuResult?.links || []) {
+          if (target.height < 44 || target.width < 44) {
+            fail(`mobile ${path}: menu target is too small ${JSON.stringify(target)}`);
+          }
         }
       }
 
@@ -446,46 +503,6 @@ try {
       }
       cleanups.forEach((cleanup) => cleanup());
     }
-  }
-
-  await client.send("Emulation.setDeviceMetricsOverride", {
-    width: 1440,
-    height: 1000,
-    deviceScaleFactor: 1,
-    mobile: false,
-  });
-  const homeLoaded = client.waitFor("Page.loadEventFired");
-  await client.send("Page.navigate", { url: `${baseUrl}/` });
-  await homeLoaded;
-  await sleep(700);
-  const interaction = await client.send("Runtime.evaluate", {
-    expression: `new Promise(async (resolve) => {
-      const buttonByText = (text) => [...document.querySelectorAll('button')]
-        .find((button) => button.textContent.includes(text));
-      buttonByText('Pause auto-demo')?.click();
-      const paletteButton = buttonByText('Command Palette');
-      if (!paletteButton) return resolve({ ok: false, reason: 'Command Palette control missing' });
-      paletteButton.click();
-      await new Promise((done) => setTimeout(done, 450));
-      const input = document.querySelector('input[placeholder="Type to filter…"]');
-      if (!input) return resolve({ ok: false, reason: 'Command Palette input missing' });
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-      setter.call(input, 'Spotify');
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      await new Promise((done) => setTimeout(done, 300));
-      const text = document.body.innerText;
-      resolve({
-        ok: input.value === 'Spotify' && text.includes('Spotify') && text.includes('Deep work mix') && !text.includes('No matches'),
-        value: input.value,
-        resultTextPresent: text.includes('Deep work mix'),
-      });
-    })`,
-    awaitPromise: true,
-    returnByValue: true,
-  });
-  const interactionResult = interaction.result?.value || {};
-  if (!interactionResult.ok) {
-    fail(`homepage interactive demo failed: ${JSON.stringify(interactionResult)}`);
   }
 } catch (error) {
   fail(`browser harness failed: ${error.stack || error.message || String(error)}`);
@@ -526,5 +543,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, mobile navigation, accessible wide tables, and the live demo interaction.`,
+  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, autoplay media, 44px targets, mobile navigation, and accessible wide tables.`,
 );

@@ -11,7 +11,7 @@ async function fetchPath(path, init = {}) {
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
     headers: {
-      "User-Agent": "CmdTabShowcaseVerifier/2.0",
+      "User-Agent": "CmdTabShowcaseVerifier/3.0",
       ...(init.headers || {}),
     },
     ...init,
@@ -21,14 +21,17 @@ async function fetchPath(path, init = {}) {
 const pageResponse = await fetchPath("/showcase");
 assert.equal(pageResponse.status, 200, `/showcase returned HTTP ${pageResponse.status}`);
 const page = await pageResponse.text();
-assert.match(page, /See CmdTab move, search, and reflow/i, "showcase H1 is missing");
-assert.match(page, /authentic production Radial Menu render/i, "authentic Radial provenance is missing");
-assert.match(page, /deterministic product composites/i, "composite provenance is missing");
-assert.match(page, /not AI-generated/i, "showcase AI-generation disclosure is missing");
+assert.match(page, /CmdTab in motion/i, "showcase H1 is missing");
+assert.match(page, /without recording a private desktop/i, "privacy-safe showcase boundary is missing");
 assert.match(page, /<video/i, "rendered showcase page is missing video elements");
 assert.match(page, /<img/i, "rendered showcase page is missing poster-only fallback images");
 assert.match(page, /<video[^>]*\splaysinline(?:="")?/i, "rendered showcase videos must play inline");
 assert.match(page, /<video[^>]*\smuted(?:="")?/i, "rendered showcase videos must be muted");
+assert.match(page, /<video[^>]*\sautoplay(?:="")?/i, "overview video must autoplay");
+assert.doesNotMatch(page, /aria-label="(?:Play|Pause) /i, "showcase must not render play or pause buttons");
+assert.doesNotMatch(page, /Read the media description/i, "showcase must not render transcript disclosures");
+assert.doesNotMatch(page, /<details[^>]*>\s*<summary[^>]*>\s*Read the media description/i, "showcase contains a media description accordion");
+assert.doesNotMatch(page, /<dt[^>]*>\s*(?:Resolution|Format|Source)/i, "showcase contains the removed media metadata table");
 assert.match(page, /poster="\/showcase\/overview-poster\.webp"/i, "overview poster is missing from rendered HTML");
 assert.match(page, /<source[^>]*src="\/showcase\/overview\.mp4"[^>]*type="video\/mp4"/i, "overview MP4 source is missing from rendered HTML");
 assert.match(page, /src="\/showcase\/classic-grid-poster\.webp"/i, "Classic Grid poster fallback is missing");
@@ -37,7 +40,6 @@ assert.doesNotMatch(page, /classic-grid\.mp4|command-palette\.mp4/, "rendered pa
 assert.match(page, /"@type":"VideoObject"/, "rendered VideoObject schema is missing");
 assert.match(page, /"thumbnailUrl":"https:\/\/cmdtab\.net\/showcase\/overview-poster\.webp"/, "VideoObject thumbnail URL is wrong");
 assert.match(page, /"contentUrl":"https:\/\/cmdtab\.net\/showcase\/overview\.mp4"/, "VideoObject content URL is wrong");
-assert.match(page, /Read the media description/i, "visible media descriptions are missing");
 
 for (const asset of manifest.assets) {
   const posterPath = `/showcase/${asset.poster}`;
@@ -72,4 +74,4 @@ const manifestResponse = await fetchPath("/showcase/manifest.json");
 assert.equal(manifestResponse.status, 200, `/showcase/manifest.json returned HTTP ${manifestResponse.status}`);
 assert.match(manifestResponse.headers.get("content-type") || "", /application\/json/i, "showcase manifest content type is wrong");
 
-console.log(`Rendered showcase verification passed for ${manifest.assets.length} posters and ${manifest.assets.filter((asset) => asset.video).length} MP4 loops.`);
+console.log(`Rendered showcase verification passed for ${manifest.assets.length} posters and ${manifest.assets.filter((asset) => asset.video).length} autoplay MP4 loops.`);

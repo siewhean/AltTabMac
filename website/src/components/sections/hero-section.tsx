@@ -1,26 +1,27 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 
-import { Badge } from "@/components/ui/badge";
+import { ShowcaseVideo } from "@/components/showcase/showcase-video";
 import { Button } from "@/components/ui/button";
 import { MobileNavigation } from "@/components/ui/mobile-navigation";
 import { heroContent } from "@/content/home";
+import { showcaseAsset } from "@/content/showcase";
 import { siteConfig } from "@/content/site";
 import { analyticsAttributes } from "@/lib/analytics";
 
 export function HeroSection() {
-  const primaryHref = "/trial";
+  const overview = showcaseAsset("overview");
 
   return (
-    <section className="relative isolate min-h-[100svh] overflow-hidden">
+    <section className="relative isolate overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(105,214,255,0.08),transparent_24%),linear-gradient(180deg,#05070C_0%,#08111D_52%,#060913_100%)]" />
 
-      <div className="relative mx-auto flex min-h-[100svh] max-w-[1380px] flex-col px-5 pb-12 pt-5 sm:px-8 lg:px-10">
+      <div className="relative mx-auto max-w-[1380px] px-5 pb-10 pt-5 sm:px-8 lg:px-10">
         <header
           className="hero-enter relative z-40 flex items-center justify-between gap-4 rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 backdrop-blur-xl lg:gap-6"
           style={{ "--enter-delay": "60ms" } as CSSProperties}
         >
-          <a aria-label="CmdTab homepage" className="inline-flex min-w-0 items-center gap-3" href="/">
+          <a aria-label="CmdTab homepage" className="inline-flex min-h-12 min-w-12 items-center gap-3" href="/">
             <Image
               src="/brand/cmdtab.png"
               alt="CmdTab app icon"
@@ -35,12 +36,12 @@ export function HeroSection() {
             </div>
           </a>
 
-          <nav aria-label="Primary navigation" className="hidden items-center gap-6 text-sm text-muted lg:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-2 text-sm text-muted lg:flex">
             {siteConfig.nav.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                className="transition-colors duration-200 hover:text-text"
+                className="inline-flex min-h-12 min-w-12 items-center justify-center rounded-full px-3 transition-colors duration-200 hover:bg-white/[0.05] hover:text-text"
               >
                 {item.label}
               </a>
@@ -48,7 +49,7 @@ export function HeroSection() {
           </nav>
 
           <Button
-            href={primaryHref}
+            href="/trial"
             variant="secondary"
             className="hidden lg:inline-flex"
             {...analyticsAttributes("hero_nav_primary", "header")}
@@ -58,29 +59,22 @@ export function HeroSection() {
           <MobileNavigation />
         </header>
 
-        <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)] lg:py-20">
+        <div className="grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-16 lg:py-20">
           <div
-            className="hero-enter max-w-[560px]"
+            className="hero-enter max-w-[600px]"
             style={{ "--enter-delay": "150ms" } as CSSProperties}
           >
-            <Badge tone="success">{heroContent.eyebrow}</Badge>
-            <p className="mt-8 text-[clamp(2.6rem,7vw,5.6rem)] font-medium leading-[0.9] tracking-[-0.07em] text-text">
-              CmdTab
-            </p>
-            <h1 className="mt-5 max-w-[12ch] text-balance text-[clamp(2.25rem,5vw,4.6rem)] font-medium leading-[0.95] tracking-[-0.06em] text-text">
+            <h1 className="max-w-[11ch] text-balance text-[clamp(2.75rem,7vw,5.4rem)] font-medium leading-[0.92] tracking-[-0.065em] text-text">
               {heroContent.title}
             </h1>
-            <p className="mt-6 max-w-[38rem] text-pretty text-base font-medium leading-7 text-text sm:text-lg">
-              CmdTab is a standalone native macOS window-switcher app. It is separate from Apple’s built-in Command-Tab shortcut and replaces an app-only view with individual window targets, previews, global recent-use ordering, search, and quick actions.
+            <p className="mt-6 max-w-[34rem] text-pretty text-lg leading-8 text-muted sm:text-xl sm:leading-9">
+              CmdTab is a standalone macOS window switcher, separate from Apple’s built-in Command-Tab. See real window previews, search, and quick actions at a glance.
             </p>
-            <p className="type-body-lg mt-4 max-w-[34rem] text-pretty text-muted sm:text-[1.125rem]">
-              {heroContent.summary}
-            </p>
-            <p className="mt-4 max-w-[34rem] text-sm leading-6 text-subdued">{heroContent.status}</p>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
-                href={primaryHref}
+                href="/trial"
+                className="w-full sm:w-auto"
                 {...analyticsAttributes("hero_primary_cta", "hero")}
               >
                 {siteConfig.ctas.primary}
@@ -88,9 +82,10 @@ export function HeroSection() {
               <Button
                 href="/showcase"
                 variant="secondary"
+                className="w-full sm:w-auto"
                 {...analyticsAttributes("hero_secondary_cta", "hero")}
               >
-                Watch the HD showcase
+                Watch CmdTab
               </Button>
             </div>
           </div>
@@ -99,52 +94,7 @@ export function HeroSection() {
             className="hero-enter relative ml-auto w-full max-w-[820px]"
             style={{ "--enter-delay": "240ms" } as CSSProperties}
           >
-            <div className="space-y-4">
-              <a
-                href="/showcase"
-                className="group relative z-10 block overflow-hidden rounded-[28px] border border-white/10 bg-black/35 shadow-[0_28px_100px_rgba(0,0,0,0.42)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/70"
-                aria-label="Open the CmdTab HD product showcase"
-              >
-                <Image
-                  src="/showcase/overview-poster.webp"
-                  alt="Sharp CmdTab HD product overview using controlled fixture windows"
-                  width={1920}
-                  height={1200}
-                  sizes="(min-width: 1024px) 54vw, 100vw"
-                  className="h-auto w-full transition-transform duration-300 group-hover:scale-[1.006]"
-                  priority
-                />
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 bg-gradient-to-t from-black/80 via-black/25 to-transparent p-5 pt-20">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">1920 × 1200 HD showcase</p>
-                    <p className="mt-1 text-sm font-medium text-white">Sharp deterministic product composites with controlled fixture windows</p>
-                  </div>
-                  <span className="rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm font-medium text-white backdrop-blur-md">
-                    Watch 8s at 30 fps
-                  </span>
-                </div>
-              </a>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="surface-muted p-5">
-                  <p className="type-eyebrow text-cyan">Visual switching</p>
-                  <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
-                    Real previews before you commit
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-muted">
-                    Scan the actual window, not just the app icon.
-                  </p>
-                </div>
-                <div className="surface-muted p-5">
-                  <p className="type-eyebrow text-cyan">Fast fallback</p>
-                  <h2 className="mt-3 text-lg font-medium tracking-[-0.03em] text-text">
-                    Search or hot swap when you already know
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-muted">
-                    Jump directly without opening the wrong thing first.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ShowcaseVideo asset={overview} priority showCaption={false} />
           </div>
         </div>
       </div>
