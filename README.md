@@ -11,7 +11,7 @@ The repository also contains the Next.js product, documentation, commerce, analy
 
 ## Production-readiness plan
 
-The canonical phased plan is [`docs/release/native-production-readiness-plan.md`](docs/release/native-production-readiness-plan.md).
+The canonical phased plan is [`docs/release/native-production-readiness-plan.md`](docs/release/native-production-readiness-plan.md). The active execution sequence and current phase status are recorded in [`docs/release/current-implementation-status.md`](docs/release/current-implementation-status.md).
 
 Phase 1 is complete. PR #31 merged the deterministic local application bundle, permanent bundle identifier, rollback-safe beta migration, local ad-hoc QA package, strict bundle verification, checksums, and byte-for-byte unsigned reproducibility.
 
