@@ -104,7 +104,7 @@ enum DurableHistoryPrivacy {
         let normalized = text
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(whereSeparator: \ .isWhitespace)
+            .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
         guard !normalized.isEmpty else { return nil }
         return sha256(normalized)
@@ -203,6 +203,21 @@ enum DurableHistoryMatcher {
         return results
     }
 
+    static func score(
+        record: DurableWindowHistoryRecord,
+        descriptor: LiveWindowHistoryDescriptor
+    ) -> Int? {
+        score(
+            record: record,
+            candidate: Candidate(
+                descriptor: descriptor,
+                titleHash: DurableHistoryPrivacy.hashNormalizedText(descriptor.title),
+                documentHash: DurableHistoryPrivacy.hashDocumentURL(descriptor.documentURL),
+                bounds: RoundedWindowBounds(descriptor.bounds)
+            )
+        )
+    }
+
     private static func score(
         record: DurableWindowHistoryRecord,
         candidate: Candidate
@@ -269,7 +284,6 @@ final class DurableSwitcherHistoryStore {
         self.fileURL = fileURL ?? Self.defaultFileURL()
         self.maximumRecords = maximumRecords
         self.expirationInterval = expirationInterval
-        records = []
         records = Self.load(from: self.fileURL, expirationInterval: expirationInterval)
     }
 
@@ -287,7 +301,7 @@ final class DurableSwitcherHistoryStore {
             let descriptorByIdentity = Dictionary(
                 uniqueKeysWithValues: liveDescriptors.map { ($0.identity, $0) }
             )
-            let matchedRecordIDs = Set(matches.map(\ .recordID))
+            let matchedRecordIDs = Set(matches.map(\.recordID))
             let matchedIdentityByRecord = Dictionary(
                 uniqueKeysWithValues: matches.map { ($0.recordID, $0.identity) }
             )
@@ -307,7 +321,7 @@ final class DurableSwitcherHistoryStore {
             }
             persistLocked()
 
-            return matches.map(\ .identity)
+            return matches.map(\.identity)
         }
     }
 
@@ -317,24 +331,27 @@ final class DurableSwitcherHistoryStore {
     ) {
         queue.async { [weak self] in
             guard let self else { return }
-            let newRecord = DurableWindowHistoryRecord(descriptor: descriptor, activatedAt: now)
-            let matches = DurableHistoryMatcher.matches(
-                records: self.records,
-                liveDescriptors: [descriptor],
-                now: now,
-                expirationInterval: self.expirationInterval
-            )
-            let matchingID = matches.first?.recordID
+            let matchingID = self.records
+                .compactMap { record -> (UUID, Int)? in
+                    guard let score = DurableHistoryMatcher.score(
+                        record: record,
+                        descriptor: descriptor
+                    ) else { return nil }
+                    return (record.id, score)
+                }
+                .max { $0.1 < $1.1 }?
+                .0
 
+            let record = DurableWindowHistoryRecord(
+                id: matchingID ?? UUID(),
+                descriptor: descriptor,
+                activatedAt: now
+            )
             if let matchingID,
                let index = self.records.firstIndex(where: { $0.id == matchingID }) {
-                self.records[index] = DurableWindowHistoryRecord(
-                    id: matchingID,
-                    descriptor: descriptor,
-                    activatedAt: now
-                )
+                self.records[index] = record
             } else {
-                self.records.insert(newRecord, at: 0)
+                self.records.insert(record, at: 0)
             }
 
             self.records.sort {
@@ -351,6 +368,10 @@ final class DurableSwitcherHistoryStore {
             }
             self.persistLocked()
         }
+    }
+
+    func waitForPendingWrites() {
+        queue.sync {}
     }
 
     func reset() {
@@ -382,8 +403,7 @@ final class DurableSwitcherHistoryStore {
                 ofItemAtPath: fileURL.path
             )
         } catch {
-            // Persistence is a continuity enhancement. A write failure must not
-            // break switching or replace the authoritative in-memory history.
+            // In-memory history remains authoritative when persistence fails.
         }
     }
 
