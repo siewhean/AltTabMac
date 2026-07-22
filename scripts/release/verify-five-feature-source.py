@@ -89,10 +89,18 @@ def main() -> None:
         read(path)
 
     app_delegate = read(ROOT / "Sources" / "CmdTab" / "AppDelegate.swift")
-    require(app_delegate, "ProductionSwitcherWindowController()", "AppDelegate")
-    require(app_delegate, "ProfileHotkeyManager(switcher: switcher)", "AppDelegate")
-    reject(app_delegate, "SwitcherWindowController()", "AppDelegate")
-    reject(app_delegate, "HotkeyManager(switcher: switcher)", "AppDelegate")
+    require(app_delegate, "switcher = ProductionSwitcherWindowController()", "AppDelegate")
+    require(
+        app_delegate,
+        "hotkeyManager = ProfileHotkeyManager(switcher: switcher)",
+        "AppDelegate",
+    )
+    reject(app_delegate, "switcher = SwitcherWindowController()", "AppDelegate")
+    reject(
+        app_delegate,
+        "hotkeyManager = HotkeyManager(switcher: switcher)",
+        "AppDelegate",
+    )
 
     preferences = read(ROOT / "Sources" / "CmdTab" / "SwitcherPreferences.swift")
     require(preferences, "includeMinimizedWindows", "SwitcherPreferences")
@@ -133,6 +141,7 @@ def main() -> None:
         "profilesSnapshot",
         "pressToToggle",
         "holdPrimaryModifier",
+        "noEnabledProfiles",
     ):
         require(profiles, literal, "SwitcherProfiles")
 
