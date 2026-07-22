@@ -39,7 +39,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   fail "signing must run on macOS"
 fi
 
-for tool in codesign security ditto plutil python3 xattr sed wc tr; do
+for tool in codesign security ditto plutil python3 xattr grep sed wc tr; do
   command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
 done
 
@@ -127,7 +127,7 @@ from pathlib import Path
 contents = Path(sys.argv[1])
 main_executable = Path(sys.argv[2]).resolve()
 bundle_suffixes = {".framework", ".xpc", ".appex", ".app"}
-candidates: set[Path] = set()
+candidates = set()
 
 for root, directories, files in os.walk(contents):
     root_path = Path(root)
