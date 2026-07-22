@@ -23,7 +23,7 @@ export const showcaseUploadDate = "2026-07-22T00:00:00+08:00";
 export const showcaseDisclosure =
   "Every showcase asset is a deterministic HD product composite generated at 1920 × 1200 from vector source based on CmdTab’s current production geometry, styling, item model, and documented behavior contract. All media uses controlled fixture windows, is not AI-generated, and does not record a private desktop.";
 export const showcaseBoundary =
-  "The HD showcase demonstrates presentation and controlled interaction concepts. It is not a literal desktop recording and does not prove signed-app Accessibility, Screen Recording, Space, display, fullscreen, signing, notarization, latency, memory, processor, architecture, or exact focused-window acceptance; those remain separately documented on the Evidence page.";
+  "The HD showcase demonstrates presentation and controlled interaction concepts. Autoplay clips run once for no more than five seconds and remain static for people who prefer reduced motion. The media is not a literal desktop recording and does not prove signed-app Accessibility, Screen Recording, Space, display, fullscreen, signing, notarization, latency, memory, processor, architecture, or exact focused-window acceptance; those remain separately documented on the Evidence page.";
 
 const HD_WIDTH = 1920;
 const HD_HEIGHT = 1200;
@@ -40,7 +40,7 @@ export const showcaseAssets: ReadonlyArray<ShowcaseAsset> = [
       "The clip opens on Classic Grid and moves the selected exact-window tile. It changes to Command Palette and narrows the visible fixture set with a local query. It then presents Radial Menu before ending with a selected fixture target leaving the grid after a Quick Action annotation.",
     poster: "/showcase/overview-poster.webp",
     video: "/showcase/overview.mp4",
-    durationSeconds: 8,
+    durationSeconds: 4.8,
     posterWidth: HD_WIDTH,
     posterHeight: HD_HEIGHT,
     videoWidth: HD_WIDTH,
