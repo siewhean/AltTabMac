@@ -28,6 +28,8 @@
 	<string>CmdTab needs Accessibility permission to intercept Command-Tab and Option-Tab and activate the selected window.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>CmdTab needs Screen Recording permission to display previews of your open windows. Captured window images stay on your Mac.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>NSSupportsSuddenTermination</key>
