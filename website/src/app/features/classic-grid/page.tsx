@@ -19,9 +19,9 @@ export const metadata = createPageMetadata({
   description: content.metadataDescription,
   path: "/features/classic-grid",
   image: "/showcase/classic-grid-poster.webp",
-  imageAlt: "CmdTab Classic Grid product poster showing separate Mac window previews",
-  imageWidth: 720,
-  imageHeight: 450,
+  imageAlt: "Sharp 1920 by 1200 CmdTab Classic Grid product poster showing separate Mac window previews",
+  imageWidth: 1920,
+  imageHeight: 1200,
 });
 
 export default function ClassicGridPage() {
