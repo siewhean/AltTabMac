@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile, rename, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
@@ -56,12 +57,20 @@ await new Promise((resolveExit, rejectExit) => {
 
 await rename(normalizedPath, overviewPath);
 
+const overviewBytes = await readFile(overviewPath);
+const overviewStat = await stat(overviewPath);
+const overviewSha256 = createHash("sha256").update(overviewBytes).digest("hex");
+
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 const overview = manifest.assets.find((asset) => asset.id === "overview");
 if (!overview) throw new Error("overview asset is missing from showcase manifest");
 overview.durationSeconds = targetDurationSeconds;
+overview.videoBytes = overviewStat.size;
+overview.videoSha256 = overviewSha256;
 manifest.motionPolicy =
   "Autoplay clips run once, never loop, last no more than five seconds, and remain static when reduced motion is requested.";
 
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`Normalized overview autoplay to ${targetDurationSeconds} seconds and recorded one-shot motion policy.`);
+console.log(
+  `Normalized overview autoplay to ${targetDurationSeconds} seconds and recorded exact bytes, checksum, and one-shot motion policy.`,
+);
