@@ -47,7 +47,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   fail "preflight must run on macOS"
 fi
 
-for tool in security xcrun python3 sed wc tr; do
+for tool in security xcrun python3 grep sed wc tr; do
   command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
 done
 
