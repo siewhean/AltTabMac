@@ -108,6 +108,12 @@ def require_literal(path: Path, literal: str, description: str) -> None:
         raise SystemExit(f"{description} is missing from {path.relative_to(ROOT)}: {literal!r}")
 
 
+def reject_literal(path: Path, literal: str, description: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    if literal in text:
+        raise SystemExit(f"{description} remains in {path.relative_to(ROOT)}: {literal!r}")
+
+
 def tracked_paths(pathspec: str) -> list[str]:
     result = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "--", pathspec],
@@ -157,12 +163,39 @@ def verify_repository(config: dict[str, Any]) -> None:
         "kSecAttrAccount as String: currentAccount",
         "Keychain migration target account",
     )
+    require_literal(
+        identity_source,
+        "import LocalAuthentication",
+        "LocalAuthentication import for noninteractive Keychain access",
+    )
+    require_literal(
+        identity_source,
+        "kSecUseAuthenticationContext as String",
+        "noninteractive Keychain authentication context",
+    )
+    require_literal(
+        identity_source,
+        "context.interactionNotAllowed = true",
+        "noninteractive Keychain UI policy",
+    )
+    reject_literal(
+        identity_source,
+        "kSecUseAuthenticationUIFail",
+        "deprecated Keychain authentication UI policy",
+    )
 
     main_source = ROOT / "Sources" / "CmdTab" / "main.swift"
     require_literal(
         main_source,
         "BundleIdentityMigration.migrateIfNeeded()",
         "startup bundle-identity migration",
+    )
+
+    package_tool = ROOT / "scripts" / "release" / "package-app.sh"
+    require_literal(
+        package_tool,
+        "codesign --remove-signature",
+        "unsigned reproducibility signature normalization",
     )
 
     tracked_app = tracked_paths("CmdTab.app")
