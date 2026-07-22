@@ -5,7 +5,8 @@
 **Pull request:** #26  
 **Status:** PASS WITH USER-APPROVED GITHUB ACTIONS QUOTA WAIVER  
 **Started:** 2026-07-22  
-**Accepted:** 2026-07-22
+**Accepted:** 2026-07-22  
+**Merged main commit:** `13b99827265271c2a5d2f6f99de670d8be65169b`
 
 ## Decision boundary
 
@@ -67,7 +68,7 @@ These risks block Phase 2 completion and any public native release, but they do 
 
 ## Phase 0 release decision
 
-**PASS WITH WAIVER.** PR #26 may be merged and Phase 1 may begin.
+**PASS WITH WAIVER.** PR #26 was merged and Phase 1 began on `agent/phase-1-deterministic-packaging`.
 
 Conditions attached to this pass:
 
@@ -81,3 +82,7 @@ Conditions attached to this pass:
 Merged, superseded, or operational branches should be deleted after PR #26 merges. Branch deletion is repository housekeeping and does not alter the accepted source state.
 
 Do not delete `main`. Do not create `release/native-rc1` before Phase 2 passes.
+
+## Production deployment trigger
+
+This evidence-only update was committed directly to `main` after the squash merge so Vercel receives a normal `main` push and deploys the merged one-shot accessibility and repository-hygiene changes to production.
