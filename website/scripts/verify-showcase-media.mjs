@@ -51,7 +51,11 @@ function verifyVideo(path, id) {
   assert.match(report, /Video:\s+h264/i, `${id} is not decoded as H.264`);
   assert.match(report, /1920x1200/, `${id} is not decoded at 1920x1200`);
   assert.match(report, /30 fps/, `${id} is not decoded at 30 fps`);
-  assert.doesNotMatch(report, /Audio:/i, `${id} unexpectedly contains an audio stream`);
+  assert.doesNotMatch(
+    report,
+    /Stream #\d+:\d+(?:\[[^\]]+\])?(?:\([^)]+\))?:\s*Audio:/i,
+    `${id} unexpectedly contains an audio stream`,
+  );
 }
 
 assert.equal(manifest.schemaVersion, 5, "showcase manifest schema version must be 5");
@@ -136,6 +140,7 @@ assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=mode
 assert.match(packageJson.scripts.prebuild, /showcase:generate/, "Vercel prebuild must generate HD media");
 assert.equal(packageJson.dependencies.next, "16.2.11", "Next.js patch is not pinned");
 assert.equal(packageJson.dependencies.resend, "6.18.0", "Resend patch is not pinned");
+assert.equal(packageJson.dependencies.sharp, "0.35.3", "Sharp patch is not pinned");
 assert.equal(packageJson.devDependencies.postcss, "8.5.21", "PostCSS patch is not pinned");
 for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Universal Binary"]) {
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
