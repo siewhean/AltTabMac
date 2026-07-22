@@ -51,7 +51,10 @@ rm -f "${ZIP_PATH}" "${ZIP_PATH}.sha256"
 # by Apple's notarization service. --keepParent ensures CmdTab.app is the archive root.
 ditto -c -k --sequesterRsrc --keepParent "${APP_PATH}" "${ZIP_PATH}"
 unzip -tq "${ZIP_PATH}" >/dev/null
-shasum -a 256 "${ZIP_PATH}" > "${ZIP_PATH}.sha256"
+(
+  cd "$(dirname "${ZIP_PATH}")"
+  shasum -a 256 "$(basename "${ZIP_PATH}")"
+) > "${ZIP_PATH}.sha256"
 
 printf 'Created distribution ZIP: %s\n' "${ZIP_PATH}"
 printf 'Checksum: %s\n' "${ZIP_PATH}.sha256"
