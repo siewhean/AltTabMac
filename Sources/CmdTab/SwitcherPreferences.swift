@@ -6,6 +6,7 @@ final class SwitcherPreferences: ObservableObject {
 
     private let includeBackgroundWindowsKey = "includeBackgroundWindows"
     private let windowVisibilityScopeKey = "windowVisibilityScope"
+    private let includeMinimizedWindowsKey = "includeMinimizedWindows"
     private let launchAtLoginKey = "launchAtLogin"
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
     private let enableVibrancyKey = "enableVibrancy"
@@ -21,6 +22,12 @@ final class SwitcherPreferences: ObservableObject {
             persist(windowVisibilityScope.rawValue, forKey: windowVisibilityScopeKey)
             persist(windowVisibilityScope == .allSpaces, forKey: includeBackgroundWindowsKey)
         }
+    }
+
+    /// Include minimized top-level windows as exact switcher targets.
+    /// Kept opt-in for existing users to avoid changing membership unexpectedly.
+    @Published var includeMinimizedWindows: Bool {
+        didSet { persist(includeMinimizedWindows, forKey: includeMinimizedWindowsKey) }
     }
 
     @Published var launchAtLogin: Bool {
@@ -75,6 +82,7 @@ final class SwitcherPreferences: ObservableObject {
         self.windowVisibilityScope = defaults.string(forKey: windowVisibilityScopeKey)
             .flatMap(WindowVisibilityScope.init(rawValue:))
             ?? (legacyIncludeBackgroundWindows ? .allSpaces : .visibleSpaces)
+        self.includeMinimizedWindows = defaults.object(forKey: includeMinimizedWindowsKey) as? Bool ?? false
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
         // Completeness is the default contract. Users can opt into a cap later,
         // but a fresh installation must not silently hide the fourth window.
@@ -114,5 +122,10 @@ final class SwitcherPreferences: ObservableObject {
 
     func excludesWindowTitle(_ title: String) -> Bool {
         WindowExclusionRules.matchesWindowTitle(title, entries: ignoredWindowTitleEntries)
+    }
+
+    func resetDurableWindowHistory() {
+        DurableSwitcherHistoryStore.shared.reset()
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 }
