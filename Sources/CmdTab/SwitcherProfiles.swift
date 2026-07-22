@@ -56,7 +56,7 @@ struct RecordedShortcut: Codable, Equatable, Hashable, Sendable {
     init(keyCode: Int64, modifiers: ShortcutModifierMask, keyLabel: String) {
         self.keyCode = keyCode
         self.modifiers = modifiers
-        self.keyLabel = keyLabel
+        self.keyLabel = String(keyLabel.prefix(24))
     }
 
     static let commandTab = RecordedShortcut(
@@ -179,18 +179,21 @@ struct ShortcutProfileMatch: Equatable, Sendable {
     let primaryModifier: HotkeyModifier?
 }
 
-enum SwitcherProfileValidationIssue: Error, Equatable, CustomStringConvertible {
+enum SwitcherProfileValidationIssue: Error, Equatable, CustomStringConvertible, LocalizedError {
     case noProfiles
+    case noEnabledProfiles
     case duplicateProfileID(UUID)
     case emptyName(UUID)
     case invalidShortcut(profileID: UUID, message: String)
     case duplicateShortcut(profileID: UUID, conflictingProfileID: UUID, shortcut: String)
-    case futureSchema(Int)
+    case unsupportedSchema(Int)
 
     var description: String {
         switch self {
         case .noProfiles:
             return "At least one shortcut profile is required."
+        case .noEnabledProfiles:
+            return "At least one shortcut profile must remain enabled."
         case let .duplicateProfileID(id):
             return "The profile identifier \(id) is duplicated."
         case let .emptyName(id):
@@ -199,10 +202,12 @@ enum SwitcherProfileValidationIssue: Error, Equatable, CustomStringConvertible {
             return message
         case let .duplicateShortcut(_, _, shortcut):
             return "The shortcut \(shortcut) is assigned to more than one profile."
-        case let .futureSchema(version):
-            return "Profile document schema \(version) is newer than this CmdTab version supports."
+        case let .unsupportedSchema(version):
+            return "Profile document schema \(version) is not supported by this CmdTab version."
         }
     }
+
+    var errorDescription: String? { description }
 }
 
 struct SwitcherProfileDocument: Codable, Equatable, Sendable {
@@ -223,6 +228,7 @@ enum SwitcherProfileValidator {
         var issues: [SwitcherProfileValidationIssue] = []
         var seenIDs = Set<UUID>()
         var assigned: [RecordedShortcut: UUID] = [:]
+        var enabledCount = 0
 
         for profile in profiles {
             if !seenIDs.insert(profile.id).inserted {
@@ -232,12 +238,22 @@ enum SwitcherProfileValidator {
                 issues.append(.emptyName(profile.id))
             }
             guard profile.isEnabled else { continue }
+            enabledCount += 1
 
             let shortcuts = [profile.forwardShortcut, profile.reverseShortcut].compactMap { $0 }
             for shortcut in shortcuts {
                 if let problem = invalidReason(for: shortcut) {
                     issues.append(
                         .invalidShortcut(profileID: profile.id, message: problem)
+                    )
+                }
+                if profile.releaseBehavior == .holdPrimaryModifier,
+                   shortcut.modifiers.primaryReleaseModifier == nil {
+                    issues.append(
+                        .invalidShortcut(
+                            profileID: profile.id,
+                            message: "Hold-to-release profiles require Command or Option in every assigned shortcut."
+                        )
                     )
                 }
                 if let existing = assigned[shortcut], existing != profile.id {
@@ -261,6 +277,10 @@ enum SwitcherProfileValidator {
                 )
             }
         }
+
+        if enabledCount == 0 {
+            issues.append(.noEnabledProfiles)
+        }
         return issues
     }
 
@@ -274,9 +294,14 @@ enum SwitcherProfileValidator {
         guard shortcut.keyCode != 36 && shortcut.keyCode != 76 else {
             return "Return and Enter are reserved for committing a switcher session."
         }
-
         if shortcut.modifiers.isEmpty && !isFunctionKeyCode(shortcut.keyCode) {
             return "Global character shortcuts require Command, Option, Control, or Shift."
+        }
+
+        let commandOnly = shortcut.modifiers == [.command]
+        let protectedCommandKeyCodes: Set<Int64> = [4, 12, 13, 43, 46, 49]
+        if commandOnly, protectedCommandKeyCodes.contains(shortcut.keyCode) {
+            return "That shortcut is reserved for a standard macOS application or system command."
         }
         return nil
     }
@@ -284,7 +309,7 @@ enum SwitcherProfileValidator {
     private static func isFunctionKeyCode(_ keyCode: Int64) -> Bool {
         let functionKeyCodes: Set<Int64> = [
             122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111,
-            105, 107, 113, 106, 64, 79, 80, 90
+            105, 107, 113, 106, 64, 79, 80, 90,
         ]
         return functionKeyCodes.contains(keyCode)
     }
@@ -329,11 +354,15 @@ final class SwitcherProfileStore: ObservableObject {
             profileID: profile.id,
             profileName: profile.name,
             style: profile.inheritsGlobalSettings ? preferences.switcherStyle : profile.style,
-            visibilityScope: profile.inheritsGlobalSettings ? preferences.windowVisibilityScope : profile.visibilityScope,
+            visibilityScope: profile.inheritsGlobalSettings
+                ? preferences.windowVisibilityScope
+                : profile.visibilityScope,
             includeMinimizedWindows: profile.inheritsGlobalSettings
                 ? preferences.includeMinimizedWindows
                 : profile.includeMinimizedWindows,
-            displayPlacement: profile.inheritsGlobalSettings ? preferences.displayPlacement : profile.displayPlacement,
+            displayPlacement: profile.inheritsGlobalSettings
+                ? preferences.displayPlacement
+                : profile.displayPlacement,
             appFilter: profile.appFilter,
             releaseBehavior: profile.releaseBehavior
         )
@@ -416,6 +445,11 @@ final class SwitcherProfileStore: ObservableObject {
         let previousCount = profiles.count
         profiles.removeAll { $0.id == profileID }
         guard profiles.count != previousCount else { return false }
+        let issues = SwitcherProfileValidator.issues(in: profiles)
+        guard issues.isEmpty else {
+            validationIssues = issues
+            return false
+        }
         normalizeValidateAndPublish(persist: true)
         return true
     }
@@ -435,13 +469,16 @@ final class SwitcherProfileStore: ObservableObject {
     func importDocument(_ data: Data) throws {
         let decoder = JSONDecoder()
         let document = try decoder.decode(SwitcherProfileDocument.self, from: data)
-        guard document.schemaVersion <= SwitcherProfileDocument.currentSchemaVersion else {
-            throw SwitcherProfileValidationIssue.futureSchema(document.schemaVersion)
+        guard document.schemaVersion == SwitcherProfileDocument.currentSchemaVersion else {
+            throw SwitcherProfileValidationIssue.unsupportedSchema(document.schemaVersion)
         }
         var imported = document.profiles
         imported.indices.forEach { imported[$0].normalize() }
         let issues = SwitcherProfileValidator.issues(in: imported)
         guard issues.isEmpty else { throw issues[0] }
+
+        // Atomic replacement: do not mutate published/snapshot state until the
+        // entire document has decoded, normalized, and validated.
         profiles = imported
         normalizeValidateAndPublish(persist: true)
     }
@@ -451,7 +488,7 @@ final class SwitcherProfileStore: ObservableObject {
         validationIssues = SwitcherProfileValidator.issues(in: profiles)
 
         snapshotLock.lock()
-        snapshotProfiles = profiles
+        snapshotProfiles = validationIssues.isEmpty ? profiles : []
         snapshotLock.unlock()
 
         if persist, validationIssues.isEmpty {
