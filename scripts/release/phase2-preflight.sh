@@ -47,7 +47,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   fail "preflight must run on macOS"
 fi
 
-for tool in security xcrun python3; do
+for tool in security xcrun python3 sed wc tr; do
   command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
 done
 
@@ -66,7 +66,8 @@ done
 python3 "${SOURCE_VERIFY_TOOL}"
 
 IDENTITIES="$(security find-identity -v -p codesigning 2>&1 || true)"
-MATCH_COUNT="$(printf '%s\n' "${IDENTITIES}" | grep -F "\"${SIGNING_IDENTITY}\"" | wc -l | tr -d '[:space:]')"
+MATCHING_IDENTITIES="$(printf '%s\n' "${IDENTITIES}" | grep -F "\"${SIGNING_IDENTITY}\"" || true)"
+MATCH_COUNT="$(printf '%s\n' "${MATCHING_IDENTITIES}" | sed '/^$/d' | wc -l | tr -d '[:space:]')"
 if [[ "${MATCH_COUNT}" == "0" ]]; then
   printf '%s\n' "${IDENTITIES}" >&2
   fail "the requested Developer ID identity is not available in the active keychain search list"
@@ -105,7 +106,6 @@ else
   AUTH_ARGS=(--key "${KEY_PATH}" --key-id "${KEY_ID}" --issuer "${ISSUER_ID}")
 
   python3 - "${KEY_PATH}" <<'PY'
-import os
 import stat
 import sys
 from pathlib import Path
