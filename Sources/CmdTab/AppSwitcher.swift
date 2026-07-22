@@ -1314,26 +1314,38 @@ final class AppSwitcher: NSObject {
         )
     }
 
-    private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
-        // AltTab prefers the WindowServer hardware capture path with explicit
-        // full-size / best-resolution flags because it produces cleaner edges
-        // and avoids the white gutter artifacts that CGWindowListCreateImage
-        // can introduce around some windows.
-        if let image = SkyLightCapture.captureWindow(candidate.id) {
-            return preparedWindowCaptureImage(image)
+    static func resolvePreferredCapture<T>(
+        preferred: T?,
+        prepare: (T) -> T?,
+        fallback: () -> T?
+    ) -> T? {
+        if let preferred, let prepared = prepare(preferred) {
+            return prepared
         }
+        return fallback()
+    }
 
-        let framedBest: CGWindowImageOption = [.bestResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
+    private func captureBackdropImage(for candidate: WindowCandidate) -> NSImage? {
+        // Prefer the WindowServer hardware path, but only accept it when the
+        // captured image survives presentation validation. Some GPU-backed apps
+        // (including Arc) can return a blank hardware frame even though the
+        // public Core Graphics capture path can still produce a valid preview.
+        return Self.resolvePreferredCapture(
+            preferred: SkyLightCapture.captureWindow(candidate.id),
+            prepare: { self.preparedWindowCaptureImage($0) }
+        ) {
+            let framedBest: CGWindowImageOption = [.bestResolution]
+            if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
+            if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, framedBest, minW: 80, minH: 60) { return img }
 
-        let croppedBest: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
-        if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
-        let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
-        if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
+            let croppedBest: CGWindowImageOption = [.boundsIgnoreFraming, .bestResolution]
+            if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
+            if let img = cgCapture(candidate.bounds, .optionIncludingWindow, candidate.id, croppedBest, minW: 80, minH: 60) { return img }
+            let nominal: CGWindowImageOption = [.boundsIgnoreFraming, .nominalResolution]
+            if let img = cgCapture(.null, .optionIncludingWindow, candidate.id, nominal, minW: 40, minH: 30) { return img }
 
-        return nil
+            return nil
+        }
     }
 
     /// Cap thumbnails at maxWidth pixels wide using a CoreGraphics context.
