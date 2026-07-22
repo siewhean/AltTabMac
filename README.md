@@ -1,7 +1,7 @@
 # CmdTab
 
-Last updated: 2026-07-22  
-Active task: execute the phased native production-readiness plan, beginning with trustworthy gates, repository hygiene, accessible showcase motion, and deterministic application packaging.
+Last updated: 2026-07-23  
+Active task: begin Phase 2 Developer ID distribution work after the accepted and merged Phase 1 deterministic packaging gate.
 
 ## Product
 
@@ -13,17 +13,45 @@ The repository also contains the Next.js product, documentation, commerce, analy
 
 The canonical phased plan is [`docs/release/native-production-readiness-plan.md`](docs/release/native-production-readiness-plan.md).
 
-The release is blocked until CmdTab has:
+Phase 1 is complete. PR #31 merged the deterministic local application bundle, permanent bundle identifier, rollback-safe beta migration, local ad-hoc QA package, strict bundle verification, checksums, and byte-for-byte unsigned reproducibility.
 
-- a deterministic `.app` bundle;
-- a permanent bundle identifier;
+The public native release remains blocked until CmdTab has:
+
 - Developer ID signing with Hardened Runtime and a secure timestamp;
 - accepted notarization and a stapled ticket;
 - Gatekeeper and clean-account installation evidence;
-- real macOS proof of exact focused-window activation;
-- tested update, rollback, diagnostics, security, and support operations.
+- real macOS proof of exact focused-window activation across the supported desktop matrix;
+- private API capability boundaries with explicit degraded behavior;
+- tested update, rollback, diagnostics, security, licensing, and support operations.
 
-No later phase begins until the prior phase has a completed QA/QC record.
+No public release claim may treat the accepted local ad-hoc artifact as a distributable build.
+
+## Phase 1 accepted evidence
+
+Accepted source commit:
+
+```text
+516a9476c01f4d59981f35dc44b6eb09dcd6d790
+```
+
+Merged through PR #31 with merge commit:
+
+```text
+f37e47029344e191682bd02ade8d7daf4ea241bd
+```
+
+The accepted local macOS gate recorded:
+
+- repository identity verification passed;
+- bundle migration tests: 6/6 passed;
+- capture fallback regression tests: 3/3 passed;
+- complete Swift package suite: 132/132 passed;
+- release compilation and app assembly passed;
+- bundle layout, metadata, architecture, signature, and checksum verification passed;
+- two clean unsigned bundles from the canonical build path were byte-for-byte reproducible;
+- packaged menu-bar launch, Dock/native-switcher exclusion, permissions, Command-Tab interception, deliberate quit/reopen, Arc preview capture, and Arc activation were manually confirmed.
+
+The complete record is [`docs/release/evidence/phase-1/README.md`](docs/release/evidence/phase-1/README.md).
 
 ## Protected behavior
 
@@ -31,9 +59,9 @@ Changes to hotkey routing, exact-window MRU, frontmost resolution, activation co
 
 ## Automated app evidence
 
-Permanent macOS 14 and macOS 15 CI reproduces the pre-fix state-space model, runs strict-MRU/completeness regressions, runs the complete Swift package suite, and checks patch hygiene. Model counts are synthetic state-space evidence, not observed field failure rates.
+Phase 1 local evidence proves the current deterministic host-architecture package on the tested Mac. GitHub-hosted macOS 14 and macOS 15 execution remains deferred under issue #30 and must pass before Phase 2 can be accepted.
 
-Automated SwiftPM evidence does not replace packaged-app testing for permissions, focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, Secure Input, signing, notarization, and installation.
+Automated SwiftPM evidence does not replace packaged-app testing for permissions, focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, Secure Input, signing, notarization, installation, updates, or rollback.
 
 ## Showcase media
 
@@ -66,10 +94,10 @@ npm run prebuild
 npm run build
 ```
 
-The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks.
+The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 22-route sitemap, and no unsupported claims.
 
 ## Remaining signed-app acceptance boundary
 
-Interactive macOS testing is required for permission grant/denial/revocation, exact focused-window proof, mouse and keyboard commits, minimized/fullscreen windows, Spaces, displays, Stage Manager, rapid input, Secure Input, sleep/wake, signing, notarization, update/rollback, and clean-account installation.
+Interactive macOS testing is still required for permission denial and revocation, exact focused-window proof, mouse and keyboard commits, minimized/fullscreen windows, Spaces, displays, Stage Manager, rapid input, Secure Input, sleep/wake, stable signing identity, notarization, updates, rollback, and clean-account installation.
