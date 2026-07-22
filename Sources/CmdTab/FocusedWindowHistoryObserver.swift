@@ -30,6 +30,7 @@ final class FocusedWindowHistoryObserver {
     private let workspace = NSWorkspace.shared
     private var observersByPID: [pid_t: AXObserver] = [:]
     private var workspaceObserverTokens: [NSObjectProtocol] = []
+    private var applicationObserverTokens: [NSObjectProtocol] = []
     private var permissionRetryTimer: Timer?
 
     init(
@@ -46,15 +47,12 @@ final class FocusedWindowHistoryObserver {
 
     deinit {
         permissionRetryTimer?.invalidate()
-        for observer in observersByPID.values {
-            CFRunLoopRemoveSource(
-                CFRunLoopGetMain(),
-                AXObserverGetRunLoopSource(observer),
-                .commonModes
-            )
-        }
+        removeAllAccessibilityObservers()
         for token in workspaceObserverTokens {
             workspace.notificationCenter.removeObserver(token)
+        }
+        for token in applicationObserverTokens {
+            NotificationCenter.default.removeObserver(token)
         }
     }
 
@@ -96,7 +94,8 @@ final class FocusedWindowHistoryObserver {
             self?.startPermissionRetryIfNeeded()
         }
 
-        workspaceObserverTokens = [activationToken, launchToken, terminateToken, activeToken]
+        workspaceObserverTokens = [activationToken, launchToken, terminateToken]
+        applicationObserverTokens = [activeToken]
     }
 
     private func startPermissionRetryIfNeeded() {
@@ -125,6 +124,14 @@ final class FocusedWindowHistoryObserver {
             return
         }
 
+        guard AXIsProcessTrusted() else {
+            removeAllAccessibilityObservers()
+            startPermissionRetryIfNeeded()
+            return
+        }
+        permissionRetryTimer?.invalidate()
+        permissionRetryTimer = nil
+
         let applications = workspace.runningApplications.filter {
             $0.activationPolicy == .regular &&
             $0.bundleIdentifier != Bundle.main.bundleIdentifier
@@ -133,24 +140,10 @@ final class FocusedWindowHistoryObserver {
 
         let obsoletePIDs = observersByPID.keys.filter { !activePIDs.contains($0) }
         for pid in obsoletePIDs {
-            guard let observer = observersByPID.removeValue(forKey: pid) else {
-                continue
-            }
-            CFRunLoopRemoveSource(
-                CFRunLoopGetMain(),
-                AXObserverGetRunLoopSource(observer),
-                .commonModes
-            )
+            removeAccessibilityObserver(for: pid)
         }
 
-        guard AXIsProcessTrusted() else {
-            startPermissionRetryIfNeeded()
-            return
-        }
-        permissionRetryTimer?.invalidate()
-        permissionRetryTimer = nil
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-
         for app in applications where observersByPID[app.processIdentifier] == nil {
             var observer: AXObserver?
             guard AXObserverCreate(
@@ -185,6 +178,21 @@ final class FocusedWindowHistoryObserver {
             )
             observersByPID[app.processIdentifier] = observer
         }
+    }
+
+    private func removeAllAccessibilityObservers() {
+        for pid in Array(observersByPID.keys) {
+            removeAccessibilityObserver(for: pid)
+        }
+    }
+
+    private func removeAccessibilityObserver(for pid: pid_t) {
+        guard let observer = observersByPID.removeValue(forKey: pid) else { return }
+        CFRunLoopRemoveSource(
+            CFRunLoopGetMain(),
+            AXObserverGetRunLoopSource(observer),
+            .commonModes
+        )
     }
 
     private func handleFocusedWindowChange(pid: pid_t) {
