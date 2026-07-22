@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 SCRATCH_PATH="${CMDTAB_BUILD_SCRATCH:-}"
+LINKER_REPRODUCIBILITY="${CMDTAB_LINKER_REPRODUCIBILITY:-1}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "CmdTab must be built on macOS." >&2
@@ -25,11 +26,30 @@ if [[ -z "${SCRATCH_PATH}" ]]; then
 fi
 mkdir -p "${SCRATCH_PATH}"
 
-printf 'Building %s in %s\n' "${APP_NAME}" "${SCRATCH_PATH}" >&2
-swift build \
-  --package-path "${ROOT_DIR}" \
-  --configuration release \
-  --scratch-path "${SCRATCH_PATH}" >&2
+BUILD_ARGUMENTS=(
+  --package-path "${ROOT_DIR}"
+  --configuration release
+  --scratch-path "${SCRATCH_PATH}"
+)
+
+case "${LINKER_REPRODUCIBILITY}" in
+  1)
+    # SwiftPM CLI builds do not reliably inherit Xcode's
+    # LD_DETERMINISTIC_MODE setting. Keep a valid LC_UUID, but require ld to
+    # derive all linker-generated metadata deterministically from the inputs.
+    BUILD_ARGUMENTS+=( -Xlinker -reproducible )
+    ;;
+  0)
+    ;;
+  *)
+    echo "CMDTAB_LINKER_REPRODUCIBILITY must be 0 or 1." >&2
+    exit 2
+    ;;
+esac
+
+printf 'Building %s in %s (deterministic-linker=%s)\n' \
+  "${APP_NAME}" "${SCRATCH_PATH}" "${LINKER_REPRODUCIBILITY}" >&2
+swift build "${BUILD_ARGUMENTS[@]}" >&2
 
 BIN_DIR="$(swift build \
   --package-path "${ROOT_DIR}" \
