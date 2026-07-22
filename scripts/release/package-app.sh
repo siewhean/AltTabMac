@@ -62,6 +62,12 @@ if [[ -n "$(find "${STAGE_APP}" -type l -print -quit)" ]]; then
 fi
 
 if [[ "${SKIP_SIGN}" == "1" ]]; then
+  # Apple Silicon linkers may add an ad-hoc signature to a Mach-O executable even
+  # when the bundle itself has not been signed. Strip that generated signature
+  # from the staged copy so the reproducibility path is genuinely unsigned.
+  if codesign -d "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}" >/dev/null 2>&1; then
+    codesign --remove-signature "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
+  fi
   EXPECTED_SIGNING="unsigned"
 else
   plutil -lint "${ROOT_DIR}/Resources/CmdTab.entitlements" >/dev/null
