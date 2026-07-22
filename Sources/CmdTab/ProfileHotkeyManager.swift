@@ -137,6 +137,14 @@ final class ProfileHotkeyManager {
         type: CGEventType,
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
+        if ShortcutRecordingState.shared.isRecording,
+           type == .keyDown || type == .keyUp || type == .flagsChanged {
+            // The AppKit recorder must see the original event. Do not mutate
+            // profile trigger state or swallow an existing shortcut while the
+            // user is recording a replacement.
+            return Unmanaged.passRetained(event)
+        }
+
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             activeHoldMatch = nil
