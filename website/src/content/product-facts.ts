@@ -1,6 +1,8 @@
 import { commerceContent } from "@/content/commerce";
 import { siteConfig } from "@/content/site";
 
+// Version, build, bundle ID, and minimum macOS are checked against
+// release/ReleaseConfig.json during every Vercel prebuild.
 export const productFacts = {
   name: siteConfig.name,
   category: "native macOS window switcher",
