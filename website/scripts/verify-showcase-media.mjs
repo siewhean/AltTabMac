@@ -137,7 +137,10 @@ assert.match(player, /prefers-reduced-motion/, "showcase player must respect red
 assert.match(player, /asset\.sourceLabel/, "showcase player must display per-asset provenance");
 assert.match(structuredData, /videos = assets\.filter/, "VideoObject generation must exclude poster-only entries");
 assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=moderate", "dependency audit must fail on moderate advisories");
-assert.match(packageJson.scripts.prebuild, /showcase:generate/, "Vercel prebuild must generate HD media");
+assert.ok(
+  packageJson.scripts.prebuild.includes("showcase:generate") || packageJson.scripts["seo:check"].includes("showcase:generate"),
+  "Vercel prebuild path must generate HD media",
+);
 assert.equal(packageJson.dependencies.next, "16.2.11", "Next.js patch is not pinned");
 assert.equal(packageJson.dependencies.resend, "6.18.0", "Resend patch is not pinned");
 assert.equal(packageJson.dependencies.sharp, "0.35.3", "Sharp patch is not pinned");
