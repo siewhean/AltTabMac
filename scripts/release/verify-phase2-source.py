@@ -9,6 +9,8 @@ entering the repository.
 from __future__ import annotations
 
 import plistlib
+import shutil
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,8 +53,26 @@ def read_script(label: str, path: Path) -> str:
     return text
 
 
+def validate_shell_syntax() -> None:
+    bash = shutil.which("bash")
+    if bash is None:
+        fail("bash is required to validate Phase 2 shell syntax")
+    for label, path in SCRIPTS.items():
+        result = subprocess.run(
+            [bash, "-n", str(path)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            detail = result.stderr.strip() or result.stdout.strip() or "unknown syntax error"
+            fail(f"{label} failed bash -n: {detail}")
+
+
 def main() -> None:
     texts = {label: read_script(label, path) for label, path in SCRIPTS.items()}
+    validate_shell_syntax()
 
     preflight = texts["preflight"]
     for required in (
