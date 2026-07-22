@@ -33,8 +33,7 @@ for tool in python3 plutil codesign xattr shasum; do
   }
 done
 
-python3 "${CONFIG_TOOL}" validate >/dev/null
-python3 "${CONFIG_TOOL}" verify-info-plist "${ROOT_DIR}/Resources/Info.plist"
+python3 "${CONFIG_TOOL}" verify-repository
 
 APP_NAME="$(python3 "${CONFIG_TOOL}" get appName)"
 EXECUTABLE_NAME="$(python3 "${CONFIG_TOOL}" get executableName)"
