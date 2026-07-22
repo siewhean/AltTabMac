@@ -6,8 +6,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
-    var switcher: SwitcherWindowController!
-    var hotkeyManager: HotkeyManager!
+    var switcher: ProductionSwitcherWindowController!
+    var hotkeyManager: ProfileHotkeyManager!
     var menuBar: MenuBarController!
     var preferencesWindowController: PreferencesWindowController!
 
@@ -21,7 +21,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.accessory)
 
-        switcher = SwitcherWindowController()
+        // Materialize and validate the profile document before installing the
+        // event tap so the callback always reads one immutable valid snapshot.
+        _ = SwitcherProfileStore.shared.profilesSnapshot()
+
+        switcher = ProductionSwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
         preferencesWindowController.onOpenApplications = { [weak self] in
             self?.switcher?.showStandalone()
@@ -34,7 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.preferencesWindowController?.showStyleChangeHUD(for: style)
         }
         menuBar = MenuBarController(preferencesWindowController: preferencesWindowController)
-        hotkeyManager = HotkeyManager(switcher: switcher)
+
+        requestRequiredPermissionsIfNeeded()
+
+        // ProfileHotkeyManager retries event-tap installation after an
+        // Accessibility grant, so users no longer have to discover that a full
+        // application restart is required merely to begin switching.
+        hotkeyManager = ProfileHotkeyManager(switcher: switcher)
         switcher.onClickCommit = { [weak self] in
             self?.hotkeyManager?.clearTriggerStateFromClickCommit()
         }
@@ -51,19 +61,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        focusedWindowHistoryObserver = FocusedWindowHistoryObserver()
+        LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+    }
+
+    private func requestRequiredPermissionsIfNeeded() {
         if !AXIsProcessTrusted() {
             let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
             _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
         }
 
-        if #available(macOS 10.15, *) {
-            if !CGPreflightScreenCaptureAccess() {
-                _ = CGRequestScreenCaptureAccess()
-            }
+        if #available(macOS 10.15, *), !CGPreflightScreenCaptureAccess() {
+            _ = CGRequestScreenCaptureAccess()
         }
-
-        focusedWindowHistoryObserver = FocusedWindowHistoryObserver()
-        LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
     }
 
     private func acquireSingletonLock() -> Bool {
@@ -106,6 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         focusedWindowHistoryObserver = nil
+        DurableSwitcherHistoryStore.shared.waitForPendingWrites()
         if singletonLockFileDescriptor >= 0 {
             flock(singletonLockFileDescriptor, LOCK_UN)
             close(singletonLockFileDescriptor)
