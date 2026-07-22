@@ -1,3 +1,4 @@
+// Keep the landing page concise; detailed evidence and technical material live on dedicated routes.
 export const siteConfig = {
   name: "CmdTab",
   tagline: "Choose the exact Mac window, not just the app.",
