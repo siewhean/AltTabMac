@@ -1,41 +1,13 @@
 import AppKit
 import ApplicationServices
-import Darwin
 
 /// Resolves exact CG window identities for Accessibility focus changes.
 ///
 /// NSWorkspace only reports application activation. Without an AX observer,
 /// A1 → A2 → A3 inside one already-frontmost application collapses into an
 /// incomplete history. This observer records every focused/main-window change
-/// when Accessibility permission is available and safely degrades to the
-/// existing session-start reconciliation when it is not.
+/// and supplies privacy-minimised metadata to durable MRU persistence.
 final class FocusedWindowHistoryObserver {
-    private enum WindowIDLookup {
-        private typealias GetWindowFn = @convention(c) (
-            AXUIElement,
-            UnsafeMutablePointer<CGWindowID>
-        ) -> Int32
-
-        private static let resolved: GetWindowFn? = {
-            guard let symbol = dlsym(
-                UnsafeMutableRawPointer(bitPattern: -2),
-                "_AXUIElementGetWindow"
-            ) else {
-                return nil
-            }
-            return unsafeBitCast(symbol, to: GetWindowFn.self)
-        }()
-
-        static func windowID(for element: AXUIElement) -> CGWindowID? {
-            guard let resolved else { return nil }
-            var windowID: CGWindowID = 0
-            guard resolved(element, &windowID) == 0, windowID != 0 else {
-                return nil
-            }
-            return windowID
-        }
-    }
-
     private static let observerCallback: AXObserverCallback = {
         _, element, _, refcon in
         guard let refcon else { return }
@@ -54,18 +26,26 @@ final class FocusedWindowHistoryObserver {
     }
 
     private let history: SwitcherHistoryStore
+    private let catalog: AXWindowCatalog
     private let workspace = NSWorkspace.shared
     private var observersByPID: [pid_t: AXObserver] = [:]
     private var workspaceObserverTokens: [NSObjectProtocol] = []
+    private var permissionRetryTimer: Timer?
 
-    init(history: SwitcherHistoryStore = .shared) {
+    init(
+        history: SwitcherHistoryStore = .shared,
+        catalog: AXWindowCatalog = .shared
+    ) {
         self.history = history
+        self.catalog = catalog
         installWorkspaceObservers()
         refreshAccessibilityObservers()
         reconcileFrontmostApplication()
+        startPermissionRetryIfNeeded()
     }
 
     deinit {
+        permissionRetryTimer?.invalidate()
         for observer in observersByPID.values {
             CFRunLoopRemoveSource(
                 CFRunLoopGetMain(),
@@ -83,12 +63,12 @@ final class FocusedWindowHistoryObserver {
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            // AppSwitcher owns application-activation history, including its
-            // pending-activation suppression and exact-focus confirmation.
-            // This observer refreshes AX registrations here but records only
-            // intra-application focused/main-window changes.
+        ) { [weak self] notification in
             self?.refreshAccessibilityObservers()
+            if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication {
+                self?.reconcile(app: app)
+            }
         }
 
         let launchToken = workspace.notificationCenter.addObserver(
@@ -107,7 +87,34 @@ final class FocusedWindowHistoryObserver {
             self?.refreshAccessibilityObservers()
         }
 
-        workspaceObserverTokens = [activationToken, launchToken, terminateToken]
+        let activeToken = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshAccessibilityObservers()
+            self?.startPermissionRetryIfNeeded()
+        }
+
+        workspaceObserverTokens = [activationToken, launchToken, terminateToken, activeToken]
+    }
+
+    private func startPermissionRetryIfNeeded() {
+        guard !AXIsProcessTrusted(), permissionRetryTimer == nil else { return }
+        permissionRetryTimer = Timer.scheduledTimer(
+            withTimeInterval: 1.0,
+            repeats: true
+        ) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            guard AXIsProcessTrusted() else { return }
+            timer.invalidate()
+            self.permissionRetryTimer = nil
+            self.refreshAccessibilityObservers()
+            self.reconcileFrontmostApplication()
+        }
     }
 
     private func refreshAccessibilityObservers() {
@@ -136,7 +143,12 @@ final class FocusedWindowHistoryObserver {
             )
         }
 
-        guard AXIsProcessTrusted() else { return }
+        guard AXIsProcessTrusted() else {
+            startPermissionRetryIfNeeded()
+            return
+        }
+        permissionRetryTimer?.invalidate()
+        permissionRetryTimer = nil
         let refcon = Unmanaged.passUnretained(self).toOpaque()
 
         for app in applications where observersByPID[app.processIdentifier] == nil {
@@ -182,7 +194,6 @@ final class FocusedWindowHistoryObserver {
               workspace.frontmostApplication?.processIdentifier == pid else {
             return
         }
-
         reconcile(app: app)
     }
 
@@ -199,7 +210,29 @@ final class FocusedWindowHistoryObserver {
         }
 
         if let identity = focusedIdentity(for: app) {
-            history.noteActivation(identity)
+            let snapshot = catalog.snapshot(for: [app])
+            if let windowID = identity.windowID,
+               let metadata = snapshot.metadata(
+                   ownerPID: app.processIdentifier,
+                   windowID: windowID
+               ) {
+                let descriptor = LiveWindowHistoryDescriptor(
+                    identity: identity,
+                    bundleIdentifier: app.bundleIdentifier ?? "app-\(app.processIdentifier)",
+                    title: metadata.title.isEmpty
+                        ? (app.localizedName ?? "Application")
+                        : metadata.title,
+                    documentURL: metadata.documentURL,
+                    role: metadata.role,
+                    subrole: metadata.subrole,
+                    bounds: metadata.frame,
+                    displayIdentifier: metadata.workspace.primaryWorkspace?.displayIdentifier,
+                    workspaceKey: metadata.workspace.primaryWorkspace?.stableKey
+                )
+                history.noteActivation(identity, descriptor: descriptor)
+            } else {
+                history.noteActivation(identity)
+            }
             return
         }
 
@@ -237,7 +270,7 @@ final class FocusedWindowHistoryObserver {
             }
 
             let window = unsafeBitCast(value, to: AXUIElement.self)
-            if let windowID = WindowIDLookup.windowID(for: window) {
+            if let windowID = AXWindowIdentityLookup.windowID(for: window) {
                 return .appWindow(
                     pid: app.processIdentifier,
                     windowID: windowID
