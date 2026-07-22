@@ -60,9 +60,7 @@ def verify_swift_parse_when_available() -> None:
         return
 
     changed_sources = [
-        path
-        for path in REQUIRED_FILES
-        if path.suffix == ".swift"
+        path for path in REQUIRED_FILES if path.suffix == ".swift"
     ] + [
         ROOT / "Sources" / "CmdTab" / "AppDelegate.swift",
         ROOT / "Sources" / "CmdTab" / "FocusedWindowHistoryObserver.swift",
@@ -159,8 +157,11 @@ def main() -> None:
         "expirationInterval",
     ):
         require(durable, literal, "DurableSwitcherHistory")
-    reject(durable, 'let title: String\n', "DurableWindowHistoryRecord")
-    reject(durable, 'let documentURL: URL', "DurableWindowHistoryRecord")
+    record_block = durable.split(
+        "struct DurableWindowHistoryRecord", 1
+    )[1].split("struct DurableWindowHistoryFile", 1)[0]
+    reject(record_block, "let title: String", "DurableWindowHistoryRecord")
+    reject(record_block, "let documentURL: URL", "DurableWindowHistoryRecord")
 
     actions = read(ROOT / "Sources" / "CmdTab" / "WindowManagementActions.swift")
     for literal in (
@@ -182,7 +183,7 @@ def main() -> None:
 
     facade = read(ROOT / "Sources" / "CmdTab" / "ProductionAppSwitcher.swift")
     for literal in (
-        "synthesizes eligible AX windows",
+        "synthesizes eligible minimized and off-space windows",
         "activateExactSyntheticWindow",
         "history.reconcileLiveWindows",
         "includeMinimizedWindows",
@@ -221,7 +222,11 @@ def main() -> None:
     observer = read(
         ROOT / "Sources" / "CmdTab" / "FocusedWindowHistoryObserver.swift"
     )
-    require(observer, "history.noteActivation(identity, descriptor: descriptor)", "FocusedWindowHistoryObserver")
+    require(
+        observer,
+        "history.noteActivation(identity, descriptor: descriptor)",
+        "FocusedWindowHistoryObserver",
+    )
     require(observer, "startPermissionRetryIfNeeded", "FocusedWindowHistoryObserver")
 
     entitlements_paths = [
