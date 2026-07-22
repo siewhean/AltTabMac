@@ -137,10 +137,11 @@ PY
 [[ -n "${SUBMISSION_ID}" ]] || fail "notarytool response did not contain a submission ID"
 printf '%s\n' "${SUBMISSION_ID}" > "${SUBMISSION_ID_PATH}"
 
-# Persist Apple's full log for both accepted and rejected submissions.
-if ! xcrun notarytool log "${SUBMISSION_ID}" "${AUTH_ARGS[@]}" > "${LOG_JSON}"; then
-  echo "Warning: notarization result was received but the detailed log could not be downloaded." >&2
+rm -f "${LOG_JSON}"
+if ! xcrun notarytool log "${SUBMISSION_ID}" "${AUTH_ARGS[@]}" "${LOG_JSON}"; then
+  fail "notarization result was received but the detailed Apple log could not be downloaded"
 fi
+[[ -s "${LOG_JSON}" ]] || fail "Apple notarization log is empty"
 
 if [[ "${STATUS}" != "Accepted" ]]; then
   printf 'Notarization status: %s\n' "${STATUS:-unknown}" >&2
@@ -148,7 +149,24 @@ if [[ "${STATUS}" != "Accepted" ]]; then
   fail "Apple did not accept submission ${SUBMISSION_ID}; inspect ${RESULT_JSON} and ${LOG_JSON}"
 fi
 
-printf 'Notarization accepted.\n'
+python3 - "${LOG_JSON}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+data = json.loads(path.read_text(encoding="utf-8"))
+issues = data.get("issues") or []
+if issues:
+    for issue in issues:
+        severity = issue.get("severity", "unknown")
+        item_path = issue.get("path", "unknown path")
+        message = issue.get("message", "no message")
+        print(f"{severity}: {item_path}: {message}", file=sys.stderr)
+    raise SystemExit("Apple accepted the submission but the notarization log contains issues")
+PY
+
+printf 'Notarization accepted with an issue-free log.\n'
 printf 'Submission ID: %s\n' "${SUBMISSION_ID}"
 printf 'Result: %s\n' "${RESULT_JSON}"
 printf 'Log: %s\n' "${LOG_JSON}"
