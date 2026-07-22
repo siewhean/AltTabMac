@@ -6,6 +6,7 @@ final class MenuBarController {
     private var statusItem: NSStatusItem!
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
+    private lazy var profilePreferencesWindowController = SwitcherProfilePreferencesWindowController()
     private var contextMenu: NSMenu?
 
     init(
@@ -18,6 +19,12 @@ final class MenuBarController {
             name: SwitcherPreferences.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreferencesDidChange),
+            name: SwitcherProfileStore.didChangeNotification,
+            object: nil
+        )
         build()
     }
 
@@ -28,9 +35,11 @@ final class MenuBarController {
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         Self.sharedStatusItem = statusItem
-        statusItem.button?.image = NSImage(systemSymbolName: "arrow.right.arrow.left",
-                                           accessibilityDescription: "CmdTab")
-        statusItem.button?.image?.isTemplate = true   // adapts to dark/light menu bar
+        statusItem.button?.image = NSImage(
+            systemSymbolName: "arrow.right.arrow.left",
+            accessibilityDescription: "CmdTab"
+        )
+        statusItem.button?.image?.isTemplate = true
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleStatusItemClick)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -42,6 +51,14 @@ final class MenuBarController {
     func updateMenu() {
         let menu = NSMenu()
 
+        let profilesItem = NSMenuItem(
+            title: "Shortcut Profiles…",
+            action: #selector(openShortcutProfiles),
+            keyEquivalent: ""
+        )
+        profilesItem.target = self
+        menu.addItem(profilesItem)
+
         let visibilityMenuItem = NSMenuItem(title: "Window Visibility", action: nil, keyEquivalent: "")
         visibilityMenuItem.submenu = visibilitySubmenu()
         menu.addItem(visibilityMenuItem)
@@ -49,6 +66,15 @@ final class MenuBarController {
         let displayMenuItem = NSMenuItem(title: "Display Target", action: nil, keyEquivalent: "")
         displayMenuItem.submenu = displaySubmenu()
         menu.addItem(displayMenuItem)
+
+        let minimizedItem = NSMenuItem(
+            title: "Include Minimized Windows",
+            action: #selector(toggleIncludeMinimizedWindows),
+            keyEquivalent: ""
+        )
+        minimizedItem.state = preferences.includeMinimizedWindows ? .on : .off
+        minimizedItem.target = self
+        menu.addItem(minimizedItem)
 
         let alternateTriggerMenuItem = NSMenuItem(title: "Hot Swap Shortcut", action: nil, keyEquivalent: "")
         alternateTriggerMenuItem.submenu = alternateTriggerSubmenu()
@@ -77,7 +103,6 @@ final class MenuBarController {
         buyItem.target = self
         menu.addItem(buyItem)
 
-        // ── About / help ─────────────────────────────────────────────────────
         let aboutItem = NSMenuItem(title: "About CmdTab", action: #selector(showAbout), keyEquivalent: "")
         aboutItem.target = self
         menu.addItem(aboutItem)
@@ -88,13 +113,12 @@ final class MenuBarController {
         quit.target = self
         menu.addItem(quit)
 
-        self.contextMenu = menu
-        self.statusItem.menu = nil
+        contextMenu = menu
+        statusItem.menu = nil
     }
 
     private func visibilitySubmenu() -> NSMenu {
         let menu = NSMenu()
-
         for scope in WindowVisibilityScope.allCases {
             let item = NSMenuItem(
                 title: scope.title,
@@ -106,13 +130,11 @@ final class MenuBarController {
             item.representedObject = scope.rawValue
             menu.addItem(item)
         }
-
         return menu
     }
 
     private func displaySubmenu() -> NSMenu {
         let menu = NSMenu()
-
         for displayPreference in SwitcherDisplayPreference.allCases {
             let item = NSMenuItem(
                 title: displayPreference.title,
@@ -124,13 +146,11 @@ final class MenuBarController {
             item.representedObject = displayPreference.rawValue
             menu.addItem(item)
         }
-
         return menu
     }
 
     private func alternateTriggerSubmenu() -> NSMenu {
         let menu = NSMenu()
-
         for trigger in hotSwapShortcutModes {
             let item = NSMenuItem(
                 title: trigger.title,
@@ -142,7 +162,6 @@ final class MenuBarController {
             item.representedObject = trigger.rawValue
             menu.addItem(item)
         }
-
         return menu
     }
 
@@ -152,7 +171,7 @@ final class MenuBarController {
             .leftCommandDoubleTap,
             .rightCommandDoubleTap,
             .leftOptionDoubleTap,
-            .rightOptionDoubleTap
+            .rightOptionDoubleTap,
         ]
     }
 
@@ -180,8 +199,16 @@ final class MenuBarController {
         preferences.alternateTrigger = trigger
     }
 
+    @objc private func toggleIncludeMinimizedWindows() {
+        preferences.includeMinimizedWindows.toggle()
+    }
+
     @objc private func toggleLaunchAtLogin() {
         preferences.launchAtLogin.toggle()
+    }
+
+    @objc private func openShortcutProfiles() {
+        profilePreferencesWindowController.show()
     }
 
     @objc private func openSettings() {
@@ -210,7 +237,11 @@ final class MenuBarController {
 
         if event.type == .rightMouseUp {
             if let menu = contextMenu, let button = statusItem.button {
-                menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY), in: button)
+                menu.popUp(
+                    positioning: nil,
+                    at: NSPoint(x: 0, y: button.bounds.maxY),
+                    in: button
+                )
             }
         } else {
             preferencesWindowController.show()
@@ -222,20 +253,18 @@ final class MenuBarController {
     }
 
     @objc private func showAbout() {
+        let profileCount = SwitcherProfileStore.shared.profilesSnapshot().filter(\.isEnabled).count
         let alert = NSAlert()
-        alert.messageText    = "CmdTab"
+        alert.messageText = "CmdTab"
         alert.informativeText = """
-        Windows-style Alt+Tab for macOS.
+        Exact-window switching for macOS.
 
-        ⌘ Tab  — Switch between application windows
-        ⌥ Tab  — Same switcher, alternate modifier
-        Optional hot swap shortcut  — Instantly switches to the latest item
-        Left click  — Open settings
-        Right click  — Open settings and quick controls
+        \(profileCount) shortcut profile\(profileCount == 1 ? "" : "s") enabled.
+        Right-click the menu-bar item to edit profiles, include minimized windows, and change visibility or display scope.
 
-        Hold the modifier and press Tab repeatedly to cycle.
-        Release to activate the highlighted item.
-        Press Escape to dismiss without switching.
+        Hold a profile's primary modifier and press its shortcut repeatedly to cycle, or use a press-to-toggle profile and press Return to commit. Escape always cancels.
+
+        Right-click the visible switcher for exact-window restore, fullscreen, display movement, centering, tiling, and force-quit actions.
 
         Grant Accessibility access in:
         System Settings → Privacy & Security → Accessibility
