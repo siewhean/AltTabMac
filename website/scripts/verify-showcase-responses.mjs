@@ -11,7 +11,7 @@ async function fetchPath(path, init = {}) {
   return fetch(`${baseUrl}${path}`, {
     redirect: "follow",
     headers: {
-      "User-Agent": "CmdTabShowcaseVerifier/3.0",
+      "User-Agent": "CmdTabShowcaseVerifier/4.0",
       ...(init.headers || {}),
     },
     ...init,
@@ -27,7 +27,8 @@ assert.match(page, /<video/i, "rendered showcase page is missing video elements"
 assert.match(page, /<img/i, "rendered showcase page is missing poster-only fallback images");
 assert.match(page, /<video[^>]*\splaysinline(?:="")?/i, "rendered showcase videos must play inline");
 assert.match(page, /<video[^>]*\smuted(?:="")?/i, "rendered showcase videos must be muted");
-assert.match(page, /<video[^>]*\sautoplay(?:="")?/i, "overview video must autoplay");
+assert.match(page, /data-autoplay-mode="one-shot"/i, "rendered showcase videos must declare one-shot autoplay");
+assert.doesNotMatch(page, /<video[^>]*\sloop(?:="")?/i, "rendered showcase videos must not loop");
 assert.doesNotMatch(page, /aria-label="(?:Play|Pause) /i, "showcase must not render play or pause buttons");
 assert.doesNotMatch(page, /Read the media description/i, "showcase must not render transcript disclosures");
 assert.doesNotMatch(page, /<details[^>]*>\s*<summary[^>]*>\s*Read the media description/i, "showcase contains a media description accordion");
@@ -40,6 +41,7 @@ assert.doesNotMatch(page, /classic-grid\.mp4|command-palette\.mp4/, "rendered pa
 assert.match(page, /"@type":"VideoObject"/, "rendered VideoObject schema is missing");
 assert.match(page, /"thumbnailUrl":"https:\/\/cmdtab\.net\/showcase\/overview-poster\.webp"/, "VideoObject thumbnail URL is wrong");
 assert.match(page, /"contentUrl":"https:\/\/cmdtab\.net\/showcase\/overview\.mp4"/, "VideoObject content URL is wrong");
+assert.match(manifest.motionPolicy || "", /run once/i, "manifest is missing one-shot motion policy");
 
 for (const asset of manifest.assets) {
   const posterPath = `/showcase/${asset.poster}`;
@@ -54,6 +56,7 @@ for (const asset of manifest.assets) {
   assert.equal(posterBytes.subarray(8, 12).toString("ascii"), "WEBP", `${posterPath} is not WebP`);
 
   if (!asset.video) continue;
+  assert.ok(asset.durationSeconds <= 5, `${asset.id} exceeds the autoplay duration limit`);
   const videoPath = `/showcase/${asset.video}`;
   assert.ok(page.includes(`src="${videoPath}"`), `${videoPath} is not wired into rendered HTML`);
   const videoResponse = await fetchPath(videoPath);
@@ -74,4 +77,4 @@ const manifestResponse = await fetchPath("/showcase/manifest.json");
 assert.equal(manifestResponse.status, 200, `/showcase/manifest.json returned HTTP ${manifestResponse.status}`);
 assert.match(manifestResponse.headers.get("content-type") || "", /application\/json/i, "showcase manifest content type is wrong");
 
-console.log(`Rendered showcase verification passed for ${manifest.assets.length} posters and ${manifest.assets.filter((asset) => asset.video).length} autoplay MP4 loops.`);
+console.log(`Rendered showcase verification passed for ${manifest.assets.length} posters and ${manifest.assets.filter((asset) => asset.video).length} one-shot autoplay MP4s.`);
