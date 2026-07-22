@@ -2,19 +2,27 @@
 
 ## Open blockers
 
-### 1. GitHub Actions jobs fail before executing steps
+### 1. GitHub Actions cannot assign hosted runners
 
-Recent Website Security and SEO/GEO jobs were assigned a failed conclusion with no executable steps and no job log. The repository cannot currently treat those checks as proof that the source failed or passed.
+On PR #26, Workflow Health, Website Security, and SEO/GEO all failed before their first step. Each job reports `steps: None` and no job log.
 
-**Required disposition:** confirm account quota/billing, Actions policy, hosted-runner availability, and workflow permissions. The new Workflow Health job must reach its first shell step before the gate is trusted.
+This rules out a source assertion as the immediate cause. The repository cannot treat these statuses as proof that the source failed or passed.
 
-### 2. Recursive generated-output cleanup is incomplete
+**Required disposition:** confirm account quota/billing, Actions policy, hosted-runner availability, repository permissions, and any spending limit. The Workflow Health job must print runner metadata and complete checkout before the gate is trusted.
+
+### 2. Vercel rejected the exact PR head before build
+
+The exact PR head received a Vercel failure status that links to the account build-rate limit. An earlier intermediate preview is READY, but it predates the final manifest checksum enforcement and Phase 0 evidence updates.
+
+**Required disposition:** wait for the build-rate window to clear or adjust the account limit, then require a READY preview whose deployment metadata names the exact accepted head.
+
+### 3. Recursive generated-output cleanup is incomplete
 
 The root `.build/.lock` and `.DS_Store` were removed, but the repository historically tracked a large `.build/` tree. The connector has not yet provided a recursive index-deletion operation for the directory.
 
 **Required disposition:** run `git rm -r --cached .build` from an authenticated checkout or create an equivalent Git tree deletion commit, then verify `git ls-files .build` returns no entries.
 
-### 3. Owner credentials are not available for signing and notarization
+### 4. Owner credentials are not available for signing and notarization
 
 No Developer ID Application identity, App Store Connect API credential, or notarization keychain profile has been supplied to the implementation environment.
 
