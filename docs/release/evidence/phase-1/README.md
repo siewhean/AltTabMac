@@ -3,7 +3,7 @@
 **Phase:** Deterministic application bundle and unsigned/local-QA artifact  
 **Branch:** `agent/phase-1-deterministic-packaging`  
 **Pull request:** #31  
-**Status:** IMPLEMENTATION IN PROGRESS  
+**Status:** CROSS-PLATFORM GATE PASSED / NATIVE MACOS GATE PENDING  
 **Started:** 2026-07-22
 
 ## Implemented in source
@@ -25,35 +25,71 @@
 - Added bundle layout, metadata, architecture, quarantine, executable, and signature verification.
 - Added bundle manifest and SHA-256 generation.
 - Added a two-clean-build byte-for-byte reproducibility check.
+- Added `scripts/release/run-phase1-qa.sh` to execute native tests, packaging, reproducibility, and evidence collection locally in one command.
 - Kept `build.sh` as a compatibility wrapper around the new packaging pipeline.
 - Removed the tracked legacy root `CmdTab.app` bundle from source control.
 
+## Cross-platform verification
+
+Vercel deployment `dpl_FUF6dt3ghEDLsrPG3cZzFZmrJuFU` reached `READY` for commit `8989139ec05083bce738561a7b399094373f0f74`.
+
+The Vercel build recorded:
+
+- `Repository release identity verification passed`;
+- dependency audit found `0 vulnerabilities` at the moderate threshold;
+- SEO, media, and copy verification passed;
+- TypeScript passed;
+- the Next.js production build completed.
+
+The subsequent branch commit adds the local macOS QA evidence runner and does not change the release identity contract verified by that deployment.
+
 ## QA/QC checklist
 
-| Check | Status | Required evidence |
+| Check | Status | Evidence / next action |
 |---|---|---|
-| ReleaseConfig and repository identity validation | Pending exact-head Vercel execution | `release_config.py verify-repository` |
-| Checked-in Info.plist matches ReleaseConfig | Pending exact-head Vercel execution | repository identity gate |
-| Public product facts match native bundle identity | Pending exact-head Vercel execution | repository identity gate |
-| Bundle migration unit tests | Pending local macOS execution | `swift test --filter BundleIdentityMigrationTests` |
-| Full Swift test suite | Pending local macOS execution | `swift test --scratch-path ...` |
-| Clean Swift release build | Pending execution on macOS | `build-app.sh` output |
-| Valid app bundle layout | Pending execution on macOS | `verify-bundle.sh` |
-| Main executable present and executable | Pending execution | bundle verifier |
-| No unexpected executable or symlink | Pending execution | bundle verifier |
-| App icon present | Pending execution | bundle verifier |
-| Actual architecture recorded | Pending execution | bundle manifest |
-| Ad-hoc signature verifies | Pending execution | `codesign --verify --strict` |
-| Info.plist and resources checksummed | Pending execution | `.sha256` and manifest |
-| Two clean unsigned builds are byte-for-byte reproducible | Pending execution | `reproducibility-check.sh` |
-| Existing beta preferences and license remain available | Pending manual migration QA | launch old bundle, seed state, launch new bundle |
-| Accessibility and Screen Recording re-grant guidance works | Pending manual macOS QA | TCC transition record |
-| App launches as a menu-bar agent | Pending manual macOS QA | launch record |
-| App remains absent from Dock/native switcher | Pending manual macOS QA | launch record |
+| ReleaseConfig and repository identity validation | **PASS** | Vercel `dpl_FUF6dt3ghEDLsrPG3cZzFZmrJuFU` |
+| Checked-in Info.plist matches ReleaseConfig | **PASS** | repository identity gate |
+| Public product facts match native bundle identity | **PASS** | repository identity gate |
+| Empty Phase 1 entitlement baseline | **PASS** | repository identity gate |
+| Generated root `CmdTab.app` absent from tracking | **PASS** | repository identity gate and branch diff |
+| Dependency audit at moderate threshold | **PASS** | Vercel reported zero vulnerabilities |
+| Website SEO/media/copy verification | **PASS** | Vercel prebuild |
+| Website TypeScript and production build | **PASS** | Vercel READY deployment |
+| Bundle migration unit tests | **PENDING LOCAL MACOS** | `run-phase1-qa.sh` |
+| Full Swift test suite | **PENDING LOCAL MACOS** | `run-phase1-qa.sh` |
+| Clean Swift release build | **PENDING LOCAL MACOS** | `run-phase1-qa.sh` |
+| Valid app bundle layout | **PENDING LOCAL MACOS** | bundle verifier |
+| Main executable present and executable | **PENDING LOCAL MACOS** | bundle verifier |
+| No unexpected executable or symlink | **PENDING LOCAL MACOS** | bundle verifier |
+| App icon present | **PENDING LOCAL MACOS** | bundle verifier |
+| Actual architecture recorded | **PENDING LOCAL MACOS** | bundle manifest |
+| Ad-hoc signature verifies | **PENDING LOCAL MACOS** | `codesign --verify --strict` |
+| Info.plist and resources checksummed | **PENDING LOCAL MACOS** | `.sha256` and manifest |
+| Two clean unsigned builds are byte-for-byte reproducible | **PENDING LOCAL MACOS** | reproducibility check |
+| Existing beta preferences and license remain available | **PENDING MANUAL MACOS** | legacy/new bundle migration exercise |
+| Accessibility and Screen Recording re-grant guidance works | **PENDING MANUAL MACOS** | TCC transition record |
+| App launches as a menu-bar agent | **PENDING MANUAL MACOS** | launch record |
+| App remains absent from Dock/native switcher | **PENDING MANUAL MACOS** | launch record |
+
+## Required local command
+
+From a checkout of the branch on a Mac:
+
+```bash
+./scripts/release/run-phase1-qa.sh
+```
+
+The command writes automated evidence to:
+
+```text
+dist/phase1-evidence/
+```
+
+After it passes, complete `dist/phase1-evidence/manual-checks.md` and copy the accepted evidence into this phase record before merging PR #31.
 
 ## Current release decision
 
-**NO-GO.** Phase 1 source scaffolding and identity migration are implemented, but the scripts and native tests have not executed on a macOS build machine in this environment. Phase 1 remains incomplete until clean build, full Swift tests, bundle verification, reproducibility, migration, and menu-bar launch checks pass and their outputs are recorded here.
+**NO-GO.** The cross-platform source and website gate passed, but Phase 1 cannot pass until the Swift sources compile and test on macOS, the app is packaged and verified, two clean builds reproduce, migration is observed, and menu-bar-only launch behavior is confirmed.
 
 ## Known boundaries
 
