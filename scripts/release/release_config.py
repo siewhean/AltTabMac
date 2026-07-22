@@ -71,6 +71,10 @@ def plist_for(config: dict[str, Any]) -> dict[str, Any]:
             "CmdTab needs Accessibility permission to intercept Command-Tab and "
             "Option-Tab and activate the selected window."
         ),
+        "NSScreenCaptureUsageDescription": (
+            "CmdTab needs Screen Recording permission to display previews of your open windows. "
+            "Captured window images stay on your Mac."
+        ),
     }
 
 
