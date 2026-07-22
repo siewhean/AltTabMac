@@ -1,8 +1,8 @@
-# CmdTab release configuration
+# CmdTab release configuration and distribution
 
-`ReleaseConfig.json` is the canonical source for local bundle metadata.
+`ReleaseConfig.json` is the canonical source for bundle metadata.
 
-The current bundle identifier is `net.cmdtab.CmdTab`, derived from the maintained `cmdtab.net` product domain. Confirm that this identifier is registered to the correct Apple Developer team before Phase 2 signing begins. Do not casually change it after licenses, permissions, update feeds, or public artifacts depend on it.
+The current bundle identifier is `net.cmdtab.CmdTab`, derived from the maintained `cmdtab.net` product domain. Confirm that this identifier is registered to the intended Apple Developer team before accepting any signed artifact. Do not casually change it after licenses, permissions, update feeds, or public artifacts depend on it.
 
 ## Legacy beta migration
 
@@ -15,9 +15,9 @@ On first launch under the permanent identifier, CmdTab:
 - leaves the legacy UserDefaults domain and Keychain item untouched for rollback;
 - retries later if silent Keychain access is temporarily unavailable.
 
-Accessibility and Screen Recording grants belong to macOS TCC and cannot be migrated by the app. Test and document the re-grant path before distributing the new identifier.
+Accessibility and Screen Recording grants belong to macOS TCC and cannot be migrated by the app. The ad-hoc Phase 1 bundle required an exact-bundle reset/re-grant during QA. Phase 2 must prove that consecutive builds signed by the same Developer ID identity retain one stable code identity.
 
-## Phase 1 commands
+## Phase 1 — deterministic local QA bundle
 
 Verify repository-wide release identity without building:
 
@@ -28,6 +28,7 @@ python3 scripts/release/release_config.py verify-repository
 Build an ad-hoc signed local QA app:
 
 ```bash
+chmod +x scripts/release/*.sh
 ./scripts/release/package-app.sh
 ```
 
@@ -37,12 +38,6 @@ The default outputs are:
 dist/CmdTab.app
 dist/CmdTab.manifest.json
 dist/CmdTab.sha256
-```
-
-Build the legacy root-level local app:
-
-```bash
-./build.sh
 ```
 
 Verify an existing local bundle:
@@ -57,17 +52,176 @@ Run two clean unsigned builds and compare every packaged byte:
 ./scripts/release/reproducibility-check.sh
 ```
 
-Run migration-focused and full Swift tests locally:
+Run the complete accepted local gate:
 
 ```bash
-swift test --scratch-path /tmp/CmdTab-migration --filter BundleIdentityMigrationTests
-swift test --scratch-path /tmp/CmdTab-phase1
+./scripts/release/run-phase1-qa.sh
 ```
 
-## Boundaries
+Phase 1 evidence is recorded in `docs/release/evidence/phase-1/README.md`.
 
-- Phase 1 uses the architecture of the current build Mac only.
-- The manifest records the actual architecture; it must not be advertised as Universal Binary unless both `arm64` and `x86_64` are built and verified.
-- Ad-hoc signing is for local QA only.
-- Developer ID signing, secure timestamping, notarization, stapling, Gatekeeper assessment, and clean-machine distribution belong to Phase 2.
-- `Resources/CmdTab.entitlements` is intentionally empty. Add an entitlement only when a verified runtime requirement proves it is necessary.
+## Phase 2 — Developer ID direct distribution
+
+Phase 2 creates a signed, notarized, stapled ZIP while preserving the deterministic unsigned input as separate evidence.
+
+### Required signing identity
+
+Set the exact certificate common name shown by:
+
+```bash
+security find-identity -v -p codesigning
+```
+
+Example environment shape:
+
+```bash
+export CMDTAB_DEVELOPER_IDENTITY='Developer ID Application: Example Name (TEAMID1234)'
+export CMDTAB_TEAM_ID='TEAMID1234'
+```
+
+The scripts reject ad-hoc identity `-`, require the requested identity to exist in the active keychain search list, enable Hardened Runtime, request an Apple secure timestamp, and verify the resulting authority and TeamIdentifier.
+
+Do not run the signing scripts with `sudo`. Code signing depends on the signing user’s keychain context.
+
+### Notarization authentication
+
+Choose exactly one mode.
+
+#### Named notarytool keychain profile
+
+Create the profile interactively once:
+
+```bash
+xcrun notarytool store-credentials 'CmdTab-Notary' \
+  --apple-id 'YOUR_APPLE_ID' \
+  --team-id "$CMDTAB_TEAM_ID"
+```
+
+Then set:
+
+```bash
+export CMDTAB_NOTARY_PROFILE='CmdTab-Notary'
+```
+
+The app-specific password is entered into `notarytool` interactively when the profile is created. It is not stored in the repository or passed to the Phase 2 scripts.
+
+#### App Store Connect API key
+
+```bash
+export CMDTAB_NOTARY_KEY_ID='KEYID12345'
+export CMDTAB_NOTARY_ISSUER='00000000-0000-0000-0000-000000000000'
+export CMDTAB_NOTARY_KEY_PATH="$HOME/.private/AuthKey_KEYID12345.p8"
+```
+
+The `.p8` file must remain outside the repository and must never be copied into evidence or artifacts.
+
+Plaintext Apple ID password authentication is intentionally unsupported by this pipeline.
+
+### Full Phase 2 automated run
+
+```bash
+chmod +x scripts/release/*.sh
+./scripts/release/run-phase2-qa.sh
+```
+
+The runner performs:
+
+1. cross-platform Phase 2 source-contract verification;
+2. repository identity verification;
+3. the complete Phase 1 regression gate;
+4. deterministic unsigned app assembly and manifest capture;
+5. Developer ID signing with Hardened Runtime and secure timestamp;
+6. notarization ZIP creation;
+7. `notarytool submit --wait` and detailed log capture;
+8. ticket stapling and validation;
+9. final ZIP creation and SHA-256 generation;
+10. strict codesign, entitlement, Gatekeeper, and ZIP-extraction verification.
+
+Default outputs:
+
+```text
+dist/phase2/CmdTab.app
+dist/phase2/CmdTab-<version>-<architecture>.zip
+dist/phase2/CmdTab-<version>-<architecture>.zip.sha256
+dist/phase2-evidence/
+```
+
+A successful automated run writes:
+
+```text
+AUTOMATED_PASS
+```
+
+This is not the final Phase 2 acceptance. Complete and review:
+
+```text
+dist/phase2-evidence/manual-checks.md
+```
+
+The clean-account test, second consecutively signed build, Launch at Login behavior, real legacy-profile migration, and rollback test remain mandatory manual gates.
+
+## Individual Phase 2 commands
+
+Create an unsigned deterministic input:
+
+```bash
+CMDTAB_SKIP_ADHOC_SIGN=1 \
+CMDTAB_OUTPUT_APP=/tmp/cmdtab-unsigned/CmdTab.app \
+  ./scripts/release/package-app.sh
+```
+
+Sign a copied output bundle:
+
+```bash
+CMDTAB_INPUT_SIGNING=unsigned \
+  ./scripts/release/sign-app.sh \
+  /tmp/cmdtab-unsigned/CmdTab.app \
+  /tmp/cmdtab-signed/CmdTab.app
+```
+
+Create a notarization-safe ZIP:
+
+```bash
+./scripts/release/create-zip.sh \
+  /tmp/cmdtab-signed/CmdTab.app \
+  /tmp/CmdTab-notarization.zip
+```
+
+Submit and preserve Apple’s result and log:
+
+```bash
+./scripts/release/notarize-app.sh \
+  /tmp/CmdTab-notarization.zip \
+  /tmp/cmdtab-notary-evidence
+```
+
+Staple and validate:
+
+```bash
+./scripts/release/staple-app.sh /tmp/cmdtab-signed/CmdTab.app
+```
+
+Verify the final app and ZIP:
+
+```bash
+./scripts/release/verify-distribution.sh \
+  /tmp/cmdtab-signed/CmdTab.app \
+  /tmp/CmdTab-final.zip
+```
+
+## Entitlement policy
+
+`Resources/CmdTab.entitlements` and `release/CmdTab.entitlements` must remain equal.
+
+They currently contain an empty dictionary. Add an entitlement only when a reproducible signed-runtime failure proves it is required. Do not add broad Hardened Runtime exceptions pre-emptively.
+
+## Architecture and release boundaries
+
+- The current packaging pipeline builds the architecture of the signing Mac only.
+- The manifest records the actual architecture.
+- Do not advertise Universal Binary, Intel, or cross-architecture support unless both `arm64` and `x86_64` are built, packaged, signed, notarized, installed, and tested.
+- The recommended first release-candidate policy is arm64-only unless Intel support is an explicit product requirement.
+- A minimum macOS version does not imply support for every processor capable of running that macOS version.
+- Ad-hoc signing is local QA only.
+- Developer ID script implementation is not evidence that notarization or Gatekeeper passed.
+- `release/native-rc1` must not be created until Phase 2, private API capability hardening, the full desktop matrix, and release recovery infrastructure pass.
