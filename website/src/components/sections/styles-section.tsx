@@ -15,30 +15,30 @@ export function StylesSection() {
   return (
     <SectionShell
       id="modes"
-      eyebrow="Three modes"
-      title="Pick the switcher style that matches how you already work."
-      description="Every mode uses the same eligible-window set and exact-window recent-use sequence, then changes how you identify and select the target."
+      title="Three ways to switch."
+      description="Scan with thumbnails, search by name, or move by position."
     >
-      <div className="grid gap-8 xl:grid-cols-3">
+      <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
         {styleVariants.map((variant, index) => (
-          <MotionReveal key={variant.id} delay={index * 90} direction="up">
-            <article className="surface-panel h-full overflow-hidden">
-              <ScreenshotFrame assetId={variant.screenshotId as never} />
-              <div className="space-y-3 p-6">
-                <p className="type-eyebrow text-cyan">Mode</p>
-                <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
-                  {variant.name}
-                </h3>
-                <p className="type-body text-muted">{variant.summary}</p>
-                <p className="text-sm leading-6 text-subdued">{variant.bestFor}</p>
-                <Link
-                  href={modeLinks[variant.id]}
-                  className="inline-flex pt-2 text-sm font-medium text-cyan hover:text-text"
-                >
-                  Review current behavior →
-                </Link>
+          <MotionReveal
+            key={variant.id}
+            delay={index * 70}
+            direction="up"
+            className="min-w-[84vw] snap-center sm:min-w-[58vw] lg:min-w-0"
+          >
+            <Link
+              href={modeLinks[variant.id]}
+              className="surface-panel group block h-full overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/70"
+            >
+              <ScreenshotFrame assetId={variant.screenshotId as never} showCaption={false} />
+              <div className="p-5 sm:p-6">
+                <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">{variant.name}</h2>
+                <p className="mt-3 text-sm leading-6 text-muted">{variant.summary}</p>
+                <span className="mt-5 inline-flex min-h-11 items-center text-sm font-medium text-cyan transition-colors group-hover:text-text">
+                  Explore mode →
+                </span>
               </div>
-            </article>
+            </Link>
           </MotionReveal>
         ))}
       </div>
