@@ -8,9 +8,12 @@ entering the repository.
 
 from __future__ import annotations
 
+import json
 import plistlib
 import shutil
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,6 +83,114 @@ def read_python_tool(path: Path) -> str:
     except SyntaxError as error:
         fail(f"{path.name} has invalid Python syntax: {error}")
     return text
+
+
+def run_distribution_record_tests() -> None:
+    with tempfile.TemporaryDirectory(prefix="cmdtab-phase2-source-") as temp_name:
+        temp = Path(temp_name)
+        release_config = temp / "ReleaseConfig.json"
+        unsigned_manifest = temp / "unsigned.json"
+        signed_manifest = temp / "signed.json"
+        final_artifact = temp / "CmdTab.zip"
+        notary_result = temp / "notary-result.json"
+        notary_log = temp / "notary-log.json"
+        output = temp / "distribution-record.json"
+
+        release_config.write_text(
+            json.dumps(
+                {
+                    "bundleIdentifier": "net.cmdtab.CmdTab",
+                    "marketingVersion": "1.0.0",
+                    "buildNumber": "1",
+                    "minimumSystemVersion": "13.0",
+                    "architecturePolicy": "native-host-only-until-universal-build-is-verified",
+                    "distributionChannel": "developer-id-direct",
+                }
+            ),
+            encoding="utf-8",
+        )
+        unsigned_manifest.write_text(
+            json.dumps(
+                {
+                    "bundleIdentifier": "net.cmdtab.CmdTab",
+                    "marketingVersion": "1.0.0",
+                    "buildNumber": "1",
+                    "architectures": ["arm64"],
+                    "signing": {"mode": "unsigned"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        signed_manifest.write_text(
+            json.dumps(
+                {
+                    "bundleIdentifier": "net.cmdtab.CmdTab",
+                    "marketingVersion": "1.0.0",
+                    "buildNumber": "1",
+                    "architectures": ["arm64"],
+                    "signing": {
+                        "mode": "identity",
+                        "authorities": ["Developer ID Application: Test (ABCDEFGHIJ)"],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        final_artifact.write_bytes(b"signed-notarized-stapled-test-artifact")
+        notary_result.write_text(
+            json.dumps({"id": "submission-test", "status": "Accepted"}),
+            encoding="utf-8",
+        )
+        notary_log.write_text(json.dumps({"issues": []}), encoding="utf-8")
+
+        base_args = [
+            sys.executable,
+            str(DISTRIBUTION_RECORD_TOOL),
+            "--release-config",
+            str(release_config),
+            "--source-commit",
+            "deadbeef",
+            "--unsigned-manifest",
+            str(unsigned_manifest),
+            "--signed-manifest",
+            str(signed_manifest),
+            "--final-artifact",
+            str(final_artifact),
+            "--notary-result",
+            str(notary_result),
+            "--notary-log",
+            str(notary_log),
+            "--submission-id",
+            "submission-test",
+            "--signing-identity",
+            "Developer ID Application: Test (ABCDEFGHIJ)",
+            "--team-id",
+            "ABCDEFGHIJ",
+            "--output",
+            str(output),
+        ]
+
+        accepted = subprocess.run(base_args, text=True, capture_output=True, check=False)
+        if accepted.returncode != 0:
+            fail(
+                "write-distribution-record.py rejected a valid fixture: "
+                + (accepted.stderr.strip() or accepted.stdout.strip())
+            )
+        record = json.loads(output.read_text(encoding="utf-8"))
+        if record.get("sourceCommit") != "deadbeef":
+            fail("distribution record fixture lost the source commit")
+        if record.get("notarization", {}).get("submissionId") != "submission-test":
+            fail("distribution record fixture lost the notarization submission ID")
+        if record.get("finalArtifact", {}).get("sha256") is None:
+            fail("distribution record fixture omitted the final artifact checksum")
+
+        notary_log.write_text(
+            json.dumps({"issues": [{"severity": "warning", "message": "fixture"}]}),
+            encoding="utf-8",
+        )
+        rejected = subprocess.run(base_args, text=True, capture_output=True, check=False)
+        if rejected.returncode == 0:
+            fail("write-distribution-record.py accepted a notarization log containing issues")
 
 
 def main() -> None:
@@ -165,6 +276,7 @@ def main() -> None:
         require(distribution_record, required, DISTRIBUTION_RECORD_TOOL.name)
     reject(distribution_record, "password", DISTRIBUTION_RECORD_TOOL.name)
     reject(distribution_record, "privateKey", DISTRIBUTION_RECORD_TOOL.name)
+    run_distribution_record_tests()
 
     runner = texts["runner"]
     for required in (
