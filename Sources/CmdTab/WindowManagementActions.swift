@@ -135,8 +135,14 @@ enum WindowGeometryPlanner {
         var result = frame
         result.size.width = min(max(result.width, 160), visibleFrame.width)
         result.size.height = min(max(result.height, 120), visibleFrame.height)
-        result.origin.x = min(max(result.minX, visibleFrame.minX), visibleFrame.maxX - result.width)
-        result.origin.y = min(max(result.minY, visibleFrame.minY), visibleFrame.maxY - result.height)
+        result.origin.x = min(
+            max(result.minX, visibleFrame.minX),
+            visibleFrame.maxX - result.width
+        )
+        result.origin.y = min(
+            max(result.minY, visibleFrame.minY),
+            visibleFrame.maxY - result.height
+        )
         return result.integral
     }
 
@@ -149,11 +155,27 @@ enum WindowGeometryPlanner {
         )
     }
 
+    static func approximatelyEqual(
+        _ lhs: CGRect,
+        _ rhs: CGRect,
+        tolerance: CGFloat = 3
+    ) -> Bool {
+        abs(lhs.minX - rhs.minX) <= tolerance &&
+        abs(lhs.minY - rhs.minY) <= tolerance &&
+        abs(lhs.width - rhs.width) <= tolerance &&
+        abs(lhs.height - rhs.height) <= tolerance
+    }
+
     private static func thirdFrame(index: Int, visibleFrame: CGRect) -> CGRect {
         let third = visibleFrame.width / 3
         let x = visibleFrame.minX + third * CGFloat(index)
         let width = index == 2 ? visibleFrame.maxX - x : third
-        return CGRect(x: x, y: visibleFrame.minY, width: width, height: visibleFrame.height).integral
+        return CGRect(
+            x: x,
+            y: visibleFrame.minY,
+            width: width,
+            height: visibleFrame.height
+        ).integral
     }
 }
 
@@ -178,31 +200,43 @@ final class ExactWindowActionProvider {
         }
 
         guard let windowID,
-              let window = AXWindowIdentityLookup.windowElement(ownerPID: ownerPID, windowID: windowID) else {
+              let window = AXWindowIdentityLookup.windowElement(
+                  ownerPID: ownerPID,
+                  windowID: windowID
+              ) else {
             return .unsupported("The exact Accessibility window is unavailable.")
         }
 
         switch action {
         case .restoreWindow:
+            guard boolValue(of: kAXMinimizedAttribute as CFString, on: window) == true else {
+                return .unsupported("The selected window is not minimized.")
+            }
             return isSettable(kAXMinimizedAttribute as CFString, on: window)
                 ? .supported
                 : .unsupported("The application does not expose a settable minimized state.")
+
         case .toggleFullscreen:
             return isSettable(fullscreenAttribute, on: window)
                 ? .supported
                 : .unsupported("The application does not expose a settable fullscreen state.")
+
         case .zoomWindow:
             return zoomButton(for: window) != nil || canSetFrame(of: window)
                 ? .supported
                 : .unsupported("The application exposes neither a zoom button nor a settable frame.")
+
         case .moveToNextDisplay:
-            return canSetFrame(of: window) && NSScreen.screens.count > 1
+            return canSetFrame(of: window) && displayTargets().count > 1
                 ? .supported
                 : .unsupported("Moving requires a settable frame and at least two displays.")
-        case .centerWindow, .tileLeft, .tileRight, .tileFirstThird, .tileCenterThird, .tileLastThird:
+
+        case .centerWindow, .tileLeft, .tileRight, .tileFirstThird,
+             .tileCenterThird, .tileLastThird:
             return canSetFrame(of: window)
                 ? .supported
                 : .unsupported("The application does not expose a settable window frame.")
+
         case .forceQuitApplication:
             return .supported
         }
@@ -227,7 +261,10 @@ final class ExactWindowActionProvider {
         }
 
         guard let windowID,
-              let window = AXWindowIdentityLookup.windowElement(ownerPID: ownerPID, windowID: windowID) else {
+              let window = AXWindowIdentityLookup.windowElement(
+                  ownerPID: ownerPID,
+                  windowID: windowID
+              ) else {
             return .failure("The exact Accessibility window could not be resolved.")
         }
 
@@ -238,9 +275,15 @@ final class ExactWindowActionProvider {
                 kAXMinimizedAttribute as CFString,
                 kCFBooleanFalse
             )
-            return result == .success
-                ? .success("The selected window was restored.")
-                : .failure("The application rejected window restoration (AX error \(result.rawValue)).")
+            guard result == .success else {
+                return .failure(
+                    "The application rejected window restoration (AX error \(result.rawValue))."
+                )
+            }
+            guard boolValue(of: kAXMinimizedAttribute as CFString, on: window) != true else {
+                return .failure("The application accepted the request but the exact window remained minimized.")
+            }
+            return .success("The selected window was restored.")
 
         case .toggleFullscreen:
             let current = boolValue(of: fullscreenAttribute, on: window) ?? false
@@ -249,32 +292,54 @@ final class ExactWindowActionProvider {
                 fullscreenAttribute,
                 current ? kCFBooleanFalse : kCFBooleanTrue
             )
-            return result == .success
-                ? .success(current ? "Fullscreen was disabled." : "Fullscreen was enabled.")
-                : .failure("The application rejected the fullscreen change (AX error \(result.rawValue)).")
+            guard result == .success else {
+                return .failure(
+                    "The application rejected the fullscreen change (AX error \(result.rawValue))."
+                )
+            }
+            if let observed = boolValue(of: fullscreenAttribute, on: window),
+               observed == current {
+                return .failure("The application accepted the request but fullscreen state did not change.")
+            }
+            return .success(current ? "Fullscreen was disabled." : "Fullscreen was enabled.")
 
         case .zoomWindow:
             if let zoomButton = zoomButton(for: window) {
-                let result = AXUIElementPerformAction(zoomButton, kAXPressAction as CFString)
+                let before = frame(of: window)
+                let result = AXUIElementPerformAction(
+                    zoomButton,
+                    kAXPressAction as CFString
+                )
                 if result == .success {
-                    return .success("The selected window's zoom control was activated.")
+                    let after = frame(of: window)
+                    if before == nil || after == nil || before != after {
+                        return .success("The selected window's zoom control was activated.")
+                    }
                 }
             }
             guard let target = currentDisplayTarget(for: window) else {
                 return .failure("The current display could not be resolved.")
             }
-            return setFrame(target.frame, on: window)
+            return setFrame(
+                target.frame,
+                on: window,
+                destinationVisibleFrame: target.frame
+            )
 
         case .moveToNextDisplay:
             guard let currentFrame = frame(of: window),
                   let target = nextDisplayTarget(for: currentFrame) else {
                 return .failure("A destination display could not be resolved.")
             }
-            let constrained = WindowGeometryPlanner.centeredFrame(
+            let destination = WindowGeometryPlanner.centeredFrame(
                 windowSize: currentFrame.size,
                 visibleFrame: target.frame
             )
-            return setFrame(constrained, on: window)
+            return setFrame(
+                destination,
+                on: window,
+                destinationVisibleFrame: target.frame
+            )
 
         case .centerWindow:
             guard let currentFrame = frame(of: window),
@@ -286,7 +351,8 @@ final class ExactWindowActionProvider {
                     windowSize: currentFrame.size,
                     visibleFrame: target.frame
                 ),
-                on: window
+                on: window,
+                destinationVisibleFrame: target.frame
             )
 
         case .tileLeft:
@@ -304,14 +370,18 @@ final class ExactWindowActionProvider {
         }
     }
 
-    private func tile(_ tile: WindowGeometryPlanner.Tile, window: AXUIElement) -> WindowActionResult {
+    private func tile(
+        _ tile: WindowGeometryPlanner.Tile,
+        window: AXUIElement
+    ) -> WindowActionResult {
         guard let currentFrame = frame(of: window),
               let target = displayTarget(containing: currentFrame) else {
             return .failure("The current display could not be resolved.")
         }
         return setFrame(
             WindowGeometryPlanner.tiledFrame(tile, visibleFrame: target.frame),
-            on: window
+            on: window,
+            destinationVisibleFrame: target.frame
         )
     }
 
@@ -320,12 +390,19 @@ final class ExactWindowActionProvider {
         isSettable(kAXSizeAttribute as CFString, on: window)
     }
 
-    private func isSettable(_ attribute: CFString, on element: AXUIElement) -> Bool {
+    private func isSettable(
+        _ attribute: CFString,
+        on element: AXUIElement
+    ) -> Bool {
         var settable = DarwinBoolean(false)
-        return AXUIElementIsAttributeSettable(element, attribute, &settable) == .success && settable.boolValue
+        return AXUIElementIsAttributeSettable(element, attribute, &settable) == .success &&
+            settable.boolValue
     }
 
-    private func boolValue(of attribute: CFString, on element: AXUIElement) -> Bool? {
+    private func boolValue(
+        of attribute: CFString,
+        on element: AXUIElement
+    ) -> Bool? {
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success,
               let number = value as? NSNumber else {
@@ -368,52 +445,89 @@ final class ExactWindowActionProvider {
         var size = CGSize.zero
         guard CFGetTypeID(positionValue) == AXValueGetTypeID(),
               CFGetTypeID(sizeValue) == AXValueGetTypeID(),
-              AXValueGetValue(unsafeBitCast(positionValue, to: AXValue.self), .cgPoint, &position),
-              AXValueGetValue(unsafeBitCast(sizeValue, to: AXValue.self), .cgSize, &size) else {
+              AXValueGetValue(
+                  unsafeBitCast(positionValue, to: AXValue.self),
+                  .cgPoint,
+                  &position
+              ),
+              AXValueGetValue(
+                  unsafeBitCast(sizeValue, to: AXValue.self),
+                  .cgSize,
+                  &size
+              ) else {
             return nil
         }
         return CGRect(origin: position, size: size)
     }
 
-    private func setFrame(_ requestedFrame: CGRect, on window: AXUIElement) -> WindowActionResult {
-        guard let current = frame(of: window),
-              let display = displayTarget(containing: current) else {
-            return .failure("The current window frame or display could not be resolved.")
-        }
-        let frame = WindowGeometryPlanner.constrained(requestedFrame, to: display.frame)
-        var position = frame.origin
-        var size = frame.size
+    private func setFrame(
+        _ requestedFrame: CGRect,
+        on window: AXUIElement,
+        destinationVisibleFrame: CGRect
+    ) -> WindowActionResult {
+        let targetFrame = WindowGeometryPlanner.constrained(
+            requestedFrame,
+            to: destinationVisibleFrame
+        )
+        var position = targetFrame.origin
+        var size = targetFrame.size
         guard let positionValue = AXValueCreate(.cgPoint, &position),
               let sizeValue = AXValueCreate(.cgSize, &size) else {
             return .failure("macOS could not encode the requested window frame.")
         }
 
-        let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
-        let positionResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, positionValue)
+        // Position first when moving across displays; then size. Some apps clamp
+        // size according to the display containing the current origin.
+        let positionResult = AXUIElementSetAttributeValue(
+            window,
+            kAXPositionAttribute as CFString,
+            positionValue
+        )
+        let sizeResult = AXUIElementSetAttributeValue(
+            window,
+            kAXSizeAttribute as CFString,
+            sizeValue
+        )
         guard sizeResult == .success, positionResult == .success else {
             return .failure(
                 "The application rejected the requested frame (size AX \(sizeResult.rawValue), position AX \(positionResult.rawValue))."
             )
         }
-        return .success("The selected window frame was updated.")
+
+        if let observed = frame(of: window),
+           !WindowGeometryPlanner.approximatelyEqual(observed, targetFrame) {
+            return .failure(
+                "The application accepted the frame request but reported \(observed.integral) instead of \(targetFrame.integral)."
+            )
+        }
+        return .success("The selected exact window frame was updated.")
     }
 
-    private func currentDisplayTarget(for window: AXUIElement) -> WindowGeometryTarget? {
+    private func currentDisplayTarget(
+        for window: AXUIElement
+    ) -> WindowGeometryTarget? {
         guard let current = frame(of: window) else { return nil }
         return displayTarget(containing: current)
     }
 
-    private func nextDisplayTarget(for currentFrame: CGRect) -> WindowGeometryTarget? {
+    private func nextDisplayTarget(
+        for currentFrame: CGRect
+    ) -> WindowGeometryTarget? {
         let targets = displayTargets()
         guard targets.count > 1 else { return nil }
-        guard let currentIndex = targets.firstIndex(where: { $0.frame.contains(currentFrame.center) }) ??
-                targets.firstIndex(where: { $0.frame.intersects(currentFrame) }) else {
+        guard let currentIndex = targets.firstIndex(where: {
+            $0.frame.contains(currentFrame.center)
+        }) ?? targets.firstIndex(where: {
+            $0.frame.intersects(currentFrame)
+        }) else {
             return targets.first
         }
         return targets[(currentIndex + 1) % targets.count]
     }
 
-    private func displayTarget(containing frame: CGRect) -> WindowGeometryTarget? {
+    private func displayTarget(
+        containing frame: CGRect
+    ) -> WindowGeometryTarget? {
         let targets = displayTargets()
         return targets.first(where: { $0.frame.contains(frame.center) }) ??
             targets.first(where: { $0.frame.intersects(frame) }) ??
@@ -423,9 +537,9 @@ final class ExactWindowActionProvider {
     private func displayTargets() -> [WindowGeometryTarget] {
         let screens = NSScreen.screens
         guard !screens.isEmpty else { return [] }
-        let mainDisplayTop = screens.first(where: { screenDisplayID($0) == CGMainDisplayID() })?.frame.maxY
-            ?? NSScreen.main?.frame.maxY
-            ?? screens[0].frame.maxY
+        let mainDisplayTop = screens.first(where: {
+            screenDisplayID($0) == CGMainDisplayID()
+        })?.frame.maxY ?? NSScreen.main?.frame.maxY ?? screens[0].frame.maxY
 
         return screens.compactMap { screen in
             guard let displayID = screenDisplayID(screen) else { return nil }
