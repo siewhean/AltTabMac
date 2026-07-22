@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 SCRIPTS = {
+    "preflight": ROOT / "scripts" / "release" / "phase2-preflight.sh",
     "sign": ROOT / "scripts" / "release" / "sign-app.sh",
     "zip": ROOT / "scripts" / "release" / "create-zip.sh",
     "notarize": ROOT / "scripts" / "release" / "notarize-app.sh",
@@ -53,6 +54,23 @@ def read_script(label: str, path: Path) -> str:
 def main() -> None:
     texts = {label: read_script(label, path) for label, path in SCRIPTS.items()}
 
+    preflight = texts["preflight"]
+    for required in (
+        "CMDTAB_DEVELOPER_IDENTITY",
+        "CMDTAB_TEAM_ID",
+        "security find-identity",
+        "CMDTAB_NOTARY_PROFILE",
+        "CMDTAB_NOTARY_KEY_ID",
+        "CMDTAB_NOTARY_ISSUER",
+        "CMDTAB_NOTARY_KEY_PATH",
+        "notarytool history",
+        "chmod 600",
+        "No artifact was built or submitted",
+    ):
+        require(preflight, required, "phase2-preflight.sh")
+    reject(preflight, "notarytool submit", "phase2-preflight.sh")
+    reject(preflight, "--password", "phase2-preflight.sh")
+
     sign = texts["sign"]
     require(sign, "CMDTAB_DEVELOPER_IDENTITY", "sign-app.sh")
     require(sign, "CMDTAB_TEAM_ID", "sign-app.sh")
@@ -80,6 +98,7 @@ def main() -> None:
     require(notarize, "--output-format json", "notarize-app.sh")
     require(notarize, "notarytool log", "notarize-app.sh")
     require(notarize, '"Accepted"', "notarize-app.sh")
+    require(notarize, 'data.get("issues")', "notarize-app.sh")
     reject(notarize, "--password", "notarize-app.sh")
     reject(notarize, "CMDTAB_APPLE_ID_PASSWORD", "notarize-app.sh")
 
@@ -97,6 +116,7 @@ def main() -> None:
 
     runner = texts["runner"]
     for required in (
+        "phase2-preflight.sh",
         "run-phase1-qa.sh",
         "CMDTAB_SKIP_ADHOC_SIGN=1",
         "sign-app.sh",
