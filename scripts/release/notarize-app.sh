@@ -19,8 +19,8 @@ Choose exactly one authentication mode:
 
   App Store Connect API key:
     CMDTAB_NOTARY_KEY_ID
-    CMDTAB_NOTARY_ISSUER
     CMDTAB_NOTARY_KEY_PATH
+    CMDTAB_NOTARY_ISSUER     Required for team keys; omit for individual keys
 
 This script does not support plaintext Apple ID passwords.
 USAGE
@@ -31,35 +31,18 @@ fail() {
   exit 1
 }
 
-if [[ -z "${ZIP_PATH}" || -z "${EVIDENCE_DIR}" ]]; then
-  usage
-  exit 2
-fi
-
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  fail "notarization must run on macOS"
-fi
-
-for tool in xcrun python3 shasum; do
-  command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"
-done
-
+if [[ -z "${ZIP_PATH}" || -z "${EVIDENCE_DIR}" ]]; then usage; exit 2; fi
+if [[ "$(uname -s)" != "Darwin" ]]; then fail "notarization must run on macOS"; fi
+for tool in xcrun python3 shasum; do command -v "${tool}" >/dev/null 2>&1 || fail "missing required tool: ${tool}"; done
 [[ -f "${ZIP_PATH}" ]] || fail "ZIP does not exist: ${ZIP_PATH}"
 [[ "${ZIP_PATH}" == *.zip ]] || fail "notarization input must be a .zip archive"
 
 PROFILE_MODE=0
 API_MODE=0
 [[ -n "${KEYCHAIN_PROFILE}" ]] && PROFILE_MODE=1
-if [[ -n "${KEY_ID}" || -n "${ISSUER_ID}" || -n "${KEY_PATH}" ]]; then
-  API_MODE=1
-fi
-
-if [[ "${PROFILE_MODE}" == "1" && "${API_MODE}" == "1" ]]; then
-  fail "configure either CMDTAB_NOTARY_PROFILE or API-key credentials, not both"
-fi
-if [[ "${PROFILE_MODE}" == "0" && "${API_MODE}" == "0" ]]; then
-  fail "no notarization credentials were configured"
-fi
+if [[ -n "${KEY_ID}" || -n "${ISSUER_ID}" || -n "${KEY_PATH}" ]]; then API_MODE=1; fi
+if [[ "${PROFILE_MODE}" == "1" && "${API_MODE}" == "1" ]]; then fail "configure either CMDTAB_NOTARY_PROFILE or API-key credentials, not both"; fi
+if [[ "${PROFILE_MODE}" == "0" && "${API_MODE}" == "0" ]]; then fail "no notarization credentials were configured"; fi
 
 AUTH_ARGS=()
 AUTH_MODE=""
@@ -68,11 +51,11 @@ if [[ "${PROFILE_MODE}" == "1" ]]; then
   AUTH_ARGS=(--keychain-profile "${KEYCHAIN_PROFILE}")
 else
   [[ -n "${KEY_ID}" ]] || fail "CMDTAB_NOTARY_KEY_ID is required for API-key authentication"
-  [[ -n "${ISSUER_ID}" ]] || fail "CMDTAB_NOTARY_ISSUER is required for API-key authentication"
   [[ -n "${KEY_PATH}" ]] || fail "CMDTAB_NOTARY_KEY_PATH is required for API-key authentication"
   [[ -f "${KEY_PATH}" ]] || fail "API key file does not exist: ${KEY_PATH}"
   AUTH_MODE="app-store-connect-api-key"
-  AUTH_ARGS=(--key "${KEY_PATH}" --key-id "${KEY_ID}" --issuer "${ISSUER_ID}")
+  AUTH_ARGS=(--key "${KEY_PATH}" --key-id "${KEY_ID}")
+  if [[ -n "${ISSUER_ID}" ]]; then AUTH_ARGS+=(--issuer "${ISSUER_ID}"); fi
 fi
 
 mkdir -p "${EVIDENCE_DIR}"
@@ -82,10 +65,7 @@ SUBMISSION_ID_PATH="${EVIDENCE_DIR}/submission-id.txt"
 AUTH_MODE_PATH="${EVIDENCE_DIR}/authentication-mode.txt"
 ZIP_CHECKSUM_PATH="${EVIDENCE_DIR}/submitted-zip.sha256"
 TMP_RESULT="$(mktemp "${EVIDENCE_DIR}/notary-result.XXXXXX")"
-
-cleanup() {
-  rm -f "${TMP_RESULT}"
-}
+cleanup() { rm -f "${TMP_RESULT}"; }
 trap cleanup EXIT
 
 printf '%s\n' "${AUTH_MODE}" > "${AUTH_MODE_PATH}"
@@ -94,43 +74,26 @@ printf '%s\n' "${AUTH_MODE}" > "${AUTH_MODE_PATH}"
   shasum -a 256 "$(basename "${ZIP_PATH}")"
 ) > "${ZIP_CHECKSUM_PATH}"
 
-# Keep credentials out of command logs: only the authentication mode is printed.
-printf 'Submitting %s to Apple notarization using %s authentication.\n' \
-  "${ZIP_PATH}" "${AUTH_MODE}"
-
-xcrun notarytool submit \
-  "${ZIP_PATH}" \
-  "${AUTH_ARGS[@]}" \
-  --wait \
-  --output-format json > "${TMP_RESULT}"
-
+printf 'Submitting %s to Apple notarization using %s authentication.\n' "${ZIP_PATH}" "${AUTH_MODE}"
+xcrun notarytool submit "${ZIP_PATH}" "${AUTH_ARGS[@]}" --wait --output-format json > "${TMP_RESULT}"
 mv "${TMP_RESULT}" "${RESULT_JSON}"
 
 SUBMISSION_ID="$(python3 - "${RESULT_JSON}" <<'PY'
-import json
-import sys
+import json, sys
 from pathlib import Path
-
-data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(data.get("id", ""))
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("id", ""))
 PY
 )"
 STATUS="$(python3 - "${RESULT_JSON}" <<'PY'
-import json
-import sys
+import json, sys
 from pathlib import Path
-
-data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(data.get("status", ""))
+print(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("status", ""))
 PY
 )"
 MESSAGE="$(python3 - "${RESULT_JSON}" <<'PY'
-import json
-import sys
+import json, sys
 from pathlib import Path
-
-data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(str(data.get("message", "")).replace("\n", " "))
+print(str(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("message", "")).replace("\n", " "))
 PY
 )"
 
@@ -150,19 +113,12 @@ if [[ "${STATUS}" != "Accepted" ]]; then
 fi
 
 python3 - "${LOG_JSON}" <<'PY'
-import json
-import sys
+import json, sys
 from pathlib import Path
-
-path = Path(sys.argv[1])
-data = json.loads(path.read_text(encoding="utf-8"))
-issues = data.get("issues") or []
+issues = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")).get("issues") or []
 if issues:
     for issue in issues:
-        severity = issue.get("severity", "unknown")
-        item_path = issue.get("path", "unknown path")
-        message = issue.get("message", "no message")
-        print(f"{severity}: {item_path}: {message}", file=sys.stderr)
+        print(f"{issue.get('severity', 'unknown')}: {issue.get('path', 'unknown path')}: {issue.get('message', 'no message')}", file=sys.stderr)
     raise SystemExit("Apple accepted the submission but the notarization log contains issues")
 PY
 
