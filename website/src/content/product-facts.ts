@@ -1,18 +1,20 @@
 import { commerceContent } from "@/content/commerce";
 import { siteConfig } from "@/content/site";
 
+// Version, build, bundle ID, and minimum macOS are checked against
+// release/ReleaseConfig.json during every Vercel prebuild.
 export const productFacts = {
   name: siteConfig.name,
   category: "native macOS window switcher",
   currentVersion: "1.0.0",
   buildNumber: "1",
-  bundleIdentifier: "com.user.CmdTab",
+  bundleIdentifier: "net.cmdtab.CmdTab",
   minimumMacOS: "macOS 13.0 (Ventura) or later",
   trialLength: commerceContent.trialLength,
   licenseModel: "One-time purchase",
   founderPrice: commerceContent.founder.price,
   standardPrice: commerceContent.standard.price,
-  reviewedAt: "2026-07-20",
+  reviewedAt: "2026-07-22",
   sourceRepository: "https://github.com/siewhean/AltTabMac",
   developerProfile: "https://github.com/siewhean",
   permissions: [

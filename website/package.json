@@ -6,7 +6,8 @@
     "dev": "next dev",
     "predev": "npm run showcase:generate",
     "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
-    "prebuild": "npm run security:deps && npm run seo:check && npm run typecheck",
+    "release:config-check": "python3 ../scripts/release/release_config.py verify-repository",
+    "prebuild": "npm run release:config-check && npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -20,7 +21,7 @@
     "showcase:responses": "node scripts/verify-showcase-responses.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
     "security:deps": "npm audit --audit-level=moderate",
-    "security:check": "npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
+    "security:check": "npm run release:config-check && npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

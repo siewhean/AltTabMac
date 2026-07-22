@@ -1,0 +1,10 @@
+Phase 1 source implementation completed in repository.
+
+Local macOS execution is still required:
+
+1. ./scripts/release/package-app.sh
+2. ./scripts/release/reproducibility-check.sh
+3. open dist/CmdTab.app
+4. verify menu-bar-only launch behavior
+
+GitHub-hosted execution is deferred under the Phase 0 quota waiver.

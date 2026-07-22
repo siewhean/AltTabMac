@@ -2,38 +2,37 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>CmdTab</string>
-    <key>CFBundleDisplayName</key>
-    <string>CmdTab</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.user.CmdTab</string>
-    <key>CFBundleVersion</key>
-    <string>1</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
-    <key>CFBundleExecutable</key>
-    <string>CmdTab</string>
-    <key>CFBundleIconFile</key>
-    <string>CmdTab</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <!-- Accessibility (CGEventTap) -->
-    <key>NSAccessibilityUsageDescription</key>
-    <string>CmdTab needs Accessibility permission to intercept ⌘Tab and ⌥Tab globally.</string>
-    <!-- LSUIElement: true keeps CmdTab out of the Dock and app switcher.
-         Settings remain available from the menu-bar item. -->
-    <key>LSUIElement</key>
-    <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSSupportsAutomaticTermination</key>
-    <false/>
-    <key>NSSupportsSuddenTermination</key>
-    <false/>
+	<key>CFBundleDisplayName</key>
+	<string>CmdTab</string>
+	<key>CFBundleExecutable</key>
+	<string>CmdTab</string>
+	<key>CFBundleIconFile</key>
+	<string>CmdTab</string>
+	<key>CFBundleIdentifier</key>
+	<string>net.cmdtab.CmdTab</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>CmdTab</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>CmdTab needs Accessibility permission to intercept Command-Tab and Option-Tab and activate the selected window.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>CmdTab needs Screen Recording permission to display previews of your open windows. Captured window images stay on your Mac.</string>
+	<key>NSSupportsAutomaticTermination</key>
+	<false/>
+	<key>NSSupportsSuddenTermination</key>
+	<false/>
 </dict>
 </plist>
