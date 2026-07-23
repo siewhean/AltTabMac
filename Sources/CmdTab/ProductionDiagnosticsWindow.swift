@@ -39,17 +39,10 @@ struct ProductionDiagnosticsSnapshot: Equatable {
     let enabledProfileCount: Int
     let profileValidationIssues: [String]
     let durableRecordCount: Int
-    let durableHistoryPath: String
+    let durableHistoryLocation: String
 
     static func capture() -> ProductionDiagnosticsSnapshot {
         let profileStore = SwitcherProfileStore.shared
-        let historyURL = FileManager.default.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first?
-            .appendingPathComponent("CmdTab", isDirectory: true)
-            .appendingPathComponent("window-history-v1.json")
-
         return ProductionDiagnosticsSnapshot(
             accessibilityReady: AXIsProcessTrusted(),
             screenRecordingReady: CGPreflightScreenCaptureAccess(),
@@ -59,7 +52,9 @@ struct ProductionDiagnosticsSnapshot: Equatable {
             enabledProfileCount: profileStore.profilesSnapshot().filter(\.isEnabled).count,
             profileValidationIssues: profileStore.validationIssues.map(\.description),
             durableRecordCount: DurableSwitcherHistoryStore.shared.snapshot().count,
-            durableHistoryPath: historyURL?.path ?? "Unavailable"
+            // Do not copy the user's account name or absolute home-directory
+            // path into support reports.
+            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json"
         )
     }
 
@@ -82,7 +77,7 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         enabledProfiles=\(enabledProfileCount)
         profileValidation=\(profileIssues)
         durableRecords=\(durableRecordCount)
-        durableHistoryPath=\(durableHistoryPath)
+        durableHistoryLocation=\(durableHistoryLocation)
         """
     }
 }
@@ -97,7 +92,7 @@ struct ProductionDiagnosticsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("CmdTab Diagnostics")
                         .font(.title2.weight(.bold))
-                    Text("Sanitized capability and persistence status. No window titles, document paths, previews, search text, or clipboard content are included.")
+                    Text("Sanitized capability and persistence status. No window titles, document paths, account-specific home paths, previews, search text, or clipboard content are included.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -144,7 +139,7 @@ struct ProductionDiagnosticsView: View {
                         value: "\(snapshot.durableRecordCount) privacy-minimised record\(snapshot.durableRecordCount == 1 ? "" : "s")",
                         level: .available
                     )
-                    Text(snapshot.durableHistoryPath)
+                    Text(snapshot.durableHistoryLocation)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -156,7 +151,10 @@ struct ProductionDiagnosticsView: View {
             HStack {
                 Button("Copy Sanitized Report") {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(snapshot.sanitizedReport, forType: .string)
+                    NSPasteboard.general.setString(
+                        snapshot.sanitizedReport,
+                        forType: .string
+                    )
                     statusMessage = "Copied."
                 }
                 Button("Reset Durable MRU", role: .destructive) {
