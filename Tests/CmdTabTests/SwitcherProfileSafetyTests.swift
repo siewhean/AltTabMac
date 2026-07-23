@@ -56,6 +56,53 @@ final class SwitcherProfileSafetyTests: XCTestCase {
                 return false
             }
         )
+
+        let profileID = UUID()
+        let forward = ShortcutProfileMatch(
+            profileID: profileID,
+            reverse: false,
+            releaseBehavior: .holdPrimaryModifier,
+            primaryModifier: .command
+        )
+        let reverse = ShortcutProfileMatch(
+            profileID: profileID,
+            reverse: true,
+            releaseBehavior: .holdPrimaryModifier,
+            primaryModifier: .command
+        )
+
+        var quick = ProfileHotkeyTriggerCoordinator()
+        XCTAssertEqual(
+            quick.registerHiddenTrigger(match: forward, startedAtUptime: 10),
+            .scheduleReveal(atUptime: 10)
+        )
+        XCTAssertEqual(
+            quick.handleModifierRelease(.command, switcherVisible: false),
+            .quickSwitch(forward)
+        )
+        XCTAssertFalse(quick.hasPendingTrigger)
+
+        var held = ProfileHotkeyTriggerCoordinator()
+        _ = held.registerHiddenTrigger(match: reverse, startedAtUptime: 20)
+        XCTAssertEqual(
+            held.handleRevealDeadline(now: 20, heldModifiers: [.command]),
+            .showOverlay(reverse)
+        )
+        XCTAssertEqual(
+            held.handleModifierRelease(.command, switcherVisible: true),
+            .confirmSelection(reverse)
+        )
+
+        var repeated = ProfileHotkeyTriggerCoordinator()
+        _ = repeated.registerHiddenTrigger(match: forward, startedAtUptime: 30)
+        XCTAssertNil(
+            repeated.registerHiddenTrigger(match: reverse, startedAtUptime: 30.05),
+            "A repeated hidden Command trigger must not replace the original direction."
+        )
+        XCTAssertEqual(repeated.pendingMatch, forward)
+        repeated.cancel()
+        XCTAssertFalse(repeated.hasPendingTrigger)
+        XCTAssertNil(repeated.pendingMatch)
     }
 
     func testRejectedRemovalDoesNotMutateStore() {
