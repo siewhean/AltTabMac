@@ -8,6 +8,7 @@
 - [x] Reject tracked changes everywhere, including tracked files under generated-output directories.
 - [x] Invalidate downstream evidence when an earlier phase is rerun.
 - [x] Make the duplicate-title fixture genuinely ambiguous by removing document identity and keeping candidates within the production matcher margin.
+- [x] Prevent AppKit restoration and content fitting from leaking prior minimized state or collapsed geometry into later fixture scenarios.
 - [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
 - [x] Commit and push the hardened branch without merging PR #35.
 - [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean HEAD.

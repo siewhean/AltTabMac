@@ -417,6 +417,8 @@ def main() -> None:
             "let yStep = scenario == .duplicateTitles && index < 2 ? 24 : 44",
             "window.representedURL = nil",
             "Their 24-point stagger keeps rounded bounds within the",
+            "window.isRestorable = false",
+            "window.setFrame(intendedFrame, display: false)",
         ),
     )
 

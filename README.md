@@ -30,7 +30,7 @@ No public release claim may treat the accepted local ad-hoc artifact as a distri
 
 The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly 50 tests with no failures or unexpected results.
 
-The deterministic fixtures deliberately include a same-title, no-document-identity window pair for durable-MRU ambiguity testing. WindowProbe reports minimized and fullscreen Accessibility state as objective values when available and `null` when unavailable.
+The deterministic fixtures deliberately include a same-title, no-document-identity window pair for durable-MRU ambiguity testing. Fixture windows disable AppKit restoration and reapply their intended full-size frames after content-controller installation so one scenario cannot leak minimized state or geometry into another. WindowProbe reports minimized and fullscreen Accessibility state as objective values when available and `null` when unavailable.
 
 Automated acceptance does not substitute for the packaged-app manual matrix. Unsupported hardware or desktop configurations must remain `NOT TESTED`, including Intel and any multi-display topology not physically exercised.
 

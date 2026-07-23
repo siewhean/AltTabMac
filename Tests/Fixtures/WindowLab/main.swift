@@ -52,6 +52,8 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
                 backing: .buffered,
                 defer: false
             )
+            let intendedFrame = window.frame
+            window.isRestorable = false
             window.identifier = NSUserInterfaceItemIdentifier("WindowLab.A\(index + 1)")
             window.title = title
             if scenario == .duplicateTitles && index < 2 {
@@ -69,6 +71,10 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
                 title: title,
                 detail: "Exact fixture window \(index + 1) · PID \(ProcessInfo.processInfo.processIdentifier)"
             )
+            // AppKit may otherwise restore a previous scenario's minimized state
+            // or resize to the controller's fitting size. The fixture must start
+            // from the same observable state on every launch.
+            window.setFrame(intendedFrame, display: false)
             window.isReleasedWhenClosed = false
             window.makeKeyAndOrderFront(nil)
             windows.append(window)
@@ -95,12 +101,15 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
                 backing: .buffered,
                 defer: false
             )
+            let intendedFrame = panel.frame
+            panel.isRestorable = false
             panel.title = "WindowLab — Floating Utility"
             panel.identifier = NSUserInterfaceItemIdentifier("WindowLab.Utility")
             panel.contentViewController = NSHostinglessFixtureViewController(
                 title: "Floating Utility",
                 detail: "This panel must not become a default top-level switcher target."
             )
+            panel.setFrame(intendedFrame, display: false)
             panel.isFloatingPanel = true
             panel.orderFront(nil)
             floatingPanel = panel
@@ -156,6 +165,8 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
             backing: .buffered,
             defer: false
         )
+        let intendedFrame = window.frame
+        window.isRestorable = false
         window.identifier = NSUserInterfaceItemIdentifier("WindowLab.A\(index)")
         window.title = "WindowLab — A\(index)"
         window.representedURL = URL(fileURLWithPath: "/tmp/WindowLab-A\(index).txt")
@@ -164,6 +175,7 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
             title: window.title,
             detail: "Dynamically created exact fixture window."
         )
+        window.setFrame(intendedFrame, display: false)
         window.isReleasedWhenClosed = false
         window.makeKeyAndOrderFront(nil)
         windows.append(window)
