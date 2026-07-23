@@ -204,6 +204,16 @@ final class AXWindowCatalog {
         if subrole == (kAXStandardWindowSubrole as String) || subrole == "AXFullScreenWindow" {
             return true
         }
+
+        // On recent macOS builds, AppKit can expose an otherwise ordinary,
+        // miniaturizable top-level NSWindow as AXDialog while it is minimized.
+        // Accept only the minimized form, and only when the user explicitly
+        // enabled minimized-window inclusion. Non-minimized dialogs remain
+        // excluded so alerts and modal surfaces do not pollute the switcher.
+        if subrole == "AXDialog", isMinimized, includeMinimized {
+            return true
+        }
+
         if allowFloating, subrole == (kAXFloatingWindowSubrole as String) {
             return true
         }
