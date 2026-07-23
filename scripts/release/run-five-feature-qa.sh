@@ -62,6 +62,7 @@ Terminal needs Accessibility permission for WindowProbe to report `focusedWindow
 - [ ] Secure Input causes configured shortcuts to pass through and cancels any stale CmdTab overlay.
 - [ ] When licensing disallows custom switching, the original system/native shortcut is not swallowed.
 - [ ] Active CmdTab text fields and shortcut recorders do not leak typed content into the switcher.
+- [ ] Closing the profile editor with unsaved changes requires Save, Discard, or Cancel; invalid drafts are never silently lost.
 
 ## Durable MRU
 
@@ -72,7 +73,7 @@ Terminal needs Accessibility permission for WindowProbe to report `focusedWindow
 - [ ] Current-session activations outrank restored records.
 - [ ] Reset Durable MRU clears restored order without deleting preferences or licensing state.
 - [ ] The persisted JSON has mode 0600 and contains no raw title, URL, preview, search query, clipboard content, or screenshot.
-- [ ] Diagnostics reports only sanitized durable-record count and path.
+- [ ] Diagnostics reports only sanitized durable-record count and a home-relative location.
 
 ## Exact-window actions
 
@@ -89,6 +90,7 @@ Terminal needs Accessibility permission for WindowProbe to report `focusedWindow
 - [ ] Classic Grid, Command Palette, and Radial Menu all expose Minimized, Fullscreen, Other Space, and inferred Hidden Set state where applicable.
 - [ ] VoiceOver announces the selected window state rather than only the title.
 - [ ] Workspace degradation is visible without opening Terminal.
+- [ ] Exact-window actions are discoverable from every profile style.
 - [ ] Diagnostics opens from the menu bar, refreshes, copies a sanitized report, and resets durable MRU safely.
 
 ## Reliability
@@ -158,7 +160,7 @@ printf '\n== Focused five-feature tests ==\n'
 swift test \
   --package-path "${ROOT_DIR}" \
   --scratch-path "${TEMP_ROOT}/focused-tests" \
-  --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests'
+  --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests|ProductionVisualStateTests'
 
 printf '\n== Complete Swift package suite ==\n'
 swift test \
