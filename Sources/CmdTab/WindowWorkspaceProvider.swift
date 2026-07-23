@@ -69,7 +69,10 @@ struct WindowWorkspaceSnapshot: Codable, Equatable {
         memberships.first
     }
 
-    static func fallback(isOnScreen: Bool, reason: String) -> WindowWorkspaceSnapshot {
+    static func fallback(
+        isOnScreen: Bool,
+        reason: String
+    ) -> WindowWorkspaceSnapshot {
         WindowWorkspaceSnapshot(
             memberships: [],
             currentSpaceIDs: [],
@@ -82,18 +85,20 @@ struct WindowWorkspaceSnapshot: Codable, Equatable {
 protocol WindowWorkspaceProviding: AnyObject {
     var status: CapabilityStatus { get }
     func refresh()
-    func snapshot(for windowID: CGWindowID, isOnScreen: Bool) -> WindowWorkspaceSnapshot
+    func snapshot(
+        for windowID: CGWindowID,
+        isOnScreen: Bool
+    ) -> WindowWorkspaceSnapshot
     func prepareActivation(of workspace: WorkspaceIdentity) -> Bool
 }
 
 /// Capability-detected access to macOS managed-space metadata.
 ///
-/// SkyLight is private and version-sensitive. Every function is dynamically
-/// resolved, exact read capability is kept separate from write capability, and
-/// every unavailable path returns an explicit degraded state. The setter uses
-/// the four-argument signature used by current open-source macOS window
-/// managers; the optional getter verifies that WindowServer accepted the
-/// request before CmdTab treats managed-space activation as available.
+/// Every call into the private framework is serialized. The production switcher
+/// and focused-window history observer both enrich data off-main, so relying only
+/// on dictionary locks would still allow concurrent SkyLight calls and racy
+/// status reads. Missing or changed symbols always degrade to documented public
+/// on-screen behaviour rather than preventing CmdTab from launching.
 final class WindowWorkspaceProvider: WindowWorkspaceProviding {
     static let shared = WindowWorkspaceProvider()
 
@@ -104,56 +109,173 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
 
     private struct ResolvedFunctions {
         typealias MainConnection = @convention(c) () -> UInt32
-        typealias CopyManagedDisplaySpaces = @convention(c) (UInt32) -> Unmanaged<CFArray>?
-        typealias CopySpacesForWindows = @convention(c) (UInt32, UInt32, CFArray) -> Unmanaged<CFArray>?
+        typealias CopyManagedDisplaySpaces = @convention(c) (
+            UInt32
+        ) -> Unmanaged<CFArray>?
+        typealias CopySpacesForWindows = @convention(c) (
+            UInt32,
+            UInt32,
+            CFArray
+        ) -> Unmanaged<CFArray>?
         typealias ManagedDisplaySetCurrentSpace = @convention(c) (
             UInt32,
             CFString,
-            UInt64,
             UInt64
-        ) -> Void
-        typealias ManagedDisplayGetCurrentSpace = @convention(c) (
+        ) -> CGError
+        typealias SpaceGetType = @convention(c) (
             UInt32,
-            CFString
-        ) -> UInt64
-        typealias SpaceGetType = @convention(c) (UInt32, UInt64) -> Int32
+            UInt64
+        ) -> Int32
 
         let mainConnection: MainConnection
         let copyManagedDisplaySpaces: CopyManagedDisplaySpaces
         let copySpacesForWindows: CopySpacesForWindows
         let setCurrentSpace: ManagedDisplaySetCurrentSpace?
-        let getCurrentSpace: ManagedDisplayGetCurrentSpace?
         let spaceGetType: SpaceGetType?
     }
 
-    private let lock = NSLock()
+    /// Serializes all SkyLight calls, including a refresh requested by snapshot.
+    private let operationLock = NSRecursiveLock()
+    /// Protects copied status/cache values for diagnostics and tests.
+    private let stateLock = NSLock()
     private let functions: ResolvedFunctions?
+    private var _status: CapabilityStatus
     private var cachedBySpaceID: [UInt64: ManagedSpaceMetadata] = [:]
     private var cachedCurrentSpaceIDs = Set<UInt64>()
     private var lastRefresh = Date.distantPast
-    private var lastFailureReason: String?
     private let refreshInterval: TimeInterval = 0.4
 
-    private(set) var status: CapabilityStatus
+    var status: CapabilityStatus {
+        stateLock.lock()
+        let value = _status
+        stateLock.unlock()
+        return value
+    }
 
     init() {
         let resolution = Self.resolveFunctions()
         functions = resolution.functions
-        status = resolution.status
+        _status = resolution.status
         if functions != nil {
             refresh()
         }
     }
 
     func refresh() {
+        operationLock.lock()
+        defer { operationLock.unlock() }
+        refreshSerialized()
+    }
+
+    func snapshot(
+        for windowID: CGWindowID,
+        isOnScreen: Bool
+    ) -> WindowWorkspaceSnapshot {
+        operationLock.lock()
+        defer { operationLock.unlock() }
+
+        guard let functions else {
+            return .fallback(
+                isOnScreen: isOnScreen,
+                reason: status.reason ??
+                    "Exact workspace capability is unavailable."
+            )
+        }
+
+        refreshIfNeededSerialized()
+        let connection = functions.mainConnection()
+        let windowNumbers = [NSNumber(value: windowID)] as CFArray
+        guard let unmanaged = functions.copySpacesForWindows(
+            connection,
+            0x7,
+            windowNumbers
+        ) else {
+            return .fallback(
+                isOnScreen: isOnScreen,
+                reason: "SkyLight could not resolve workspace membership for window \(windowID)."
+            )
+        }
+
+        let values = unmanaged.takeRetainedValue() as NSArray
+        let spaceIDs = values.compactMap { ($0 as? NSNumber)?.uint64Value }
+
+        stateLock.lock()
+        let metadata = cachedBySpaceID
+        let currentIDs = cachedCurrentSpaceIDs
+        let currentStatus = _status
+        stateLock.unlock()
+
+        let memberships = spaceIDs.map { spaceID in
+            metadata[spaceID]?.identity ?? WorkspaceIdentity(
+                spaceID: spaceID,
+                displayIdentifier: nil,
+                kind: .unknown
+            )
+        }
+        let isCurrent = memberships.contains {
+            currentIDs.contains($0.spaceID)
+        }
+        let stageState = Self.stageManagerState(
+            isOnScreen: isOnScreen,
+            isOnCurrentSpace: isCurrent
+        )
+
+        let capability: CapabilityStatus
+        if Self.isStageManagerEnabled(), currentStatus.level == .available {
+            capability = .degraded(
+                "Space membership is exact. Stage Manager active/hidden-set state is inferred because macOS exposes no supported stable set identifier."
+            )
+        } else {
+            capability = currentStatus
+        }
+
+        return WindowWorkspaceSnapshot(
+            memberships: memberships,
+            currentSpaceIDs: Array(currentIDs).sorted(),
+            stageManagerState: stageState,
+            capability: capability
+        )
+    }
+
+    func prepareActivation(of workspace: WorkspaceIdentity) -> Bool {
+        operationLock.lock()
+        defer { operationLock.unlock() }
+
+        guard let functions,
+              let setCurrentSpace = functions.setCurrentSpace,
+              let displayIdentifier = workspace.displayIdentifier else {
+            return false
+        }
+
+        let connection = functions.mainConnection()
+        let result = setCurrentSpace(
+            connection,
+            displayIdentifier as CFString,
+            workspace.spaceID
+        )
+        guard result == .success else {
+            updateStatus(
+                .failed(
+                    "Managed-space activation failed with CGError \(result.rawValue)."
+                )
+            )
+            return false
+        }
+
+        refreshSerialized()
+        return true
+    }
+
+    // MARK: Serialized implementation
+
+    private func refreshSerialized() {
         guard let functions else { return }
 
         let connection = functions.mainConnection()
         guard let unmanaged = functions.copyManagedDisplaySpaces(connection) else {
-            lock.lock()
-            lastFailureReason = "SkyLight returned no managed-display space metadata."
-            status = .failed(lastFailureReason!)
-            lock.unlock()
+            updateStatus(
+                .failed("SkyLight returned no managed-display space metadata.")
+            )
             return
         }
 
@@ -164,22 +286,36 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         for case let displayDictionary as NSDictionary in rawArray {
             let displayIdentifier = Self.stringValue(
                 in: displayDictionary,
-                keys: ["Display Identifier", "DisplayIdentifier", "displayIdentifier"]
+                keys: [
+                    "Display Identifier",
+                    "DisplayIdentifier",
+                    "displayIdentifier",
+                ]
             )
-
-            let currentID = Self.currentSpaceID(in: displayDictionary)
+            let currentID = Self.currentSpaceID(
+                in: displayDictionary
+            )
             if let currentID {
                 currentSpaceIDs.insert(currentID)
             }
 
-            let spacesValue = Self.value(
+            let rawSpaces = Self.value(
                 in: displayDictionary,
-                keys: ["Spaces", "spaces", "Managed Spaces", "ManagedSpaces"]
+                keys: [
+                    "Spaces",
+                    "spaces",
+                    "Managed Spaces",
+                    "ManagedSpaces",
+                ]
             )
-            let spaces: NSArray = (spacesValue as? NSArray) ?? NSArray()
+            let spaces = rawSpaces as? NSArray ?? []
 
             for case let spaceDictionary as NSDictionary in spaces {
-                guard let spaceID = Self.spaceID(in: spaceDictionary) else { continue }
+                guard let spaceID = Self.spaceID(
+                    in: spaceDictionary
+                ) else {
+                    continue
+                }
                 let kind = Self.workspaceKind(
                     dictionary: spaceDictionary,
                     connection: connection,
@@ -209,128 +345,36 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
             }
         }
 
-        lock.lock()
+        let newStatus: CapabilityStatus = functions.setCurrentSpace == nil
+            ? .degraded(
+                "Exact space membership is available, but managed-space activation is unavailable on this macOS build."
+            )
+            : .available
+
+        stateLock.lock()
         cachedBySpaceID = bySpaceID
         cachedCurrentSpaceIDs = currentSpaceIDs
         lastRefresh = Date()
-        lastFailureReason = nil
-        status = Self.status(for: functions)
-        lock.unlock()
+        _status = newStatus
+        stateLock.unlock()
     }
 
-    func snapshot(for windowID: CGWindowID, isOnScreen: Bool) -> WindowWorkspaceSnapshot {
-        guard let functions else {
-            return .fallback(
-                isOnScreen: isOnScreen,
-                reason: status.reason ?? "Exact workspace capability is unavailable."
-            )
-        }
-
-        refreshIfNeeded()
-        let connection = functions.mainConnection()
-        let windowNumbers = [NSNumber(value: windowID)] as CFArray
-        guard let unmanaged = functions.copySpacesForWindows(
-            connection,
-            0x7,
-            windowNumbers
-        ) else {
-            return .fallback(
-                isOnScreen: isOnScreen,
-                reason: "SkyLight could not resolve workspace membership for window \(windowID)."
-            )
-        }
-
-        let values = unmanaged.takeRetainedValue() as NSArray
-        var spaceIDs: [UInt64] = []
-        spaceIDs.reserveCapacity(values.count)
-        for case let number as NSNumber in values {
-            spaceIDs.append(number.uint64Value)
-        }
-
-        lock.lock()
-        let metadata = cachedBySpaceID
-        let currentIDs = cachedCurrentSpaceIDs
-        let currentStatus = status
-        lock.unlock()
-
-        let memberships = spaceIDs.map { spaceID in
-            metadata[spaceID]?.identity ?? WorkspaceIdentity(
-                spaceID: spaceID,
-                displayIdentifier: nil,
-                kind: .unknown
-            )
-        }
-
-        let isCurrent = memberships.contains { currentIDs.contains($0.spaceID) }
-        let stageManagerState = Self.stageManagerState(
-            isOnScreen: isOnScreen,
-            isOnCurrentSpace: isCurrent
-        )
-        let capability: CapabilityStatus
-        if Self.isStageManagerEnabled(), currentStatus.level == .available {
-            capability = .degraded(
-                "Space membership is exact. Stage Manager active/hidden-set state is inferred because macOS exposes no supported set identifier."
-            )
-        } else {
-            capability = currentStatus
-        }
-
-        return WindowWorkspaceSnapshot(
-            memberships: memberships,
-            currentSpaceIDs: Array(currentIDs).sorted(),
-            stageManagerState: stageManagerState,
-            capability: capability
-        )
-    }
-
-    func prepareActivation(of workspace: WorkspaceIdentity) -> Bool {
-        guard let functions,
-              let setCurrentSpace = functions.setCurrentSpace,
-              let displayIdentifier = workspace.displayIdentifier else {
-            return false
-        }
-
-        let connection = functions.mainConnection()
-        setCurrentSpace(
-            connection,
-            displayIdentifier as CFString,
-            workspace.spaceID,
-            workspace.spaceID
-        )
-
-        if let getCurrentSpace = functions.getCurrentSpace {
-            let observed = getCurrentSpace(
-                connection,
-                displayIdentifier as CFString
-            )
-            guard observed == workspace.spaceID else {
-                lock.lock()
-                lastFailureReason = "WindowServer did not adopt requested managed space \(workspace.spaceID); observed \(observed)."
-                status = .failed(lastFailureReason!)
-                lock.unlock()
-                return false
-            }
-        }
-
-        refresh()
-        lock.lock()
-        let accepted = cachedCurrentSpaceIDs.contains(workspace.spaceID)
-        if !accepted, functions.getCurrentSpace != nil {
-            lastFailureReason = "Managed-space metadata did not confirm requested space \(workspace.spaceID)."
-            status = .failed(lastFailureReason!)
-        }
-        lock.unlock()
-        return accepted || functions.getCurrentSpace == nil
-    }
-
-    private func refreshIfNeeded() {
-        lock.lock()
-        let shouldRefresh = Date().timeIntervalSince(lastRefresh) > refreshInterval
-        lock.unlock()
-        if shouldRefresh {
-            refresh()
+    private func refreshIfNeededSerialized() {
+        stateLock.lock()
+        let stale = Date().timeIntervalSince(lastRefresh) > refreshInterval
+        stateLock.unlock()
+        if stale {
+            refreshSerialized()
         }
     }
+
+    private func updateStatus(_ status: CapabilityStatus) {
+        stateLock.lock()
+        _status = status
+        stateLock.unlock()
+    }
+
+    // MARK: Symbol and metadata parsing
 
     private static func resolveFunctions() -> (
         functions: ResolvedFunctions?,
@@ -340,7 +384,10 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
             "/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight",
             RTLD_LAZY | RTLD_LOCAL
         ) else {
-            return (nil, .unavailable("SkyLight.framework could not be loaded."))
+            return (
+                nil,
+                .unavailable("SkyLight.framework could not be loaded.")
+            )
         }
 
         func symbol(_ names: [String]) -> UnsafeMutableRawPointer? {
@@ -352,18 +399,23 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
             return nil
         }
 
-        guard let mainSymbol = symbol(["SLSMainConnectionID", "CGSMainConnectionID"]),
-              let managedSymbol = symbol([
-                  "SLSCopyManagedDisplaySpaces",
-                  "CGSCopyManagedDisplaySpaces",
-              ]),
-              let spacesSymbol = symbol([
-                  "SLSCopySpacesForWindows",
-                  "CGSCopySpacesForWindows",
-              ]) else {
+        guard let mainSymbol = symbol([
+            "SLSMainConnectionID",
+            "CGSMainConnectionID",
+        ]),
+        let managedSymbol = symbol([
+            "SLSCopyManagedDisplaySpaces",
+            "CGSCopyManagedDisplaySpaces",
+        ]),
+        let spacesSymbol = symbol([
+            "SLSCopySpacesForWindows",
+            "CGSCopySpacesForWindows",
+        ]) else {
             return (
                 nil,
-                .unavailable("Required SkyLight workspace read symbols are unavailable on this macOS build.")
+                .unavailable(
+                    "Required SkyLight workspace read symbols are unavailable on this macOS build."
+                )
             )
         }
 
@@ -371,11 +423,10 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
             "SLSManagedDisplaySetCurrentSpace",
             "CGSManagedDisplaySetCurrentSpace",
         ])
-        let getSymbol = symbol([
-            "SLSManagedDisplayGetCurrentSpace",
-            "CGSManagedDisplayGetCurrentSpace",
+        let typeSymbol = symbol([
+            "SLSSpaceGetType",
+            "CGSSpaceGetType",
         ])
-        let typeSymbol = symbol(["SLSSpaceGetType", "CGSSpaceGetType"])
 
         let resolved = ResolvedFunctions(
             mainConnection: unsafeBitCast(
@@ -396,32 +447,20 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
                     to: ResolvedFunctions.ManagedDisplaySetCurrentSpace.self
                 )
             },
-            getCurrentSpace: getSymbol.map {
+            spaceGetType: typeSymbol.map {
                 unsafeBitCast(
                     $0,
-                    to: ResolvedFunctions.ManagedDisplayGetCurrentSpace.self
+                    to: ResolvedFunctions.SpaceGetType.self
                 )
-            },
-            spaceGetType: typeSymbol.map {
-                unsafeBitCast($0, to: ResolvedFunctions.SpaceGetType.self)
             }
         )
 
-        return (resolved, status(for: resolved))
-    }
-
-    private static func status(for functions: ResolvedFunctions) -> CapabilityStatus {
-        guard functions.setCurrentSpace != nil else {
-            return .degraded(
-                "Exact workspace reads are available; direct managed-space activation is unavailable on this macOS build."
+        let status: CapabilityStatus = resolved.setCurrentSpace == nil
+            ? .degraded(
+                "Managed-space reads are available; direct managed-space activation is unavailable."
             )
-        }
-        guard functions.getCurrentSpace != nil else {
-            return .degraded(
-                "Managed-space activation is available, but this macOS build does not expose the getter required for immediate verification. Exact window-focus verification remains authoritative."
-            )
-        }
-        return .available
+            : .available
+        return (resolved, status)
     }
 
     private static func value(
@@ -450,9 +489,8 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         if let number = value(in: dictionary, keys: keys) as? NSNumber {
             return number.uint64Value
         }
-        if let string = value(in: dictionary, keys: keys) as? String,
-           let value = UInt64(string) {
-            return value
+        if let string = value(in: dictionary, keys: keys) as? String {
+            return UInt64(string)
         }
         return nil
     }
@@ -462,7 +500,11 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
     ) -> UInt64? {
         guard let current = value(
             in: displayDictionary,
-            keys: ["Current Space", "CurrentSpace", "currentSpace"]
+            keys: [
+                "Current Space",
+                "CurrentSpace",
+                "currentSpace",
+            ]
         ) else {
             return nil
         }
@@ -475,10 +517,19 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         return nil
     }
 
-    private static func spaceID(in dictionary: NSDictionary) -> UInt64? {
+    private static func spaceID(
+        in dictionary: NSDictionary
+    ) -> UInt64? {
         uint64Value(
             in: dictionary,
-            keys: ["ManagedSpaceID", "id64", "ID", "id", "Space ID", "spaceID"]
+            keys: [
+                "ManagedSpaceID",
+                "id64",
+                "ID",
+                "id",
+                "Space ID",
+                "spaceID",
+            ]
         )
     }
 
@@ -489,7 +540,10 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         spaceID: UInt64
     ) -> WorkspaceKind {
         let rawType: Int32?
-        if let number = value(in: dictionary, keys: ["type", "Type"]) as? NSNumber {
+        if let number = value(
+            in: dictionary,
+            keys: ["type", "Type"]
+        ) as? NSNumber {
             rawType = number.int32Value
         } else if let getter = functions.spaceGetType {
             rawType = getter(connection, spaceID)
@@ -498,16 +552,10 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         }
 
         switch rawType {
-        case 0:
-            return .user
-        case 4:
-            return .fullscreen
-        case 2, 5:
-            return .system
-        case .some:
-            return .unknown
-        case .none:
-            return .unknown
+        case 0: return .user
+        case 4: return .fullscreen
+        case 2, 5: return .system
+        case .some, .none: return .unknown
         }
     }
 
