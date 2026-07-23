@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
+    private var screenTopologyObserver: ScreenTopologyObserver?
     var switcher: ProductionSwitcherWindowController!
     var hotkeyManager: ProfileHotkeyManager!
     var menuBar: MenuBarController!
@@ -62,6 +63,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         focusedWindowHistoryObserver = FocusedWindowHistoryObserver()
+        screenTopologyObserver = ScreenTopologyObserver { [weak self] in
+            guard let self else { return }
+            self.switcher?.refreshPreviewCache()
+            if self.switcher?.isVisible == true {
+                self.switcher?.applyCurrentStyleImmediately()
+            }
+        }
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
     }
 
@@ -115,6 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        screenTopologyObserver = nil
         focusedWindowHistoryObserver = nil
         DurableSwitcherHistoryStore.shared.waitForPendingWrites()
         if singletonLockFileDescriptor >= 0 {
