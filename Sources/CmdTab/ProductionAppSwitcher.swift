@@ -4,15 +4,23 @@ import CoreGraphics
 import Foundation
 import os.log
 
-private let productionSwitcherLog = OSLog(subsystem: "CmdTab", category: "ProductionAppSwitcher")
+private let productionSwitcherLog = OSLog(
+    subsystem: "CmdTab",
+    category: "ProductionAppSwitcher"
+)
 
 /// Profile-aware facade over the proven Phase 1 `AppSwitcher`.
 ///
-/// It preserves the existing capture and exact-focus pipeline for ordinary
-/// windows, then enriches those items with Accessibility/workspace metadata,
-/// synthesizes eligible minimized and off-space windows, restores durable MRU,
-/// and adds capability-checked exact-window actions.
+/// The base switcher remains responsible for fast CG enumeration, previews, and
+/// ordinary exact activation. Accessibility/workspace enrichment is performed on
+/// a serial background queue and published atomically so opening the overlay never
+/// blocks on a whole-desktop AX walk.
 final class ProductionAppSwitcher {
+    private struct EnrichmentResult {
+        let items: [SwitcherItem]
+        let descriptors: [SwitcherHistoryIdentity: LiveWindowHistoryDescriptor]
+    }
+
     private let base: AppSwitcher
     private let preferences: SwitcherPreferences
     private let profileStore: SwitcherProfileStore
@@ -22,8 +30,16 @@ final class ProductionAppSwitcher {
     private let actionProvider: ExactWindowActionProvider
 
     private let stateLock = NSLock()
+    private let enrichmentQueue = DispatchQueue(
+        label: "CmdTab.ProductionAppSwitcher.Enrichment",
+        qos: .userInitiated
+    )
     private var activeConfiguration: SwitcherSessionConfiguration
     private var descriptorsByIdentity: [SwitcherHistoryIdentity: LiveWindowHistoryDescriptor] = [:]
+    private var latestBaseItems: [SwitcherItem] = []
+    private var cachedEnrichedItems: [SwitcherItem] = []
+    private var enrichmentGeneration: UInt64 = 0
+
     private var catalogCache: AXWindowCatalogSnapshot?
     private var catalogCacheDate = Date.distantPast
     private let catalogRefreshInterval: TimeInterval = 0.35
@@ -53,7 +69,10 @@ final class ProductionAppSwitcher {
         self.actionProvider = actionProvider
 
         if let first = profileStore.profilesSnapshot().first(where: \.isEnabled),
-           let configuration = profileStore.configuration(for: first.id, preferences: preferences) {
+           let configuration = profileStore.configuration(
+               for: first.id,
+               preferences: preferences
+           ) {
             activeConfiguration = configuration
         } else {
             activeConfiguration = SwitcherSessionConfiguration(
@@ -69,8 +88,7 @@ final class ProductionAppSwitcher {
         }
 
         base.onItemsChanged = { [weak self] items in
-            guard let self else { return }
-            self.onItemsChanged?(self.enrichedItems(from: items, forceCatalogRefresh: true))
+            self?.scheduleEnrichment(from: items, forceCatalogRefresh: false)
         }
         base.onActivationConfirmed = { [weak self] identity, pid in
             guard let self else { return }
@@ -81,16 +99,25 @@ final class ProductionAppSwitcher {
         }
     }
 
-    func applySessionConfiguration(_ configuration: SwitcherSessionConfiguration) {
+    // MARK: Public facade
+
+    func applySessionConfiguration(
+        _ configuration: SwitcherSessionConfiguration
+    ) {
         stateLock.lock()
         let changed = activeConfiguration != configuration
         activeConfiguration = configuration
+        if changed {
+            // Never expose items enriched for a different profile. The Phase 1
+            // base list is a safe provisional fallback until the async pass lands.
+            cachedEnrichedItems.removeAll()
+        }
         stateLock.unlock()
         guard changed else { return }
 
         invalidateCatalogCache()
-        let items = enrichedItems(from: base.getItems(), forceCatalogRefresh: true)
-        onItemsChanged?(items)
+        let baseItems = base.getItems()
+        scheduleEnrichment(from: baseItems, forceCatalogRefresh: true)
         base.warmCache(force: true)
     }
 
@@ -101,17 +128,47 @@ final class ProductionAppSwitcher {
         return configuration
     }
 
+    /// Returns an immutable snapshot immediately. If the enriched catalogue is
+    /// not warm yet, the proven Phase 1 items are filtered by the active app scope
+    /// and shown provisionally while AX/workspace metadata is assembled off-main.
     func getItems() -> [SwitcherItem] {
-        enrichedItems(from: base.getItems(), forceCatalogRefresh: false)
+        let baseItems = base.getItems()
+        scheduleEnrichment(from: baseItems, forceCatalogRefresh: false)
+
+        stateLock.lock()
+        let cached = cachedEnrichedItems
+        let configuration = activeConfiguration
+        stateLock.unlock()
+        return cached.isEmpty
+            ? provisionalItems(from: baseItems, configuration: configuration)
+            : cached
     }
 
     @discardableResult
     func primeCacheIfNeeded() -> [SwitcherItem] {
-        enrichedItems(from: base.primeCacheIfNeeded(), forceCatalogRefresh: true)
+        let baseItems = base.primeCacheIfNeeded()
+        scheduleEnrichment(from: baseItems, forceCatalogRefresh: true)
+
+        stateLock.lock()
+        let cached = cachedEnrichedItems
+        let configuration = activeConfiguration
+        stateLock.unlock()
+        return cached.isEmpty
+            ? provisionalItems(from: baseItems, configuration: configuration)
+            : cached
     }
 
     func warmCache(force: Bool = false) {
         if force { invalidateCatalogCache() }
+        stateLock.lock()
+        let baseItems = latestBaseItems
+        stateLock.unlock()
+        if !baseItems.isEmpty {
+            scheduleEnrichment(
+                from: baseItems,
+                forceCatalogRefresh: force
+            )
+        }
         base.warmCache(force: force)
     }
 
@@ -121,7 +178,9 @@ final class ProductionAppSwitcher {
 
     @discardableResult
     func reconcileCurrentFrontmostHistory() -> SwitcherHistoryIdentity? {
-        guard let identity = base.reconcileCurrentFrontmostHistory() else { return nil }
+        guard let identity = base.reconcileCurrentFrontmostHistory() else {
+            return nil
+        }
         if let descriptor = descriptor(for: identity) {
             history.noteActivation(identity, descriptor: descriptor)
         }
@@ -129,7 +188,10 @@ final class ProductionAppSwitcher {
     }
 
     @discardableResult
-    func performQuickAction(_ action: SwitcherQuickAction, on item: SwitcherItem) -> Bool {
+    func performQuickAction(
+        _ action: SwitcherQuickAction,
+        on item: SwitcherItem
+    ) -> Bool {
         base.performQuickAction(action, on: item)
     }
 
@@ -160,13 +222,63 @@ final class ProductionAppSwitcher {
         return result
     }
 
-    private func enrichedItems(
+    // MARK: Non-blocking enrichment
+
+    private func scheduleEnrichment(
         from baseItems: [SwitcherItem],
         forceCatalogRefresh: Bool
-    ) -> [SwitcherItem] {
+    ) {
+        stateLock.lock()
+        latestBaseItems = baseItems
+        enrichmentGeneration &+= 1
+        let generation = enrichmentGeneration
+        stateLock.unlock()
+
+        enrichmentQueue.async { [weak self] in
+            guard let self else { return }
+
+            self.stateLock.lock()
+            guard generation == self.enrichmentGeneration else {
+                self.stateLock.unlock()
+                return
+            }
+            let currentItems = self.latestBaseItems
+            let configuration = self.activeConfiguration
+            self.stateLock.unlock()
+
+            let result = self.buildEnrichedItems(
+                from: currentItems,
+                configuration: configuration,
+                forceCatalogRefresh: forceCatalogRefresh
+            )
+
+            self.stateLock.lock()
+            guard generation == self.enrichmentGeneration,
+                  configuration == self.activeConfiguration else {
+                self.stateLock.unlock()
+                return
+            }
+            self.cachedEnrichedItems = result.items
+            self.descriptorsByIdentity = result.descriptors
+            self.stateLock.unlock()
+
+            self.history.reconcileLiveWindows(
+                Array(result.descriptors.values)
+            )
+            DispatchQueue.main.async { [weak self] in
+                self?.onItemsChanged?(result.items)
+            }
+        }
+    }
+
+    private func buildEnrichedItems(
+        from baseItems: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration,
+        forceCatalogRefresh: Bool
+    ) -> EnrichmentResult {
         let applications = NSWorkspace.shared.runningApplications.filter {
             $0.activationPolicy == .regular &&
-            $0.bundleIdentifier != Bundle.main.bundleIdentifier
+                $0.bundleIdentifier != Bundle.main.bundleIdentifier
         }
         let appByPID = Dictionary(
             applications.map { ($0.processIdentifier, $0) },
@@ -176,7 +288,6 @@ final class ProductionAppSwitcher {
             applications: applications,
             forceRefresh: forceCatalogRefresh
         )
-        let configuration = sessionConfiguration()
 
         var represented = Set<SwitcherHistoryIdentity>()
         var descriptors: [SwitcherHistoryIdentity: LiveWindowHistoryDescriptor] = [:]
@@ -186,12 +297,22 @@ final class ProductionAppSwitcher {
         for item in baseItems {
             let bundleIdentifier = item.sourceAppIdentifier ??
                 item.ownerPID.flatMap { appByPID[$0]?.bundleIdentifier } ?? ""
-            guard configuration.includes(bundleIdentifier: bundleIdentifier) else { continue }
+            guard configuration.includes(bundleIdentifier: bundleIdentifier) else {
+                continue
+            }
 
             if let pid = item.ownerPID,
                let windowID = item.windowID,
-               let metadata = snapshot.metadata(ownerPID: pid, windowID: windowID) {
-                guard shouldInclude(metadata, configuration: configuration) else { continue }
+               let metadata = snapshot.metadata(
+                   ownerPID: pid,
+                   windowID: windowID
+               ) {
+                guard shouldInclude(
+                    metadata,
+                    configuration: configuration
+                ) else {
+                    continue
+                }
                 let descriptor = historyDescriptor(
                     metadata: metadata,
                     app: appByPID[pid],
@@ -216,6 +337,9 @@ final class ProductionAppSwitcher {
             }
         }
 
+        // Synthesize eligible minimized and off-space windows that the public CG
+        // list omitted. A later membership finalizer removes any process fallback
+        // that is now represented by an exact window.
         for metadata in snapshot.allWindows.sorted(by: metadataOrdering) {
             let identity = SwitcherHistoryIdentity.appWindow(
                 pid: metadata.ownerPID,
@@ -228,10 +352,14 @@ final class ProductionAppSwitcher {
                 continue
             }
 
-            let bundleIdentifier = app.bundleIdentifier ?? "app-\(metadata.ownerPID)"
+            let bundleIdentifier = app.bundleIdentifier ??
+                "app-\(metadata.ownerPID)"
             let appName = app.localizedName ?? "Application"
             guard configuration.includes(bundleIdentifier: bundleIdentifier),
-                  !preferences.excludesApp(identifier: bundleIdentifier, appName: appName),
+                  !preferences.excludesApp(
+                      identifier: bundleIdentifier,
+                      appName: appName
+                  ),
                   !preferences.excludesWindowTitle(metadata.title) else {
                 continue
             }
@@ -277,11 +405,23 @@ final class ProductionAppSwitcher {
             )
         }
 
-        stateLock.lock()
-        descriptorsByIdentity = descriptors
-        stateLock.unlock()
-        history.reconcileLiveWindows(Array(descriptors.values))
-        return items
+        return EnrichmentResult(
+            items: SwitcherMembershipPolicy
+                .deduplicatedWithoutRepresentedFallbacks(items),
+            descriptors: descriptors
+        )
+    }
+
+    private func provisionalItems(
+        from baseItems: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration
+    ) -> [SwitcherItem] {
+        baseItems.filter { item in
+            let bundleIdentifier = item.sourceAppIdentifier ?? ""
+            return configuration.includes(
+                bundleIdentifier: bundleIdentifier
+            )
+        }
     }
 
     private func shouldInclude(
@@ -344,14 +484,21 @@ final class ProductionAppSwitcher {
         )
         return LiveWindowHistoryDescriptor(
             identity: identity,
-            bundleIdentifier: app?.bundleIdentifier ?? "app-\(metadata.ownerPID)",
-            title: metadata.title.isEmpty ? fallbackTitle : metadata.title,
+            bundleIdentifier: app?.bundleIdentifier ??
+                "app-\(metadata.ownerPID)",
+            title: metadata.title.isEmpty
+                ? fallbackTitle
+                : metadata.title,
             documentURL: metadata.documentURL,
             role: metadata.role,
             subrole: metadata.subrole,
             bounds: metadata.frame,
-            displayIdentifier: metadata.workspace.primaryWorkspace?.displayIdentifier,
-            workspaceKey: metadata.workspace.primaryWorkspace?.stableKey
+            displayIdentifier: metadata.workspace
+                .primaryWorkspace?
+                .displayIdentifier,
+            workspaceKey: metadata.workspace
+                .primaryWorkspace?
+                .stableKey
         )
     }
 
@@ -389,10 +536,15 @@ final class ProductionAppSwitcher {
         stateLock.lock()
         catalogCache = nil
         catalogCacheDate = .distantPast
+        enrichmentGeneration &+= 1
         stateLock.unlock()
     }
 
-    private func prepareWorkspaceIfNeeded(_ snapshot: WindowWorkspaceSnapshot) {
+    // MARK: Exact activation
+
+    private func prepareWorkspaceIfNeeded(
+        _ snapshot: WindowWorkspaceSnapshot
+    ) {
         guard !snapshot.isOnCurrentManagedSpace,
               let workspace = snapshot.primaryWorkspace else {
             return
@@ -406,12 +558,17 @@ final class ProductionAppSwitcher {
         app: NSRunningApplication,
         attempt: Int
     ) {
-        prepareWorkspaceIfNeeded(metadata.workspace)
+        if attempt == 0 {
+            prepareWorkspaceIfNeeded(metadata.workspace)
+        }
         guard let window = AXWindowIdentityLookup.windowElement(
             ownerPID: metadata.ownerPID,
             windowID: metadata.windowID
         ) else {
-            logActivationFailure(metadata, reason: "exact AX window is unavailable")
+            logActivationFailure(
+                metadata,
+                reason: "exact AX window is unavailable"
+            )
             return
         }
 
@@ -458,18 +615,30 @@ final class ProductionAppSwitcher {
             kAXFocusedAttribute as CFString,
             kCFBooleanTrue
         )
-        _ = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        _ = AXUIElementPerformAction(
+            window,
+            kAXRaiseAction as CFString
+        )
 
         if isExactWindowFrontmost(metadata) {
-            history.noteActivation(descriptor.identity, descriptor: descriptor)
-            onActivationConfirmed?(descriptor.identity, metadata.ownerPID)
+            history.noteActivation(
+                descriptor.identity,
+                descriptor: descriptor
+            )
+            onActivationConfirmed?(
+                descriptor.identity,
+                metadata.ownerPID
+            )
             invalidateCatalogCache()
             base.warmCache(force: true)
             return
         }
 
         guard attempt < 8 else {
-            logActivationFailure(metadata, reason: "exact focus verification timed out")
+            logActivationFailure(
+                metadata,
+                reason: "exact focus verification timed out"
+            )
             return
         }
         let delay = 0.05 + Double(attempt) * 0.08
@@ -483,8 +652,11 @@ final class ProductionAppSwitcher {
         }
     }
 
-    private func isExactWindowFrontmost(_ metadata: AXWindowMetadata) -> Bool {
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == metadata.ownerPID else {
+    private func isExactWindowFrontmost(
+        _ metadata: AXWindowMetadata
+    ) -> Bool {
+        guard NSWorkspace.shared.frontmostApplication?
+            .processIdentifier == metadata.ownerPID else {
             return false
         }
         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
@@ -498,10 +670,14 @@ final class ProductionAppSwitcher {
             return false
         }
         let focused = unsafeBitCast(value, to: AXUIElement.self)
-        return AXWindowIdentityLookup.windowID(for: focused) == metadata.windowID
+        return AXWindowIdentityLookup.windowID(for: focused) ==
+            metadata.windowID
     }
 
-    private func logActivationFailure(_ metadata: AXWindowMetadata, reason: String) {
+    private func logActivationFailure(
+        _ metadata: AXWindowMetadata,
+        reason: String
+    ) {
         os_log(
             .error,
             log: productionSwitcherLog,
@@ -528,9 +704,22 @@ final class ProductionAppSwitcher {
         ].joined(separator: "|")
     }
 
-    private func metadataOrdering(_ lhs: AXWindowMetadata, _ rhs: AXWindowMetadata) -> Bool {
-        let lhsRank = history.rank(of: .appWindow(pid: lhs.ownerPID, windowID: lhs.windowID))
-        let rhsRank = history.rank(of: .appWindow(pid: rhs.ownerPID, windowID: rhs.windowID))
+    private func metadataOrdering(
+        _ lhs: AXWindowMetadata,
+        _ rhs: AXWindowMetadata
+    ) -> Bool {
+        let lhsRank = history.rank(
+            of: .appWindow(
+                pid: lhs.ownerPID,
+                windowID: lhs.windowID
+            )
+        )
+        let rhsRank = history.rank(
+            of: .appWindow(
+                pid: rhs.ownerPID,
+                windowID: rhs.windowID
+            )
+        )
         switch (lhsRank, rhsRank) {
         case let (.some(left), .some(right)) where left != right:
             return left < right
@@ -539,8 +728,12 @@ final class ProductionAppSwitcher {
         case (.none, .some):
             return false
         default:
-            if lhs.isMinimized != rhs.isMinimized { return !lhs.isMinimized }
-            if lhs.ownerPID != rhs.ownerPID { return lhs.ownerPID < rhs.ownerPID }
+            if lhs.isMinimized != rhs.isMinimized {
+                return !lhs.isMinimized
+            }
+            if lhs.ownerPID != rhs.ownerPID {
+                return lhs.ownerPID < rhs.ownerPID
+            }
             return lhs.windowID < rhs.windowID
         }
     }
