@@ -115,7 +115,7 @@ def main() -> None:
         "liveIdentityByRecordID",
         "unavailableRecordIDs",
         "preferred.bundleIdentifier == bundleIdentifier",
-        "privacy fingerprint",
+        "privacy-minimised metadata fingerprint",
     ):
         require(durable, literal, "DurableSwitcherHistory.swift")
 
