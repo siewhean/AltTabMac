@@ -185,6 +185,7 @@ enum SwitcherProfileValidationIssue: Error, Equatable, CustomStringConvertible, 
     case duplicateProfileID(UUID)
     case emptyName(UUID)
     case invalidShortcut(profileID: UUID, message: String)
+    case invalidFilter(profileID: UUID, message: String)
     case duplicateShortcut(profileID: UUID, conflictingProfileID: UUID, shortcut: String)
     case unsupportedSchema(Int)
 
@@ -198,7 +199,7 @@ enum SwitcherProfileValidationIssue: Error, Equatable, CustomStringConvertible, 
             return "The profile identifier \(id) is duplicated."
         case let .emptyName(id):
             return "Profile \(id) has no name."
-        case let .invalidShortcut(_, message):
+        case let .invalidShortcut(_, message), let .invalidFilter(_, message):
             return message
         case let .duplicateShortcut(_, _, shortcut):
             return "The shortcut \(shortcut) is assigned to more than one profile."
@@ -239,6 +240,16 @@ enum SwitcherProfileValidator {
             }
             guard profile.isEnabled else { continue }
             enabledCount += 1
+
+            if profile.appFilter.mode == .includeOnly,
+               profile.appFilter.bundleIdentifiers.isEmpty {
+                issues.append(
+                    .invalidFilter(
+                        profileID: profile.id,
+                        message: "An enabled Include Only profile must contain at least one bundle identifier."
+                    )
+                )
+            }
 
             let shortcuts = [profile.forwardShortcut, profile.reverseShortcut].compactMap { $0 }
             for shortcut in shortcuts {
@@ -350,7 +361,7 @@ final class SwitcherProfileStore: ObservableObject {
         preferences: SwitcherPreferences = .shared
     ) -> SwitcherSessionConfiguration? {
         guard let profile = profile(id: profileID), profile.isEnabled else { return nil }
-        return SwitcherSessionConfiguration(
+        let proposed = SwitcherSessionConfiguration(
             profileID: profile.id,
             profileName: profile.name,
             style: profile.inheritsGlobalSettings ? preferences.switcherStyle : profile.style,
@@ -365,6 +376,10 @@ final class SwitcherProfileStore: ObservableObject {
                 : profile.displayPlacement,
             appFilter: profile.appFilter,
             releaseBehavior: profile.releaseBehavior
+        )
+        return SwitcherSessionConfigurationFreeze.shared.resolve(
+            profileID: profileID,
+            proposed: proposed
         )
     }
 
@@ -516,6 +531,18 @@ final class SwitcherProfileStore: ObservableObject {
     ) -> [SwitcherShortcutProfile] {
         let commandID = UUID(uuidString: "B237F664-9010-4A62-9F35-31E745B77A90")!
         let optionID = UUID(uuidString: "48F394B0-BD1D-4A1D-A50B-A8AD51849C38")!
+
+        // Preserve the unambiguous bundle-identifier subset of the legacy global
+        // exclusion list inside newly created profile documents. Name-based or
+        // unresolved legacy entries remain active through the existing global
+        // exclusion path and are deliberately not guessed into bundle IDs.
+        var migratedFilter = SwitcherProfileAppFilter(
+            mode: .exclude,
+            bundleIdentifiers: preferences.excludedAppEntries.filter(looksLikeBundleIdentifier)
+        )
+        migratedFilter.normalize()
+        let defaultFilter = migratedFilter.bundleIdentifiers.isEmpty ? .all : migratedFilter
+
         return [
             SwitcherShortcutProfile(
                 id: commandID,
@@ -533,7 +560,7 @@ final class SwitcherProfileStore: ObservableObject {
                 visibilityScope: preferences.windowVisibilityScope,
                 includeMinimizedWindows: preferences.includeMinimizedWindows,
                 displayPlacement: preferences.displayPlacement,
-                appFilter: .all
+                appFilter: defaultFilter
             ),
             SwitcherShortcutProfile(
                 id: optionID,
@@ -551,8 +578,12 @@ final class SwitcherProfileStore: ObservableObject {
                 visibilityScope: preferences.windowVisibilityScope,
                 includeMinimizedWindows: preferences.includeMinimizedWindows,
                 displayPlacement: preferences.displayPlacement,
-                appFilter: .all
+                appFilter: defaultFilter
             ),
         ]
+    }
+
+    private static func looksLikeBundleIdentifier(_ value: String) -> Bool {
+        value.contains(".") && !value.contains(where: \.isWhitespace)
     }
 }
