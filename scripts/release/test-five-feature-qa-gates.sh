@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # shellcheck source=scripts/release/five-feature-qa-gates.sh
 source "${ROOT_DIR}/scripts/release/five-feature-qa-gates.sh"
 
+python3 "${ROOT_DIR}/scripts/release/verify-five-feature-audit-fixes.py"
+
 TEMP_ROOT="$(mktemp -d /tmp/cmdtab-five-feature-gates.XXXXXX)"
 trap 'rm -rf "${TEMP_ROOT}"' EXIT
 
