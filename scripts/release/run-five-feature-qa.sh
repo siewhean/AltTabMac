@@ -15,20 +15,23 @@ write_manual_checks() {
 
 **Automated status:** ${automated_status}
 
-Complete every applicable row against the exact packaged CmdTab artifact, WindowLab fixture, and commit recorded in this evidence directory. Record the observed focused `CGWindowID` for every exact-activation row; visual appearance alone is not sufficient.
+Complete every applicable row against the exact packaged CmdTab artifact, WindowLab fixture, WindowProbe, and commit recorded in this evidence directory. Record the observed focused `CGWindowID` for every exact-activation row; visual appearance alone is not sufficient.
 
 ## Test artifacts
 
 - CmdTab: `${ROOT_DIR}/dist/CmdTab.app`
 - WindowLab: `${ROOT_DIR}/dist/fixtures/WindowLab.app`
+- WindowProbe: `${ROOT_DIR}/dist/fixtures/WindowProbe net.cmdtab.fixture.WindowLab`
 - Diagnostics: right-click the CmdTab menu-bar item → **Diagnostics…**
+
+Terminal needs Accessibility permission for WindowProbe to report `focusedWindowID` and `mainWindowID`. The probe emits sanitized window IDs, state, bounds, and fixture titles only.
 
 ## Minimized windows
 
 - [ ] With minimized inclusion disabled, WindowLab's minimized target is absent.
 - [ ] With minimized inclusion enabled, each eligible minimized window appears exactly once with a visible **Minimized** state; no duplicate app fallback remains.
 - [ ] Selecting WindowLab A2 restores and focuses A2 exactly; A1 and other sibling windows remain unchanged.
-- [ ] The focused PID and `CGWindowID` match the selected tile after restoration.
+- [ ] WindowProbe reports the selected tile's PID and `CGWindowID` as focused after restoration.
 - [ ] A failed restoration does not change permanent MRU.
 - [ ] Screen Recording denial keeps minimized items visible with a safe placeholder and state badge.
 - [ ] The global max-windows-per-app limit still applies after minimized/off-Space AX synthesis and retains the active-window anchor.
@@ -38,7 +41,7 @@ Complete every applicable row against the exact packaged CmdTab artifact, Window
 - [ ] Current Space, Visible Spaces, and All Spaces produce the documented membership without duplicates.
 - [ ] Diagnostics and the visible overlay distinguish exact, degraded, unavailable, and failed workspace states.
 - [ ] Off-Space selection reaches the intended exact window or reports the documented degraded limitation.
-- [ ] The focused PID and `CGWindowID` match after every off-Space selection.
+- [ ] WindowProbe reports the selected exact `CGWindowID` after every off-Space selection.
 - [ ] Fullscreen windows remain individually identifiable and focus correctly.
 - [ ] Stage Manager active and hidden sets never silently masquerade as exact when only inferred.
 - [ ] Mixed-scale multi-display placement works; disconnect/reconnect repositions or dismisses stale panels without a relaunch.
@@ -49,10 +52,12 @@ Complete every applicable row against the exact packaged CmdTab artifact, Window
 - [ ] Existing Command-Tab and Option-Tab defaults preserve their previous hold/release and reverse behaviour.
 - [ ] At least three profiles retain independent style, scope, minimized policy, display placement, and app filter.
 - [ ] Duplicate, reserved, unsafe Command-only, and modifierless character shortcuts are rejected.
+- [ ] An enabled Include Only profile cannot be saved with an empty bundle-ID list.
 - [ ] At least one profile must remain enabled.
 - [ ] Shortcut recording does not trigger or swallow an existing global shortcut.
 - [ ] Hold-to-release and press-to-toggle sessions both advance, reverse, commit, and cancel correctly.
 - [ ] A profile's resolved style/scope/filter does not change during an already-open session; changes apply to the next session.
+- [ ] Existing unambiguous legacy bundle-ID exclusions appear in newly created default profiles; unresolved name entries remain globally excluded rather than guessed.
 - [ ] Import/export round-trips; malformed or unsupported-schema JSON is rejected atomically.
 - [ ] Secure Input causes configured shortcuts to pass through and cancels any stale CmdTab overlay.
 - [ ] When licensing disallows custom switching, the original system/native shortcut is not swallowed.
@@ -73,7 +78,7 @@ Complete every applicable row against the exact packaged CmdTab artifact, Window
 
 - [ ] Unsupported actions are disabled with a visible explanation.
 - [ ] Restore, zoom, fullscreen, centre, move-display, half-tile, and third-tile target only the selected exact window.
-- [ ] The focused PID and `CGWindowID` remain the selected target after each non-destructive action.
+- [ ] WindowProbe reports the selected target's `CGWindowID` after each non-destructive action.
 - [ ] Frame actions stay within the destination visible frame on both displays.
 - [ ] Fullscreen and minimized state changes are reflected after refresh.
 - [ ] Force Quit requires confirmation and targets only the selected process.
@@ -139,17 +144,21 @@ printf '\n== Five-feature source contract ==\n'
 python3 "${ROOT_DIR}/scripts/release/verify-five-feature-source.py"
 python3 "${ROOT_DIR}/scripts/release/release_config.py" verify-repository
 
-printf '\n== Deterministic WindowLab fixture build ==\n'
+printf '\n== Deterministic real-window fixtures ==\n'
 CMDTAB_WINDOWLAB_SCRATCH="${TEMP_ROOT}/windowlab" \
   bash "${ROOT_DIR}/scripts/release/build-windowlab-fixture.sh"
 codesign --verify --strict --verbose=2 "${ROOT_DIR}/dist/fixtures/WindowLab.app"
 cp "${ROOT_DIR}/dist/fixtures/WindowLab.sha256" "${EVIDENCE_DIR}/windowlab-checksums.txt"
 
+CMDTAB_WINDOWPROBE_SCRATCH="${TEMP_ROOT}/windowprobe" \
+  bash "${ROOT_DIR}/scripts/release/build-windowprobe-fixture.sh"
+cp "${ROOT_DIR}/dist/fixtures/WindowProbe.sha256" "${EVIDENCE_DIR}/windowprobe-checksum.txt"
+
 printf '\n== Focused five-feature tests ==\n'
 swift test \
   --package-path "${ROOT_DIR}" \
   --scratch-path "${TEMP_ROOT}/focused-tests" \
-  --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests'
+  --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests'
 
 printf '\n== Complete Swift package suite ==\n'
 swift test \
@@ -174,4 +183,5 @@ cp "${ROOT_DIR}/dist/CmdTab.sha256" "${EVIDENCE_DIR}/checksums.txt"
 printf '\nFive-feature automated QA passed.\n'
 printf 'Evidence: %s\n' "${EVIDENCE_DIR}"
 printf 'Manual packaged-app matrix: %s\n' "${MANUAL_PATH}"
-printf 'Fixture: %s\n' "${ROOT_DIR}/dist/fixtures/WindowLab.app"
+printf 'WindowLab: %s\n' "${ROOT_DIR}/dist/fixtures/WindowLab.app"
+printf 'WindowProbe: %s\n' "${ROOT_DIR}/dist/fixtures/WindowProbe"
