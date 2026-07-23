@@ -11,6 +11,9 @@ This document turns observed tester feedback into explicit acceptance criteria. 
 - Holding the primary modifier for 200 ms reveals the overlay; subsequent Tab presses cycle while it is visible.
 - Shift-Command-Tab and Shift-Option-Tab are the reverse shortcuts. Arrow keys remain available while the overlay is visible.
 - A stale/provisional item order must never make a quick trigger commit the already-focused exact window when another item exists.
+- After any successful switch, Command-V must paste into the selected application and must not switch back to the previous window.
+- Any unrelated key-down while Command or Option is held disarms a stale release owner before that key is passed through. Releasing the modifier afterward must not complete an old CmdTab session.
+- Command and Shift-Command character commands other than Tab are application commands, not global profile triggers. CmdTab must pass them through even if an old profile document attempted to assign one.
 
 ## Minimized-window control
 
@@ -29,6 +32,8 @@ This document turns observed tester feedback into explicit acceptance criteria. 
 
 - Record a screen observation for quick release, held reveal, delayed chord rejection, reverse cycling, and native-switcher isolation.
 - Record the before/after focused `CGWindowID` for a valid quick switch and the minimized A2 restoration row.
+- Immediately after a successful quick switch, use Command-V in a text field. Record that paste succeeds, the focused PID and `CGWindowID` remain unchanged, and no overlay appears.
+- Repeat the pass-through check with at least Command-C and Command-Z; neither may create or commit a switcher session.
 - Confirm the menu checkmark can enable and disable minimized inclusion.
 - Repeatedly open the switcher with Arc and Telegram for at least two minutes and record whether either stable exact window falls back to an icon after previously showing a valid thumbnail.
 - Revoke Screen Recording and confirm cached window content is not displayed; a safe placeholder remains.
