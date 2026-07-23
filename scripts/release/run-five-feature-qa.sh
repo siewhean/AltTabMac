@@ -10,18 +10,19 @@ MANUAL_PATH="${EVIDENCE_DIR}/manual-checks.md"
 
 write_manual_checks() {
   local automated_status="$1"
-  cat > "${MANUAL_PATH}" <<CHECKLIST
-# CmdTab five-feature packaged-app acceptance
-
-**Automated status:** ${automated_status}
-
+  {
+    printf '# CmdTab five-feature packaged-app acceptance\n\n'
+    printf '**Automated status:** %s\n\n' "${automated_status}"
+    cat <<'CHECKLIST'
 Complete every applicable row against the exact packaged CmdTab artifact, WindowLab fixture, WindowProbe, and commit recorded in this evidence directory. Record the observed focused `CGWindowID` for every exact-activation row; visual appearance alone is not sufficient.
+
+Paths below are relative to the repository root.
 
 ## Test artifacts
 
-- CmdTab: `${ROOT_DIR}/dist/CmdTab.app`
-- WindowLab: `${ROOT_DIR}/dist/fixtures/WindowLab.app`
-- WindowProbe: `${ROOT_DIR}/dist/fixtures/WindowProbe net.cmdtab.fixture.WindowLab`
+- CmdTab: `dist/CmdTab.app`
+- WindowLab: `dist/fixtures/WindowLab.app`
+- WindowProbe: `dist/fixtures/WindowProbe net.cmdtab.fixture.WindowLab`
 - Diagnostics: right-click the CmdTab menu-bar item → **Diagnostics…**
 
 Terminal needs Accessibility permission for WindowProbe to report `focusedWindowID` and `mainWindowID`. The probe emits sanitized window IDs, state, bounds, and fixture titles only.
@@ -101,6 +102,7 @@ Terminal needs Accessibility permission for WindowProbe to report `focusedWindow
 - [ ] Display topology changes, quit/relaunch, sleep/wake, and Launch at Login preserve profile and durable-history behaviour.
 - [ ] No crash, deadlock, persistent high CPU, or stuck event tap occurs during a 15-minute mixed-feature stress run.
 CHECKLIST
+  } > "${MANUAL_PATH}"
 }
 
 cleanup() {
