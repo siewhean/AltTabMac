@@ -58,5 +58,34 @@ final class WorkspaceProviderModelTests: XCTestCase {
         XCTAssertEqual(CapabilityStatus.degraded("d").reason, "d")
         XCTAssertEqual(CapabilityStatus.unavailable("u").level, .unavailable)
         XCTAssertEqual(CapabilityStatus.failed("f").level, .failed)
+
+        let inferredAvailable = StageManagerCapabilityPolicy.truthfulStatus(
+            .available,
+            stageManagerEnabled: true
+        )
+        XCTAssertEqual(inferredAvailable.level, .degraded)
+        XCTAssertEqual(
+            inferredAvailable.reason,
+            StageManagerCapabilityPolicy.inferenceReason
+        )
+
+        let inferredDegraded = StageManagerCapabilityPolicy.truthfulStatus(
+            .degraded("Direct Space activation is unavailable."),
+            stageManagerEnabled: true
+        )
+        XCTAssertEqual(inferredDegraded.level, .degraded)
+        XCTAssertTrue(inferredDegraded.reason?.contains("Direct Space activation") == true)
+        XCTAssertTrue(inferredDegraded.reason?.contains("inferred") == true)
+
+        let inferredFailure = StageManagerCapabilityPolicy.truthfulStatus(
+            .failed("Workspace metadata failed."),
+            stageManagerEnabled: true
+        )
+        XCTAssertEqual(inferredFailure.level, .failed)
+        XCTAssertTrue(inferredFailure.reason?.contains("inferred") == true)
+        XCTAssertEqual(
+            StageManagerCapabilityPolicy.visibleLabel(for: .hiddenSet),
+            "Inferred Hidden Set"
+        )
     }
 }
