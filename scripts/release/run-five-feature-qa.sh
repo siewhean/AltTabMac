@@ -3,11 +3,13 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 EVIDENCE_DIR="${CMDTAB_FIVE_FEATURE_EVIDENCE_DIR:-${ROOT_DIR}/dist/five-feature-evidence}"
-TEMP_ROOT="$(mktemp -d /tmp/cmdtab-five-feature-qa.XXXXXX)"
+PHASE_DIR="${EVIDENCE_DIR}/phases"
 LOG_PATH="${EVIDENCE_DIR}/commands.log"
 RESULT_PATH="${EVIDENCE_DIR}/result.txt"
 MANUAL_PATH="${EVIDENCE_DIR}/manual-checks.md"
-MIN_FREE_DISK_MB="${CMDTAB_MIN_FREE_DISK_MB:-8192}"
+PHASE_MIN_FREE_DISK_MB="${CMDTAB_PHASE_MIN_FREE_DISK_MB:-2048}"
+MODE="${1:-all}"
+CURRENT_PHASE="startup"
 
 write_manual_checks() {
   local automated_status="$1"
@@ -106,26 +108,32 @@ CHECKLIST
   } > "${MANUAL_PATH}"
 }
 
-cleanup() {
-  local status=$?
-  mkdir -p "${EVIDENCE_DIR}"
-  if [[ "${status}" == "0" ]]; then
-    printf 'AUTOMATED_PASS\n' > "${RESULT_PATH}"
-    write_manual_checks "AUTOMATED_PASS — packaged-app matrix remains required"
-  else
-    printf 'FAIL (exit %s)\n' "${status}" > "${RESULT_PATH}"
-    write_manual_checks "FAIL — automated checks stopped before completion"
-  fi
-  rm -rf "${TEMP_ROOT}"
+usage() {
+  cat <<'USAGE'
+Usage: bash scripts/release/run-five-feature-qa.sh [phase]
+
+Phases:
+  source    Source contracts and deterministic WindowLab/WindowProbe fixtures
+  tests     Migration, focused feature, and full Swift suites in one reused build tree
+  package   Release package, bundle verification, and artifact inspection
+  repro     Two-build unsigned reproducibility comparison
+  finalize  Verify same-head phase markers and write AUTOMATED_PASS evidence
+  all       Run every phase sequentially with scratch cleanup between phases (default)
+  status    Show phase markers for the current commit
+  reset     Remove five-feature evidence and phase markers
+
+Each phase is resumable and bound to the exact Git commit. A source change invalidates
+older markers automatically. The default per-phase disk floor is 2048 MB and can be
+raised with CMDTAB_PHASE_MIN_FREE_DISK_MB.
+USAGE
 }
-trap cleanup EXIT
 
 free_disk_mb() {
   local path="$1"
   df -Pk "${path}" | awk 'NR == 2 { printf "%d\n", $4 / 1024 }'
 }
 
-require_free_disk_space() {
+require_phase_disk_space() {
   local path="$1"
   local label="$2"
   local available_mb
@@ -136,22 +144,259 @@ require_free_disk_space() {
     exit 1
   fi
 
-  printf '%s free disk: %s MB (minimum: %s MB)\n' \
-    "${label}" "${available_mb}" "${MIN_FREE_DISK_MB}"
+  printf '%s free disk: %s MB (phase minimum: %s MB)\n' \
+    "${label}" "${available_mb}" "${PHASE_MIN_FREE_DISK_MB}"
 
-  if (( available_mb < MIN_FREE_DISK_MB )); then
+  if (( available_mb < PHASE_MIN_FREE_DISK_MB )); then
     cat >&2 <<EOF
-Insufficient free disk space for the five-feature QA gate.
+Insufficient free disk space for this phased QA step.
 Path: ${path}
 Available: ${available_mb} MB
-Required minimum: ${MIN_FREE_DISK_MB} MB
+Required phase minimum: ${PHASE_MIN_FREE_DISK_MB} MB
 
-Clean SwiftPM/Xcode scratch data or free additional storage before retrying.
-The minimum can be overridden with CMDTAB_MIN_FREE_DISK_MB, but lowering it risks another incomplete build and is not recommended.
+This runner deletes each phase's scratch tree before the next phase, so it does not
+need the former 8192 MB monolithic allowance. Free enough space for one build phase
+or raise the threshold if this machine's toolchain needs more headroom.
 EOF
     exit 1
   fi
 }
+
+phase_marker_path() {
+  printf '%s/%s.commit\n' "${PHASE_DIR}" "$1"
+}
+
+record_phase() {
+  local phase="$1"
+  local marker
+  marker="$(phase_marker_path "${phase}")"
+  printf '%s\n' "${COMMIT_SHA}" > "${marker}"
+  date -u '+%Y-%m-%dT%H:%M:%SZ' > "${PHASE_DIR}/${phase}.utc"
+  printf 'PASS phase=%s commit=%s\n' "${phase}" "${COMMIT_SHA}"
+  write_partial_result
+}
+
+require_phase() {
+  local phase="$1"
+  local marker
+  local recorded
+  marker="$(phase_marker_path "${phase}")"
+  [[ -f "${marker}" ]] || {
+    echo "Missing prerequisite phase: ${phase}" >&2
+    echo "Run: bash scripts/release/run-five-feature-qa.sh ${phase}" >&2
+    exit 1
+  }
+  recorded="$(cat "${marker}")"
+  [[ "${recorded}" == "${COMMIT_SHA}" ]] || {
+    echo "Phase ${phase} belongs to ${recorded}, not current HEAD ${COMMIT_SHA}." >&2
+    echo "Rerun the phase on the current commit." >&2
+    exit 1
+  }
+}
+
+write_partial_result() {
+  {
+    printf 'PARTIAL\n'
+    printf 'commit=%s\n' "${COMMIT_SHA}"
+    for phase in source tests package repro; do
+      local marker
+      marker="$(phase_marker_path "${phase}")"
+      if [[ -f "${marker}" ]] && [[ "$(cat "${marker}")" == "${COMMIT_SHA}" ]]; then
+        printf '%s=PASS\n' "${phase}"
+      else
+        printf '%s=PENDING\n' "${phase}"
+      fi
+    done
+  } > "${RESULT_PATH}"
+}
+
+phase_source() {
+  CURRENT_PHASE="source"
+  printf '\n== Phase: source and deterministic fixtures ==\n'
+  require_phase_disk_space "${ROOT_DIR}" "Repository/output volume"
+
+  (
+    local temp_root
+    temp_root="$(mktemp -d /tmp/cmdtab-five-feature-source.XXXXXX)"
+    trap 'rm -rf "${temp_root}"' EXIT
+
+    python3 "${ROOT_DIR}/scripts/release/verify-five-feature-source.py"
+    python3 "${ROOT_DIR}/scripts/release/release_config.py" verify-repository
+
+    CMDTAB_WINDOWLAB_SCRATCH="${temp_root}/windowlab" \
+      bash "${ROOT_DIR}/scripts/release/build-windowlab-fixture.sh"
+    codesign --verify --strict --verbose=2 "${ROOT_DIR}/dist/fixtures/WindowLab.app"
+    cp "${ROOT_DIR}/dist/fixtures/WindowLab.sha256" \
+      "${EVIDENCE_DIR}/windowlab-checksums.txt"
+
+    CMDTAB_WINDOWPROBE_SCRATCH="${temp_root}/windowprobe" \
+      bash "${ROOT_DIR}/scripts/release/build-windowprobe-fixture.sh"
+    cp "${ROOT_DIR}/dist/fixtures/WindowProbe.sha256" \
+      "${EVIDENCE_DIR}/windowprobe-checksum.txt"
+  )
+
+  record_phase source
+}
+
+phase_tests() {
+  CURRENT_PHASE="tests"
+  require_phase source
+  printf '\n== Phase: all Swift tests in one reused build tree ==\n'
+  require_phase_disk_space "/tmp" "Temporary build volume"
+
+  (
+    local temp_root
+    local scratch
+    temp_root="$(mktemp -d /tmp/cmdtab-five-feature-tests.XXXXXX)"
+    scratch="${temp_root}/swift-tests"
+    trap 'rm -rf "${temp_root}"' EXIT
+
+    printf '\n-- Bundle migration tests (build once) --\n'
+    swift test \
+      --package-path "${ROOT_DIR}" \
+      --scratch-path "${scratch}" \
+      --filter BundleIdentityMigrationTests
+
+    printf '\n-- Focused five-feature tests (reuse build) --\n'
+    swift test \
+      --package-path "${ROOT_DIR}" \
+      --scratch-path "${scratch}" \
+      --skip-build \
+      --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests|ProductionVisualStateTests'
+
+    printf '\n-- Complete Swift package suite (reuse build) --\n'
+    swift test \
+      --package-path "${ROOT_DIR}" \
+      --scratch-path "${scratch}" \
+      --skip-build
+  )
+
+  record_phase tests
+}
+
+phase_package() {
+  CURRENT_PHASE="package"
+  require_phase tests
+  printf '\n== Phase: release package and bundle verification ==\n'
+  require_phase_disk_space "${ROOT_DIR}" "Repository/output volume"
+
+  (
+    local temp_root
+    temp_root="$(mktemp -d /tmp/cmdtab-five-feature-package.XXXXXX)"
+    trap 'rm -rf "${temp_root}"' EXIT
+
+    CMDTAB_OUTPUT_APP="${ROOT_DIR}/dist/CmdTab.app" \
+    CMDTAB_RELEASE_SCRATCH="${temp_root}/release" \
+      bash "${ROOT_DIR}/scripts/release/package-app.sh"
+
+    bash "${ROOT_DIR}/scripts/release/verify-bundle.sh" \
+      "${ROOT_DIR}/dist/CmdTab.app" ad-hoc
+
+    plutil -p "${ROOT_DIR}/dist/CmdTab.app/Contents/Info.plist"
+    codesign -d --verbose=4 --entitlements :- \
+      "${ROOT_DIR}/dist/CmdTab.app" 2>&1
+    lipo -archs "${ROOT_DIR}/dist/CmdTab.app/Contents/MacOS/CmdTab"
+
+    cp "${ROOT_DIR}/dist/CmdTab.manifest.json" \
+      "${EVIDENCE_DIR}/bundle-manifest.json"
+    cp "${ROOT_DIR}/dist/CmdTab.sha256" \
+      "${EVIDENCE_DIR}/checksums.txt"
+  )
+
+  record_phase package
+}
+
+phase_repro() {
+  CURRENT_PHASE="repro"
+  require_phase package
+  printf '\n== Phase: two-build unsigned reproducibility ==\n'
+  require_phase_disk_space "/tmp" "Temporary build volume"
+
+  bash "${ROOT_DIR}/scripts/release/reproducibility-check.sh"
+  record_phase repro
+}
+
+phase_finalize() {
+  CURRENT_PHASE="finalize"
+  printf '\n== Phase: exact-head evidence finalization ==\n'
+  require_phase source
+  require_phase tests
+  require_phase package
+  require_phase repro
+
+  [[ -d "${ROOT_DIR}/dist/CmdTab.app" ]] || {
+    echo "Missing packaged application: dist/CmdTab.app" >&2
+    exit 1
+  }
+  [[ -f "${EVIDENCE_DIR}/bundle-manifest.json" ]] || {
+    echo "Missing bundle manifest evidence." >&2
+    exit 1
+  }
+  [[ -f "${EVIDENCE_DIR}/checksums.txt" ]] || {
+    echo "Missing checksum evidence." >&2
+    exit 1
+  }
+
+  printf '%s\n' "${COMMIT_SHA}" > "${EVIDENCE_DIR}/commit.txt"
+  sw_vers > "${EVIDENCE_DIR}/macos.txt"
+  swift --version > "${EVIDENCE_DIR}/swift-version.txt"
+  write_manual_checks "AUTOMATED_PASS — packaged-app matrix remains required"
+  printf 'AUTOMATED_PASS\n' > "${RESULT_PATH}"
+
+  printf '\nFive-feature automated QA passed.\n'
+  printf 'Evidence: %s\n' "${EVIDENCE_DIR}"
+  printf 'Manual packaged-app matrix: %s\n' "${MANUAL_PATH}"
+  printf 'WindowLab: %s\n' "${ROOT_DIR}/dist/fixtures/WindowLab.app"
+  printf 'WindowProbe: %s\n' "${ROOT_DIR}/dist/fixtures/WindowProbe"
+}
+
+show_status() {
+  printf 'current_commit=%s\n' "${COMMIT_SHA}"
+  for phase in source tests package repro; do
+    local marker
+    local value="PENDING"
+    marker="$(phase_marker_path "${phase}")"
+    if [[ -f "${marker}" ]]; then
+      if [[ "$(cat "${marker}")" == "${COMMIT_SHA}" ]]; then
+        value="PASS"
+      else
+        value="STALE ($(cat "${marker}"))"
+      fi
+    fi
+    printf '%s=%s\n' "${phase}" "${value}"
+  done
+  if [[ -f "${RESULT_PATH}" ]]; then
+    printf 'result=%s\n' "$(head -n 1 "${RESULT_PATH}")"
+  else
+    printf 'result=PENDING\n'
+  fi
+}
+
+on_exit() {
+  local status=$?
+  if (( status != 0 )); then
+    mkdir -p "${EVIDENCE_DIR}"
+    printf 'FAIL phase=%s exit=%s\n' "${CURRENT_PHASE}" "${status}" > "${RESULT_PATH}"
+  fi
+}
+
+if [[ "${MODE}" == "reset" ]]; then
+  rm -rf "${EVIDENCE_DIR}"
+  printf 'Removed %s\n' "${EVIDENCE_DIR}"
+  exit 0
+fi
+
+case "${MODE}" in
+  source|tests|package|repro|finalize|all|status) ;;
+  -h|--help|help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Five-feature QA must run on macOS." >&2
@@ -165,65 +410,41 @@ for tool in bash python3 swift swiftc git codesign lipo plutil shasum df awk; do
   }
 done
 
-rm -rf "${EVIDENCE_DIR}"
-mkdir -p "${EVIDENCE_DIR}"
-write_manual_checks "PENDING"
-exec > >(tee "${LOG_PATH}") 2>&1
+if [[ "${MODE}" == "all" ]]; then
+  rm -rf "${EVIDENCE_DIR}"
+fi
+mkdir -p "${EVIDENCE_DIR}" "${PHASE_DIR}"
+if [[ ! -f "${MANUAL_PATH}" ]]; then
+  write_manual_checks "PENDING"
+fi
+if [[ ! -f "${RESULT_PATH}" ]]; then
+  printf 'PENDING\n' > "${RESULT_PATH}"
+fi
 
+exec > >(tee -a "${LOG_PATH}") 2>&1
 COMMIT_SHA="$(git -C "${ROOT_DIR}" rev-parse HEAD)"
-printf 'CmdTab five-feature production QA\n'
+trap on_exit EXIT
+
+printf 'CmdTab five-feature phased production QA\n'
+printf 'mode=%s\n' "${MODE}"
 printf 'commit=%s\n' "${COMMIT_SHA}"
 printf 'macos=%s\n' "$(sw_vers -productVersion)"
 printf 'architecture=%s\n' "$(uname -m)"
 printf 'swift=%s\n' "$(swift --version | head -n 1)"
 date -u '+utc=%Y-%m-%dT%H:%M:%SZ'
 
-printf '\n== Disk-space preflight ==\n'
-require_free_disk_space "${TEMP_ROOT}" "Temporary build volume"
-require_free_disk_space "${ROOT_DIR}" "Repository/output volume"
-
-printf '\n== Five-feature source contract ==\n'
-python3 "${ROOT_DIR}/scripts/release/verify-five-feature-source.py"
-python3 "${ROOT_DIR}/scripts/release/release_config.py" verify-repository
-
-printf '\n== Deterministic real-window fixtures ==\n'
-CMDTAB_WINDOWLAB_SCRATCH="${TEMP_ROOT}/windowlab" \
-  bash "${ROOT_DIR}/scripts/release/build-windowlab-fixture.sh"
-codesign --verify --strict --verbose=2 "${ROOT_DIR}/dist/fixtures/WindowLab.app"
-cp "${ROOT_DIR}/dist/fixtures/WindowLab.sha256" "${EVIDENCE_DIR}/windowlab-checksums.txt"
-
-CMDTAB_WINDOWPROBE_SCRATCH="${TEMP_ROOT}/windowprobe" \
-  bash "${ROOT_DIR}/scripts/release/build-windowprobe-fixture.sh"
-cp "${ROOT_DIR}/dist/fixtures/WindowProbe.sha256" "${EVIDENCE_DIR}/windowprobe-checksum.txt"
-
-printf '\n== Focused five-feature tests ==\n'
-swift test \
-  --package-path "${ROOT_DIR}" \
-  --scratch-path "${TEMP_ROOT}/focused-tests" \
-  --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests|ProductionVisualStateTests'
-
-printf '\n== Complete Swift package suite ==\n'
-swift test \
-  --package-path "${ROOT_DIR}" \
-  --scratch-path "${TEMP_ROOT}/full-tests"
-
-printf '\n== Phase 1 packaging regression gate ==\n'
-CMDTAB_PHASE1_EVIDENCE_DIR="${EVIDENCE_DIR}/phase1-regression" \
-  bash "${ROOT_DIR}/scripts/release/run-phase1-qa.sh"
-[[ "$(cat "${EVIDENCE_DIR}/phase1-regression/result.txt")" == "PASS" ]] || {
-  echo "Phase 1 regression gate did not pass." >&2
-  exit 1
-}
-
-printf '\n== Evidence capture ==\n'
-printf '%s\n' "${COMMIT_SHA}" > "${EVIDENCE_DIR}/commit.txt"
-sw_vers > "${EVIDENCE_DIR}/macos.txt"
-swift --version > "${EVIDENCE_DIR}/swift-version.txt"
-cp "${ROOT_DIR}/dist/CmdTab.manifest.json" "${EVIDENCE_DIR}/bundle-manifest.json"
-cp "${ROOT_DIR}/dist/CmdTab.sha256" "${EVIDENCE_DIR}/checksums.txt"
-
-printf '\nFive-feature automated QA passed.\n'
-printf 'Evidence: %s\n' "${EVIDENCE_DIR}"
-printf 'Manual packaged-app matrix: %s\n' "${MANUAL_PATH}"
-printf 'WindowLab: %s\n' "${ROOT_DIR}/dist/fixtures/WindowLab.app"
-printf 'WindowProbe: %s\n' "${ROOT_DIR}/dist/fixtures/WindowProbe"
+case "${MODE}" in
+  source) phase_source ;;
+  tests) phase_tests ;;
+  package) phase_package ;;
+  repro) phase_repro ;;
+  finalize) phase_finalize ;;
+  status) show_status ;;
+  all)
+    phase_source
+    phase_tests
+    phase_package
+    phase_repro
+    phase_finalize
+    ;;
+esac
