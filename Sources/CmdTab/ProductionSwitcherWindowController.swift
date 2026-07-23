@@ -376,13 +376,15 @@ final class ProductionSwitcherWindowController: NSObject {
         let snapshot = items()
         guard !snapshot.isEmpty else { return false }
         let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
-        let newSession = SwitcherCycleSession(
+        guard let newSession = SwitcherCycleSession(
             mode: .app,
             items: snapshot,
             currentFrontmost: currentFrontmost,
             reverse: reverse,
             pinsSnapshot: false
-        )
+        ) else {
+            return false
+        }
         session = newSession
         if currentStyle == .commandPalette {
             paletteFullItemCount = newSession.items.count
