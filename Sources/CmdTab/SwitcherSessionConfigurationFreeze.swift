@@ -23,6 +23,15 @@ final class SwitcherSessionConfigurationFreeze {
         frozenConfiguration = nil
     }
 
+    func frozenConfiguration(
+        for profileID: UUID
+    ) -> SwitcherSessionConfiguration? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard activeProfileID == profileID else { return nil }
+        return frozenConfiguration
+    }
+
     func resolve(
         profileID: UUID,
         proposed: SwitcherSessionConfiguration
