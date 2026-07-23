@@ -286,9 +286,14 @@ enum DurableHistoryWriteMatcher {
         if let preferredRecordID,
            let preferred = records.first(where: { $0.id == preferredRecordID }),
            preferred.bundleIdentifier == bundleIdentifier,
-           !unavailableRecordIDs.contains(preferredRecordID) {
-            // The in-memory one-to-one live mapping is stronger than mutable
-            // title, URL, frame, display, or Space metadata.
+           !unavailableRecordIDs.contains(preferredRecordID),
+           DurableHistoryMatcher.score(
+               record: preferred,
+               descriptor: descriptor
+           ) != nil {
+            // A live mapping is strongest only while immutable identity and a
+            // privacy-minimised metadata fingerprint still agree. This prevents
+            // a reused PID/CGWindowID in the same bundle from inheriting rank.
             return preferredRecordID
         }
 
@@ -358,17 +363,21 @@ final class DurableSwitcherHistoryStore {
                 uniqueKeysWithValues: records.map { ($0.id, $0) }
             )
 
-            // Existing exact live mappings are stronger than mutable metadata.
-            // Retain them only while the identity, record, and bundle all agree.
+            // Existing exact live mappings are stronger than mutable metadata,
+            // but only while identity, bundle, and privacy fingerprint all agree.
             let survivingMappings = recordIDByLiveIdentity.filter { identity, recordID in
                 guard liveIdentities.contains(identity),
                       let descriptor = descriptorByIdentity[identity],
-                      let record = recordByID[recordID] else {
+                      let record = recordByID[recordID],
+                      descriptor.bundleIdentifier.caseInsensitiveCompare(
+                          record.bundleIdentifier
+                      ) == .orderedSame else {
                     return false
                 }
-                return descriptor.bundleIdentifier.caseInsensitiveCompare(
-                    record.bundleIdentifier
-                ) == .orderedSame
+                return DurableHistoryMatcher.score(
+                    record: record,
+                    descriptor: descriptor
+                ) != nil
             }
             var oneToOne: [SwitcherHistoryIdentity: UUID] = [:]
             var reverse: [UUID: SwitcherHistoryIdentity] = [:]
