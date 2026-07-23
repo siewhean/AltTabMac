@@ -121,10 +121,14 @@ def main() -> None:
     item = read("Sources/CmdTab/SwitcherItem.swift")
     for literal in (
         "SwitcherPreviewContinuityStore",
-        "maximumAge: TimeInterval = 120",
+        "exactKeyMaximumAge: TimeInterval = 120",
+        "identityMaximumAge: TimeInterval = 15",
+        "entriesByExactKey",
+        "entriesByIdentity",
+        "identityKey:",
         "captureAccessAllowed",
         "CGPreflightScreenCaptureAccess",
-        "entries.removeValue(forKey: key)",
+        "entriesByIdentity.removeValue(forKey: identityKey)",
         "previewCacheKey != nil, kind == .appWindow",
     ):
         require(item, literal, "SwitcherItem.swift")
@@ -144,6 +148,18 @@ def main() -> None:
         "menu.popUp(",
     ):
         require(menu, literal, "MenuBarController.swift")
+
+    feedback = read(
+        "docs/release/evidence/five-feature-suite/manual-feedback-regressions.md"
+    )
+    for literal in (
+        "160 ms",
+        "200 ms",
+        "Show Minimized Windows",
+        "Arc and Telegram",
+        "focused `CGWindowID`",
+    ):
+        require(feedback, literal, "manual-feedback-regressions.md")
 
     durable = read("Sources/CmdTab/DurableSwitcherHistory.swift")
     for literal in (
@@ -210,6 +226,7 @@ def main() -> None:
             "ProvisionalSwitcherPolicy.permitsBaseSnapshot",
             "must fail closed",
             "SwitcherPreviewContinuityStore.resolve",
+            "identityKey:",
             "captureAccessAllowed: false",
         ),
         "Tests/CmdTabTests/SwitcherCycleSessionTests.swift": (
