@@ -177,8 +177,13 @@ struct SwitcherItem: Identifiable {
         let resolvedPreviewKey = previewCacheKey ?? historyIdentity.stableKey
         let resolvedImages: SwitcherPreviewContinuityStore.ResolvedImages
         if previewCacheKey != nil, kind == .appWindow {
+            let hasCurrentCapture = previewImage != nil || backdropImage != nil
             let captureAccessAllowed: Bool
-            if #available(macOS 10.15, *) {
+            if hasCurrentCapture {
+                // A successfully produced image is authoritative even when the
+                // asynchronous TCC preflight momentarily lags a permission change.
+                captureAccessAllowed = true
+            } else if #available(macOS 10.15, *) {
                 captureAccessAllowed = CGPreflightScreenCaptureAccess()
             } else {
                 captureAccessAllowed = true
