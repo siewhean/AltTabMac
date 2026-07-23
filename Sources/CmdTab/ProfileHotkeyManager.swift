@@ -2,111 +2,16 @@ import AppKit
 import CoreGraphics
 import os.log
 
-private let profileHotkeyLog = OSLog(subsystem: "CmdTab", category: "ProfileHotkeyManager")
-
-enum ProfileHotkeyTriggerAction: Equatable {
-    case scheduleReveal(atUptime: TimeInterval)
-    case showOverlay(ShortcutProfileMatch)
-    case quickSwitch(ShortcutProfileMatch)
-    case confirmSelection(ShortcutProfileMatch)
-}
-
-/// Adapts the proven Phase 1 hidden-trigger state machine to profile-scoped
-/// shortcuts without losing the profile identity needed for the eventual show,
-/// quick-switch, or commit action.
-struct ProfileHotkeyTriggerCoordinator {
-    private var state = HotkeyTriggerState()
-    private(set) var pendingMatch: ShortcutProfileMatch?
-
-    var hasPendingTrigger: Bool { state.hasPendingTrigger }
-    var pendingModifier: HotkeyModifier? { state.pendingModifier }
-
-    mutating func registerHiddenTrigger(
-        match: ShortcutProfileMatch,
-        startedAtUptime: TimeInterval
-    ) -> ProfileHotkeyTriggerAction? {
-        guard let modifier = match.primaryModifier else { return nil }
-
-        if let pendingMatch, pendingMatch.profileID != match.profileID {
-            cancel()
-        }
-
-        let action = state.registerHiddenTabTrigger(
-            modifier: modifier,
-            reverse: match.reverse,
-            startedAtUptime: startedAtUptime
-        )
-        guard let action else {
-            // Command-repeat suppression intentionally keeps the first trigger and
-            // its original profile/reverse direction intact.
-            return nil
-        }
-
-        pendingMatch = match
-        return mapped(action, using: match)
-    }
-
-    mutating func handleRevealDeadline(
-        now: TimeInterval,
-        heldModifiers: Set<HotkeyModifier>
-    ) -> ProfileHotkeyTriggerAction? {
-        guard let match = pendingMatch,
-              let action = state.handleRevealDeadline(
-                now: now,
-                heldModifiers: heldModifiers
-              ) else {
-            return nil
-        }
-
-        let mappedAction = mapped(action, using: match)
-        if !state.hasPendingTrigger {
-            pendingMatch = nil
-        }
-        return mappedAction
-    }
-
-    mutating func handleModifierRelease(
-        _ modifier: HotkeyModifier,
-        switcherVisible: Bool
-    ) -> ProfileHotkeyTriggerAction? {
-        guard let match = pendingMatch,
-              let action = state.handleModifierRelease(
-                modifier,
-                switcherVisible: switcherVisible
-              ) else {
-            return nil
-        }
-
-        let mappedAction = mapped(action, using: match)
-        pendingMatch = nil
-        return mappedAction
-    }
-
-    mutating func cancel() {
-        state.cancelPendingTrigger()
-        pendingMatch = nil
-    }
-
-    private func mapped(
-        _ action: HotkeyTriggerAction,
-        using match: ShortcutProfileMatch
-    ) -> ProfileHotkeyTriggerAction {
-        switch action {
-        case let .scheduleReveal(atUptime):
-            return .scheduleReveal(atUptime: atUptime)
-        case .showOverlay:
-            return .showOverlay(match)
-        case .quickSwitch:
-            return .quickSwitch(match)
-        case .confirmSelection:
-            return .confirmSelection(match)
-        }
-    }
-}
+private let profileHotkeyLog = OSLog(
+    subsystem: "CmdTab",
+    category: "ProfileHotkeyManager"
+)
 
 /// Global event-tap router for versioned switcher shortcut profiles.
-/// The callback performs only lock-protected matching and primitive state work;
-/// all UI and Accessibility side effects are dispatched to the main queue.
+///
+/// The callback performs only matching and primitive state transitions. Every
+/// UI, Accessibility, and timer side effect is dispatched asynchronously to the
+/// main queue so the event tap remains below the system timeout threshold.
 final class ProfileHotkeyManager {
     private weak var switcher: ProductionSwitcherWindowController?
     private let profileStore: SwitcherProfileStore
@@ -120,10 +25,11 @@ final class ProfileHotkeyManager {
     private var showUIWorkItem: DispatchWorkItem?
     private let installRetryDelay: TimeInterval = 1.0
 
-    private var holdTriggerCoordinator = ProfileHotkeyTriggerCoordinator()
+    private var timingState = ProfileHotkeyTimingState()
+
     /// Contains only key-downs CmdTab actually swallowed. A passed-through
-    /// shortcut (for example while licensing is unavailable) must also receive
-    /// its original key-up or the native/system shortcut can become stuck.
+    /// shortcut must receive its original key-up or the native/system shortcut
+    /// can become stuck.
     private var swallowedKeyCodes = Set<Int64>()
     private var alternateTriggerState = AlternateModifierTriggerState()
     private var leftCommandDown = false
@@ -151,9 +57,13 @@ final class ProfileHotkeyManager {
         uninstallTap()
     }
 
+    /// Called before click-based commits so the follow-up modifier release cannot
+    /// trigger a second activation.
     func clearTriggerStateFromClickCommit() {
-        configurationFreeze.end()
-        resetInteractionState(cancelVisibleSession: false)
+        resetInteractionState(
+            cancelVisibleSession: false,
+            preserveSwallowedKeyUps: true
+        )
     }
 
     // MARK: Event-tap lifecycle
@@ -199,7 +109,9 @@ final class ProfileHotkeyManager {
             options: .defaultTap,
             eventsOfInterest: mask,
             callback: { _, type, event, refcon in
-                guard let refcon else { return Unmanaged.passRetained(event) }
+                guard let refcon else {
+                    return Unmanaged.passRetained(event)
+                }
                 let manager = Unmanaged<ProfileHotkeyManager>
                     .fromOpaque(refcon)
                     .takeUnretainedValue()
@@ -215,7 +127,11 @@ final class ProfileHotkeyManager {
             return
         }
 
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        let source = CFMachPortCreateRunLoopSource(
+            kCFAllocatorDefault,
+            tap,
+            0
+        )
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         eventTap = tap
@@ -230,7 +146,11 @@ final class ProfileHotkeyManager {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
         if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+            CFRunLoopRemoveSource(
+                CFRunLoopGetMain(),
+                runLoopSource,
+                .commonModes
+            )
         }
         eventTap = nil
         runLoopSource = nil
@@ -260,15 +180,38 @@ final class ProfileHotkeyManager {
         type: CGEventType,
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
+        // Preserve event-pair integrity before entering a protected/recording
+        // surface. A key-down swallowed by CmdTab must never leak an unmatched
+        // key-up to the native shortcut owner.
+        if type == .keyUp {
+            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+            if swallowedKeyCodes.remove(keyCode) != nil {
+                if SecureInputMonitor.isEnabled ||
+                    ShortcutRecordingState.shared.isRecording {
+                    resetInteractionState(
+                        cancelVisibleSession: true,
+                        preserveSwallowedKeyUps: true
+                    )
+                }
+                return nil
+            }
+        }
+
         if isKeyboardEvent(type), SecureInputMonitor.isEnabled {
-            // Do not inspect or retain protected keystrokes. A stale switcher
-            // must not remain above a password or other secure-entry surface.
-            resetInteractionState(cancelVisibleSession: true)
+            resetInteractionState(
+                cancelVisibleSession: true,
+                preserveSwallowedKeyUps: true
+            )
             return Unmanaged.passRetained(event)
         }
 
         if isKeyboardEvent(type), ShortcutRecordingState.shared.isRecording {
-            // The AppKit recorder owns the original key-down and key-up pair.
+            // The AppKit recorder owns new key pairs. Cancel stale global state,
+            // while retaining only key-ups for key-downs already swallowed.
+            resetInteractionState(
+                cancelVisibleSession: true,
+                preserveSwallowedKeyUps: true
+            )
             return Unmanaged.passRetained(event)
         }
 
@@ -287,11 +230,15 @@ final class ProfileHotkeyManager {
 
         case .flagsChanged:
             handleAlternateModifierChange(event)
-            handleHoldModifierRelease(flags: event.flags)
+            handleProfileModifierRelease(flags: event.flags)
             return Unmanaged.passRetained(event)
 
         case .keyDown:
             guard !shouldBypassForActiveTextInput() else {
+                resetInteractionState(
+                    cancelVisibleSession: false,
+                    preserveSwallowedKeyUps: true
+                )
                 return Unmanaged.passRetained(event)
             }
             alternateTriggerState.noteInterveningKeyDown(
@@ -300,16 +247,15 @@ final class ProfileHotkeyManager {
             return handleKeyDown(event)
 
         case .keyUp:
-            let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-            return swallowedKeyCodes.remove(keyCode) != nil
-                ? nil
-                : Unmanaged.passRetained(event)
+            return Unmanaged.passRetained(event)
 
         case .scrollWheel:
             guard switcher?.isVisible == true else {
                 return Unmanaged.passRetained(event)
             }
-            let delta = event.getDoubleValueField(.scrollWheelEventPointDeltaAxis1)
+            let delta = event.getDoubleValueField(
+                .scrollWheelEventPointDeltaAxis1
+            )
             if abs(delta) >= 1 {
                 dispatchToMain { [weak self] in
                     self?.switcher?.moveSelection(by: delta > 0 ? -1 : 1)
@@ -341,65 +287,58 @@ final class ProfileHotkeyManager {
             LicensingController.shared.shouldHandleCustomSwitcherShortcut()
         }
         guard shouldHandleShortcut else {
-            // The native/system shortcut receives both event halves because this
-            // key code is never inserted into `swallowedKeyCodes`.
             return Unmanaged.passRetained(event)
         }
 
+        let sameVisibleProfile = switcher?.isVisible == true &&
+            switcher?.activeProfileID == match.profileID
+        configurationFreeze.begin(
+            profileID: match.profileID,
+            preserveExisting: sameVisibleProfile
+        )
         swallowedKeyCodes.insert(keyCode)
 
-        switch match.releaseBehavior {
-        case .pressToToggle:
-            guard !isRepeat else { return nil }
-            let preserveExisting = switcher?.isVisible == true &&
-                switcher?.activeProfileID == match.profileID
-            configurationFreeze.begin(
-                profileID: match.profileID,
-                preserveExisting: preserveExisting
-            )
+        if switcher?.isVisible == true {
+            cancelScheduledReveal()
+            if match.releaseBehavior == .holdPrimaryModifier {
+                if timingState.pendingMatch?.profileID != match.profileID {
+                    timingState.beginVisibleTrigger(
+                        match: match,
+                        startedAtUptime: eventUptime(event)
+                    )
+                }
+            } else {
+                timingState.cancel()
+            }
             dispatchToMain { [weak self] in
                 self?.switcher?.showOrAdvance(
                     reverse: match.reverse,
                     profileID: match.profileID
                 )
             }
+            return nil
+        }
 
-        case .holdPrimaryModifier:
-            guard let primary = match.primaryModifier else { return nil }
-
-            if switcher?.isVisible == true,
-               switcher?.activeProfileID == match.profileID {
-                configurationFreeze.begin(
-                    profileID: match.profileID,
-                    preserveExisting: true
-                )
-                ensureVisibleHoldTrigger(
-                    match,
-                    primary: primary,
-                    startedAtUptime: eventUptime(event)
-                )
+        switch match.releaseBehavior {
+        case .pressToToggle:
+            if !isRepeat {
                 dispatchToMain { [weak self] in
                     self?.switcher?.showOrAdvance(
                         reverse: match.reverse,
                         profileID: match.profileID
                     )
                 }
-                schedulePostShowReleaseCheck(match)
-                return nil
             }
 
-            let preserveExisting = holdTriggerCoordinator.pendingMatch?.profileID == match.profileID
-            guard let action = holdTriggerCoordinator.registerHiddenTrigger(
+        case .holdPrimaryModifier:
+            guard let action = timingState.registerHiddenTrigger(
                 match: match,
-                startedAtUptime: eventUptime(event)
+                startedAtUptime: eventUptime(event),
+                isRepeat: isRepeat
             ) else {
                 return nil
             }
-            configurationFreeze.begin(
-                profileID: match.profileID,
-                preserveExisting: preserveExisting
-            )
-            performHoldTriggerAction(action)
+            performTimingAction(action)
         }
         return nil
     }
@@ -412,13 +351,17 @@ final class ProfileHotkeyManager {
 
         switch keyCode {
         case 53:
-            cancelPendingHoldTrigger()
-            configurationFreeze.end()
+            resetInteractionState(
+                cancelVisibleSession: false,
+                preserveSwallowedKeyUps: true
+            )
             dispatchToMain { switcher.cancelAndHide() }
             return true
         case 36, 76:
-            cancelPendingHoldTrigger()
-            configurationFreeze.end()
+            resetInteractionState(
+                cancelVisibleSession: false,
+                preserveSwallowedKeyUps: true
+            )
             dispatchToMain { switcher.confirmAndHide() }
             return true
         case 123:
@@ -465,25 +408,53 @@ final class ProfileHotkeyManager {
         return true
     }
 
-    // MARK: Proven hold/quick-switch routing
+    // MARK: Deterministic hold/release timing
 
-    private func cancelScheduledReveal() {
-        showUIWorkItem?.cancel()
-        showUIWorkItem = nil
-    }
-
-    private func cancelPendingHoldTrigger() {
-        cancelScheduledReveal()
-        holdTriggerCoordinator.cancel()
-    }
-
-    private func scheduleReveal(for revealAtUptime: TimeInterval) {
-        cancelScheduledReveal()
-        let delay = max(0, revealAtUptime - currentUptime())
-        if delay <= 0 {
+    private func performTimingAction(_ action: ProfileHotkeyTimingAction) {
+        switch action {
+        case let .scheduleReveal(atUptime):
             dispatchToMain { [weak self] in
-                self?.handleScheduledReveal()
+                self?.scheduleReveal(atUptime: atUptime)
             }
+
+        case let .showOverlay(match):
+            dispatchToMain { [weak self] in
+                guard let self else { return }
+                self.switcher?.showOrAdvance(
+                    reverse: match.reverse,
+                    profileID: match.profileID
+                )
+                self.schedulePostShowReleaseCheck(match)
+            }
+
+        case let .quickSwitch(match):
+            dispatchToMain { [weak self] in
+                guard let self else { return }
+                self.switcher?.commitTriggerSession(
+                    reverse: match.reverse,
+                    profileID: match.profileID
+                )
+                self.configurationFreeze.end()
+            }
+
+        case let .confirmSelection(match):
+            dispatchToMain { [weak self] in
+                guard let self else { return }
+                guard self.switcher?.activeProfileID == match.profileID else {
+                    self.configurationFreeze.end()
+                    return
+                }
+                self.switcher?.confirmAndHide()
+                self.configurationFreeze.end()
+            }
+        }
+    }
+
+    private func scheduleReveal(atUptime: TimeInterval) {
+        cancelScheduledReveal()
+        let delay = max(0, atUptime - currentUptime())
+        if delay <= 0 {
+            handleScheduledReveal()
             return
         }
 
@@ -493,17 +464,61 @@ final class ProfileHotkeyManager {
             self.handleScheduledReveal()
         }
         showUIWorkItem = item
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: item)
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + delay,
+            execute: item
+        )
     }
 
     private func handleScheduledReveal() {
-        guard let action = holdTriggerCoordinator.handleRevealDeadline(
+        guard let action = timingState.handleRevealDeadline(
             now: currentUptime(),
             heldModifiers: liveHeldModifiers()
         ) else {
             return
         }
-        performHoldTriggerAction(action)
+        performTimingAction(action)
+    }
+
+    private func handleProfileModifierRelease(flags: CGEventFlags) {
+        guard let modifier = timingState.pendingModifier,
+              !modifier.isHeld(in: flags) else {
+            return
+        }
+        cancelScheduledReveal()
+        guard let action = timingState.handleModifierRelease(
+            modifier,
+            switcherVisible: switcher?.isVisible == true,
+            activeProfileID: switcher?.activeProfileID
+        ) else {
+            configurationFreeze.end()
+            return
+        }
+        performTimingAction(action)
+    }
+
+    private func schedulePostShowReleaseCheck(_ match: ShortcutProfileMatch) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            guard let self,
+                  self.timingState.pendingMatch == match,
+                  let modifier = match.primaryModifier,
+                  !modifier.isHeld(in: NSEvent.modifierFlags) else {
+                return
+            }
+            self.cancelScheduledReveal()
+            if let action = self.timingState.handleModifierRelease(
+                modifier,
+                switcherVisible: self.switcher?.isVisible == true,
+                activeProfileID: self.switcher?.activeProfileID
+            ) {
+                self.performTimingAction(action)
+            }
+        }
+    }
+
+    private func cancelScheduledReveal() {
+        showUIWorkItem?.cancel()
+        showUIWorkItem = nil
     }
 
     private func liveHeldModifiers() -> Set<HotkeyModifier> {
@@ -514,99 +529,7 @@ final class ProfileHotkeyManager {
         return held
     }
 
-    private func ensureVisibleHoldTrigger(
-        _ match: ShortcutProfileMatch,
-        primary: HotkeyModifier,
-        startedAtUptime: TimeInterval
-    ) {
-        guard holdTriggerCoordinator.pendingMatch?.profileID != match.profileID else {
-            return
-        }
-        cancelPendingHoldTrigger()
-        guard let action = holdTriggerCoordinator.registerHiddenTrigger(
-            match: match,
-            startedAtUptime: startedAtUptime
-        ) else {
-            return
-        }
-        switch action {
-        case .scheduleReveal:
-            _ = holdTriggerCoordinator.handleRevealDeadline(
-                now: startedAtUptime,
-                heldModifiers: [primary]
-            )
-        case .showOverlay, .quickSwitch, .confirmSelection:
-            break
-        }
-    }
-
-    private func performHoldTriggerAction(_ action: ProfileHotkeyTriggerAction) {
-        switch action {
-        case let .scheduleReveal(atUptime):
-            scheduleReveal(for: atUptime)
-
-        case let .showOverlay(match):
-            dispatchToMain { [weak self] in
-                self?.switcher?.showOrAdvance(
-                    reverse: match.reverse,
-                    profileID: match.profileID
-                )
-                self?.schedulePostShowReleaseCheck(match)
-            }
-
-        case let .quickSwitch(match):
-            cancelScheduledReveal()
-            dispatchToMain { [weak self] in
-                guard let self else { return }
-                defer { self.configurationFreeze.end() }
-                self.switcher?.commitTriggerSession(
-                    reverse: match.reverse,
-                    profileID: match.profileID
-                )
-            }
-
-        case let .confirmSelection(match):
-            cancelScheduledReveal()
-            configurationFreeze.end()
-            dispatchToMain { [weak self] in
-                guard self?.switcher?.activeProfileID == match.profileID,
-                      self?.switcher?.activeReleaseBehavior == .holdPrimaryModifier else {
-                    return
-                }
-                self?.switcher?.confirmAndHide()
-            }
-        }
-    }
-
-    private func handleHoldModifierRelease(flags: CGEventFlags) {
-        guard let modifier = holdTriggerCoordinator.pendingModifier,
-              !modifier.isHeld(in: flags),
-              let action = holdTriggerCoordinator.handleModifierRelease(
-                modifier,
-                switcherVisible: switcher?.isVisible == true
-              ) else {
-            return
-        }
-        performHoldTriggerAction(action)
-    }
-
-    private func schedulePostShowReleaseCheck(_ match: ShortcutProfileMatch) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
-            guard let self,
-                  self.holdTriggerCoordinator.pendingMatch == match,
-                  let primary = match.primaryModifier,
-                  !primary.isHeld(in: NSEvent.modifierFlags),
-                  let action = self.holdTriggerCoordinator.handleModifierRelease(
-                    primary,
-                    switcherVisible: self.switcher?.isVisible == true
-                  ) else {
-                return
-            }
-            self.performHoldTriggerAction(action)
-        }
-    }
-
-    // MARK: Compatibility trigger
+    // MARK: Compatibility alternate trigger
 
     private func handleAlternateModifierChange(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
@@ -637,8 +560,7 @@ final class ProfileHotkeyManager {
         dispatchToMain { [weak self] in
             guard let self else { return }
             if self.switcher?.isVisible == true {
-                self.cancelPendingHoldTrigger()
-                self.configurationFreeze.end()
+                self.resetInteractionState(cancelVisibleSession: false)
                 self.switcher?.confirmAndHide()
                 return
             }
@@ -682,10 +604,16 @@ final class ProfileHotkeyManager {
 
     // MARK: Safety helpers
 
-    private func resetInteractionState(cancelVisibleSession: Bool) {
+    private func resetInteractionState(
+        cancelVisibleSession: Bool,
+        preserveSwallowedKeyUps: Bool = false
+    ) {
+        cancelScheduledReveal()
         configurationFreeze.end()
-        cancelPendingHoldTrigger()
-        swallowedKeyCodes.removeAll()
+        timingState.cancel()
+        if !preserveSwallowedKeyUps {
+            swallowedKeyCodes.removeAll()
+        }
         alternateTriggerState = AlternateModifierTriggerState()
         leftCommandDown = false
         leftOptionDown = false
