@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switcher = ProductionSwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
         preferencesWindowController.onOpenApplications = { [weak self] in
+            self?.beginDefaultConfigurationFreeze()
             self?.switcher?.showStandalone()
         }
         preferencesWindowController.onRefreshPreviews = { [weak self] in
@@ -71,6 +72,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+    }
+
+    private func beginDefaultConfigurationFreeze() {
+        guard let profileID = SwitcherProfileStore.shared
+            .profilesSnapshot()
+            .first(where: \.isEnabled)?
+            .id else {
+            return
+        }
+        SwitcherSessionConfigurationFreeze.shared.begin(
+            profileID: profileID,
+            preserveExisting: switcher?.isVisible == true
+        )
     }
 
     private func requestRequiredPermissionsIfNeeded() {
@@ -123,6 +137,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        SwitcherSessionConfigurationFreeze.shared.end()
         screenTopologyObserver = nil
         focusedWindowHistoryObserver = nil
         DurableSwitcherHistoryStore.shared.waitForPendingWrites()
