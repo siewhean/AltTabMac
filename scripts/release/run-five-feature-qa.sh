@@ -7,6 +7,7 @@ TEMP_ROOT="$(mktemp -d /tmp/cmdtab-five-feature-qa.XXXXXX)"
 LOG_PATH="${EVIDENCE_DIR}/commands.log"
 RESULT_PATH="${EVIDENCE_DIR}/result.txt"
 MANUAL_PATH="${EVIDENCE_DIR}/manual-checks.md"
+MIN_FREE_DISK_MB="${CMDTAB_MIN_FREE_DISK_MB:-8192}"
 
 write_manual_checks() {
   local automated_status="$1"
@@ -119,12 +120,45 @@ cleanup() {
 }
 trap cleanup EXIT
 
+free_disk_mb() {
+  local path="$1"
+  df -Pk "${path}" | awk 'NR == 2 { printf "%d\n", $4 / 1024 }'
+}
+
+require_free_disk_space() {
+  local path="$1"
+  local label="$2"
+  local available_mb
+  available_mb="$(free_disk_mb "${path}")"
+
+  if [[ ! "${available_mb}" =~ ^[0-9]+$ ]]; then
+    echo "Could not determine free disk space for ${label}: ${path}" >&2
+    exit 1
+  fi
+
+  printf '%s free disk: %s MB (minimum: %s MB)\n' \
+    "${label}" "${available_mb}" "${MIN_FREE_DISK_MB}"
+
+  if (( available_mb < MIN_FREE_DISK_MB )); then
+    cat >&2 <<EOF
+Insufficient free disk space for the five-feature QA gate.
+Path: ${path}
+Available: ${available_mb} MB
+Required minimum: ${MIN_FREE_DISK_MB} MB
+
+Clean SwiftPM/Xcode scratch data or free additional storage before retrying.
+The minimum can be overridden with CMDTAB_MIN_FREE_DISK_MB, but lowering it risks another incomplete build and is not recommended.
+EOF
+    exit 1
+  fi
+}
+
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "Five-feature QA must run on macOS." >&2
   exit 1
 fi
 
-for tool in bash python3 swift swiftc git codesign lipo plutil shasum; do
+for tool in bash python3 swift swiftc git codesign lipo plutil shasum df awk; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -143,6 +177,10 @@ printf 'macos=%s\n' "$(sw_vers -productVersion)"
 printf 'architecture=%s\n' "$(uname -m)"
 printf 'swift=%s\n' "$(swift --version | head -n 1)"
 date -u '+utc=%Y-%m-%dT%H:%M:%SZ'
+
+printf '\n== Disk-space preflight ==\n'
+require_free_disk_space "${TEMP_ROOT}" "Temporary build volume"
+require_free_disk_space "${ROOT_DIR}" "Repository/output volume"
 
 printf '\n== Five-feature source contract ==\n'
 python3 "${ROOT_DIR}/scripts/release/verify-five-feature-source.py"
