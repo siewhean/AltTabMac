@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 
 // MARK: - Mode
 
@@ -25,8 +26,8 @@ enum SwitcherItemKind: String {
 /// capture even though the exact same window produced a valid image moments
 /// earlier. The window-specific preview key includes its exact identity and
 /// presentation metadata, so a transient miss can safely reuse the prior local
-/// image without borrowing from another window. The cache is bounded and never
-/// written to disk.
+/// image without borrowing from another window. The cache is bounded, never
+/// written to disk, and is cleared for a key when Screen Recording is unavailable.
 enum SwitcherPreviewContinuityStore {
     struct ResolvedImages {
         let preview: NSImage?
@@ -48,10 +49,16 @@ enum SwitcherPreviewContinuityStore {
         key: String,
         preview: NSImage?,
         backdrop: NSImage?,
+        captureAccessAllowed: Bool,
         now: Date = Date()
     ) -> ResolvedImages {
         lock.lock()
         defer { lock.unlock() }
+
+        guard captureAccessAllowed else {
+            entries.removeValue(forKey: key)
+            return ResolvedImages(preview: nil, backdrop: nil)
+        }
 
         pruneLocked(now: now)
         if preview != nil || backdrop != nil {
@@ -146,10 +153,17 @@ struct SwitcherItem: Identifiable {
         let resolvedPreviewKey = previewCacheKey ?? historyIdentity.stableKey
         let resolvedImages: SwitcherPreviewContinuityStore.ResolvedImages
         if previewCacheKey != nil, kind == .appWindow {
+            let captureAccessAllowed: Bool
+            if #available(macOS 10.15, *) {
+                captureAccessAllowed = CGPreflightScreenCaptureAccess()
+            } else {
+                captureAccessAllowed = true
+            }
             resolvedImages = SwitcherPreviewContinuityStore.resolve(
                 key: resolvedPreviewKey,
                 preview: previewImage,
-                backdrop: backdropImage
+                backdrop: backdropImage,
+                captureAccessAllowed: captureAccessAllowed
             )
         } else {
             resolvedImages = .init(
