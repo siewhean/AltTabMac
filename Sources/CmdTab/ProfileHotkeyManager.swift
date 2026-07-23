@@ -11,6 +11,7 @@ final class ProfileHotkeyManager {
     private weak var switcher: ProductionSwitcherWindowController?
     private let profileStore: SwitcherProfileStore
     private let preferences = SwitcherPreferences.shared
+    private let configurationFreeze = SwitcherSessionConfigurationFreeze.shared
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var installRetryWorkItem: DispatchWorkItem?
@@ -34,11 +35,13 @@ final class ProfileHotkeyManager {
     }
 
     deinit {
+        configurationFreeze.end()
         installRetryWorkItem?.cancel()
         uninstallTap()
     }
 
     func clearTriggerStateFromClickCommit() {
+        configurationFreeze.end()
         resetInteractionState(cancelVisibleSession: false)
     }
 
@@ -215,10 +218,12 @@ final class ProfileHotkeyManager {
             switch keyCode {
             case 53:
                 activeHoldMatch = nil
+                configurationFreeze.end()
                 dispatchToMain { [weak self] in self?.switcher?.cancelAndHide() }
                 return nil
             case 36, 76:
                 activeHoldMatch = nil
+                configurationFreeze.end()
                 dispatchToMain { [weak self] in self?.switcher?.confirmAndHide() }
                 return nil
             case 123:
@@ -278,6 +283,12 @@ final class ProfileHotkeyManager {
             return Unmanaged.passRetained(event)
         }
 
+        let preserveExisting = switcher?.isVisible == true &&
+            switcher?.activeProfileID == match.profileID
+        configurationFreeze.begin(
+            profileID: match.profileID,
+            preserveExisting: preserveExisting
+        )
         swallowedKeyCodes.insert(keyCode)
 
         if isRepeat, match.releaseBehavior == .pressToToggle {
@@ -318,6 +329,7 @@ final class ProfileHotkeyManager {
         }
         guard !held else { return }
         activeHoldMatch = nil
+        configurationFreeze.end()
         dispatchToMain { [weak self] in
             guard self?.switcher?.activeProfileID == match.profileID,
                   self?.switcher?.activeReleaseBehavior == .holdPrimaryModifier else {
@@ -334,6 +346,7 @@ final class ProfileHotkeyManager {
                   let primary = match.primaryModifier else { return }
             if !primary.isHeld(in: NSEvent.modifierFlags) {
                 self.activeHoldMatch = nil
+                self.configurationFreeze.end()
                 self.switcher?.confirmAndHide()
             }
         }
@@ -365,9 +378,20 @@ final class ProfileHotkeyManager {
         dispatchToMain { [weak self] in
             guard let self else { return }
             if self.switcher?.isVisible == true {
+                self.configurationFreeze.end()
                 self.switcher?.confirmAndHide()
-            } else {
-                self.switcher?.commitTriggerSession(reverse: false)
+            } else if let profileID = self.profileStore
+                .profilesSnapshot()
+                .first(where: \.isEnabled)?
+                .id {
+                self.configurationFreeze.begin(
+                    profileID: profileID,
+                    preserveExisting: false
+                )
+                self.switcher?.commitTriggerSession(
+                    reverse: false,
+                    profileID: profileID
+                )
             }
         }
     }
@@ -390,6 +414,7 @@ final class ProfileHotkeyManager {
     }
 
     private func resetInteractionState(cancelVisibleSession: Bool) {
+        configurationFreeze.end()
         activeHoldMatch = nil
         swallowedKeyCodes.removeAll()
         alternateTriggerState = AlternateModifierTriggerState()
