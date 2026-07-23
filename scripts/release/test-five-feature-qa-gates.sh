@@ -36,27 +36,27 @@ expect_fail() {
   fi
 }
 
-printf "Test Suite 'FocusedFiveFeatureTests' passed.\nExecuted 50 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds\n" \
+printf "Test Suite 'FocusedFiveFeatureTests' passed.\nExecuted 61 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds\n" \
   > "${TEMP_ROOT}/focused-pass.log"
-printf "Test Suite 'FocusedFiveFeatureTests' passed.\nExecuted 49 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds\n" \
+printf "Test Suite 'FocusedFiveFeatureTests' passed.\nExecuted 60 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds\n" \
   > "${TEMP_ROOT}/focused-wrong-count.log"
-printf "Test Suite 'FocusedFiveFeatureTests' failed.\nExecuted 50 tests, with 1 failure (0 unexpected) in 1.000 (1.001) seconds\n" \
+printf "Test Suite 'FocusedFiveFeatureTests' failed.\nExecuted 61 tests, with 1 failure (0 unexpected) in 1.000 (1.001) seconds\n" \
   > "${TEMP_ROOT}/focused-failure.log"
-printf "Executed 50 tests, with 0 failures (1 unexpected) in 1.000 (1.001) seconds\n" \
+printf "Executed 61 tests, with 0 failures (1 unexpected) in 1.000 (1.001) seconds\n" \
   > "${TEMP_ROOT}/focused-unexpected.log"
-printf "prefix Executed 50 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds suffix\n" \
+printf "prefix Executed 61 tests, with 0 failures (0 unexpected) in 1.000 (1.001) seconds suffix\n" \
   > "${TEMP_ROOT}/focused-noncanonical.log"
 
 expect_pass "exact focused XCTest count" \
-  verify_focused_xctest_summary "${TEMP_ROOT}/focused-pass.log" 50
+  verify_focused_xctest_summary "${TEMP_ROOT}/focused-pass.log"
 expect_fail "wrong focused XCTest count" \
-  verify_focused_xctest_summary "${TEMP_ROOT}/focused-wrong-count.log" 50
+  verify_focused_xctest_summary "${TEMP_ROOT}/focused-wrong-count.log"
 expect_fail "focused XCTest failure" \
-  verify_focused_xctest_summary "${TEMP_ROOT}/focused-failure.log" 50
+  verify_focused_xctest_summary "${TEMP_ROOT}/focused-failure.log"
 expect_fail "focused XCTest unexpected failure" \
-  verify_focused_xctest_summary "${TEMP_ROOT}/focused-unexpected.log" 50
+  verify_focused_xctest_summary "${TEMP_ROOT}/focused-unexpected.log"
 expect_fail "noncanonical focused XCTest summary" \
-  verify_focused_xctest_summary "${TEMP_ROOT}/focused-noncanonical.log" 50
+  verify_focused_xctest_summary "${TEMP_ROOT}/focused-noncanonical.log"
 
 TEST_REPO="${TEMP_ROOT}/repo"
 mkdir -p "${TEST_REPO}"
