@@ -22,6 +22,37 @@ final class MinimizedWindowPolicyTests: XCTestCase {
                 includeMinimized: true
             )
         )
+
+        // AppKit on recent macOS versions can report a miniaturized ordinary
+        // top-level window as AXDialog. Accept that observed minimized form only
+        // when minimized-window inclusion is enabled.
+        XCTAssertFalse(
+            AXWindowCatalog.isEligible(
+                role: kAXWindowRole as String,
+                subrole: "AXDialog",
+                parentRole: kAXApplicationRole as String,
+                isMinimized: true,
+                includeMinimized: false
+            )
+        )
+        XCTAssertTrue(
+            AXWindowCatalog.isEligible(
+                role: kAXWindowRole as String,
+                subrole: "AXDialog",
+                parentRole: kAXApplicationRole as String,
+                isMinimized: true,
+                includeMinimized: true
+            )
+        )
+        XCTAssertFalse(
+            AXWindowCatalog.isEligible(
+                role: kAXWindowRole as String,
+                subrole: "AXDialog",
+                parentRole: kAXApplicationRole as String,
+                isMinimized: false,
+                includeMinimized: true
+            )
+        )
     }
 
     func testChildWindowNeverBecomesTopLevelSwitcherTarget() {
