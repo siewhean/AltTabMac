@@ -40,9 +40,11 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
             let title = scenario == .duplicateTitles && index < 2
                 ? "WindowLab — Duplicate"
                 : "WindowLab — A\(index + 1)"
+            let xStep = scenario == .duplicateTitles && index < 2 ? 24 : 54
+            let yStep = scenario == .duplicateTitles && index < 2 ? 24 : 44
             let origin = CGPoint(
-                x: visible.minX + 80 + CGFloat(index * 54),
-                y: visible.maxY - size.height - 80 - CGFloat(index * 44)
+                x: visible.minX + 80 + CGFloat(index * xStep),
+                y: visible.maxY - size.height - 80 - CGFloat(index * yStep)
             )
             let window = NSWindow(
                 contentRect: CGRect(origin: origin, size: size),
@@ -52,7 +54,16 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
             )
             window.identifier = NSUserInterfaceItemIdentifier("WindowLab.A\(index + 1)")
             window.title = title
-            window.representedURL = URL(fileURLWithPath: "/tmp/WindowLab-A\(index + 1).txt")
+            if scenario == .duplicateTitles && index < 2 {
+                // Deliberately omit document identity for the same-title pair.
+                // Their 24-point stagger keeps rounded bounds within the
+                // durable matcher's ambiguity margin.
+                window.representedURL = nil
+            } else {
+                window.representedURL = URL(
+                    fileURLWithPath: "/tmp/WindowLab-A\(index + 1).txt"
+                )
+            }
             window.delegate = self
             window.contentViewController = NSHostinglessFixtureViewController(
                 title: title,

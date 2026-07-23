@@ -1,7 +1,7 @@
 # CmdTab
 
 Last updated: 2026-07-23  
-Active task: begin Phase 2 Developer ID distribution work after the accepted and merged Phase 1 deterministic packaging gate.
+Active task: complete the isolated PR #35 five-feature production QA on `agent/five-feature-production-suite`; do not merge it or advance `main` from this worktree.
 
 ## Product
 
@@ -25,6 +25,14 @@ The public native release remains blocked until CmdTab has:
 - tested update, rollback, diagnostics, security, licensing, and support operations.
 
 No public release claim may treat the accepted local ad-hoc artifact as a distributable build.
+
+## PR #35 five-feature QA
+
+The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly 50 tests with no failures or unexpected results.
+
+The deterministic fixtures deliberately include a same-title, no-document-identity window pair for durable-MRU ambiguity testing. WindowProbe reports minimized and fullscreen Accessibility state as objective values when available and `null` when unavailable.
+
+Automated acceptance does not substitute for the packaged-app manual matrix. Unsupported hardware or desktop configurations must remain `NOT TESTED`, including Intel and any multi-display topology not physically exercised.
 
 ## Phase 1 accepted evidence
 

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/release/five-feature-qa-gates.sh
+source "${ROOT_DIR}/scripts/release/five-feature-qa-gates.sh"
 EVIDENCE_DIR="${CMDTAB_FIVE_FEATURE_EVIDENCE_DIR:-${ROOT_DIR}/dist/five-feature-evidence}"
 PHASE_DIR="${EVIDENCE_DIR}/phases"
 LOG_PATH="${EVIDENCE_DIR}/commands.log"
@@ -166,14 +168,91 @@ phase_marker_path() {
   printf '%s/%s.commit\n' "${PHASE_DIR}" "$1"
 }
 
+phase_receipt_path() {
+  printf '%s/%s.receipt.sha256\n' "${PHASE_DIR}" "$1"
+}
+
+set_phase_receipt_inputs() {
+  local phase="$1"
+  local marker
+  local phase_log
+  marker="$(phase_marker_path "${phase}")"
+  phase_log="${PHASE_DIR}/${phase}.log"
+  PHASE_RECEIPT_INPUTS=(
+    "${marker}"
+    "${PHASE_DIR}/${phase}.utc"
+    "${phase_log}"
+  )
+  case "${phase}" in
+    source)
+      PHASE_RECEIPT_INPUTS+=(
+        "${EVIDENCE_DIR}/windowlab-checksums.txt"
+        "${EVIDENCE_DIR}/windowprobe-checksum.txt"
+      )
+      ;;
+    tests)
+      PHASE_RECEIPT_INPUTS+=("${EVIDENCE_DIR}/focused-xctest.log")
+      ;;
+    package)
+      PHASE_RECEIPT_INPUTS+=(
+        "${EVIDENCE_DIR}/bundle-manifest.json"
+        "${EVIDENCE_DIR}/checksums.txt"
+        "${ROOT_DIR}/dist/CmdTab.manifest.json"
+        "${ROOT_DIR}/dist/CmdTab.sha256"
+      )
+      ;;
+    repro) ;;
+    *)
+      echo "Unknown receipt phase: ${phase}" >&2
+      return 1
+      ;;
+  esac
+}
+
+seal_phase_receipt() {
+  local phase="$1"
+  set_phase_receipt_inputs "${phase}"
+  write_phase_receipt "$(phase_receipt_path "${phase}")" \
+    "${PHASE_RECEIPT_INPUTS[@]}"
+}
+
+verify_recorded_phase() {
+  local phase="$1"
+  set_phase_receipt_inputs "${phase}"
+  verify_phase_receipt "$(phase_receipt_path "${phase}")" \
+    "${PHASE_RECEIPT_INPUTS[@]}"
+}
+
+run_recorded_phase() {
+  local phase="$1"
+  local phase_function="$2"
+  local phase_log="${PHASE_DIR}/${phase}.log"
+  case "${phase}" in
+    source)
+      invalidate_phase_records "${PHASE_DIR}" tests package repro
+      ;;
+    tests)
+      invalidate_phase_records "${PHASE_DIR}" package repro
+      ;;
+    package)
+      invalidate_phase_records "${PHASE_DIR}" repro
+      ;;
+    repro) ;;
+  esac
+  rm -f "${phase_log}" "$(phase_receipt_path "${phase}")"
+  "${phase_function}" 2>&1 | tee "${phase_log}"
+  seal_phase_receipt "${phase}"
+  write_partial_result
+}
+
 record_phase() {
   local phase="$1"
   local marker
+  verify_qa_source_snapshot "${ROOT_DIR}" "${COMMIT_SHA}"
   marker="$(phase_marker_path "${phase}")"
   printf '%s\n' "${COMMIT_SHA}" > "${marker}"
   date -u '+%Y-%m-%dT%H:%M:%SZ' > "${PHASE_DIR}/${phase}.utc"
   printf 'PASS phase=%s commit=%s\n' "${phase}" "${COMMIT_SHA}"
-  write_partial_result
 }
 
 require_phase() {
@@ -192,6 +271,10 @@ require_phase() {
     echo "Rerun the phase on the current commit." >&2
     exit 1
   }
+  verify_recorded_phase "${phase}" || {
+    echo "Phase ${phase} evidence no longer matches its receipt. Rerun the phase." >&2
+    exit 1
+  }
 }
 
 write_partial_result() {
@@ -201,7 +284,9 @@ write_partial_result() {
     for phase in source tests package repro; do
       local marker
       marker="$(phase_marker_path "${phase}")"
-      if [[ -f "${marker}" ]] && [[ "$(cat "${marker}")" == "${COMMIT_SHA}" ]]; then
+      if [[ -f "${marker}" ]] &&
+         [[ "$(cat "${marker}")" == "${COMMIT_SHA}" ]] &&
+         verify_recorded_phase "${phase}" >/dev/null 2>&1; then
         printf '%s=PASS\n' "${phase}"
       else
         printf '%s=PENDING\n' "${phase}"
@@ -221,6 +306,7 @@ phase_source() {
     trap 'rm -rf "${temp_root}"' EXIT
 
     python3 "${ROOT_DIR}/scripts/release/verify-five-feature-source.py"
+    bash "${ROOT_DIR}/scripts/release/test-five-feature-qa-gates.sh"
     python3 "${ROOT_DIR}/scripts/release/release_config.py" verify-repository
 
     CMDTAB_WINDOWLAB_SCRATCH="${temp_root}/windowlab" \
@@ -247,8 +333,10 @@ phase_tests() {
   (
     local temp_root
     local scratch
+    local focused_log
     temp_root="$(mktemp -d /tmp/cmdtab-five-feature-tests.XXXXXX)"
     scratch="${temp_root}/swift-tests"
+    focused_log="${EVIDENCE_DIR}/focused-xctest.log"
     trap 'rm -rf "${temp_root}"' EXIT
 
     printf '\n-- Bundle migration tests (build once) --\n'
@@ -262,7 +350,9 @@ phase_tests() {
       --package-path "${ROOT_DIR}" \
       --scratch-path "${scratch}" \
       --skip-build \
-      --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests|ProductionVisualStateTests'
+      --filter 'MinimizedWindowPolicyTests|WorkspaceProviderModelTests|SwitcherProfileTests|SwitcherProfileSafetyTests|SwitcherSessionConfigurationFreezeTests|DurableSwitcherHistoryTests|WindowManagementActionTests|FiveFeatureIntegrationTests|ProductionMembershipPolicyTests|ProductionVisualStateTests' \
+      2>&1 | tee "${focused_log}"
+    verify_focused_xctest_summary "${focused_log}" 50
 
     printf '\n-- Complete Swift package suite (reuse build) --\n'
     swift test \
@@ -319,6 +409,7 @@ phase_repro() {
 phase_finalize() {
   CURRENT_PHASE="finalize"
   printf '\n== Phase: exact-head evidence finalization ==\n'
+  verify_qa_source_snapshot "${ROOT_DIR}" "${COMMIT_SHA}"
   require_phase source
   require_phase tests
   require_phase package
@@ -337,6 +428,30 @@ phase_finalize() {
     exit 1
   }
 
+  cmp "${ROOT_DIR}/dist/CmdTab.manifest.json" \
+    "${EVIDENCE_DIR}/bundle-manifest.json"
+  cmp "${ROOT_DIR}/dist/CmdTab.sha256" \
+    "${EVIDENCE_DIR}/checksums.txt"
+  (
+    cd "${ROOT_DIR}/dist"
+    shasum -a 256 -c CmdTab.sha256
+  )
+  bash "${ROOT_DIR}/scripts/release/verify-bundle.sh" \
+    "${ROOT_DIR}/dist/CmdTab.app" ad-hoc
+
+  cmp "${ROOT_DIR}/dist/fixtures/WindowLab.sha256" \
+    "${EVIDENCE_DIR}/windowlab-checksums.txt"
+  cmp "${ROOT_DIR}/dist/fixtures/WindowProbe.sha256" \
+    "${EVIDENCE_DIR}/windowprobe-checksum.txt"
+  (
+    cd "${ROOT_DIR}/dist/fixtures"
+    shasum -a 256 -c WindowLab.sha256
+  )
+  shasum -a 256 -c "${ROOT_DIR}/dist/fixtures/WindowProbe.sha256"
+  codesign --verify --strict --verbose=2 \
+    "${ROOT_DIR}/dist/fixtures/WindowLab.app"
+
+  verify_qa_source_snapshot "${ROOT_DIR}" "${COMMIT_SHA}"
   printf '%s\n' "${COMMIT_SHA}" > "${EVIDENCE_DIR}/commit.txt"
   sw_vers > "${EVIDENCE_DIR}/macos.txt"
   swift --version > "${EVIDENCE_DIR}/swift-version.txt"
@@ -358,7 +473,11 @@ show_status() {
     marker="$(phase_marker_path "${phase}")"
     if [[ -f "${marker}" ]]; then
       if [[ "$(cat "${marker}")" == "${COMMIT_SHA}" ]]; then
-        value="PASS"
+        if verify_recorded_phase "${phase}" >/dev/null 2>&1; then
+          value="PASS"
+        else
+          value="TAMPERED"
+        fi
       else
         value="STALE ($(cat "${marker}"))"
       fi
@@ -403,7 +522,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-for tool in bash python3 swift swiftc git codesign lipo plutil shasum df awk; do
+for tool in bash python3 swift swiftc git codesign lipo plutil shasum cmp df awk; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -434,17 +553,17 @@ printf 'swift=%s\n' "$(swift --version | head -n 1)"
 date -u '+utc=%Y-%m-%dT%H:%M:%SZ'
 
 case "${MODE}" in
-  source) phase_source ;;
-  tests) phase_tests ;;
-  package) phase_package ;;
-  repro) phase_repro ;;
+  source) run_recorded_phase source phase_source ;;
+  tests) run_recorded_phase tests phase_tests ;;
+  package) run_recorded_phase package phase_package ;;
+  repro) run_recorded_phase repro phase_repro ;;
   finalize) phase_finalize ;;
   status) show_status ;;
   all)
-    phase_source
-    phase_tests
-    phase_package
-    phase_repro
+    run_recorded_phase source phase_source
+    run_recorded_phase tests phase_tests
+    run_recorded_phase package phase_package
+    run_recorded_phase repro phase_repro
     phase_finalize
     ;;
 esac

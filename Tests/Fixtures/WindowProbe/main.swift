@@ -40,6 +40,80 @@ private func windowAttribute(
     return unsafeBitCast(value, to: AXUIElement.self)
 }
 
+private func attributeValue(
+    _ attribute: CFString,
+    element: AXUIElement
+) -> CFTypeRef? {
+    var value: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, attribute, &value) == .success else {
+        return nil
+    }
+    return value
+}
+
+private func boolAttribute(
+    _ attribute: CFString,
+    element: AXUIElement
+) -> Bool? {
+    guard let value = attributeValue(attribute, element: element),
+          CFGetTypeID(value) == CFBooleanGetTypeID() else {
+        return nil
+    }
+    return CFBooleanGetValue(unsafeBitCast(value, to: CFBoolean.self))
+}
+
+private func stringAttribute(
+    _ attribute: CFString,
+    element: AXUIElement
+) -> String? {
+    attributeValue(attribute, element: element) as? String
+}
+
+private struct ObjectiveWindowState {
+    let isMinimized: Bool?
+    let isFullscreen: Bool?
+    let subrole: String?
+}
+
+private func objectiveWindowStates(
+    application: AXUIElement
+) -> [CGWindowID: ObjectiveWindowState] {
+    guard let value = attributeValue(
+        kAXWindowsAttribute as CFString,
+        element: application
+    ), let windows = value as? [AXUIElement] else {
+        return [:]
+    }
+
+    return windows.reduce(into: [:]) { states, window in
+        guard let windowID = exactWindowID(window) else { return }
+        let subrole = stringAttribute(
+            kAXSubroleAttribute as CFString,
+            element: window
+        )
+        let fullscreenAttribute = boolAttribute(
+            "AXFullScreen" as CFString,
+            element: window
+        )
+        let fullscreen: Bool?
+        if let fullscreenAttribute {
+            fullscreen = fullscreenAttribute
+        } else if let subrole {
+            fullscreen = subrole == "AXFullScreenWindow"
+        } else {
+            fullscreen = nil
+        }
+        states[windowID] = ObjectiveWindowState(
+            isMinimized: boolAttribute(
+                kAXMinimizedAttribute as CFString,
+                element: window
+            ),
+            isFullscreen: fullscreen,
+            subrole: subrole
+        )
+    }
+}
+
 private func jsonFrame(_ value: Any?) -> [String: Double]? {
     guard let dictionary = value as? NSDictionary,
           let frame = CGRect(dictionaryRepresentation: dictionary) else {
@@ -86,6 +160,7 @@ for application in applications.sorted(by: {
     let mainID = exactWindowID(
         windowAttribute(kAXMainWindowAttribute as CFString, application: axApplication)
     )
+    let objectiveStates = objectiveWindowStates(application: axApplication)
 
     let windows: [[String: Any]] = allWindows
         .filter {
@@ -105,6 +180,18 @@ for application in applications.sorted(by: {
                 "isFocused": focusedID == windowID,
                 "isMain": mainID == windowID,
             ]
+            if let state = objectiveStates[windowID] {
+                output["accessibilityStateAvailable"] =
+                    state.isMinimized != nil && state.isFullscreen != nil
+                output["isMinimized"] = state.isMinimized.map { $0 as Any } ?? NSNull()
+                output["isFullscreen"] = state.isFullscreen.map { $0 as Any } ?? NSNull()
+                output["subrole"] = state.subrole.map { $0 as Any } ?? NSNull()
+            } else {
+                output["accessibilityStateAvailable"] = false
+                output["isMinimized"] = NSNull()
+                output["isFullscreen"] = NSNull()
+                output["subrole"] = NSNull()
+            }
             if let frame = jsonFrame(row[kCGWindowBounds as String]) {
                 output["frame"] = frame
             }

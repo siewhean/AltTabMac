@@ -410,6 +410,26 @@ def main() -> None:
     )
 
     require_all(
+        ROOT / "Tests" / "Fixtures" / "WindowLab" / "main.swift",
+        (
+            "scenario == .duplicateTitles && index < 2",
+            "let xStep = scenario == .duplicateTitles && index < 2 ? 24 : 54",
+            "let yStep = scenario == .duplicateTitles && index < 2 ? 24 : 44",
+            "window.representedURL = nil",
+            "Their 24-point stagger keeps rounded bounds within the",
+        ),
+    )
+
+    require_all(
+        ROOT / "Tests" / "CmdTabTests" / "DurableSwitcherHistoryTests.swift",
+        (
+            "testDuplicateTitleIsRejectedAsAmbiguous",
+            "XCTAssertTrue(records.allSatisfy { $0.documentURLHash == nil })",
+            "Both nearby same-title records must remain ambiguous after identity churn.",
+        ),
+    )
+
+    require_all(
         ROOT / "Tests" / "Fixtures" / "WindowProbe" / "main.swift",
         (
             "focusedWindowID",
@@ -417,6 +437,12 @@ def main() -> None:
             "_AXUIElementGetWindow",
             "accessibilityTrusted",
             "isFrontmostProcess",
+            "kAXMinimizedAttribute",
+            "\"AXFullScreen\" as CFString",
+            "\"accessibilityStateAvailable\"",
+            "\"isMinimized\"",
+            "\"isFullscreen\"",
+            "\"subrole\"",
         ),
     )
 

@@ -1,5 +1,24 @@
 # Todo
 
+## 2026-07-23 — PR #35 Five-Feature Production QA
+
+- [x] Audit the phased runner, focused-test inventory, deterministic fixtures, and objective probe contract.
+- [x] Require an exact 50-test focused XCTest aggregate with zero failures and zero unexpected results.
+- [x] Bind phase evidence to one clean immutable HEAD and hash-seal phase logs and artifacts.
+- [x] Reject tracked changes everywhere, including tracked files under generated-output directories.
+- [x] Invalidate downstream evidence when an earlier phase is rerun.
+- [x] Make the duplicate-title fixture genuinely ambiguous by removing document identity and keeping candidates within the production matcher margin.
+- [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
+- [ ] Commit and push the hardened branch without merging PR #35.
+- [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean HEAD.
+- [ ] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
+- [ ] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence.
+
+### Review
+
+- The initial feature implementation passed source verification, 50 focused tests, and 182 full Swift tests, but its evidence runner and fixtures had fail-closed gaps.
+- The corrected run must replace that preliminary evidence; no earlier marker is accepted after the source commit changes.
+
 ## 2026-07-23 — Native Production Readiness
 
 Canonical plan: `docs/release/native-production-readiness-plan.md`

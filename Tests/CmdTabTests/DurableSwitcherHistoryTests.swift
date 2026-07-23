@@ -62,37 +62,54 @@ final class DurableSwitcherHistoryTests: XCTestCase {
 
     func testDuplicateTitleIsRejectedAsAmbiguous() {
         let now = Date(timeIntervalSince1970: 1_000)
-        let record = DurableWindowHistoryRecord(
-            descriptor: descriptor(
+        let oldDescriptors = [
+            descriptor(
                 identity: .appWindow(pid: 10, windowID: 1),
-                title: "Untitled",
+                title: "WindowLab — Duplicate",
                 url: nil,
-                x: 0
+                x: 80,
+                y: 80
             ),
-            activatedAt: now.addingTimeInterval(-10)
-        )
+            descriptor(
+                identity: .appWindow(pid: 10, windowID: 2),
+                title: "WindowLab — Duplicate",
+                url: nil,
+                x: 104,
+                y: 104
+            ),
+        ]
+        let records = oldDescriptors.map {
+            DurableWindowHistoryRecord(
+                descriptor: $0,
+                activatedAt: now.addingTimeInterval(-10)
+            )
+        }
         let live = [
             descriptor(
-                identity: .appWindow(pid: 20, windowID: 2),
-                title: "Untitled",
+                identity: .appWindow(pid: 20, windowID: 101),
+                title: "WindowLab — Duplicate",
                 url: nil,
-                x: 0
+                x: 80,
+                y: 80
             ),
             descriptor(
-                identity: .appWindow(pid: 20, windowID: 3),
-                title: "Untitled",
+                identity: .appWindow(pid: 20, windowID: 102),
+                title: "WindowLab — Duplicate",
                 url: nil,
-                x: 0
+                x: 104,
+                y: 104
             ),
         ]
 
+        XCTAssertTrue(records.allSatisfy { $0.documentURLHash == nil })
         XCTAssertTrue(
             DurableHistoryMatcher.matches(
-                records: [record],
+                records: records,
                 liveDescriptors: live,
                 now: now,
                 expirationInterval: 10_000
-            ).isEmpty
+            ).isEmpty,
+            "Both nearby same-title records must remain ambiguous after identity churn."
         )
     }
 
@@ -194,7 +211,8 @@ final class DurableSwitcherHistoryTests: XCTestCase {
         bundle: String = "com.example.Editor",
         title: String,
         url: URL?,
-        x: CGFloat
+        x: CGFloat,
+        y: CGFloat = 0
     ) -> LiveWindowHistoryDescriptor {
         LiveWindowHistoryDescriptor(
             identity: identity,
@@ -203,7 +221,7 @@ final class DurableSwitcherHistoryTests: XCTestCase {
             documentURL: url,
             role: "AXWindow",
             subrole: "AXStandardWindow",
-            bounds: CGRect(x: x, y: 0, width: 800, height: 600),
+            bounds: CGRect(x: x, y: y, width: 800, height: 600),
             displayIdentifier: "display-1",
             workspaceKey: "workspace:display-1:1:user"
         )
