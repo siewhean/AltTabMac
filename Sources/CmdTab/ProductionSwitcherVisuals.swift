@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 
+// Never present the bare Stage Manager label "Hidden Set" as exact. Every
+// visible and accessibility surface uses the explicitly inferred labels below.
 private func productionAccessibilityState(for item: SwitcherItem) -> String {
     var values: [String] = []
     if item.isMinimized { values.append("minimized") }
