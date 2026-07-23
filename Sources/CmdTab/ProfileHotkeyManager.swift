@@ -39,8 +39,7 @@ final class ProfileHotkeyManager {
     }
 
     func clearTriggerStateFromClickCommit() {
-        activeHoldMatch = nil
-        swallowedKeyCodes.removeAll()
+        resetInteractionState(cancelVisibleSession: false)
     }
 
     private func installOrScheduleRetry() {
@@ -107,7 +106,9 @@ final class ProfileHotkeyManager {
     }
 
     private func uninstallTap() {
-        if let eventTap { CGEvent.tapEnable(tap: eventTap, enable: false) }
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+        }
         if let runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
@@ -137,8 +138,15 @@ final class ProfileHotkeyManager {
         type: CGEventType,
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
-        if ShortcutRecordingState.shared.isRecording,
-           type == .keyDown || type == .keyUp || type == .flagsChanged {
+        if isKeyboardEvent(type), SecureInputMonitor.isEnabled {
+            // Never intercept, inspect, or retain keystrokes while Secure Event
+            // Input is active. Cancel any visible session so a stale overlay
+            // cannot remain above a password or protected-entry surface.
+            resetInteractionState(cancelVisibleSession: true)
+            return Unmanaged.passRetained(event)
+        }
+
+        if ShortcutRecordingState.shared.isRecording, isKeyboardEvent(type) {
             // The AppKit recorder must see the original event. Do not mutate
             // profile trigger state or swallow an existing shortcut while the
             // user is recording a replacement.
@@ -147,13 +155,7 @@ final class ProfileHotkeyManager {
 
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
-            activeHoldMatch = nil
-            swallowedKeyCodes.removeAll()
-            alternateTriggerState = AlternateModifierTriggerState()
-            leftCommandDown = false
-            leftOptionDown = false
-            rightCommandDown = false
-            rightOptionDown = false
+            resetInteractionState(cancelVisibleSession: true)
             if let eventTap, AXIsProcessTrusted() {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             } else {
@@ -237,7 +239,9 @@ final class ProfileHotkeyManager {
 
             if switcher?.currentStyle == .commandPalette {
                 if keyCode == 51 {
-                    dispatchToMain { [weak self] in self?.switcher?.deleteSearchCharacter() }
+                    dispatchToMain { [weak self] in
+                        self?.switcher?.deleteSearchCharacter()
+                    }
                     return nil
                 }
                 if let character = searchableCharacter(from: event) {
@@ -254,7 +258,9 @@ final class ProfileHotkeyManager {
                     !event.flags.contains(.maskAlternate) &&
                     !event.flags.contains(.maskControl)
             ) {
-                dispatchToMain { [weak self] in self?.switcher?.performQuickAction(action) }
+                dispatchToMain { [weak self] in
+                    self?.switcher?.performQuickAction(action)
+                }
                 return nil
             }
         }
@@ -262,6 +268,16 @@ final class ProfileHotkeyManager {
         guard let match = profileStore.match(keyCode: keyCode, flags: event.flags) else {
             return Unmanaged.passRetained(event)
         }
+
+        let shouldHandleShortcut = MainActor.assumeIsolated {
+            LicensingController.shared.shouldHandleCustomSwitcherShortcut()
+        }
+        guard shouldHandleShortcut else {
+            // Preserve the native/system shortcut when CmdTab is not currently
+            // allowed to handle switching. Swallowing here would strand users.
+            return Unmanaged.passRetained(event)
+        }
+
         swallowedKeyCodes.insert(keyCode)
 
         if isRepeat, match.releaseBehavior == .pressToToggle {
@@ -325,7 +341,9 @@ final class ProfileHotkeyManager {
 
     private func handleAlternateModifierChange(_ event: CGEvent) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-        guard let key = PhysicalModifierTriggerKey(flagsChangedKeyCode: keyCode) else { return }
+        guard let key = PhysicalModifierTriggerKey(flagsChangedKeyCode: keyCode) else {
+            return
+        }
         let isDown = toggleModifierState(for: key)
         let shouldActivate = alternateTriggerState.handleModifierChange(
             key,
@@ -338,6 +356,12 @@ final class ProfileHotkeyManager {
             now: TimeInterval(event.timestamp) / 1_000_000_000
         )
         guard shouldActivate else { return }
+
+        let shouldHandleShortcut = MainActor.assumeIsolated {
+            LicensingController.shared.shouldHandleCustomSwitcherShortcut()
+        }
+        guard shouldHandleShortcut else { return }
+
         dispatchToMain { [weak self] in
             guard let self else { return }
             if self.switcher?.isVisible == true {
@@ -363,6 +387,24 @@ final class ProfileHotkeyManager {
             rightOptionDown.toggle()
             return rightOptionDown
         }
+    }
+
+    private func resetInteractionState(cancelVisibleSession: Bool) {
+        activeHoldMatch = nil
+        swallowedKeyCodes.removeAll()
+        alternateTriggerState = AlternateModifierTriggerState()
+        leftCommandDown = false
+        leftOptionDown = false
+        rightCommandDown = false
+        rightOptionDown = false
+        guard cancelVisibleSession, switcher?.isVisible == true else { return }
+        dispatchToMain { [weak self] in
+            self?.switcher?.cancelAndHide()
+        }
+    }
+
+    private func isKeyboardEvent(_ type: CGEventType) -> Bool {
+        type == .keyDown || type == .keyUp || type == .flagsChanged
     }
 
     private func shouldBypassForActiveTextInput() -> Bool {
