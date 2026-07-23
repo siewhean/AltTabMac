@@ -282,10 +282,28 @@ final class ProfileHotkeyManager {
             return nil
         }
 
+        // Standard application commands must always win over custom profiles and
+        // over any stale release owner. This explicitly protects Paste (Command-V)
+        // and the other Command/Shift-Command character commands from switching.
+        if Self.isProtectedApplicationCommand(
+            keyCode: keyCode,
+            flags: event.flags
+        ) {
+            handlePassThroughKeyDown(
+                keyCode: keyCode,
+                cancelVisibleSession: true
+            )
+            return Unmanaged.passRetained(event)
+        }
+
         guard let match = profileStore.match(
             keyCode: keyCode,
             flags: event.flags
         ) else {
+            handlePassThroughKeyDown(
+                keyCode: keyCode,
+                cancelVisibleSession: false
+            )
             return Unmanaged.passRetained(event)
         }
 
@@ -293,6 +311,10 @@ final class ProfileHotkeyManager {
             LicensingController.shared.shouldHandleCustomSwitcherShortcut()
         }
         guard shouldHandleShortcut else {
+            handlePassThroughKeyDown(
+                keyCode: keyCode,
+                cancelVisibleSession: false
+            )
             return Unmanaged.passRetained(event)
         }
 
@@ -313,12 +335,13 @@ final class ProfileHotkeyManager {
                keyDownAt: triggerUptime
            ) {
             swallowedKeyCodes.insert(keyCode)
+            shortcutChordTimingState.noteInterveningKeyDown()
             timingState.cancel()
             configurationFreeze.end()
             os_log(
                 .info,
                 log: profileHotkeyLog,
-                "Ignored delayed shortcut chord for profile %{public}@",
+                "Ignored delayed or interrupted shortcut chord for profile %{public}@",
                 match.profileID.uuidString
             )
             return nil
@@ -464,6 +487,7 @@ final class ProfileHotkeyManager {
         case let .quickSwitch(match):
             dispatchToMain { [weak self] in
                 guard let self else { return }
+                self.clearCompletedProfileTriggerState()
                 self.switcher?.commitTriggerSession(
                     reverse: match.reverse,
                     profileID: match.profileID
@@ -475,9 +499,11 @@ final class ProfileHotkeyManager {
             dispatchToMain { [weak self] in
                 guard let self else { return }
                 guard self.switcher?.activeProfileID == match.profileID else {
+                    self.clearCompletedProfileTriggerState()
                     self.configurationFreeze.end()
                     return
                 }
+                self.clearCompletedProfileTriggerState()
                 self.switcher?.confirmAndHide()
                 self.configurationFreeze.end()
             }
@@ -681,6 +707,68 @@ final class ProfileHotkeyManager {
     }
 
     // MARK: Safety helpers
+
+    /// A key that is not being consumed by a valid switcher action disarms any
+    /// pending profile trigger before the key is passed back to macOS. Without
+    /// this boundary, a missed Command release could leave stale release ownership,
+    /// and releasing Command after Command-V could switch back to the prior window.
+    private func handlePassThroughKeyDown(
+        keyCode: Int64,
+        cancelVisibleSession: Bool
+    ) {
+        shortcutChordTimingState.noteInterveningKeyDown()
+        let hadPendingTrigger = timingState.hasPendingTrigger || showUIWorkItem != nil
+        cancelScheduledReveal()
+        timingState.cancel()
+        configurationFreeze.end()
+
+        if hadPendingTrigger {
+            os_log(
+                .info,
+                log: profileHotkeyLog,
+                "Cancelled stale switcher trigger before passing key %{public}lld through",
+                keyCode
+            )
+        }
+
+        guard cancelVisibleSession, switcher?.isVisible == true else { return }
+        dispatchToMain { [weak self] in
+            self?.switcher?.cancelAndHide()
+        }
+    }
+
+    /// Clears only the completed profile gesture. The immutable configuration
+    /// remains frozen until the controller has consumed the commit action.
+    private func clearCompletedProfileTriggerState() {
+        cancelScheduledReveal()
+        timingState.cancel()
+        shortcutChordTimingState.reset()
+        physicalChordTimingState.reset()
+        commandModifierDown = false
+        optionModifierDown = false
+        alternateTriggerState.noteStandardShortcut(now: currentUptime())
+    }
+
+    /// Command and Shift-Command character shortcuts are application commands,
+    /// not global switcher triggers. Command-Tab and Shift-Command-Tab remain the
+    /// only character-key exceptions; function-key profiles remain available.
+    private static func isProtectedApplicationCommand(
+        keyCode: Int64,
+        flags: CGEventFlags
+    ) -> Bool {
+        let modifiers = ShortcutModifierMask(eventFlags: flags)
+        guard modifiers.contains(.command),
+              modifiers.subtracting([.command, .shift]).isEmpty,
+              keyCode != RecordedShortcut.commandTab.keyCode else {
+            return false
+        }
+        return !functionKeyCodes.contains(keyCode)
+    }
+
+    private static let functionKeyCodes: Set<Int64> = [
+        122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111,
+        105, 107, 113, 106, 64, 79, 80, 90,
+    ]
 
     private func resetInteractionState(
         cancelVisibleSession: Bool,
