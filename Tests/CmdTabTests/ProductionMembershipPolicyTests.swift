@@ -80,6 +80,78 @@ final class ProductionMembershipPolicyTests: XCTestCase {
 
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.first?.title, "First")
+
+        let allSpaces = configuration(
+            visibility: .allSpaces,
+            includeMinimized: true
+        )
+        let currentSpace = configuration(
+            visibility: .currentSpaceOnly,
+            includeMinimized: false
+        )
+
+        var gate = ProductionEnrichmentGate()
+        let firstSignature = ProductionEnrichmentInputSignature(
+            configuration: allSpaces,
+            itemKeys: ["first"]
+        )
+        XCTAssertTrue(gate.shouldSchedule(firstSignature, force: false))
+        XCTAssertFalse(
+            gate.shouldSchedule(firstSignature, force: false),
+            "Publishing an unchanged snapshot must not recursively schedule another enrichment pass."
+        )
+        XCTAssertTrue(gate.shouldSchedule(firstSignature, force: true))
+        XCTAssertTrue(
+            gate.shouldSchedule(
+                ProductionEnrichmentInputSignature(
+                    configuration: allSpaces,
+                    itemKeys: ["second"]
+                ),
+                force: false
+            )
+        )
+
+        XCTAssertFalse(
+            ProvisionalSwitcherPolicy.permitsBaseSnapshot(
+                profileVisibility: .currentSpaceOnly,
+                globalVisibility: .allSpaces,
+                profileIncludesMinimized: false,
+                globalIncludesMinimized: true
+            ),
+            "A narrower profile must fail closed until exact scope enrichment is ready."
+        )
+        XCTAssertTrue(
+            ProvisionalSwitcherPolicy.permitsBaseSnapshot(
+                profileVisibility: .allSpaces,
+                globalVisibility: .currentSpaceOnly,
+                profileIncludesMinimized: true,
+                globalIncludesMinimized: false
+            )
+        )
+        XCTAssertTrue(
+            ProvisionalSwitcherPolicy.filteredItems(
+                [first],
+                configuration: currentSpace,
+                globalVisibility: .allSpaces,
+                globalIncludesMinimized: true
+            ).isEmpty
+        )
+    }
+
+    private func configuration(
+        visibility: WindowVisibilityScope,
+        includeMinimized: Bool
+    ) -> SwitcherSessionConfiguration {
+        SwitcherSessionConfiguration(
+            profileID: UUID(),
+            profileName: "Test",
+            style: .classicGrid,
+            visibilityScope: visibility,
+            includeMinimizedWindows: includeMinimized,
+            displayPlacement: .activeWindowDisplay,
+            appFilter: .all,
+            releaseBehavior: .holdPrimaryModifier
+        )
     }
 
     private func item(
