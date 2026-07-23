@@ -79,7 +79,7 @@ final class ProductionProfileEditorModel: ObservableObject {
             object: store,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self, !self.isWritingStore else { return }
                 self.refreshFromStore(preserveDirtyDraft: true)
             }
@@ -98,19 +98,17 @@ final class ProductionProfileEditorModel: ObservableObject {
     }
 
     func refreshFromStore(preserveDirtyDraft: Bool) {
-        let currentDraft = draft
-        let currentWasDirty = hasUnsavedChanges
+        let previousDraft = draft
+        let previousWasDirty = hasUnsavedChanges
         profiles = store.profilesSnapshot()
 
         if preserveDirtyDraft,
-           currentWasDirty,
-           let currentDraft,
-           profiles.contains(where: { $0.id == currentDraft.id }) {
-            selectedID = currentDraft.id
-            draft = currentDraft
-            validationMessages = SwitcherProfileValidator
-                .issues(in: candidateProfiles(replacing: currentDraft))
-                .map(\.description)
+           previousWasDirty,
+           let previousDraft,
+           profiles.contains(where: { $0.id == previousDraft.id }) {
+            selectedID = previousDraft.id
+            draft = previousDraft
+            validationMessages = validationIssues(for: previousDraft)
             return
         }
 
@@ -136,22 +134,25 @@ final class ProductionProfileEditorModel: ObservableObject {
         statusMessage = ""
     }
 
+    /// Keeps the raw draft intact while the user types. Normalization belongs at
+    /// the save/import boundary; applying it on every keystroke would trim names,
+    /// sort bundle identifiers, and move the TextEditor insertion point.
     func updateDraft(_ mutation: (inout SwitcherShortcutProfile) -> Void) {
         guard var value = draft else { return }
         mutation(&value)
-        value.normalize()
         draft = value
-        validationMessages = SwitcherProfileValidator
-            .issues(in: candidateProfiles(replacing: value))
-            .map(\.description)
-        statusMessage = validationMessages.isEmpty ? "Unsaved changes" : "Resolve validation errors before saving."
+        validationMessages = validationIssues(for: value)
+        statusMessage = validationMessages.isEmpty
+            ? "Unsaved changes"
+            : "Resolve validation errors before saving."
     }
 
     @discardableResult
     func saveDraft() -> Bool {
-        guard let draft else { return true }
+        guard var value = draft else { return true }
+        value.normalize()
         let issues = SwitcherProfileValidator.issues(
-            in: candidateProfiles(replacing: draft)
+            in: candidateProfiles(replacing: value)
         )
         guard issues.isEmpty else {
             validationMessages = issues.map(\.description)
@@ -160,7 +161,7 @@ final class ProductionProfileEditorModel: ObservableObject {
         }
 
         isWritingStore = true
-        let saved = store.update(draft)
+        let saved = store.update(value)
         isWritingStore = false
         guard saved else {
             validationMessages = store.validationIssues.map(\.description)
@@ -169,7 +170,7 @@ final class ProductionProfileEditorModel: ObservableObject {
         }
 
         profiles = store.profilesSnapshot()
-        self.draft = profiles.first(where: { $0.id == draft.id })
+        draft = profiles.first(where: { $0.id == value.id })
         validationMessages = []
         statusMessage = "Saved."
         return true
@@ -323,8 +324,18 @@ final class ProductionProfileEditorModel: ObservableObject {
 
     func setApplicationFilterIdentifiers(_ values: Set<String>) {
         updateDraft { profile in
-            profile.appFilter.bundleIdentifiers = values.sorted()
+            profile.appFilter.bundleIdentifiers = values
+                .map { $0.lowercased() }
+                .sorted()
         }
+    }
+
+    private func validationIssues(
+        for profile: SwitcherShortcutProfile
+    ) -> [String] {
+        SwitcherProfileValidator
+            .issues(in: candidateProfiles(replacing: profile))
+            .map(\.description)
     }
 
     private func candidateProfiles(
@@ -356,7 +367,9 @@ struct ProductionProfilePreferencesView: View {
                 ForEach(model.profiles) { profile in
                     HStack(spacing: 10) {
                         Image(systemName: profile.isEnabled ? "keyboard.fill" : "keyboard")
-                            .foregroundStyle(profile.isEnabled ? Color.accentColor : .secondary)
+                            .foregroundStyle(
+                                profile.isEnabled ? Color.accentColor : Color.secondary
+                            )
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profile.name).lineLimit(1)
                             Text(profile.forwardShortcut.displayLabel)
@@ -400,8 +413,8 @@ struct ProductionProfilePreferencesView: View {
         if let draft = model.draft {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    header(for: draft)
-                    shortcutSection(for: draft)
+                    header
+                    shortcutSection
                     scopeSection(for: draft)
                     filterSection(for: draft)
                     persistenceSection
@@ -414,15 +427,20 @@ struct ProductionProfilePreferencesView: View {
                 actionBar
             }
         } else {
-            ContentUnavailableView(
-                "No Profile Selected",
-                systemImage: "keyboard",
-                description: Text("Select or create a shortcut profile.")
-            )
+            VStack(spacing: 10) {
+                Image(systemName: "keyboard")
+                    .font(.system(size: 36))
+                    .foregroundStyle(.secondary)
+                Text("No Profile Selected")
+                    .font(.title3.weight(.semibold))
+                Text("Select or create a shortcut profile.")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    private func header(for draft: SwitcherShortcutProfile) -> some View {
+    private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 16) {
             TextField("Profile name", text: binding(\.name))
                 .font(.title2.weight(.semibold))
@@ -431,7 +449,7 @@ struct ProductionProfilePreferencesView: View {
         }
     }
 
-    private func shortcutSection(for draft: SwitcherShortcutProfile) -> some View {
+    private var shortcutSection: some View {
         GroupBox("Shortcuts") {
             VStack(alignment: .leading, spacing: 14) {
                 shortcutRow(
@@ -468,7 +486,9 @@ struct ProductionProfilePreferencesView: View {
         }
     }
 
-    private func scopeSection(for draft: SwitcherShortcutProfile) -> some View {
+    private func scopeSection(
+        for draft: SwitcherShortcutProfile
+    ) -> some View {
         GroupBox("Scope and Presentation") {
             VStack(alignment: .leading, spacing: 14) {
                 Toggle(
@@ -506,7 +526,9 @@ struct ProductionProfilePreferencesView: View {
         }
     }
 
-    private func filterSection(for draft: SwitcherShortcutProfile) -> some View {
+    private func filterSection(
+        for draft: SwitcherShortcutProfile
+    ) -> some View {
         GroupBox("Application Filter") {
             VStack(alignment: .leading, spacing: 12) {
                 Picker("Mode", selection: binding(\.appFilter.mode)) {
@@ -544,7 +566,12 @@ struct ProductionProfilePreferencesView: View {
             ProductionApplicationPicker(
                 catalog: model.applicationCatalog,
                 selectedBundleIdentifiers: Binding(
-                    get: { Set(model.draft?.appFilter.bundleIdentifiers ?? []) },
+                    get: {
+                        Set(
+                            (model.draft?.appFilter.bundleIdentifiers ?? [])
+                                .map { $0.lowercased() }
+                        )
+                    },
                     set: model.setApplicationFilterIdentifiers
                 )
             )
@@ -583,13 +610,20 @@ struct ProductionProfilePreferencesView: View {
         HStack {
             Text(model.statusMessage)
                 .font(.caption)
-                .foregroundStyle(model.validationMessages.isEmpty ? .secondary : .orange)
+                .foregroundStyle(
+                    model.validationMessages.isEmpty
+                        ? Color.secondary
+                        : Color.orange
+                )
             Spacer()
             Button("Revert", action: model.discardDraft)
                 .disabled(!model.hasUnsavedChanges)
             Button("Save", action: { _ = model.saveDraft() })
                 .keyboardShortcut("s", modifiers: [.command])
-                .disabled(!model.hasUnsavedChanges || !model.validationMessages.isEmpty)
+                .disabled(
+                    !model.hasUnsavedChanges ||
+                        !model.validationMessages.isEmpty
+                )
                 .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 24)
@@ -612,7 +646,9 @@ struct ProductionProfilePreferencesView: View {
         Binding(
             get: {
                 guard let draft = model.draft else {
-                    preconditionFailure("A profile binding was read without a selected draft")
+                    preconditionFailure(
+                        "A profile binding was read without a selected draft"
+                    )
                 }
                 return draft[keyPath: keyPath]
             },
@@ -630,8 +666,8 @@ struct ProductionProfilePreferencesView: View {
             },
             set: { value in
                 let identifiers = value
-                    .split(whereSeparator: \.isNewline)
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .split(separator: "\n", omittingEmptySubsequences: false)
+                    .map(String.init)
                 model.updateDraft { $0.appFilter.bundleIdentifiers = identifiers }
             }
         )
@@ -666,14 +702,14 @@ private struct ProductionApplicationOption: Identifiable, Hashable {
     var id: String { bundleIdentifier }
 
     func hash(into hasher: inout Hasher) {
-        hasher.combine(bundleIdentifier.lowercased())
+        hasher.combine(bundleIdentifier)
     }
 
     static func == (
         lhs: ProductionApplicationOption,
         rhs: ProductionApplicationOption
     ) -> Bool {
-        lhs.bundleIdentifier.caseInsensitiveCompare(rhs.bundleIdentifier) == .orderedSame
+        lhs.bundleIdentifier == rhs.bundleIdentifier
     }
 }
 
@@ -689,11 +725,13 @@ final class ProductionApplicationCatalog: ObservableObject {
     func reload() {
         guard !isLoading else { return }
         isLoading = true
-        Task.detached(priority: .userInitiated) {
+        DispatchQueue.global(qos: .userInitiated).async {
             let discovered = Self.discoverApplications()
-            await MainActor.run {
-                self.options = discovered
-                self.isLoading = false
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    self?.options = discovered
+                    self?.isLoading = false
+                }
             }
         }
     }
@@ -737,7 +775,7 @@ final class ProductionApplicationCatalog: ObservableObject {
 
                 results.append(
                     ProductionApplicationOption(
-                        bundleIdentifier: identifier,
+                        bundleIdentifier: normalized,
                         displayName: name,
                         icon: NSWorkspace.shared.icon(forFile: url.path)
                     )
@@ -746,11 +784,13 @@ final class ProductionApplicationCatalog: ObservableObject {
         }
 
         return results.sorted {
-            let nameComparison = $0.displayName.localizedCaseInsensitiveCompare($1.displayName)
+            let nameComparison = $0.displayName.localizedCaseInsensitiveCompare(
+                $1.displayName
+            )
             if nameComparison != .orderedSame {
                 return nameComparison == .orderedAscending
             }
-            return $0.bundleIdentifier.localizedCaseInsensitiveCompare($1.bundleIdentifier) == .orderedAscending
+            return $0.bundleIdentifier < $1.bundleIdentifier
         }
     }
 }
@@ -814,14 +854,18 @@ private struct ProductionApplicationPicker: View {
                             }
                             Spacer()
                             Image(
-                                systemName: selectedBundleIdentifiers.contains(option.bundleIdentifier)
+                                systemName: selectedBundleIdentifiers.contains(
+                                    option.bundleIdentifier
+                                )
                                     ? "checkmark.circle.fill"
                                     : "circle"
                             )
                             .foregroundStyle(
-                                selectedBundleIdentifiers.contains(option.bundleIdentifier)
+                                selectedBundleIdentifiers.contains(
+                                    option.bundleIdentifier
+                                )
                                     ? Color.accentColor
-                                    : .secondary
+                                    : Color.secondary
                             )
                         }
                         .contentShape(Rectangle())
