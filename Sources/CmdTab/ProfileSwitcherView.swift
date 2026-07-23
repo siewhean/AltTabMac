@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Style router whose presentation is frozen by the active shortcut profile.
-/// Existing settings-driven callers keep using `SwitcherView`; profile sessions
-/// use this router so one profile cannot leak its style into another.
+/// Profile sessions use production variants so minimized/fullscreen/workspace
+/// state and degraded capability status remain visible in every style.
 struct ProfileSwitcherView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     let style: SwitcherStyle
@@ -11,11 +11,11 @@ struct ProfileSwitcherView: View {
         Group {
             switch style {
             case .classicGrid:
-                ClassicGridView(viewModel: viewModel)
+                ProductionClassicGridView(viewModel: viewModel)
             case .commandPalette:
-                CommandPaletteView(viewModel: viewModel)
+                ProductionCommandPaletteView(viewModel: viewModel)
             case .radialMenu:
-                RadialMenuView(viewModel: viewModel)
+                ProductionRadialMenuView(viewModel: viewModel)
             }
         }
         .id(style)
