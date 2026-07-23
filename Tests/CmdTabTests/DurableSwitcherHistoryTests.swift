@@ -58,6 +58,16 @@ final class DurableSwitcherHistoryTests: XCTestCase {
 
         XCTAssertEqual(matches.map(\.identity), [newIdentity])
         XCTAssertGreaterThan(matches[0].confidence, 150)
+        XCTAssertEqual(
+            DurableHistoryWriteMatcher.reusableRecordID(
+                records: [record],
+                descriptor: live,
+                preferredRecordID: record.id,
+                unavailableRecordIDs: []
+            ),
+            record.id,
+            "An exact live mapping must survive mutable title, frame, or document metadata."
+        )
     }
 
     func testDuplicateTitleIsRejectedAsAmbiguous() {
@@ -111,9 +121,35 @@ final class DurableSwitcherHistoryTests: XCTestCase {
             ).isEmpty,
             "Both nearby same-title records must remain ambiguous after identity churn."
         )
+
+        let midpoint = descriptor(
+            identity: .appWindow(pid: 20, windowID: 103),
+            title: "WindowLab — Duplicate",
+            url: nil,
+            x: 92,
+            y: 92
+        )
+        XCTAssertNil(
+            DurableHistoryWriteMatcher.reusableRecordID(
+                records: records,
+                descriptor: midpoint,
+                preferredRecordID: nil,
+                unavailableRecordIDs: []
+            ),
+            "An ambiguous write must create a new record instead of collapsing two windows."
+        )
+        XCTAssertNil(
+            DurableHistoryWriteMatcher.reusableRecordID(
+                records: [records[0]],
+                descriptor: live[0],
+                preferredRecordID: nil,
+                unavailableRecordIDs: [records[0].id]
+            ),
+            "A record already owned by a sibling live identity cannot be reused."
+        )
     }
 
-    func testDifferentBundleNeverInheritsRank() {
+    func testDifferentBundleNeverInheritsRank() throws {
         let now = Date(timeIntervalSince1970: 1_000)
         let record = DurableWindowHistoryRecord(
             descriptor: descriptor(
@@ -140,6 +176,64 @@ final class DurableSwitcherHistoryTests: XCTestCase {
                 now: now,
                 expirationInterval: 10_000
             ).isEmpty
+        )
+        XCTAssertNil(
+            DurableHistoryWriteMatcher.reusableRecordID(
+                records: [record],
+                descriptor: live,
+                preferredRecordID: record.id,
+                unavailableRecordIDs: []
+            )
+        )
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DurableHistoryCollisionTests-\(UUID().uuidString)", isDirectory: true)
+        let file = directory.appendingPathComponent("history.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = DurableSwitcherHistoryStore(
+            fileURL: file,
+            maximumRecords: 20,
+            expirationInterval: 10_000
+        )
+        let first = descriptor(
+            identity: .appWindow(pid: 31, windowID: 1),
+            bundle: "com.example.first",
+            title: "Shared Title",
+            url: URL(fileURLWithPath: "/tmp/shared.txt"),
+            x: 0
+        )
+        let second = descriptor(
+            identity: .appWindow(pid: 32, windowID: 2),
+            bundle: "com.example.second",
+            title: "Shared Title",
+            url: URL(fileURLWithPath: "/tmp/shared.txt"),
+            x: 0
+        )
+        store.noteActivation(descriptor: first, now: Date())
+        store.noteActivation(descriptor: second, now: Date().addingTimeInterval(1))
+        store.waitForPendingWrites()
+        XCTAssertEqual(Set(store.snapshot().map(\.bundleIdentifier)), [
+            "com.example.first",
+            "com.example.second",
+        ])
+
+        store.noteActivation(descriptor: second, now: Date().addingTimeInterval(2))
+        store.waitForPendingWrites()
+        XCTAssertEqual(store.snapshot().count, 2)
+
+        let sameTitleSibling = descriptor(
+            identity: .appWindow(pid: 32, windowID: 3),
+            bundle: "com.example.second",
+            title: "Shared Title",
+            url: URL(fileURLWithPath: "/tmp/shared.txt"),
+            x: 0
+        )
+        store.noteActivation(descriptor: sameTitleSibling, now: Date().addingTimeInterval(3))
+        store.waitForPendingWrites()
+        XCTAssertEqual(
+            store.snapshot().filter { $0.bundleIdentifier == "com.example.second" }.count,
+            2,
+            "Two exact same-title windows in one app must retain separate durable records."
         )
     }
 
