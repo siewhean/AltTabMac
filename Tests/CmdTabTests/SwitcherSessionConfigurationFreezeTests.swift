@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import CmdTab
 
@@ -101,6 +102,38 @@ final class SwitcherSessionConfigurationFreezeTests: XCTestCase {
         _ = freeze.resolve(profileID: firstID, proposed: first)
 
         XCTAssertEqual(freeze.resolve(profileID: secondID, proposed: second), second)
+    }
+
+    func testProfileStoreReturnsFrozenValuesUntilSessionEnds() throws {
+        let suite = "SwitcherSessionConfigurationFreezeTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = SwitcherProfileStore(defaults: defaults)
+        var profile = try XCTUnwrap(store.profilesSnapshot().first)
+        profile.inheritsGlobalSettings = false
+        profile.style = .classicGrid
+        profile.visibilityScope = .visibleSpaces
+        profile.includeMinimizedWindows = false
+        XCTAssertTrue(store.update(profile))
+
+        freeze.begin(profileID: profile.id, preserveExisting: false)
+        let first = try XCTUnwrap(store.configuration(for: profile.id))
+        XCTAssertEqual(first.style, .classicGrid)
+        XCTAssertFalse(first.includeMinimizedWindows)
+
+        profile.style = .radialMenu
+        profile.visibilityScope = .allSpaces
+        profile.includeMinimizedWindows = true
+        XCTAssertTrue(store.update(profile))
+
+        let stillFrozen = try XCTUnwrap(store.configuration(for: profile.id))
+        XCTAssertEqual(stillFrozen, first)
+
+        freeze.end()
+        let nextSession = try XCTUnwrap(store.configuration(for: profile.id))
+        XCTAssertEqual(nextSession.style, .radialMenu)
+        XCTAssertEqual(nextSession.visibilityScope, .allSpaces)
+        XCTAssertTrue(nextSession.includeMinimizedWindows)
     }
 
     func testEnabledIncludeOnlyProfileRequiresAtLeastOneBundleIdentifier() {
