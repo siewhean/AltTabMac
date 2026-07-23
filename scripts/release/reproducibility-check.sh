@@ -6,13 +6,24 @@ PACKAGE_TOOL="${ROOT_DIR}/scripts/release/package-app.sh"
 VERIFY_TOOL="${ROOT_DIR}/scripts/release/verify-bundle.sh"
 TEMP_ROOT="$(mktemp -d /tmp/cmdtab-reproducibility.XXXXXX)"
 CANONICAL_SCRATCH="${TEMP_ROOT}/canonical-scratch"
+REPRO_BUILD_JOBS="${CMDTAB_REPRO_BUILD_JOBS:-1}"
 
 cleanup() {
-  rm -rf "${TEMP_ROOT}"
+  case "${TEMP_ROOT}" in
+    /tmp/cmdtab-reproducibility.*) rm -rf "${TEMP_ROOT}" ;;
+    *)
+      echo "Refusing to remove unexpected reproducibility path: ${TEMP_ROOT}" >&2
+      ;;
+  esac
 }
 trap cleanup EXIT
 
-for tool in cmp diff shasum; do
+[[ "${REPRO_BUILD_JOBS}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "CMDTAB_REPRO_BUILD_JOBS must be a positive integer." >&2
+  exit 2
+}
+
+for tool in cmp diff shasum sync; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -30,19 +41,41 @@ hash_bundle() {
   ) > "${output_path}"
 }
 
+prepare_canonical_scratch() {
+  local label="$1"
+  local retired="${TEMP_ROOT}/retired-${label}"
+
+  # Quarantine the previous tree instead of deleting and immediately recreating
+  # the same pathname. This prevents any late-closing Swift frontend or SQLite
+  # handle from racing with the next clean build at the canonical path.
+  if [[ -e "${CANONICAL_SCRATCH}" ]]; then
+    rm -rf "${retired}"
+    mv "${CANONICAL_SCRATCH}" "${retired}"
+  fi
+  mkdir -p "${CANONICAL_SCRATCH}"
+}
+
 build_clean_bundle() {
   local output_app="$1"
+  local label="$2"
 
   # SwiftPM and the linker may embed the absolute scratch/module path in Mach-O
-  # metadata. A reproducibility comparison must therefore hold the build inputs
-  # and build path constant while still deleting all prior build output.
-  rm -rf "${CANONICAL_SCRATCH}"
-  mkdir -p "${CANONICAL_SCRATCH}"
+  # metadata. Hold the build path constant while using a genuinely new tree.
+  prepare_canonical_scratch "${label}"
 
+  # The outer reproducibility script owns the canonical scratch lifecycle.
+  # Keeping the packager from deleting it in an EXIT trap avoids a cleanup race
+  # with late compiler/build-database file closure on nearly full APFS volumes.
   CMDTAB_OUTPUT_APP="${output_app}" \
   CMDTAB_SKIP_ADHOC_SIGN=1 \
+  CMDTAB_KEEP_RELEASE_SCRATCH=1 \
+  CMDTAB_BUILD_JOBS="${REPRO_BUILD_JOBS}" \
   CMDTAB_RELEASE_SCRATCH="${CANONICAL_SCRATCH}" \
-    "${PACKAGE_TOOL}"
+    bash "${PACKAGE_TOOL}"
+
+  # Flush completed build metadata before the tree is quarantined for the next
+  # build. Both builds still use the exact same canonical absolute path.
+  sync
 }
 
 print_binary_diagnostics() {
@@ -67,8 +100,8 @@ SECOND_APP="${TEMP_ROOT}/second/CmdTab.app"
 FIRST_BINARY="${FIRST_APP}/Contents/MacOS/CmdTab"
 SECOND_BINARY="${SECOND_APP}/Contents/MacOS/CmdTab"
 
-build_clean_bundle "${FIRST_APP}"
-build_clean_bundle "${SECOND_APP}"
+build_clean_bundle "${FIRST_APP}" first
+build_clean_bundle "${SECOND_APP}" second
 
 "${VERIFY_TOOL}" "${FIRST_APP}" unsigned
 "${VERIFY_TOOL}" "${SECOND_APP}" unsigned
