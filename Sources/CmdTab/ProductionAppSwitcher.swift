@@ -9,6 +9,139 @@ private let productionSwitcherLog = OSLog(
     category: "ProductionAppSwitcher"
 )
 
+struct ProductionEnrichmentInputSignature: Equatable {
+    let configuration: SwitcherSessionConfiguration
+    let itemKeys: [String]
+
+    init(
+        configuration: SwitcherSessionConfiguration,
+        itemKeys: [String]
+    ) {
+        self.configuration = configuration
+        self.itemKeys = itemKeys
+    }
+
+    init(
+        configuration: SwitcherSessionConfiguration,
+        items: [SwitcherItem]
+    ) {
+        self.configuration = configuration
+        itemKeys = items.map { item in
+            let previewIdentity = item.previewImage.map {
+                String(ObjectIdentifier($0).hashValue)
+            } ?? "none"
+            let backdropIdentity = item.backdropImage.map {
+                String(ObjectIdentifier($0).hashValue)
+            } ?? "none"
+            return [
+                item.id,
+                item.title,
+                item.subtitle,
+                item.previewCacheKey,
+                previewIdentity,
+                backdropIdentity,
+                item.isMinimized ? "minimized" : "normal",
+                item.isFullscreen ? "fullscreen" : "windowed",
+            ].joined(separator: "|")
+        }
+    }
+}
+
+/// Prevents an unchanged published snapshot from recursively scheduling another
+/// whole-desktop Accessibility/workspace enrichment pass.
+struct ProductionEnrichmentGate {
+    private(set) var lastScheduled: ProductionEnrichmentInputSignature?
+
+    mutating func shouldSchedule(
+        _ signature: ProductionEnrichmentInputSignature,
+        force: Bool
+    ) -> Bool {
+        if force || signature != lastScheduled {
+            lastScheduled = signature
+            return true
+        }
+        return false
+    }
+
+    mutating func invalidate() {
+        lastScheduled = nil
+    }
+}
+
+enum ProvisionalSwitcherPolicy {
+    /// A base snapshot is safe only when it is already a subset of the requested
+    /// profile scope. A narrower profile must wait for exact AX/Space enrichment
+    /// rather than briefly exposing an item the user explicitly excluded.
+    static func permitsBaseSnapshot(
+        profileVisibility: WindowVisibilityScope,
+        globalVisibility: WindowVisibilityScope,
+        profileIncludesMinimized: Bool,
+        globalIncludesMinimized: Bool
+    ) -> Bool {
+        visibilityRank(profileVisibility) >= visibilityRank(globalVisibility) &&
+            (profileIncludesMinimized || !globalIncludesMinimized)
+    }
+
+    static func filteredItems(
+        _ items: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration,
+        globalVisibility: WindowVisibilityScope,
+        globalIncludesMinimized: Bool
+    ) -> [SwitcherItem] {
+        guard permitsBaseSnapshot(
+            profileVisibility: configuration.visibilityScope,
+            globalVisibility: globalVisibility,
+            profileIncludesMinimized: configuration.includeMinimizedWindows,
+            globalIncludesMinimized: globalIncludesMinimized
+        ) else {
+            return []
+        }
+
+        return items.filter { item in
+            let bundleIdentifier = item.sourceAppIdentifier ?? ""
+            return configuration.includes(bundleIdentifier: bundleIdentifier) &&
+                (configuration.includeMinimizedWindows || !item.isMinimized)
+        }
+    }
+
+    static func filteredEnrichedItems(
+        _ items: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration
+    ) -> [SwitcherItem] {
+        items.filter { item in
+            let bundleIdentifier = item.sourceAppIdentifier ?? ""
+            guard configuration.includes(bundleIdentifier: bundleIdentifier),
+                  configuration.includeMinimizedWindows || !item.isMinimized else {
+                return false
+            }
+
+            guard let workspace = item.workspaceSnapshot else {
+                // A process fallback has no exact Space identity. It is safe only
+                // for an all-Spaces profile; narrower profiles wait for exact data.
+                return configuration.visibilityScope == .allSpaces
+            }
+            switch configuration.visibilityScope {
+            case .allSpaces:
+                return true
+            case .visibleSpaces:
+                // `SwitcherItem` does not retain the exact on-screen bit. Only an
+                // explicitly active Stage Manager set is safe to reuse here.
+                return workspace.stageManagerState == .activeSet
+            case .currentSpaceOnly:
+                return workspace.isOnCurrentManagedSpace
+            }
+        }
+    }
+
+    private static func visibilityRank(_ scope: WindowVisibilityScope) -> Int {
+        switch scope {
+        case .currentSpaceOnly: return 0
+        case .visibleSpaces: return 1
+        case .allSpaces: return 2
+        }
+    }
+}
+
 /// Profile-aware facade over the proven Phase 1 `AppSwitcher`.
 ///
 /// The base switcher remains responsible for fast CG enumeration, previews, and
@@ -39,6 +172,7 @@ final class ProductionAppSwitcher {
     private var latestBaseItems: [SwitcherItem] = []
     private var cachedEnrichedItems: [SwitcherItem] = []
     private var enrichmentGeneration: UInt64 = 0
+    private var enrichmentGate = ProductionEnrichmentGate()
 
     private var catalogCache: AXWindowCatalogSnapshot?
     private var catalogCacheDate = Date.distantPast
@@ -108,9 +242,16 @@ final class ProductionAppSwitcher {
         let changed = activeConfiguration != configuration
         activeConfiguration = configuration
         if changed {
-            // Never expose items enriched for a different profile. The Phase 1
-            // base list is a safe provisional fallback until the async pass lands.
-            cachedEnrichedItems.removeAll()
+            // Never expose items enriched for a different profile. Reuse only a
+            // provably safe exact subset while the new async enrichment pass runs.
+            cachedEnrichedItems = ProvisionalSwitcherPolicy.filteredEnrichedItems(
+                cachedEnrichedItems,
+                configuration: configuration
+            )
+            descriptorsByIdentity = descriptorsByIdentity.filter { identity, _ in
+                cachedEnrichedItems.contains { $0.historyIdentity == identity }
+            }
+            enrichmentGate.invalidate()
         }
         stateLock.unlock()
         guard changed else { return }
@@ -128,12 +269,12 @@ final class ProductionAppSwitcher {
         return configuration
     }
 
-    /// Returns an immutable snapshot immediately. If the enriched catalogue is
-    /// not warm yet, the proven Phase 1 items are filtered by the active app scope
-    /// and shown provisionally while AX/workspace metadata is assembled off-main.
+    /// Returns an immutable snapshot immediately. The getter never schedules AX
+    /// work itself: base-window callbacks, configuration changes, topology changes,
+    /// and explicit warmups are the only enrichment invalidation sources. This
+    /// prevents `onItemsChanged -> getItems -> enrichment` feedback loops.
     func getItems() -> [SwitcherItem] {
         let baseItems = base.getItems()
-        scheduleEnrichment(from: baseItems, forceCatalogRefresh: false)
 
         stateLock.lock()
         let cached = cachedEnrichedItems
@@ -229,7 +370,19 @@ final class ProductionAppSwitcher {
         forceCatalogRefresh: Bool
     ) {
         stateLock.lock()
+        let configuration = activeConfiguration
+        let signature = ProductionEnrichmentInputSignature(
+            configuration: configuration,
+            items: baseItems
+        )
         latestBaseItems = baseItems
+        guard enrichmentGate.shouldSchedule(
+            signature,
+            force: forceCatalogRefresh
+        ) else {
+            stateLock.unlock()
+            return
+        }
         enrichmentGeneration &+= 1
         let generation = enrichmentGeneration
         stateLock.unlock()
@@ -243,18 +396,18 @@ final class ProductionAppSwitcher {
                 return
             }
             let currentItems = self.latestBaseItems
-            let configuration = self.activeConfiguration
+            let currentConfiguration = self.activeConfiguration
             self.stateLock.unlock()
 
             let result = self.buildEnrichedItems(
                 from: currentItems,
-                configuration: configuration,
+                configuration: currentConfiguration,
                 forceCatalogRefresh: forceCatalogRefresh
             )
 
             self.stateLock.lock()
             guard generation == self.enrichmentGeneration,
-                  configuration == self.activeConfiguration else {
+                  currentConfiguration == self.activeConfiguration else {
                 self.stateLock.unlock()
                 return
             }
@@ -416,12 +569,12 @@ final class ProductionAppSwitcher {
         from baseItems: [SwitcherItem],
         configuration: SwitcherSessionConfiguration
     ) -> [SwitcherItem] {
-        baseItems.filter { item in
-            let bundleIdentifier = item.sourceAppIdentifier ?? ""
-            return configuration.includes(
-                bundleIdentifier: bundleIdentifier
-            )
-        }
+        ProvisionalSwitcherPolicy.filteredItems(
+            baseItems,
+            configuration: configuration,
+            globalVisibility: preferences.windowVisibilityScope,
+            globalIncludesMinimized: preferences.includeMinimizedWindows
+        )
     }
 
     private func shouldInclude(
@@ -536,6 +689,7 @@ final class ProductionAppSwitcher {
         stateLock.lock()
         catalogCache = nil
         catalogCacheDate = .distantPast
+        enrichmentGate.invalidate()
         enrichmentGeneration &+= 1
         stateLock.unlock()
     }
