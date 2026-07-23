@@ -24,10 +24,10 @@ enum SwitcherItemKind: String {
 ///
 /// GPU-backed applications such as Arc and Telegram can intermittently return no
 /// capture even though the exact same window produced a valid image moments
-/// earlier. The window-specific preview key includes its exact identity and
-/// presentation metadata, so a transient miss can safely reuse the prior local
-/// image without borrowing from another window. The cache is bounded, never
-/// written to disk, and is cleared for a key when Screen Recording is unavailable.
+/// earlier. Exact preview metadata may also change with a tab title or a tiny frame
+/// adjustment, so a second short-lived identity record bridges those misses without
+/// borrowing from another exact window. The cache is bounded, never written to disk,
+/// and is cleared for the affected identity when Screen Recording is unavailable.
 enum SwitcherPreviewContinuityStore {
     struct ResolvedImages {
         let preview: NSImage?
@@ -41,12 +41,15 @@ enum SwitcherPreviewContinuityStore {
     }
 
     private static let lock = NSLock()
-    private static var entries: [String: Entry] = [:]
-    private static let maximumAge: TimeInterval = 120
+    private static var entriesByExactKey: [String: Entry] = [:]
+    private static var entriesByIdentity: [String: Entry] = [:]
+    private static let exactKeyMaximumAge: TimeInterval = 120
+    private static let identityMaximumAge: TimeInterval = 15
     private static let maximumEntries = 512
 
     static func resolve(
         key: String,
+        identityKey: String,
         preview: NSImage?,
         backdrop: NSImage?,
         captureAccessAllowed: Bool,
@@ -56,51 +59,72 @@ enum SwitcherPreviewContinuityStore {
         defer { lock.unlock() }
 
         guard captureAccessAllowed else {
-            entries.removeValue(forKey: key)
+            entriesByExactKey.removeValue(forKey: key)
+            entriesByIdentity.removeValue(forKey: identityKey)
             return ResolvedImages(preview: nil, backdrop: nil)
         }
 
         pruneLocked(now: now)
         if preview != nil || backdrop != nil {
-            entries[key] = Entry(
+            let entry = Entry(
                 preview: preview,
                 backdrop: backdrop,
                 capturedAt: now
             )
+            entriesByExactKey[key] = entry
+            entriesByIdentity[identityKey] = entry
             trimLocked()
             return ResolvedImages(preview: preview, backdrop: backdrop)
         }
 
-        guard let entry = entries[key],
-              now.timeIntervalSince(entry.capturedAt) <= maximumAge else {
-            return ResolvedImages(preview: nil, backdrop: nil)
+        if let exact = entriesByExactKey[key],
+           now.timeIntervalSince(exact.capturedAt) <= exactKeyMaximumAge {
+            return ResolvedImages(
+                preview: exact.preview,
+                backdrop: exact.backdrop
+            )
         }
-        return ResolvedImages(
-            preview: entry.preview,
-            backdrop: entry.backdrop
-        )
+
+        if let identity = entriesByIdentity[identityKey],
+           now.timeIntervalSince(identity.capturedAt) <= identityMaximumAge {
+            return ResolvedImages(
+                preview: identity.preview,
+                backdrop: identity.backdrop
+            )
+        }
+
+        return ResolvedImages(preview: nil, backdrop: nil)
     }
 
     static func resetForTesting() {
         lock.lock()
-        entries.removeAll()
+        entriesByExactKey.removeAll()
+        entriesByIdentity.removeAll()
         lock.unlock()
     }
 
     private static func pruneLocked(now: Date) {
-        entries = entries.filter {
-            now.timeIntervalSince($0.value.capturedAt) <= maximumAge
+        entriesByExactKey = entriesByExactKey.filter {
+            now.timeIntervalSince($0.value.capturedAt) <= exactKeyMaximumAge
+        }
+        entriesByIdentity = entriesByIdentity.filter {
+            now.timeIntervalSince($0.value.capturedAt) <= identityMaximumAge
         }
     }
 
     private static func trimLocked() {
-        guard entries.count > maximumEntries else { return }
-        let overflow = entries.count - maximumEntries
-        for key in entries
+        trimLocked(&entriesByExactKey)
+        trimLocked(&entriesByIdentity)
+    }
+
+    private static func trimLocked(_ values: inout [String: Entry]) {
+        guard values.count > maximumEntries else { return }
+        let overflow = values.count - maximumEntries
+        for key in values
             .sorted(by: { $0.value.capturedAt < $1.value.capturedAt })
             .prefix(overflow)
             .map(\.key) {
-            entries.removeValue(forKey: key)
+            values.removeValue(forKey: key)
         }
     }
 }
@@ -159,8 +183,13 @@ struct SwitcherItem: Identifiable {
             } else {
                 captureAccessAllowed = true
             }
+            let identityPreviewKey = [
+                historyIdentity.stableKey,
+                sourceAppIdentifier?.lowercased() ?? "",
+            ].joined(separator: "|")
             resolvedImages = SwitcherPreviewContinuityStore.resolve(
                 key: resolvedPreviewKey,
+                identityKey: identityPreviewKey,
                 preview: previewImage,
                 backdrop: backdropImage,
                 captureAccessAllowed: captureAccessAllowed
