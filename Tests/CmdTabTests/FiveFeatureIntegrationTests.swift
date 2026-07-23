@@ -7,13 +7,21 @@ final class FiveFeatureIntegrationTests: XCTestCase {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("FiveFeatureIntegration-\(UUID().uuidString)", isDirectory: true)
         let file = directory.appendingPathComponent("history.json")
-        defer { try? FileManager.default.removeItem(at: directory) }
 
         let durable = DurableSwitcherHistoryStore(
             fileURL: file,
             maximumRecords: 20,
             expirationInterval: 10_000
         )
+        defer {
+            durable.waitForPendingWrites()
+            try? FileManager.default.removeItem(at: directory)
+        }
+
+        // Use the same real-time epoch as reconcileLiveWindows(). The old test
+        // wrote a 1970 timestamp and then reconciled against Date(), so the
+        // record was correctly expired before the assertion ever ran.
+        let activationDate = Date()
         let restoredIdentity = SwitcherHistoryIdentity.appWindow(pid: 20, windowID: 2)
         let restoredDescriptor = descriptor(
             identity: restoredIdentity,
@@ -21,9 +29,10 @@ final class FiveFeatureIntegrationTests: XCTestCase {
         )
         durable.noteActivation(
             descriptor: restoredDescriptor,
-            now: Date(timeIntervalSince1970: 100)
+            now: activationDate
         )
         durable.waitForPendingWrites()
+        XCTAssertEqual(durable.snapshot().count, 1)
 
         let history = SwitcherHistoryStore(durableStore: durable)
         history.reconcileLiveWindows([restoredDescriptor])
