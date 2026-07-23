@@ -3,6 +3,18 @@ import XCTest
 
 final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     func testQuickReleaseCommitsWithoutOverlay() throws {
+        var chord = ShortcutChordTimingState()
+        chord.noteModifierChange(.command, isDown: true, at: 9.95)
+        XCTAssertTrue(
+            chord.accepts(primaryModifier: .command, keyDownAt: 10),
+            "A normal near-simultaneous Command-Tab chord must be accepted."
+        )
+        chord.noteModifierChange(.command, isDown: false, at: 10.01)
+        XCTAssertFalse(
+            chord.accepts(primaryModifier: .command, keyDownAt: 10.02),
+            "A shortcut cannot be accepted after its modifier has been released."
+        )
+
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
         assertScheduledReveal(
@@ -11,7 +23,7 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
                 startedAtUptime: 10,
                 isRepeat: false
             ),
-            at: 10.1
+            at: 10.2
         )
         XCTAssertEqual(
             state.handleModifierRelease(
@@ -34,13 +46,13 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
         )
         XCTAssertNil(
             state.handleRevealDeadline(
-                now: 20.099,
+                now: 20.199,
                 heldModifiers: [.command]
             )
         )
         XCTAssertEqual(
             state.handleRevealDeadline(
-                now: 20.1,
+                now: 20.2,
                 heldModifiers: [.command]
             ),
             .showOverlay(match)
@@ -139,6 +151,17 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     }
 
     func testCancelPreventsFollowUpCommit() {
+        var chord = ShortcutChordTimingState(maximumLeadInterval: 0.16)
+        chord.noteModifierChange(.command, isDown: true, at: 79)
+        XCTAssertFalse(
+            chord.accepts(primaryModifier: .command, keyDownAt: 79.17),
+            "Holding Command and pressing Tab later must not switch."
+        )
+        XCTAssertFalse(
+            chord.accepts(primaryModifier: .option, keyDownAt: 79.05),
+            "An unobserved primary modifier must fail closed."
+        )
+
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
         _ = state.registerHiddenTrigger(
@@ -165,7 +188,7 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
             isRepeat: false
         )
         _ = state.handleRevealDeadline(
-            now: 90.1,
+            now: 90.2,
             heldModifiers: [.command]
         )
 
@@ -181,6 +204,30 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     }
 
     func testReplacingVisibleProfileTransfersReleaseOwnership() {
+        var chord = PhysicalModifierChordTimingState(
+            maximumSeparation: 0.16
+        )
+        chord.noteModifierChange(.leftCommand, isDown: true, at: 99)
+        chord.noteModifierChange(.leftOption, isDown: true, at: 99.12)
+        XCTAssertTrue(
+            chord.accepts(keys: [.leftCommand, .leftOption])
+        )
+        chord.reset()
+        chord.noteModifierChange(.rightCommand, isDown: true, at: 99)
+        chord.noteModifierChange(.rightOption, isDown: true, at: 99.17)
+        XCTAssertFalse(
+            chord.accepts(keys: [.rightCommand, .rightOption]),
+            "A delayed Hot Swap modifier chord must not activate."
+        )
+        XCTAssertEqual(
+            AlternateTriggerMode.leftOptionDoubleTap.simultaneousChordKeys,
+            [.leftCommand, .leftOption]
+        )
+        XCTAssertEqual(
+            AlternateTriggerMode.rightOptionDoubleTap.simultaneousChordKeys,
+            [.rightCommand, .rightOption]
+        )
+
         let first = makeMatch()
         let second = ShortcutProfileMatch(
             profileID: UUID(),
@@ -224,7 +271,7 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
                 startedAtUptime: 110,
                 isRepeat: false
             ),
-            at: 110.1
+            at: 110.2
         )
         assertScheduledReveal(
             state.registerHiddenTrigger(
@@ -237,7 +284,7 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
                 startedAtUptime: 110.05,
                 isRepeat: false
             ),
-            at: 110.15
+            at: 110.25
         )
         XCTAssertEqual(state.pendingTrigger?.startedAtUptime, 110.05)
         XCTAssertEqual(state.pendingMatch?.reverse, true)
