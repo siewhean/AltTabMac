@@ -22,10 +22,9 @@ enum SwitcherHistoryIdentity: Hashable, Sendable {
         }
     }
 
-    /// The process ID associated with this identity, if any.
     var ownerPID: pid_t? {
         switch self {
-        case let .appWindow(pid, _):   return pid
+        case let .appWindow(pid, _): return pid
         case let .appFallback(_, pid): return pid
         }
     }
@@ -40,7 +39,8 @@ enum SwitcherHistoryIdentity: Hashable, Sendable {
         case let .appWindow(identityPID, _):
             return pid == identityPID
         case let .appFallback(identityBundleID, identityPID):
-            if let bundleID, identityBundleID.caseInsensitiveCompare(bundleID) == .orderedSame {
+            if let bundleID,
+               identityBundleID.caseInsensitiveCompare(bundleID) == .orderedSame {
                 return true
             }
             if let pid, let identityPID, identityPID == pid {
@@ -142,12 +142,95 @@ final class SwitcherHistoryStore {
             return fallbackPID == pid
 
         case let .appFallback(bundleID, pid):
-            guard case let .appFallback(existingBundleID, existingPID) = existing else { return false }
+            guard case let .appFallback(existingBundleID, existingPID) = existing else {
+                return false
+            }
             if let pid, existingPID == pid {
                 return true
             }
             return existingBundleID.caseInsensitiveCompare(bundleID) == .orderedSame
         }
+    }
+}
+
+enum SwitcherMembershipPolicy {
+    /// Removes duplicate identities and suppresses an app fallback whenever an
+    /// exact window for the same process is present. The production AX synthesis
+    /// path can discover windows that the original Core Graphics pass omitted;
+    /// without this finalization, a minimized-only app would show both a fallback
+    /// tile and its exact minimized window.
+    static func deduplicatedWithoutRepresentedFallbacks(
+        _ items: [SwitcherItem]
+    ) -> [SwitcherItem] {
+        let representedPIDs = Set(
+            items
+                .filter { $0.kind == .appWindow }
+                .compactMap(\.ownerPID)
+        )
+        var seen = Set<String>()
+        return items.filter { item in
+            guard seen.insert(item.id).inserted else { return false }
+            if item.kind == .appFallback,
+               let pid = item.ownerPID,
+               representedPIDs.contains(pid) {
+                return false
+            }
+            return true
+        }
+    }
+
+    /// Applies the existing global per-application cap after exact-window MRU
+    /// ordering. The frontmost exact window is always retained and counts toward
+    /// the cap, so adding AX-synthesized windows cannot silently bypass an
+    /// established user preference or remove the active-window anchor.
+    static func applyingPerApplicationLimit(
+        _ orderedItems: [SwitcherItem],
+        limit: Int,
+        currentFrontmost: SwitcherHistoryIdentity?
+    ) -> [SwitcherItem] {
+        guard limit > 0 else { return orderedItems }
+
+        let frontmostItem = currentFrontmost.flatMap { identity in
+            orderedItems.first { $0.historyIdentity == identity }
+        }
+        let frontmostAppKey = frontmostItem.map(applicationKey)
+
+        var countByApp: [String: Int] = [:]
+        if let frontmostAppKey {
+            countByApp[frontmostAppKey] = 1
+        }
+
+        var result: [SwitcherItem] = []
+        result.reserveCapacity(orderedItems.count)
+        for item in orderedItems {
+            if item.historyIdentity == currentFrontmost {
+                continue
+            }
+            guard item.kind == .appWindow else {
+                result.append(item)
+                continue
+            }
+            let key = applicationKey(item)
+            let count = countByApp[key, default: 0]
+            guard count < limit else { continue }
+            countByApp[key] = count + 1
+            result.append(item)
+        }
+
+        if let frontmostItem {
+            result.append(frontmostItem)
+        }
+        return result
+    }
+
+    private static func applicationKey(_ item: SwitcherItem) -> String {
+        if let identifier = item.sourceAppIdentifier, !identifier.isEmpty {
+            return identifier.lowercased()
+        }
+        if let pid = item.ownerPID {
+            return "pid:\(pid)"
+        }
+        return item.id
     }
 }
 
@@ -157,6 +240,7 @@ enum SwitcherOrdering {
         historyEntries: [SwitcherHistoryIdentity],
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
+        let items = SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items)
         let rankByIdentity = Dictionary(
             uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
         )
@@ -167,9 +251,7 @@ enum SwitcherOrdering {
 
             switch (lhsRank, rhsRank) {
             case let (.some(lhsRank), .some(rhsRank)):
-                if lhsRank != rhsRank {
-                    return lhsRank < rhsRank
-                }
+                if lhsRank != rhsRank { return lhsRank < rhsRank }
             case (.some, .none):
                 return true
             case (.none, .some):
@@ -177,17 +259,17 @@ enum SwitcherOrdering {
             case (.none, .none):
                 break
             }
-
             return lhs.offset < rhs.offset
         }
 
         var ordered = ranked.map(\.element)
         if let currentFrontmost,
-           let currentIndex = ordered.firstIndex(where: { $0.historyIdentity == currentFrontmost }) {
+           let currentIndex = ordered.firstIndex(where: {
+               $0.historyIdentity == currentFrontmost
+           }) {
             let activeItem = ordered.remove(at: currentIndex)
             ordered.append(activeItem)
         }
-
         return ordered
     }
 
@@ -196,17 +278,16 @@ enum SwitcherOrdering {
         history: SwitcherHistoryStore,
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
+        let items = SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items)
         let historyEntries = history.snapshot()
         let rankByIdentity = Dictionary(
             uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
         )
-        let visibleCountByPID = Dictionary(grouping: items.compactMap(\.historyIdentity.ownerPID), by: { $0 })
-            .mapValues(\.count)
+        let visibleCountByPID = Dictionary(
+            grouping: items.compactMap(\.historyIdentity.ownerPID),
+            by: { $0 }
+        ).mapValues(\.count)
 
-        // For real window tiles, preserve exact window recency only. Falling back
-        // to an app-level rank for several windows would collapse them into one
-        // recency bucket. App-level continuity is safe only for a true fallback
-        // tile or the sole visible window for that running application.
         func appRank(bundleID: String?, pid: Int32?) -> Int? {
             historyEntries.firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
         }
@@ -230,7 +311,6 @@ enum SwitcherOrdering {
         let ranked = items.enumerated().sorted { lhs, rhs in
             let lhsRank = rank(for: lhs.element)
             let rhsRank = rank(for: rhs.element)
-
             switch (lhsRank, rhsRank) {
             case let (.some(lhsRank), .some(rhsRank)):
                 if lhsRank != rhsRank { return lhsRank < rhsRank }
@@ -241,17 +321,22 @@ enum SwitcherOrdering {
             case (.none, .none):
                 break
             }
-
             return lhs.offset < rhs.offset
         }
 
         var ordered = ranked.map(\.element)
         if let currentFrontmost,
-           let currentIndex = ordered.firstIndex(where: { $0.historyIdentity == currentFrontmost }) {
+           let currentIndex = ordered.firstIndex(where: {
+               $0.historyIdentity == currentFrontmost
+           }) {
             let activeItem = ordered.remove(at: currentIndex)
             ordered.append(activeItem)
         }
 
-        return ordered
+        return SwitcherMembershipPolicy.applyingPerApplicationLimit(
+            ordered,
+            limit: SwitcherPreferences.shared.maxWindowsPerApp,
+            currentFrontmost: currentFrontmost
+        )
     }
 }
