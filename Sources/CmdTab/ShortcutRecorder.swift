@@ -29,7 +29,9 @@ final class ShortcutRecordingState {
     }
 }
 
-private final class ShortcutCaptureNSView: NSView {
+/// Internal rather than private because it is the associated NSView type of the
+/// internal `ShortcutRecorder` conformance.
+final class ShortcutCaptureNSView: NSView {
     var shortcut: RecordedShortcut?
     var onRecord: ((RecordedShortcut?) -> Void)?
     var onCancel: (() -> Void)?
