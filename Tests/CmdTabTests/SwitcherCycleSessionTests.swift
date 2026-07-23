@@ -29,6 +29,20 @@ final class SwitcherCycleSessionTests: XCTestCase {
         )
 
         XCTAssertEqual(secondSession.commitSelection().title, "Finder")
+
+        // A stale/provisional ordering can briefly leave the exact frontmost tile
+        // at index zero. Quick switching must still avoid committing the current
+        // exact window when another target exists.
+        let staleOrderingSession = try XCTUnwrap(
+            SwitcherCycleSession(
+                mode: .app,
+                items: [finder, arc],
+                currentFrontmost: finder.historyIdentity,
+                reverse: false,
+                pinsSnapshot: true
+            )
+        )
+        XCTAssertEqual(staleOrderingSession.commitSelection().title, "Arc")
     }
 
     func testInitialSelectionFollowsStrictMRUEvenForSameApplication() throws {
