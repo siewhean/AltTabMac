@@ -44,7 +44,7 @@ final class MenuBarController {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleStatusItemClick)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusItem.button?.toolTip = "Left click to open CmdTab settings. Right click for quick controls."
+        statusItem.button?.toolTip = "Click for CmdTab controls and settings."
 
         updateMenu()
     }
@@ -59,6 +59,15 @@ final class MenuBarController {
         )
         profilesItem.target = self
         menu.addItem(profilesItem)
+
+        let reverseHelp = NSMenuItem(
+            title: "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
+            action: nil,
+            keyEquivalent: ""
+        )
+        reverseHelp.isEnabled = false
+        menu.addItem(reverseHelp)
+        menu.addItem(.separator())
 
         let visibilityMenuItem = NSMenuItem(
             title: "Window Visibility",
@@ -77,11 +86,12 @@ final class MenuBarController {
         menu.addItem(displayMenuItem)
 
         let minimizedItem = NSMenuItem(
-            title: "Include Minimized Windows",
+            title: "Show Minimized Windows",
             action: #selector(toggleIncludeMinimizedWindows),
             keyEquivalent: ""
         )
         minimizedItem.state = preferences.includeMinimizedWindows ? .on : .off
+        minimizedItem.toolTip = "Turn the checkmark off to exclude minimized windows."
         minimizedItem.target = self
         menu.addItem(minimizedItem)
 
@@ -275,22 +285,16 @@ final class MenuBarController {
     }
 
     @objc private func handleStatusItemClick() {
-        guard let event = NSApp.currentEvent else {
+        guard let menu = contextMenu,
+              let button = statusItem.button else {
             preferencesWindowController.show()
             return
         }
-
-        if event.type == .rightMouseUp {
-            if let menu = contextMenu, let button = statusItem.button {
-                menu.popUp(
-                    positioning: nil,
-                    at: NSPoint(x: 0, y: button.bounds.maxY),
-                    in: button
-                )
-            }
-        } else {
-            preferencesWindowController.show()
-        }
+        menu.popUp(
+            positioning: nil,
+            at: NSPoint(x: 0, y: button.bounds.maxY),
+            in: button
+        )
     }
 
     @objc private func handlePreferencesDidChange() {
@@ -305,9 +309,9 @@ final class MenuBarController {
         Exact-window switching for macOS.
 
         \(profileCount) shortcut profile\(profileCount == 1 ? "" : "s") enabled.
-        Right-click the menu-bar item to edit profiles, include minimized windows, and change visibility or display scope.
+        Click the menu-bar item to edit profiles, show or hide minimized windows, and change visibility or display scope.
 
-        Hold a profile's primary modifier and press its shortcut repeatedly to cycle, or use a press-to-toggle profile and press Return to commit. Escape always cancels.
+        Press a profile's modifier and key as one deliberate chord. Holding Command or Option first and pressing Tab later is ignored. Quick release switches without opening the overlay; keep the modifier held to show it. Use Shift with Command-Tab or Option-Tab to cycle in reverse, or use the arrow keys while the overlay is visible.
 
         Right-click the visible switcher for exact-window restore, fullscreen, display movement, centering, tiling, and force-quit actions.
 
