@@ -7,6 +7,7 @@ final class MenuBarController {
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
     private lazy var profilePreferencesWindowController = SwitcherProfilePreferencesWindowController()
+    private lazy var diagnosticsWindowController = ProductionDiagnosticsWindowController()
     private var contextMenu: NSMenu?
 
     init(
@@ -59,11 +60,19 @@ final class MenuBarController {
         profilesItem.target = self
         menu.addItem(profilesItem)
 
-        let visibilityMenuItem = NSMenuItem(title: "Window Visibility", action: nil, keyEquivalent: "")
+        let visibilityMenuItem = NSMenuItem(
+            title: "Window Visibility",
+            action: nil,
+            keyEquivalent: ""
+        )
         visibilityMenuItem.submenu = visibilitySubmenu()
         menu.addItem(visibilityMenuItem)
 
-        let displayMenuItem = NSMenuItem(title: "Display Target", action: nil, keyEquivalent: "")
+        let displayMenuItem = NSMenuItem(
+            title: "Display Target",
+            action: nil,
+            keyEquivalent: ""
+        )
         displayMenuItem.submenu = displaySubmenu()
         menu.addItem(displayMenuItem)
 
@@ -76,7 +85,11 @@ final class MenuBarController {
         minimizedItem.target = self
         menu.addItem(minimizedItem)
 
-        let alternateTriggerMenuItem = NSMenuItem(title: "Hot Swap Shortcut", action: nil, keyEquivalent: "")
+        let alternateTriggerMenuItem = NSMenuItem(
+            title: "Hot Swap Shortcut",
+            action: nil,
+            keyEquivalent: ""
+        )
         alternateTriggerMenuItem.submenu = alternateTriggerSubmenu()
         menu.addItem(alternateTriggerMenuItem)
 
@@ -91,25 +104,53 @@ final class MenuBarController {
 
         menu.addItem(.separator())
 
-        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let licensingItem = NSMenuItem(title: "Licensing…", action: #selector(openLicensing), keyEquivalent: "")
+        let diagnosticsItem = NSMenuItem(
+            title: "Diagnostics…",
+            action: #selector(openDiagnostics),
+            keyEquivalent: ""
+        )
+        diagnosticsItem.target = self
+        menu.addItem(diagnosticsItem)
+
+        let licensingItem = NSMenuItem(
+            title: "Licensing…",
+            action: #selector(openLicensing),
+            keyEquivalent: ""
+        )
         licensingItem.target = self
         menu.addItem(licensingItem)
 
-        let buyItem = NSMenuItem(title: "Buy CmdTab", action: #selector(openBuyPage), keyEquivalent: "")
+        let buyItem = NSMenuItem(
+            title: "Buy CmdTab",
+            action: #selector(openBuyPage),
+            keyEquivalent: ""
+        )
         buyItem.target = self
         menu.addItem(buyItem)
 
-        let aboutItem = NSMenuItem(title: "About CmdTab", action: #selector(showAbout), keyEquivalent: "")
+        let aboutItem = NSMenuItem(
+            title: "About CmdTab",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
         aboutItem.target = self
         menu.addItem(aboutItem)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "Quit CmdTab", action: #selector(quitCmdTab), keyEquivalent: "q")
+        let quit = NSMenuItem(
+            title: "Quit CmdTab",
+            action: #selector(quitCmdTab),
+            keyEquivalent: "q"
+        )
         quit.target = self
         menu.addItem(quit)
 
@@ -215,6 +256,10 @@ final class MenuBarController {
         preferencesWindowController.show(initialPane: .general)
     }
 
+    @objc private func openDiagnostics() {
+        diagnosticsWindowController.show()
+    }
+
     @objc private func openLicensing() {
         preferencesWindowController.showLicensing()
     }
@@ -265,6 +310,8 @@ final class MenuBarController {
         Hold a profile's primary modifier and press its shortcut repeatedly to cycle, or use a press-to-toggle profile and press Return to commit. Escape always cancels.
 
         Right-click the visible switcher for exact-window restore, fullscreen, display movement, centering, tiling, and force-quit actions.
+
+        Open Diagnostics from the menu-bar menu to inspect sanitized permission, profile, workspace, and durable-MRU status.
 
         Grant Accessibility access in:
         System Settings → Privacy & Security → Accessibility
