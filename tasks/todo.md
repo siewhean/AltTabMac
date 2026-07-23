@@ -9,7 +9,7 @@
 - [x] Invalidate downstream evidence when an earlier phase is rerun.
 - [x] Make the duplicate-title fixture genuinely ambiguous by removing document identity and keeping candidates within the production matcher margin.
 - [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
-- [ ] Commit and push the hardened branch without merging PR #35.
+- [x] Commit and push the hardened branch without merging PR #35.
 - [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean HEAD.
 - [ ] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
 - [ ] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence.

@@ -227,6 +227,7 @@ run_recorded_phase() {
   local phase="$1"
   local phase_function="$2"
   local phase_log="${PHASE_DIR}/${phase}.log"
+  CURRENT_PHASE="${phase}"
   case "${phase}" in
     source)
       invalidate_phase_records "${PHASE_DIR}" tests package repro
