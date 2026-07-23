@@ -66,10 +66,10 @@ This directory records the source-side implementation boundary for CmdTab's five
 
 The independent review of head `97fc00eda0a5a8cac40d3910f59c5c7fc82e2456` found four production-path blockers and one truthfulness issue. The branch now contains source fixes and targeted regressions for all five:
 
-1. **Profile quick switching:** the profile router now adapts the accepted `HotkeyTriggerState` so a quick modifier release can commit without first showing the overlay, repeated hidden Command triggers do not replace the original direction, and reveal/confirm actions remain bound to the triggering profile.
+1. **Profile quick switching:** the profile router now uses an explicit profile-aware 100 ms timing state. It carries the original event-tap timestamp, commits a quick modifier release without constructing the overlay, preserves forward/reverse direction, ignores hidden Command repeats that would stretch the deadline, and keeps reveal/confirm ownership bound to the triggering profile.
 2. **Enrichment feedback:** `getItems()` no longer schedules AX/workspace enrichment. A configuration-and-item signature gate coalesces unchanged requests so a published snapshot cannot recursively start another whole-desktop enrichment pass.
-3. **Scoped provisional membership:** a profile narrower than the global base catalogue fails closed until exact enriched membership is available. Exact cached items may be safely reduced to a narrower immutable profile configuration.
-4. **Durable-write collisions:** the write path now enforces same-bundle matching, one-to-one live identity ownership, ambiguity rejection, and exact live identity-to-record reuse. Cross-application or sibling-window collisions create separate records.
+3. **Scoped provisional membership:** a profile narrower than the global base catalogue fails closed until exact AX/workspace enrichment is available. Exact cached items may be safely reduced to a narrower immutable profile configuration.
+4. **Durable-write collisions:** the write path now enforces same-bundle matching, one-to-one live identity ownership, ambiguity rejection, fingerprint validation under PID/window-ID reuse, and exact live identity-to-record reuse. Cross-application or sibling-window collisions create separate records.
 5. **Stage Manager truthfulness:** diagnostics, capability banners, badges, and accessibility values compose the inference limitation and use `Inferred Active Set` / `Inferred Hidden Set` labels when Stage Manager is enabled.
 
 These are source changes, not accepted evidence. Any later source change invalidates previous phase receipts and requires the exact-head gates again.
@@ -91,6 +91,7 @@ The branch contains:
 
 ```text
 scripts/release/verify-five-feature-source.py
+scripts/release/verify-five-feature-audit-fixes.py
 scripts/release/five-feature-qa-gates.sh
 scripts/release/test-five-feature-qa-gates.sh
 scripts/release/run-five-feature-qa.sh
@@ -107,6 +108,7 @@ MinimizedWindowPolicyTests
 WorkspaceProviderModelTests
 SwitcherProfileTests
 SwitcherProfileSafetyTests
+SwitcherProfileSafetyTests_ProfileHotkeyTiming
 SwitcherSessionConfigurationFreezeTests
 DurableSwitcherHistoryTests
 WindowManagementActionTests
@@ -115,7 +117,7 @@ ProductionVisualStateTests
 FiveFeatureIntegrationTests
 ```
 
-The focused aggregate must remain exactly 50 XCTest cases with zero failures and zero unexpected results. The phased gate also runs the complete Swift suite, release packaging, strict bundle verification, and byte-for-byte unsigned reproducibility.
+The focused aggregate must remain exactly **61 XCTest cases** with zero failures and zero unexpected results. The phased gate also runs the complete Swift suite, release packaging, strict bundle verification, and byte-for-byte unsigned reproducibility.
 
 ## Required exact-head automated evidence
 
@@ -155,7 +157,7 @@ The generated `manual-checks.md` is authoritative. It requires real observations
 
 - minimized eligibility, exact restore, sibling preservation, fallback suppression, and per-app cap;
 - current/visible/all Spaces, off-Space activation, fullscreen, Stage Manager inference, mixed-scale displays, disconnect/reconnect, and sleep/wake;
-- profile isolation, forward/reverse, hidden quick switch, hold/toggle, recording, Secure Input, licensing pass-through, immutable active sessions, import/export, installed-app filtering, and unsaved-close handling;
+- profile isolation, forward/reverse, hidden quick switch, 100 ms hold-to-show, hold/toggle, recording, Secure Input, licensing pass-through, immutable active sessions, import/export, installed-app filtering, and unsaved-close handling;
 - durable restart matching, duplicate-title ambiguity, reused IDs, failed activation, file privacy/mode, and reset;
 - every exact-window action and unsupported state;
 - visible state badges, VoiceOver state, capability degradation, Diagnostics, event-tap recovery, Launch at Login, and a mixed-feature stress run.
