@@ -133,6 +133,9 @@ struct DurableHistoryMatch: Equatable {
 }
 
 enum DurableHistoryMatcher {
+    static let minimumConfidence = 70
+    static let ambiguityMargin = 12
+
     private struct Candidate {
         let descriptor: LiveWindowHistoryDescriptor
         let titleHash: String?
@@ -184,8 +187,8 @@ enum DurableHistoryMatcher {
                     return $0.0.descriptor.identity.stableKey < $1.0.descriptor.identity.stableKey
                 }
 
-            guard let best = scored.first, best.1 >= 70 else { continue }
-            if scored.count > 1, scored[1].1 >= best.1 - 12 {
+            guard let best = scored.first, best.1 >= minimumConfidence else { continue }
+            if scored.count > 1, scored[1].1 >= best.1 - ambiguityMargin {
                 // Ambiguous candidates must not inherit durable rank.
                 continue
             }
@@ -267,6 +270,56 @@ enum DurableHistoryMatcher {
     }
 }
 
+/// Chooses an existing durable record only when the write can be attributed to
+/// one exact live identity. This is deliberately stricter than a best-effort
+/// metadata match: cross-app and ambiguous writes create new records instead of
+/// silently stealing another window's rank.
+enum DurableHistoryWriteMatcher {
+    static func reusableRecordID(
+        records: [DurableWindowHistoryRecord],
+        descriptor: LiveWindowHistoryDescriptor,
+        preferredRecordID: UUID?,
+        unavailableRecordIDs: Set<UUID>
+    ) -> UUID? {
+        let bundleIdentifier = descriptor.bundleIdentifier.lowercased()
+
+        if let preferredRecordID,
+           let preferred = records.first(where: { $0.id == preferredRecordID }),
+           preferred.bundleIdentifier == bundleIdentifier,
+           !unavailableRecordIDs.contains(preferredRecordID) {
+            // The in-memory one-to-one live mapping is stronger than mutable
+            // title, URL, frame, display, or Space metadata.
+            return preferredRecordID
+        }
+
+        let scored = records
+            .filter {
+                $0.bundleIdentifier == bundleIdentifier &&
+                    !unavailableRecordIDs.contains($0.id)
+            }
+            .compactMap { record -> (UUID, Int)? in
+                guard let score = DurableHistoryMatcher.score(
+                    record: record,
+                    descriptor: descriptor
+                ), score >= DurableHistoryMatcher.minimumConfidence else {
+                    return nil
+                }
+                return (record.id, score)
+            }
+            .sorted {
+                if $0.1 != $1.1 { return $0.1 > $1.1 }
+                return $0.0.uuidString < $1.0.uuidString
+            }
+
+        guard let best = scored.first else { return nil }
+        if scored.count > 1,
+           scored[1].1 >= best.1 - DurableHistoryMatcher.ambiguityMargin {
+            return nil
+        }
+        return best.0
+    }
+}
+
 final class DurableSwitcherHistoryStore {
     static let shared = DurableSwitcherHistoryStore()
 
@@ -275,6 +328,8 @@ final class DurableSwitcherHistoryStore {
     private let maximumRecords: Int
     private let expirationInterval: TimeInterval
     private var records: [DurableWindowHistoryRecord]
+    private var recordIDByLiveIdentity: [SwitcherHistoryIdentity: UUID] = [:]
+    private var liveIdentityByRecordID: [UUID: SwitcherHistoryIdentity] = [:]
 
     init(
         fileURL: URL? = nil,
@@ -319,6 +374,24 @@ final class DurableSwitcherHistoryStore {
                 updated.lastSeenAt = now
                 return updated
             }
+
+            let liveIdentities = Set(descriptorByIdentity.keys)
+            recordIDByLiveIdentity = recordIDByLiveIdentity.filter { identity, recordID in
+                liveIdentities.contains(identity) &&
+                    records.contains(where: { $0.id == recordID })
+            }
+            liveIdentityByRecordID = Dictionary(
+                uniqueKeysWithValues: recordIDByLiveIdentity.map { ($0.value, $0.key) }
+            )
+            for match in matches {
+                guard liveIdentityByRecordID[match.recordID] == nil ||
+                        liveIdentityByRecordID[match.recordID] == match.identity else {
+                    continue
+                }
+                recordIDByLiveIdentity[match.identity] = match.recordID
+                liveIdentityByRecordID[match.recordID] = match.identity
+            }
+            pruneIdentityMappingsLocked()
             persistLocked()
 
             return matches.map(\.identity)
@@ -331,24 +404,42 @@ final class DurableSwitcherHistoryStore {
     ) {
         queue.async { [weak self] in
             guard let self else { return }
-            let matchingID = self.records
-                .compactMap { record -> (UUID, Int)? in
-                    guard let score = DurableHistoryMatcher.score(
-                        record: record,
-                        descriptor: descriptor
-                    ) else { return nil }
-                    return (record.id, score)
+
+            self.records.removeAll {
+                now.timeIntervalSince($0.lastSeenAt) > self.expirationInterval
+            }
+            self.pruneIdentityMappingsLocked()
+
+            let unavailableRecordIDs = Set(
+                self.liveIdentityByRecordID.compactMap { recordID, identity in
+                    identity == descriptor.identity ? nil : recordID
                 }
-                .max { $0.1 < $1.1 }?
-                .0
+            )
+            let matchingID = DurableHistoryWriteMatcher.reusableRecordID(
+                records: self.records,
+                descriptor: descriptor,
+                preferredRecordID: self.recordIDByLiveIdentity[descriptor.identity],
+                unavailableRecordIDs: unavailableRecordIDs
+            )
+            let recordID = matchingID ?? UUID()
+
+            if let previousRecordID = self.recordIDByLiveIdentity[descriptor.identity],
+               previousRecordID != recordID {
+                self.liveIdentityByRecordID.removeValue(forKey: previousRecordID)
+            }
+            if let previousIdentity = self.liveIdentityByRecordID[recordID],
+               previousIdentity != descriptor.identity {
+                self.recordIDByLiveIdentity.removeValue(forKey: previousIdentity)
+            }
+            self.recordIDByLiveIdentity[descriptor.identity] = recordID
+            self.liveIdentityByRecordID[recordID] = descriptor.identity
 
             let record = DurableWindowHistoryRecord(
-                id: matchingID ?? UUID(),
+                id: recordID,
                 descriptor: descriptor,
                 activatedAt: now
             )
-            if let matchingID,
-               let index = self.records.firstIndex(where: { $0.id == matchingID }) {
+            if let index = self.records.firstIndex(where: { $0.id == recordID }) {
                 self.records[index] = record
             } else {
                 self.records.insert(record, at: 0)
@@ -360,12 +451,10 @@ final class DurableSwitcherHistoryStore {
                 }
                 return $0.id.uuidString < $1.id.uuidString
             }
-            self.records.removeAll {
-                now.timeIntervalSince($0.lastSeenAt) > self.expirationInterval
-            }
             if self.records.count > self.maximumRecords {
                 self.records.removeLast(self.records.count - self.maximumRecords)
             }
+            self.pruneIdentityMappingsLocked()
             self.persistLocked()
         }
     }
@@ -377,12 +466,25 @@ final class DurableSwitcherHistoryStore {
     func reset() {
         queue.sync {
             records.removeAll()
+            recordIDByLiveIdentity.removeAll()
+            liveIdentityByRecordID.removeAll()
             try? FileManager.default.removeItem(at: fileURL)
         }
     }
 
     func snapshot() -> [DurableWindowHistoryRecord] {
         queue.sync { records }
+    }
+
+    private func pruneIdentityMappingsLocked() {
+        let recordIDs = Set(records.map(\.id))
+        recordIDByLiveIdentity = recordIDByLiveIdentity.filter { _, recordID in
+            recordIDs.contains(recordID)
+        }
+        liveIdentityByRecordID = liveIdentityByRecordID.filter { recordID, identity in
+            recordIDs.contains(recordID) &&
+                recordIDByLiveIdentity[identity] == recordID
+        }
     }
 
     private func persistLocked() {
