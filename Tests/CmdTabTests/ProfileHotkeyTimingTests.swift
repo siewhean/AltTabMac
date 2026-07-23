@@ -162,6 +162,20 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
             "An unobserved primary modifier must fail closed."
         )
 
+        chord.reset()
+        chord.noteModifierChange(.command, isDown: true, at: 79.2)
+        chord.noteInterveningKeyDown()
+        XCTAssertFalse(
+            chord.accepts(primaryModifier: .command, keyDownAt: 79.25),
+            "Command-V or any unrelated key must disarm the modifier gesture before a later release."
+        )
+        chord.noteModifierChange(.command, isDown: false, at: 79.3)
+        chord.noteModifierChange(.command, isDown: true, at: 79.4)
+        XCTAssertTrue(
+            chord.accepts(primaryModifier: .command, keyDownAt: 79.45),
+            "A fresh deliberate Command-Tab chord must work after the contaminated gesture ends."
+        )
+
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
         _ = state.registerHiddenTrigger(
