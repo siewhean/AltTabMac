@@ -74,7 +74,10 @@ enum AXWindowIdentityLookup {
         return windowID
     }
 
-    static func windowElement(ownerPID: pid_t, windowID: CGWindowID) -> AXUIElement? {
+    static func windowElement(
+        ownerPID: pid_t,
+        windowID targetWindowID: CGWindowID
+    ) -> AXUIElement? {
         let application = AXUIElementCreateApplication(ownerPID)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(
@@ -85,7 +88,9 @@ enum AXWindowIdentityLookup {
         let windows = value as? [AXUIElement] else {
             return nil
         }
-        return windows.first { windowID(for: $0) == windowID }
+        return windows.first {
+            AXWindowIdentityLookup.windowID(for: $0) == targetWindowID
+        }
     }
 }
 
