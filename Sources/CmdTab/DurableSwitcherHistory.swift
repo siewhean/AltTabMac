@@ -347,54 +347,70 @@ final class DurableSwitcherHistoryStore {
         now: Date = Date()
     ) -> [SwitcherHistoryIdentity] {
         queue.sync {
-            let matches = DurableHistoryMatcher.matches(
-                records: records,
-                liveDescriptors: liveDescriptors,
-                now: now,
-                expirationInterval: expirationInterval
-            )
+            records.removeAll {
+                now.timeIntervalSince($0.lastSeenAt) > expirationInterval
+            }
             let descriptorByIdentity = Dictionary(
                 uniqueKeysWithValues: liveDescriptors.map { ($0.identity, $0) }
             )
-            let matchedRecordIDs = Set(matches.map(\.recordID))
-            let matchedIdentityByRecord = Dictionary(
-                uniqueKeysWithValues: matches.map { ($0.recordID, $0.identity) }
+            let liveIdentities = Set(descriptorByIdentity.keys)
+            let recordByID = Dictionary(
+                uniqueKeysWithValues: records.map { ($0.id, $0) }
             )
 
-            records = records.compactMap { record in
-                guard now.timeIntervalSince(record.lastSeenAt) <= expirationInterval else {
-                    return nil
+            // Existing exact live mappings are stronger than mutable metadata.
+            // Retain them only while the identity, record, and bundle all agree.
+            let survivingMappings = recordIDByLiveIdentity.filter { identity, recordID in
+                guard liveIdentities.contains(identity),
+                      let descriptor = descriptorByIdentity[identity],
+                      let record = recordByID[recordID] else {
+                    return false
                 }
-                guard matchedRecordIDs.contains(record.id),
-                      let identity = matchedIdentityByRecord[record.id],
-                      descriptorByIdentity[identity] != nil else {
-                    return record
-                }
+                return descriptor.bundleIdentifier.caseInsensitiveCompare(
+                    record.bundleIdentifier
+                ) == .orderedSame
+            }
+            var oneToOne: [SwitcherHistoryIdentity: UUID] = [:]
+            var reverse: [UUID: SwitcherHistoryIdentity] = [:]
+            for (identity, recordID) in survivingMappings.sorted(by: {
+                $0.key.stableKey < $1.key.stableKey
+            }) where reverse[recordID] == nil {
+                oneToOne[identity] = recordID
+                reverse[recordID] = identity
+            }
+            recordIDByLiveIdentity = oneToOne
+            liveIdentityByRecordID = reverse
+
+            let reservedRecordIDs = Set(liveIdentityByRecordID.keys)
+            let reservedIdentities = Set(recordIDByLiveIdentity.keys)
+            let additionalMatches = DurableHistoryMatcher.matches(
+                records: records.filter { !reservedRecordIDs.contains($0.id) },
+                liveDescriptors: liveDescriptors.filter {
+                    !reservedIdentities.contains($0.identity)
+                },
+                now: now,
+                expirationInterval: expirationInterval
+            )
+            for match in additionalMatches where
+                liveIdentityByRecordID[match.recordID] == nil &&
+                recordIDByLiveIdentity[match.identity] == nil {
+                recordIDByLiveIdentity[match.identity] = match.recordID
+                liveIdentityByRecordID[match.recordID] = match.identity
+            }
+
+            let mappedRecordIDs = Set(liveIdentityByRecordID.keys)
+            records = records.map { record in
+                guard mappedRecordIDs.contains(record.id) else { return record }
                 var updated = record
                 updated.lastSeenAt = now
                 return updated
             }
-
-            let liveIdentities = Set(descriptorByIdentity.keys)
-            recordIDByLiveIdentity = recordIDByLiveIdentity.filter { identity, recordID in
-                liveIdentities.contains(identity) &&
-                    records.contains(where: { $0.id == recordID })
-            }
-            liveIdentityByRecordID = Dictionary(
-                uniqueKeysWithValues: recordIDByLiveIdentity.map { ($0.value, $0.key) }
-            )
-            for match in matches {
-                guard liveIdentityByRecordID[match.recordID] == nil ||
-                        liveIdentityByRecordID[match.recordID] == match.identity else {
-                    continue
-                }
-                recordIDByLiveIdentity[match.identity] = match.recordID
-                liveIdentityByRecordID[match.recordID] = match.identity
-            }
             pruneIdentityMappingsLocked()
             persistLocked()
 
-            return matches.map(\.identity)
+            // Records remain sorted by durable activation order, so this preserves
+            // MRU while returning each exact live identity at most once.
+            return records.compactMap { liveIdentityByRecordID[$0.id] }
         }
     }
 
