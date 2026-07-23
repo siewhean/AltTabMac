@@ -2,9 +2,9 @@
 
 **Branch:** `agent/five-feature-production-suite`  
 **Pull request:** #35  
-**Decision:** **SOURCE IMPLEMENTATION COMPLETE / EXACT-HEAD MACOS ACCEPTANCE PENDING**
+**Decision:** **AUDIT BLOCKERS PATCHED IN SOURCE / EXACT-HEAD MACOS ACCEPTANCE PENDING**
 
-This directory records the source-side implementation boundary for CmdTab's five-feature production suite. It does not convert unexecuted macOS behaviour into a pass. PR #35 remains draft until an exact branch head produces `AUTOMATED_PASS` and the packaged-app matrix is completed against the same artifact.
+This directory records the source-side implementation boundary for CmdTab's five-feature production suite. It does not convert unexecuted macOS behaviour into a pass. PR #35 remains draft until one exact clean branch head produces `AUTOMATED_PASS` and the packaged-app matrix is completed against the same artifact.
 
 ## Implemented product surface
 
@@ -62,11 +62,24 @@ This directory records the source-side implementation boundary for CmdTab's five
 - deterministic membership refresh after success;
 - right-click action hint exposed in every profile style.
 
+## Independent audit remediation
+
+The independent review of head `97fc00eda0a5a8cac40d3910f59c5c7fc82e2456` found four production-path blockers and one truthfulness issue. The branch now contains source fixes and targeted regressions for all five:
+
+1. **Profile quick switching:** the profile router now adapts the accepted `HotkeyTriggerState` so a quick modifier release can commit without first showing the overlay, repeated hidden Command triggers do not replace the original direction, and reveal/confirm actions remain bound to the triggering profile.
+2. **Enrichment feedback:** `getItems()` no longer schedules AX/workspace enrichment. A configuration-and-item signature gate coalesces unchanged requests so a published snapshot cannot recursively start another whole-desktop enrichment pass.
+3. **Scoped provisional membership:** a profile narrower than the global base catalogue fails closed until exact enriched membership is available. Exact cached items may be safely reduced to a narrower immutable profile configuration.
+4. **Durable-write collisions:** the write path now enforces same-bundle matching, one-to-one live identity ownership, ambiguity rejection, and exact live identity-to-record reuse. Cross-application or sibling-window collisions create separate records.
+5. **Stage Manager truthfulness:** diagnostics, capability banners, badges, and accessibility values compose the inference limitation and use `Inferred Active Set` / `Inferred Hidden Set` labels when Stage Manager is enabled.
+
+These are source changes, not accepted evidence. Any later source change invalidates previous phase receipts and requires the exact-head gates again.
+
 ## Performance and reliability boundaries implemented
 
 - Accessibility/workspace enrichment runs on a coalescing serial background queue;
+- unchanged input/configuration signatures do not reschedule enrichment;
 - stale enrichment results are discarded by generation and profile configuration;
-- opening the switcher returns an immutable cached or safe Phase 1 provisional snapshot immediately;
+- opening the switcher returns an immutable cached exact snapshot or a safe fail-closed provisional subset;
 - focused-window durable metadata enrichment no longer performs the whole AX catalogue walk on the main thread;
 - private workspace calls are serialized and status reads are lock-protected;
 - recorder, Secure Input, licensing, and passed-through key-up pairs cannot be swallowed by the profile router;
@@ -78,6 +91,8 @@ The branch contains:
 
 ```text
 scripts/release/verify-five-feature-source.py
+scripts/release/five-feature-qa-gates.sh
+scripts/release/test-five-feature-qa-gates.sh
 scripts/release/run-five-feature-qa.sh
 scripts/release/build-windowlab-fixture.sh
 scripts/release/build-windowprobe-fixture.sh
@@ -100,18 +115,22 @@ ProductionVisualStateTests
 FiveFeatureIntegrationTests
 ```
 
-The one-command gate also runs the complete Swift suite and the Phase 1 deterministic packaging/reproducibility regression.
+The focused aggregate must remain exactly 50 XCTest cases with zero failures and zero unexpected results. The phased gate also runs the complete Swift suite, release packaging, strict bundle verification, and byte-for-byte unsigned reproducibility.
 
 ## Required exact-head automated evidence
 
-On the target Mac:
+On the target Mac, from a clean worktree:
 
 ```bash
-python3 scripts/release/verify-five-feature-source.py
-bash scripts/release/run-five-feature-qa.sh
+bash scripts/release/run-five-feature-qa.sh reset
+bash scripts/release/run-five-feature-qa.sh source
+bash scripts/release/run-five-feature-qa.sh tests
+bash scripts/release/run-five-feature-qa.sh package
+bash scripts/release/run-five-feature-qa.sh repro
+bash scripts/release/run-five-feature-qa.sh finalize
 ```
 
-The run must create:
+The run must create hash-sealed, commit-bound phase logs and:
 
 ```text
 dist/five-feature-evidence/result.txt
@@ -128,7 +147,7 @@ Required automated result:
 AUTOMATED_PASS
 ```
 
-`commit.txt` must equal `git rev-parse HEAD` exactly. A pass from an earlier head is not transferable to a later polish commit.
+`commit.txt` must equal `git rev-parse HEAD` exactly. A pass from an earlier head is not transferable to a later polish or audit-fix commit.
 
 ## Required packaged-app evidence
 
@@ -136,21 +155,21 @@ The generated `manual-checks.md` is authoritative. It requires real observations
 
 - minimized eligibility, exact restore, sibling preservation, fallback suppression, and per-app cap;
 - current/visible/all Spaces, off-Space activation, fullscreen, Stage Manager inference, mixed-scale displays, disconnect/reconnect, and sleep/wake;
-- profile isolation, forward/reverse, hold/toggle, recording, Secure Input, licensing pass-through, immutable active sessions, import/export, installed-app filtering, and unsaved-close handling;
+- profile isolation, forward/reverse, hidden quick switch, hold/toggle, recording, Secure Input, licensing pass-through, immutable active sessions, import/export, installed-app filtering, and unsaved-close handling;
 - durable restart matching, duplicate-title ambiguity, reused IDs, failed activation, file privacy/mode, and reset;
 - every exact-window action and unsupported state;
 - visible state badges, VoiceOver state, capability degradation, Diagnostics, event-tap recovery, Launch at Login, and a mixed-feature stress run.
 
-WindowProbe must record the actual focused PID and `CGWindowID` for activation-sensitive rows. A screenshot or apparent foreground window is insufficient evidence.
+WindowProbe must record the actual focused PID and `CGWindowID` for activation-sensitive rows. A screenshot or apparent foreground window is insufficient evidence. Unsupported physical configurations must remain `NOT TESTED`; they may not be converted into PASS.
 
 ## Current blockers to merge
 
-- no exact-head source/Swift/package PASS has been supplied after the latest production-polish commits;
-- no packaged-app matrix has been completed;
-- no objective WindowProbe focus log has been reviewed;
-- no macOS-version and real workspace/Stage Manager evidence has been supplied;
+- no exact-head source/tests/package/repro/finalize PASS has been supplied after the audit-fix commits;
+- no packaged-app matrix from the audit-fix artifact has been completed;
+- no objective WindowProbe focus log from the audit-fix artifact has been reviewed;
+- no independent macOS-version and real workspace/Stage Manager evidence has been supplied;
 - GitHub Actions capacity remains a separate repository release-control issue.
 
 ## Merge rule
 
-Do not mark PR #35 ready, merge it into `main`, merge it into the Developer ID branch, or copy selected files into another branch until all applicable rows pass on one exact head. If a source fix is made after testing, rerun the complete automated and packaged-app gates.
+Do not mark PR #35 ready, merge it into `main`, merge it into the Developer ID branch, or copy selected files into another branch until all applicable rows pass on one exact head. If a source fix is made after testing, reset and rerun every automated phase and the affected packaged-app rows.
