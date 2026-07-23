@@ -228,8 +228,8 @@ private final class NSHostinglessFixtureViewController: NSViewController {
 }
 
 let argument = CommandLine.arguments.dropFirst().first ?? FixtureScenario.standard.rawValue
-let scenario = FixtureScenario(rawValue: argument) ?? .standard
+private let scenario = FixtureScenario(rawValue: argument) ?? .standard
 let application = NSApplication.shared
-let delegate = FixtureDelegate(scenario: scenario)
+private let delegate = FixtureDelegate(scenario: scenario)
 application.delegate = delegate
 application.run()
