@@ -28,7 +28,9 @@ No public release claim may treat the accepted local ad-hoc artifact as a distri
 
 ## PR #35 five-feature QA
 
-The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly 50 tests with no failures or unexpected results.
+The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly **61 tests** with no failures or unexpected results.
+
+The focused inventory includes deterministic profile hotkey timing regressions that preserve the accepted 100 ms hold-to-show and silent quick-switch contract. It also covers fail-closed provisional profile scope, enrichment coalescing, durable-history write isolation, and truthful Stage Manager inference. The source, package, reproducibility, and packaged-app matrices must all be rerun after any source change.
 
 The deterministic fixtures deliberately include a same-title, no-document-identity window pair for durable-MRU ambiguity testing. Fixture windows disable AppKit restoration and reapply their intended full-size frames after content-controller installation so one scenario cannot leak minimized state or geometry into another. WindowProbe reports minimized and fullscreen Accessibility state as objective values when available and `null` when unavailable.
 
