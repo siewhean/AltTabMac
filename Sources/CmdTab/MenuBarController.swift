@@ -6,7 +6,7 @@ final class MenuBarController {
     private var statusItem: NSStatusItem!
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
-    private lazy var profilePreferencesWindowController = SwitcherProfilePreferencesWindowController()
+    private lazy var profilePreferencesWindowController = ProductionProfilePreferencesWindowController()
     private lazy var diagnosticsWindowController = ProductionDiagnosticsWindowController()
     private var contextMenu: NSMenu?
 
