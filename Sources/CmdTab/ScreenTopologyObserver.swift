@@ -5,14 +5,20 @@ import AppKit
 /// reposition any visible primary or mirrored panels without showing a hidden
 /// switcher unexpectedly.
 final class ScreenTopologyObserver {
-    private var notificationTokens: [NSObjectProtocol] = []
+    private struct Observation {
+        let center: NotificationCenter
+        let token: NSObjectProtocol
+    }
+
+    private var observations: [Observation] = []
     private var pendingRefresh: DispatchWorkItem?
     private let callback: () -> Void
 
     init(callback: @escaping () -> Void) {
         self.callback = callback
 
-        let screenToken = NotificationCenter.default.addObserver(
+        let screenCenter = NotificationCenter.default
+        let screenToken = screenCenter.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
             queue: .main
@@ -20,7 +26,8 @@ final class ScreenTopologyObserver {
             self?.scheduleRefresh()
         }
 
-        let wakeToken = NSWorkspace.shared.notificationCenter.addObserver(
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        let wakeToken = workspaceCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
             queue: .main
@@ -28,14 +35,16 @@ final class ScreenTopologyObserver {
             self?.scheduleRefresh()
         }
 
-        notificationTokens = [screenToken, wakeToken]
+        observations = [
+            Observation(center: screenCenter, token: screenToken),
+            Observation(center: workspaceCenter, token: wakeToken),
+        ]
     }
 
     deinit {
         pendingRefresh?.cancel()
-        for token in notificationTokens {
-            NotificationCenter.default.removeObserver(token)
-            NSWorkspace.shared.notificationCenter.removeObserver(token)
+        for observation in observations {
+            observation.center.removeObserver(observation.token)
         }
     }
 
