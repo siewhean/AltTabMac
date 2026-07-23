@@ -48,7 +48,9 @@ struct ProductionDiagnosticsSnapshot: Equatable {
             screenRecordingReady: CGPreflightScreenCaptureAccess(),
             secureInputActive: SecureInputMonitor.isEnabled,
             exactIdentity: AXWindowIdentityLookup.status,
-            workspace: WindowWorkspaceProvider.shared.status,
+            workspace: StageManagerCapabilityPolicy.truthfulStatus(
+                WindowWorkspaceProvider.shared.status
+            ),
             enabledProfileCount: profileStore.profilesSnapshot().filter(\.isEnabled).count,
             profileValidationIssues: profileStore.validationIssues.map(\.description),
             durableRecordCount: DurableSwitcherHistoryStore.shared.snapshot().count,
@@ -123,7 +125,7 @@ struct ProductionDiagnosticsView: View {
                         level: snapshot.exactIdentity.level
                     )
                     diagnosticRow(
-                        title: "Workspace Provider",
+                        title: "Workspace Provider / Stage Manager",
                         value: statusText(snapshot.workspace),
                         level: snapshot.workspace.level
                     )
