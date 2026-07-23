@@ -3,7 +3,7 @@
 ## 2026-07-23 — PR #35 Five-Feature Production QA
 
 - [x] Audit the phased runner, focused-test inventory, deterministic fixtures, and objective probe contract.
-- [x] Require an exact 50-test focused XCTest aggregate with zero failures and zero unexpected results.
+- [x] Require an exact 61-test focused XCTest aggregate with zero failures and zero unexpected results.
 - [x] Bind phase evidence to one clean immutable HEAD and hash-seal phase logs and artifacts.
 - [x] Reject tracked changes everywhere, including tracked files under generated-output directories.
 - [x] Invalidate downstream evidence when an earlier phase is rerun.
@@ -12,7 +12,7 @@
 - [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
 - [x] Commit and push the hardened branch without merging PR #35.
 - [x] Patch the independent audit blockers: profile quick-switch semantics, enrichment recursion, fail-closed provisional scope, durable-write collisions, and truthful Stage Manager inference.
-- [x] Add targeted regressions without changing the required 50-test focused XCTest count.
+- [x] Add targeted regressions and raise the required focused XCTest count from 50 to 61.
 - [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean audit-fix HEAD.
 - [ ] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
 - [ ] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence for the audit-fix artifact.
@@ -153,7 +153,7 @@ Implementation:
 - [x] Expose every shipped product-differentiation feature clearly in the macOS Settings window.
 - [x] Update the marketing site copy and structure so the same feature set is visible on the website.
 - [x] Verify the Swift package and website builds still pass after the visibility pass.
-- [x] Update `README.md` with the new website task context and record review notes here.
+- [x] Update `README.md` and record the review notes here.
 
 ## Feature Visibility Review
 
