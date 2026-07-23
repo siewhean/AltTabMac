@@ -89,7 +89,7 @@ def main() -> None:
         "recordIDByLiveIdentity",
         "liveIdentityByRecordID",
         "unavailableRecordIDs",
-        "same bundle",
+        "preferred.bundleIdentifier == bundleIdentifier",
         "one exact live identity",
     ):
         require(durable, literal, "DurableSwitcherHistory.swift")
