@@ -2,10 +2,13 @@
 
 # Shared fail-closed gates for run-five-feature-qa.sh. This file intentionally
 # has no side effects so its production checks can be exercised hermetically.
+# The expected focused-test inventory is centralized here. Callers may override
+# it only for hermetic gate-fixture tests; production QA uses the reviewed value.
+FOCUSED_XCTEST_EXPECTED_COUNT="${CMDTAB_FOCUSED_XCTEST_EXPECTED_COUNT:-61}"
 
 verify_focused_xctest_summary() {
   local log_path="$1"
-  local expected_count="${2:-50}"
+  local expected_count="${FOCUSED_XCTEST_EXPECTED_COUNT}"
   local summary
   local executed
   local failures
