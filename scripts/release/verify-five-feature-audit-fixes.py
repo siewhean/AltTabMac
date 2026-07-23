@@ -53,6 +53,9 @@ def main() -> None:
         "ShortcutChordTimingState",
         "PhysicalModifierChordTimingState",
         "simultaneousChordKeys",
+        "noteInterveningKeyDown",
+        "commandWasInterrupted",
+        "optionWasInterrupted",
         "ProfileHotkeyTimingPolicy",
         "revealDelay: 0.20",
         "startedAtUptime",
@@ -72,9 +75,15 @@ def main() -> None:
         "ShortcutChordTimingState()",
         "PhysicalModifierChordTimingState()",
         "shortcutChordTimingState.accepts",
+        "shortcutChordTimingState.noteInterveningKeyDown()",
         "physicalChordTimingState.accepts",
-        "Ignored delayed shortcut chord",
+        "Ignored delayed or interrupted shortcut chord",
         "Ignored delayed Hot Swap modifier chord",
+        "isProtectedApplicationCommand",
+        "handlePassThroughKeyDown",
+        "clearCompletedProfileTriggerState",
+        "Cancelled stale switcher trigger",
+        "Command-V",
         "currentUptime",
         "eventUptime(event)",
         "scheduleReveal(atUptime:",
@@ -128,6 +137,7 @@ def main() -> None:
         "identityKey:",
         "captureAccessAllowed",
         "CGPreflightScreenCaptureAccess",
+        "entriesByExactKey.removeValue(forKey: key)",
         "entriesByIdentity.removeValue(forKey: identityKey)",
         "previewCacheKey != nil, kind == .appWindow",
     ):
@@ -158,6 +168,9 @@ def main() -> None:
         "Show Minimized Windows",
         "Arc and Telegram",
         "focused `CGWindowID`",
+        "Command-V",
+        "must not switch back",
+        "stale release owner",
     ):
         require(feedback, literal, "manual-feedback-regressions.md")
 
@@ -215,6 +228,8 @@ def main() -> None:
             "testReplacingVisibleProfileTransfersReleaseOwnership",
             "Holding Command and pressing Tab later must not switch",
             "A delayed Hot Swap modifier chord must not activate",
+            "Command-V or any unrelated key must disarm",
+            "A fresh deliberate Command-Tab chord must work",
         ),
         "Tests/CmdTabTests/SwitcherProfileSafetyTests.swift": (
             "ProfileHotkeyTriggerCoordinator",
