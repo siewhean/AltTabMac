@@ -1,6 +1,24 @@
 import AppKit
 import SwiftUI
 
+private func productionAccessibilityState(for item: SwitcherItem) -> String {
+    var values: [String] = []
+    if item.isMinimized { values.append("minimized") }
+    if item.isFullscreen { values.append("fullscreen") }
+    if let workspace = item.workspaceSnapshot {
+        if !workspace.memberships.isEmpty, !workspace.isOnCurrentManagedSpace {
+            values.append("on another Space")
+        }
+        if StageManagerCapabilityPolicy.isEnabled(),
+           let label = StageManagerCapabilityPolicy.visibleLabel(
+               for: workspace.stageManagerState
+           ) {
+            values.append(label.lowercased())
+        }
+    }
+    return values.isEmpty ? "normal window" : values.joined(separator: ", ")
+}
+
 /// Shared production-only presentation helpers for exact-window state.
 /// The legacy views remain unchanged for Phase 1 regression coverage; profile
 /// sessions use these variants so minimized/fullscreen/workspace state is never
@@ -21,8 +39,14 @@ struct SwitcherItemStateBadges: View {
             if !workspace.memberships.isEmpty, !workspace.isOnCurrentManagedSpace {
                 values.append(("rectangle.stack.fill", "Other Space", .purple))
             }
-            if workspace.stageManagerState == .hiddenSet {
-                values.append(("rectangle.stack.badge.minus", "Hidden Set", .pink))
+            if StageManagerCapabilityPolicy.isEnabled(),
+               let label = StageManagerCapabilityPolicy.visibleLabel(
+                   for: workspace.stageManagerState
+               ) {
+                let image = workspace.stageManagerState == .hiddenSet
+                    ? "rectangle.stack.badge.minus"
+                    : "rectangle.stack.badge.plus"
+                values.append((image, label, .pink))
             }
         }
         return values
@@ -103,13 +127,15 @@ private struct WorkspaceCapabilityBanner: View {
 enum ProductionCapabilitySummary {
     static func worstStatus(in items: [SwitcherItem]) -> CapabilityStatus {
         let statuses = items.compactMap(\.workspaceSnapshot?.capability)
-        guard !statuses.isEmpty else {
-            return .unavailable(
+        let base: CapabilityStatus
+        if statuses.isEmpty {
+            base = .unavailable(
                 "Exact workspace metadata is not attached to the current items. CmdTab is using safe visible-window fallback behaviour."
             )
+        } else {
+            base = statuses.max { severity($0.level) < severity($1.level) } ?? .available
         }
-
-        return statuses.max { severity($0.level) < severity($1.level) } ?? .available
+        return StageManagerCapabilityPolicy.truthfulStatus(base)
     }
 
     private static func severity(_ level: CapabilityStatus.Level) -> Int {
@@ -167,7 +193,7 @@ struct ProductionClassicGridView: View {
                                     SwitcherItemStateBadges(item: item, compact: true)
                                         .padding(7)
                                 }
-                                .accessibilityValue(accessibilityState(for: item))
+                                .accessibilityValue(productionAccessibilityState(for: item))
                                 .id(index)
                                 .transition(.switcherItemMutation)
                                 .onHover { hovering in
@@ -220,18 +246,6 @@ struct ProductionClassicGridView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(red: 0.10, green: 0.10, blue: 0.12))
         }
-    }
-
-    private func accessibilityState(for item: SwitcherItem) -> String {
-        var values: [String] = []
-        if item.isMinimized { values.append("minimized") }
-        if item.isFullscreen { values.append("fullscreen") }
-        if let workspace = item.workspaceSnapshot,
-           !workspace.memberships.isEmpty,
-           !workspace.isOnCurrentManagedSpace {
-            values.append("on another Space")
-        }
-        return values.isEmpty ? "normal window" : values.joined(separator: ", ")
     }
 }
 
@@ -381,6 +395,7 @@ private struct ProductionPaletteRow: View {
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityValue(productionAccessibilityState(for: item))
     }
 }
 
@@ -534,6 +549,6 @@ private struct ProductionRadialItem: View {
                 .frame(width: 92)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityValue(item.isMinimized ? "minimized" : (item.isFullscreen ? "fullscreen" : "normal window"))
+        .accessibilityValue(productionAccessibilityState(for: item))
     }
 }
