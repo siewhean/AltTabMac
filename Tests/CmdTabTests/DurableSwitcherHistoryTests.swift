@@ -66,7 +66,7 @@ final class DurableSwitcherHistoryTests: XCTestCase {
                 unavailableRecordIDs: []
             ),
             record.id,
-            "An exact live mapping must survive mutable title, frame, or document metadata."
+            "An exact live mapping must survive mutable title and frame metadata when the document identity still matches."
         )
     }
 
@@ -151,9 +151,10 @@ final class DurableSwitcherHistoryTests: XCTestCase {
 
     func testDifferentBundleNeverInheritsRank() throws {
         let now = Date(timeIntervalSince1970: 1_000)
+        let originalIdentity = SwitcherHistoryIdentity.appWindow(pid: 10, windowID: 1)
         let record = DurableWindowHistoryRecord(
             descriptor: descriptor(
-                identity: .appWindow(pid: 10, windowID: 1),
+                identity: originalIdentity,
                 bundle: "com.example.first",
                 title: "Shared Title",
                 url: nil,
@@ -162,7 +163,7 @@ final class DurableSwitcherHistoryTests: XCTestCase {
             activatedAt: now
         )
         let live = descriptor(
-            identity: .appWindow(pid: 10, windowID: 1),
+            identity: originalIdentity,
             bundle: "com.example.second",
             title: "Shared Title",
             url: nil,
@@ -184,6 +185,23 @@ final class DurableSwitcherHistoryTests: XCTestCase {
                 preferredRecordID: record.id,
                 unavailableRecordIDs: []
             )
+        )
+
+        let reusedSameBundleIdentity = descriptor(
+            identity: originalIdentity,
+            bundle: "com.example.first",
+            title: "Unrelated replacement window",
+            url: nil,
+            x: 900
+        )
+        XCTAssertNil(
+            DurableHistoryWriteMatcher.reusableRecordID(
+                records: [record],
+                descriptor: reusedSameBundleIdentity,
+                preferredRecordID: record.id,
+                unavailableRecordIDs: []
+            ),
+            "A reused PID/CGWindowID in the same bundle must not inherit rank when its privacy fingerprint no longer matches."
         )
 
         let directory = FileManager.default.temporaryDirectory
