@@ -26,6 +26,10 @@ final class ProfileHotkeyManager {
     private let installRetryDelay: TimeInterval = 1.0
 
     private var timingState = ProfileHotkeyTimingState()
+    private var shortcutChordTimingState = ShortcutChordTimingState()
+    private var physicalChordTimingState = PhysicalModifierChordTimingState()
+    private var commandModifierDown = false
+    private var optionModifierDown = false
 
     /// Contains only key-downs CmdTab actually swallowed. A passed-through
     /// shortcut must receive its original key-up or the native/system shortcut
@@ -229,7 +233,9 @@ final class ProfileHotkeyManager {
             return nil
 
         case .flagsChanged:
-            handleAlternateModifierChange(event)
+            let now = eventUptime(event)
+            updateShortcutModifierTiming(flags: event.flags, now: now)
+            handleAlternateModifierChange(event, now: now)
             handleProfileModifierRelease(flags: event.flags)
             return Unmanaged.passRetained(event)
 
@@ -290,7 +296,35 @@ final class ProfileHotkeyManager {
             return Unmanaged.passRetained(event)
         }
 
-        let sameVisibleProfile = switcher?.isVisible == true &&
+        let triggerUptime = eventUptime(event)
+        let isVisible = switcher?.isVisible == true
+
+        // A hidden session is started by one deliberate chord. Key repeat or an
+        // additional delayed Tab while the original trigger is pending is consumed
+        // without replacing the original direction or reveal deadline.
+        if !isVisible, timingState.hasPendingTrigger {
+            swallowedKeyCodes.insert(keyCode)
+            return nil
+        }
+
+        if !isVisible,
+           !shortcutChordTimingState.accepts(
+               primaryModifier: match.primaryModifier,
+               keyDownAt: triggerUptime
+           ) {
+            swallowedKeyCodes.insert(keyCode)
+            timingState.cancel()
+            configurationFreeze.end()
+            os_log(
+                .info,
+                log: profileHotkeyLog,
+                "Ignored delayed shortcut chord for profile %{public}@",
+                match.profileID.uuidString
+            )
+            return nil
+        }
+
+        let sameVisibleProfile = isVisible &&
             switcher?.activeProfileID == match.profileID
         configurationFreeze.begin(
             profileID: match.profileID,
@@ -298,13 +332,13 @@ final class ProfileHotkeyManager {
         )
         swallowedKeyCodes.insert(keyCode)
 
-        if switcher?.isVisible == true {
+        if isVisible {
             cancelScheduledReveal()
             if match.releaseBehavior == .holdPrimaryModifier {
                 if timingState.pendingMatch?.profileID != match.profileID {
                     timingState.beginVisibleTrigger(
                         match: match,
-                        startedAtUptime: eventUptime(event)
+                        startedAtUptime: triggerUptime
                     )
                 }
             } else {
@@ -333,7 +367,7 @@ final class ProfileHotkeyManager {
         case .holdPrimaryModifier:
             guard let action = timingState.registerHiddenTrigger(
                 match: match,
-                startedAtUptime: eventUptime(event),
+                startedAtUptime: triggerUptime,
                 isRepeat: isRepeat
             ) else {
                 return nil
@@ -531,7 +565,10 @@ final class ProfileHotkeyManager {
 
     // MARK: Compatibility alternate trigger
 
-    private func handleAlternateModifierChange(_ event: CGEvent) {
+    private func handleAlternateModifierChange(
+        _ event: CGEvent,
+        now: TimeInterval
+    ) {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
         guard let key = PhysicalModifierTriggerKey(
             flagsChangedKeyCode: keyCode
@@ -540,17 +577,33 @@ final class ProfileHotkeyManager {
         }
 
         let isDown = toggleModifierState(for: key)
+        physicalChordTimingState.noteModifierChange(
+            key,
+            isDown: isDown,
+            at: now
+        )
+        let mode = preferences.alternateTrigger
         let shouldActivate = alternateTriggerState.handleModifierChange(
             key,
             isDown: isDown,
-            mode: preferences.alternateTrigger,
+            mode: mode,
             leftCommandDown: leftCommandDown,
             leftOptionDown: leftOptionDown,
             rightCommandDown: rightCommandDown,
             rightOptionDown: rightOptionDown,
-            now: eventUptime(event)
+            now: now
         )
         guard shouldActivate else { return }
+
+        if let requiredKeys = mode.simultaneousChordKeys,
+           !physicalChordTimingState.accepts(keys: requiredKeys) {
+            os_log(
+                .info,
+                log: profileHotkeyLog,
+                "Ignored delayed Hot Swap modifier chord"
+            )
+            return
+        }
 
         let shouldHandleShortcut = MainActor.assumeIsolated {
             LicensingController.shared.shouldHandleCustomSwitcherShortcut()
@@ -583,6 +636,31 @@ final class ProfileHotkeyManager {
         }
     }
 
+    private func updateShortcutModifierTiming(
+        flags: CGEventFlags,
+        now: TimeInterval
+    ) {
+        let commandDown = flags.contains(.maskCommand)
+        if commandDown != commandModifierDown {
+            commandModifierDown = commandDown
+            shortcutChordTimingState.noteModifierChange(
+                .command,
+                isDown: commandDown,
+                at: now
+            )
+        }
+
+        let optionDown = flags.contains(.maskAlternate)
+        if optionDown != optionModifierDown {
+            optionModifierDown = optionDown
+            shortcutChordTimingState.noteModifierChange(
+                .option,
+                isDown: optionDown,
+                at: now
+            )
+        }
+    }
+
     private func toggleModifierState(
         for key: PhysicalModifierTriggerKey
     ) -> Bool {
@@ -611,6 +689,10 @@ final class ProfileHotkeyManager {
         cancelScheduledReveal()
         configurationFreeze.end()
         timingState.cancel()
+        shortcutChordTimingState.reset()
+        physicalChordTimingState.reset()
+        commandModifierDown = false
+        optionModifierDown = false
         if !preserveSwallowedKeyUps {
             swallowedKeyCodes.removeAll()
         }
