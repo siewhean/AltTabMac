@@ -65,7 +65,7 @@ final class ProductionProfileEditorModel: ObservableObject {
     @Published private(set) var statusMessage = ""
     @Published private(set) var validationMessages: [String] = []
 
-    let applicationCatalog = ProductionApplicationCatalog()
+    fileprivate let applicationCatalog = ProductionApplicationCatalog()
 
     private let store: SwitcherProfileStore
     private var observation: NSObjectProtocol?
@@ -714,7 +714,7 @@ private struct ProductionApplicationOption: Identifiable, Hashable {
 }
 
 @MainActor
-final class ProductionApplicationCatalog: ObservableObject {
+private final class ProductionApplicationCatalog: ObservableObject {
     @Published private(set) var options: [ProductionApplicationOption] = []
     @Published private(set) var isLoading = false
 
