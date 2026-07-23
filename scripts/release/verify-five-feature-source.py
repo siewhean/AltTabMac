@@ -31,7 +31,7 @@ SOURCE_FILES = [
     "ProfileSwitcherView.swift",
     "ScreenTopologyObserver.swift",
     "SecureInputMonitor.swift",
-    "SwitcherProfilePreferences.swift",
+    "ShortcutRecorder.swift",
     "HotkeyModifier+Sendable.swift",
 ]
 
@@ -241,14 +241,29 @@ def main() -> None:
             "configurationFreeze.end",
             "tapDisabledByTimeout",
             "scheduleInstallRetry",
+            "swallowedKeyCodes.remove(keyCode) != nil",
             "dispatchToMain",
         ),
     )
-    reject(hotkeys, "return nil\n        }\n\n        swallowedKeyCodes.insert", "ProfileHotkeyManager.swift")
+    reject(
+        hotkeys,
+        "if profileStore.match(keyCode: keyCode, flags: event.flags) != nil {\n                return nil",
+        "ProfileHotkeyManager.swift",
+    )
 
     require_all(
         ROOT / "Sources" / "CmdTab" / "SecureInputMonitor.swift",
         ("IsSecureEventInputEnabled", "dlsym"),
+    )
+    require_all(
+        ROOT / "Sources" / "CmdTab" / "ShortcutRecorder.swift",
+        (
+            "ShortcutRecordingState",
+            "ShortcutRecorder",
+            "accessibilityPerformPress",
+            "isAccessibilityElement",
+            "Delete clears",
+        ),
     )
 
     durable = require_all(
@@ -302,11 +317,14 @@ def main() -> None:
     require_all(
         ROOT / "Sources" / "CmdTab" / "ProductionAppSwitcher.swift",
         (
-            "synthesizes eligible minimized and off-space windows",
+            "ProductionAppSwitcher.Enrichment",
+            "scheduleEnrichment",
+            "enrichmentGeneration",
+            "cachedEnrichedItems",
+            "provisionalItems",
             "activateExactSyntheticWindow",
             "history.reconcileLiveWindows",
             "includeMinimizedWindows",
-            "visibilityScope",
             "managementActionAvailability",
         ),
     )
@@ -364,7 +382,7 @@ def main() -> None:
             "Export…",
             "Reset Durable MRU…",
             "Edits made while a switcher is visible apply to the next session",
-            "normalization belongs at",
+            "Keeps the raw draft intact",
         ),
     )
     require_all(
