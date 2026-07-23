@@ -48,20 +48,44 @@ def parse_swift(relative: str) -> None:
 
 
 def main() -> None:
-    hotkeys = read("Sources/CmdTab/ProfileHotkeyManager.swift")
+    timing = read("Sources/CmdTab/ProfileHotkeyTimingState.swift")
     for literal in (
-        "ProfileHotkeyTriggerCoordinator",
-        "HotkeyTriggerState()",
-        "quickSwitch",
-        "scheduleReveal",
+        "ProfileHotkeyTimingPolicy",
+        "revealDelay: 0.10",
+        "startedAtUptime",
+        "registerHiddenTrigger",
         "handleRevealDeadline",
         "handleModifierRelease",
+        "quickSwitch",
+        "confirmSelection",
+        "ignoresRepeatedTriggerBeforeReveal",
+    ):
+        require(timing, literal, "ProfileHotkeyTimingState.swift")
+
+    hotkeys = read("Sources/CmdTab/ProfileHotkeyManager.swift")
+    for literal in (
+        "ProfileHotkeyTimingState()",
+        "currentUptime",
+        "eventUptime(event)",
+        "scheduleReveal(atUptime:",
+        "handleProfileModifierRelease",
         "commitTriggerSession",
+        "swallowedKeyCodes.remove(keyCode) != nil",
+        "ShortcutRecordingState.shared.isRecording",
+        "SecureInputMonitor.isEnabled",
+        "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+        "tapDisabledByTimeout",
+        "scheduleInstallRetry",
     ):
         require(hotkeys, literal, "ProfileHotkeyManager.swift")
     reject(
         hotkeys,
         "case .holdPrimaryModifier:\n            activeHoldMatch = match",
+        "ProfileHotkeyManager.swift",
+    )
+    reject(
+        hotkeys,
+        "case .holdPrimaryModifier:\n            dispatchToMain",
         "ProfileHotkeyManager.swift",
     )
 
@@ -71,6 +95,7 @@ def main() -> None:
         "ProductionEnrichmentInputSignature",
         "ProvisionalSwitcherPolicy",
         "permitsBaseSnapshot",
+        "filteredEnrichedItems",
         "enrichmentGate.shouldSchedule",
         "enrichmentGate.invalidate",
     ):
@@ -90,7 +115,7 @@ def main() -> None:
         "liveIdentityByRecordID",
         "unavailableRecordIDs",
         "preferred.bundleIdentifier == bundleIdentifier",
-        "one exact live identity",
+        "privacy fingerprint",
     ):
         require(durable, literal, "DurableSwitcherHistory.swift")
 
@@ -115,7 +140,11 @@ def main() -> None:
         "StageManagerCapabilityPolicy.truthfulStatus",
         "ProductionSwitcherVisuals.swift",
     )
-    reject(visuals, '("rectangle.stack.badge.minus", "Hidden Set"', "ProductionSwitcherVisuals.swift")
+    reject(
+        visuals,
+        '("rectangle.stack.badge.minus", "Hidden Set"',
+        "ProductionSwitcherVisuals.swift",
+    )
 
     diagnostics = read("Sources/CmdTab/ProductionDiagnosticsWindow.swift")
     require(
@@ -125,6 +154,13 @@ def main() -> None:
     )
 
     test_contracts = {
+        "Tests/CmdTabTests/ProfileHotkeyTimingTests.swift": (
+            "testQuickReleaseCommitsWithoutOverlay",
+            "testHeldModifierRevealsMatchingProfile",
+            "testRepeatedHiddenKeyDownDoesNotRescheduleDeadline",
+            "testLateDeadlineStillUsesOriginalTrigger",
+            "testReplacingVisibleProfileTransfersReleaseOwnership",
+        ),
         "Tests/CmdTabTests/SwitcherProfileSafetyTests.swift": (
             "ProfileHotkeyTriggerCoordinator",
             ".quickSwitch(forward)",
@@ -150,13 +186,22 @@ def main() -> None:
         for literal in literals:
             require(text, literal, relative)
 
+    gates = read("scripts/release/five-feature-qa-gates.sh")
+    require(
+        gates,
+        'FOCUSED_XCTEST_EXPECTED_COUNT="${CMDTAB_FOCUSED_XCTEST_EXPECTED_COUNT:-61}"',
+        "five-feature-qa-gates.sh",
+    )
+
     for relative in (
+        "Sources/CmdTab/ProfileHotkeyTimingState.swift",
         "Sources/CmdTab/ProfileHotkeyManager.swift",
         "Sources/CmdTab/ProductionAppSwitcher.swift",
         "Sources/CmdTab/DurableSwitcherHistory.swift",
         "Sources/CmdTab/StageManagerCapabilityPolicy.swift",
         "Sources/CmdTab/ProductionSwitcherVisuals.swift",
         "Sources/CmdTab/ProductionDiagnosticsWindow.swift",
+        "Tests/CmdTabTests/ProfileHotkeyTimingTests.swift",
     ):
         parse_swift(relative)
 
