@@ -7,7 +7,7 @@
     "predev": "npm run showcase:generate",
     "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
     "release:config-check": "python3 ../scripts/release/release_config.py verify-repository",
-    "features:source-check": "python3 ../scripts/release/verify-five-feature-source.py",
+    "features:source-check": "python3 ../scripts/release/verify-five-feature-source.py && python3 ../scripts/release/verify-five-feature-audit-fixes.py",
     "prebuild": "npm run release:config-check && npm run features:source-check && npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",
