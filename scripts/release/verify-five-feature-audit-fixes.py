@@ -50,8 +50,11 @@ def parse_swift(relative: str) -> None:
 def main() -> None:
     timing = read("Sources/CmdTab/ProfileHotkeyTimingState.swift")
     for literal in (
+        "ShortcutChordTimingState",
+        "PhysicalModifierChordTimingState",
+        "simultaneousChordKeys",
         "ProfileHotkeyTimingPolicy",
-        "revealDelay: 0.10",
+        "revealDelay: 0.20",
         "startedAtUptime",
         "registerHiddenTrigger",
         "handleRevealDeadline",
@@ -61,10 +64,17 @@ def main() -> None:
         "ignoresRepeatedTriggerBeforeReveal",
     ):
         require(timing, literal, "ProfileHotkeyTimingState.swift")
+    reject(timing, "revealDelay: 0.10", "ProfileHotkeyTimingState.swift")
 
     hotkeys = read("Sources/CmdTab/ProfileHotkeyManager.swift")
     for literal in (
         "ProfileHotkeyTimingState()",
+        "ShortcutChordTimingState()",
+        "PhysicalModifierChordTimingState()",
+        "shortcutChordTimingState.accepts",
+        "physicalChordTimingState.accepts",
+        "Ignored delayed shortcut chord",
+        "Ignored delayed Hot Swap modifier chord",
         "currentUptime",
         "eventUptime(event)",
         "scheduleReveal(atUptime:",
@@ -107,6 +117,33 @@ def main() -> None:
     except IndexError:
         fail("ProductionAppSwitcher.swift has no reviewable getItems body")
     reject(getter, "scheduleEnrichment", "ProductionAppSwitcher.getItems")
+
+    item = read("Sources/CmdTab/SwitcherItem.swift")
+    for literal in (
+        "SwitcherPreviewContinuityStore",
+        "maximumAge: TimeInterval = 120",
+        "captureAccessAllowed",
+        "CGPreflightScreenCaptureAccess",
+        "entries.removeValue(forKey: key)",
+        "previewCacheKey != nil, kind == .appWindow",
+    ):
+        require(item, literal, "SwitcherItem.swift")
+
+    cycle = read("Sources/CmdTab/SwitcherCycleSession.swift")
+    for literal in (
+        "A quick trigger must never commit",
+        "items[proposed].historyIdentity == currentFrontmost",
+    ):
+        require(cycle, literal, "SwitcherCycleSession.swift")
+
+    menu = read("Sources/CmdTab/MenuBarController.swift")
+    for literal in (
+        "Show Minimized Windows",
+        "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
+        "Press a profile's modifier and key as one deliberate chord",
+        "menu.popUp(",
+    ):
+        require(menu, literal, "MenuBarController.swift")
 
     durable = read("Sources/CmdTab/DurableSwitcherHistory.swift")
     for literal in (
@@ -160,6 +197,8 @@ def main() -> None:
             "testRepeatedHiddenKeyDownDoesNotRescheduleDeadline",
             "testLateDeadlineStillUsesOriginalTrigger",
             "testReplacingVisibleProfileTransfersReleaseOwnership",
+            "Holding Command and pressing Tab later must not switch",
+            "A delayed Hot Swap modifier chord must not activate",
         ),
         "Tests/CmdTabTests/SwitcherProfileSafetyTests.swift": (
             "ProfileHotkeyTriggerCoordinator",
@@ -170,6 +209,12 @@ def main() -> None:
             "ProductionEnrichmentGate",
             "ProvisionalSwitcherPolicy.permitsBaseSnapshot",
             "must fail closed",
+            "SwitcherPreviewContinuityStore.resolve",
+            "captureAccessAllowed: false",
+        ),
+        "Tests/CmdTabTests/SwitcherCycleSessionTests.swift": (
+            "staleOrderingSession",
+            "must still avoid committing the current",
         ),
         "Tests/CmdTabTests/DurableSwitcherHistoryTests.swift": (
             "DurableHistoryWriteMatcher",
@@ -197,11 +242,16 @@ def main() -> None:
         "Sources/CmdTab/ProfileHotkeyTimingState.swift",
         "Sources/CmdTab/ProfileHotkeyManager.swift",
         "Sources/CmdTab/ProductionAppSwitcher.swift",
+        "Sources/CmdTab/SwitcherItem.swift",
+        "Sources/CmdTab/SwitcherCycleSession.swift",
+        "Sources/CmdTab/MenuBarController.swift",
         "Sources/CmdTab/DurableSwitcherHistory.swift",
         "Sources/CmdTab/StageManagerCapabilityPolicy.swift",
         "Sources/CmdTab/ProductionSwitcherVisuals.swift",
         "Sources/CmdTab/ProductionDiagnosticsWindow.swift",
         "Tests/CmdTabTests/ProfileHotkeyTimingTests.swift",
+        "Tests/CmdTabTests/ProductionMembershipPolicyTests.swift",
+        "Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
     ):
         parse_swift(relative)
 
