@@ -5,13 +5,13 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     func testQuickReleaseCommitsWithoutOverlay() throws {
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
-        XCTAssertEqual(
+        assertScheduledReveal(
             state.registerHiddenTrigger(
                 match: match,
                 startedAtUptime: 10,
                 isRepeat: false
             ),
-            .scheduleReveal(atUptime: 10.1)
+            at: 10.1
         )
         XCTAssertEqual(
             state.handleModifierRelease(
@@ -218,15 +218,15 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
             primaryModifier: .option
         )
         var state = ProfileHotkeyTimingState()
-        XCTAssertEqual(
+        assertScheduledReveal(
             state.registerHiddenTrigger(
                 match: match,
                 startedAtUptime: 110,
                 isRepeat: false
             ),
-            .scheduleReveal(atUptime: 110.1)
+            at: 110.1
         )
-        XCTAssertEqual(
+        assertScheduledReveal(
             state.registerHiddenTrigger(
                 match: ShortcutProfileMatch(
                     profileID: match.profileID,
@@ -237,10 +237,33 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
                 startedAtUptime: 110.05,
                 isRepeat: false
             ),
-            .scheduleReveal(atUptime: 110.15)
+            at: 110.15
         )
         XCTAssertEqual(state.pendingTrigger?.startedAtUptime, 110.05)
         XCTAssertEqual(state.pendingMatch?.reverse, true)
+    }
+
+    private func assertScheduledReveal(
+        _ action: ProfileHotkeyTimingAction?,
+        at expected: TimeInterval,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case let .scheduleReveal(atUptime)? = action else {
+            XCTFail(
+                "Expected a scheduled reveal action",
+                file: file,
+                line: line
+            )
+            return
+        }
+        XCTAssertEqual(
+            atUptime,
+            expected,
+            accuracy: 0.000_001,
+            file: file,
+            line: line
+        )
     }
 
     private func makeMatch(
