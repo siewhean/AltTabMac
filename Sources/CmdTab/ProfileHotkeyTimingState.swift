@@ -10,6 +10,8 @@ struct ShortcutChordTimingState {
     private let maximumLeadInterval: TimeInterval
     private var commandDownAt: TimeInterval?
     private var optionDownAt: TimeInterval?
+    private var commandWasInterrupted = false
+    private var optionWasInterrupted = false
 
     init(
         maximumLeadInterval: TimeInterval = Self.defaultMaximumLeadInterval
@@ -25,8 +27,23 @@ struct ShortcutChordTimingState {
         switch modifier {
         case .command:
             commandDownAt = isDown ? uptime : nil
+            commandWasInterrupted = false
         case .option:
             optionDownAt = isDown ? uptime : nil
+            optionWasInterrupted = false
+        }
+    }
+
+    /// Any ordinary key pressed while Command or Option is held contaminates that
+    /// modifier gesture. This is the critical pass-through rule for sequences such
+    /// as Command-Tab followed by Command-V: Paste must never complete a stale
+    /// switcher trigger when the modifier is released.
+    mutating func noteInterveningKeyDown() {
+        if commandDownAt != nil {
+            commandWasInterrupted = true
+        }
+        if optionDownAt != nil {
+            optionWasInterrupted = true
         }
     }
 
@@ -36,13 +53,16 @@ struct ShortcutChordTimingState {
     ) -> Bool {
         guard let primaryModifier else { return true }
         let modifierDownAt: TimeInterval?
+        let wasInterrupted: Bool
         switch primaryModifier {
         case .command:
             modifierDownAt = commandDownAt
+            wasInterrupted = commandWasInterrupted
         case .option:
             modifierDownAt = optionDownAt
+            wasInterrupted = optionWasInterrupted
         }
-        guard let modifierDownAt else { return false }
+        guard let modifierDownAt, !wasInterrupted else { return false }
         let lead = uptime - modifierDownAt
         return lead >= 0 && lead <= maximumLeadInterval
     }
@@ -50,6 +70,8 @@ struct ShortcutChordTimingState {
     mutating func reset() {
         commandDownAt = nil
         optionDownAt = nil
+        commandWasInterrupted = false
+        optionWasInterrupted = false
     }
 }
 
