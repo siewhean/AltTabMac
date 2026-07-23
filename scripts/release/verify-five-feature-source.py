@@ -15,6 +15,7 @@ REQUIRED_FILES = [
     ROOT / "Sources" / "CmdTab" / "AXWindowCatalog.swift",
     ROOT / "Sources" / "CmdTab" / "WindowWorkspaceProvider.swift",
     ROOT / "Sources" / "CmdTab" / "SwitcherProfiles.swift",
+    ROOT / "Sources" / "CmdTab" / "SwitcherSessionConfigurationFreeze.swift",
     ROOT / "Sources" / "CmdTab" / "DurableSwitcherHistory.swift",
     ROOT / "Sources" / "CmdTab" / "WindowManagementActions.swift",
     ROOT / "Sources" / "CmdTab" / "ProductionAppSwitcher.swift",
@@ -26,16 +27,20 @@ REQUIRED_FILES = [
     ROOT / "Sources" / "CmdTab" / "ScreenTopologyObserver.swift",
     ROOT / "Sources" / "CmdTab" / "SecureInputMonitor.swift",
     ROOT / "Sources" / "CmdTab" / "SwitcherProfilePreferences.swift",
+    ROOT / "Sources" / "CmdTab" / "HotkeyModifier+Sendable.swift",
     ROOT / "Tests" / "CmdTabTests" / "MinimizedWindowPolicyTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "WorkspaceProviderModelTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "SwitcherProfileTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "SwitcherProfileSafetyTests.swift",
+    ROOT / "Tests" / "CmdTabTests" / "SwitcherSessionConfigurationFreezeTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "DurableSwitcherHistoryTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "WindowManagementActionTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "FiveFeatureIntegrationTests.swift",
     ROOT / "Tests" / "CmdTabTests" / "ProductionMembershipPolicyTests.swift",
     ROOT / "Tests" / "Fixtures" / "WindowLab" / "main.swift",
+    ROOT / "Tests" / "Fixtures" / "WindowProbe" / "main.swift",
     ROOT / "scripts" / "release" / "build-windowlab-fixture.sh",
+    ROOT / "scripts" / "release" / "build-windowprobe-fixture.sh",
     ROOT / "scripts" / "release" / "run-five-feature-qa.sh",
 ]
 
@@ -63,6 +68,7 @@ def reject(text: str, literal: str, label: str) -> None:
 def verify_shell_syntax() -> None:
     scripts = [
         ROOT / "scripts" / "release" / "build-windowlab-fixture.sh",
+        ROOT / "scripts" / "release" / "build-windowprobe-fixture.sh",
         ROOT / "scripts" / "release" / "run-five-feature-qa.sh",
     ]
     for path in scripts:
@@ -129,6 +135,7 @@ def main() -> None:
         "hotkeyManager = ProfileHotkeyManager(switcher: switcher)",
         "ScreenTopologyObserver",
         "requestRequiredPermissionsIfNeeded",
+        "beginDefaultConfigurationFreeze",
     ):
         require(app_delegate, literal, "AppDelegate")
     reject(app_delegate, "switcher = SwitcherWindowController()", "AppDelegate")
@@ -166,6 +173,7 @@ def main() -> None:
         "SwitcherSessionConfiguration",
         "SwitcherProfileValidator",
         "duplicateShortcut",
+        "invalidFilter",
         "SwitcherProfileDocument",
         "currentSchemaVersion",
         "exportDocument",
@@ -174,8 +182,22 @@ def main() -> None:
         "pressToToggle",
         "holdPrimaryModifier",
         "noEnabledProfiles",
+        "SwitcherSessionConfigurationFreeze.shared.resolve",
+        "looksLikeBundleIdentifier",
     ):
         require(profiles, literal, "SwitcherProfiles")
+
+    freeze = read(
+        ROOT / "Sources" / "CmdTab" / "SwitcherSessionConfigurationFreeze.swift"
+    )
+    for literal in (
+        "preserveExisting",
+        "frozenConfiguration",
+        "resolve(",
+        "func end()",
+        "NSLock",
+    ):
+        require(freeze, literal, "SwitcherSessionConfigurationFreeze")
 
     hotkeys = read(ROOT / "Sources" / "CmdTab" / "ProfileHotkeyManager.swift")
     for literal in (
@@ -183,6 +205,8 @@ def main() -> None:
         "ShortcutRecordingState.shared.isRecording",
         "SecureInputMonitor.isEnabled",
         "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+        "configurationFreeze.begin",
+        "configurationFreeze.end",
         "tapDisabledByTimeout",
         "scheduleInstallRetry",
         "dispatchToMain",
@@ -298,6 +322,7 @@ def main() -> None:
     topology = read(ROOT / "Sources" / "CmdTab" / "ScreenTopologyObserver.swift")
     require(topology, "didChangeScreenParametersNotification", "ScreenTopologyObserver")
     require(topology, "didWakeNotification", "ScreenTopologyObserver")
+    require(topology, "Observation(center:", "ScreenTopologyObserver")
 
     profile_ui = read(
         ROOT / "Sources" / "CmdTab" / "SwitcherProfilePreferences.swift"
@@ -323,9 +348,21 @@ def main() -> None:
     )
     require(observer, "startPermissionRetryIfNeeded", "FocusedWindowHistoryObserver")
 
+    probe = read(ROOT / "Tests" / "Fixtures" / "WindowProbe" / "main.swift")
+    for literal in (
+        "focusedWindowID",
+        "mainWindowID",
+        "_AXUIElementGetWindow",
+        "accessibilityTrusted",
+        "isFrontmostProcess",
+    ):
+        require(probe, literal, "WindowProbe")
+
     qa = read(ROOT / "scripts" / "release" / "run-five-feature-qa.sh")
     require(qa, "build-windowlab-fixture.sh", "run-five-feature-qa.sh")
+    require(qa, "build-windowprobe-fixture.sh", "run-five-feature-qa.sh")
     require(qa, "ProductionMembershipPolicyTests", "run-five-feature-qa.sh")
+    require(qa, "SwitcherSessionConfigurationFreezeTests", "run-five-feature-qa.sh")
     require(qa, "AUTOMATED_PASS", "run-five-feature-qa.sh")
 
     entitlements_paths = [
