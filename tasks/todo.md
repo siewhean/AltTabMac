@@ -11,9 +11,9 @@
 - [x] Prevent AppKit restoration and content fitting from leaking prior minimized state or collapsed geometry into later fixture scenarios.
 - [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
 - [x] Commit and push the hardened branch without merging PR #35.
-- [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean HEAD.
-- [ ] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
-- [ ] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence.
+- [x] Rerun source, tests, package, reproducibility, and finalization from the new exact clean HEAD.
+- [x] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
+- [x] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence.
 
 ### Review
 
