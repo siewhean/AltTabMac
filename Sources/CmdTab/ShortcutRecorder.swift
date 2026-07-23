@@ -60,7 +60,7 @@ private final class ShortcutCaptureNSView: NSView {
     }
 
     override var acceptsFirstResponder: Bool { true }
-    override var isAccessibilityElement: Bool { true }
+    override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .button }
     override func accessibilityLabel() -> String? { "Record shortcut" }
     override func accessibilityValue() -> Any? {
