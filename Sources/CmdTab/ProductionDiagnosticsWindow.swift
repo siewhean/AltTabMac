@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 
 final class ProductionDiagnosticsWindowController: NSWindowController {
