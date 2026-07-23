@@ -1,11 +1,149 @@
 import Foundation
 
+/// A hidden shortcut is accepted only when its primary modifier and key arrive as
+/// one deliberate chord. Holding Command or Option first and pressing the key
+/// later is swallowed without switching, which prevents accidental activations
+/// and native-switcher bleed-through.
+struct ShortcutChordTimingState {
+    static let defaultMaximumLeadInterval: TimeInterval = 0.16
+
+    private let maximumLeadInterval: TimeInterval
+    private var commandDownAt: TimeInterval?
+    private var optionDownAt: TimeInterval?
+
+    init(
+        maximumLeadInterval: TimeInterval = Self.defaultMaximumLeadInterval
+    ) {
+        self.maximumLeadInterval = maximumLeadInterval
+    }
+
+    mutating func noteModifierChange(
+        _ modifier: HotkeyModifier,
+        isDown: Bool,
+        at uptime: TimeInterval
+    ) {
+        switch modifier {
+        case .command:
+            commandDownAt = isDown ? uptime : nil
+        case .option:
+            optionDownAt = isDown ? uptime : nil
+        }
+    }
+
+    func accepts(
+        primaryModifier: HotkeyModifier?,
+        keyDownAt uptime: TimeInterval
+    ) -> Bool {
+        guard let primaryModifier else { return true }
+        let modifierDownAt: TimeInterval?
+        switch primaryModifier {
+        case .command:
+            modifierDownAt = commandDownAt
+        case .option:
+            modifierDownAt = optionDownAt
+        }
+        guard let modifierDownAt else { return false }
+        let lead = uptime - modifierDownAt
+        return lead >= 0 && lead <= maximumLeadInterval
+    }
+
+    mutating func reset() {
+        commandDownAt = nil
+        optionDownAt = nil
+    }
+}
+
+/// Physical modifier chords used by Hot Swap must also be pressed together. The
+/// state records real key-down timestamps rather than merely checking whether both
+/// modifiers happen to be held at the same time.
+struct PhysicalModifierChordTimingState {
+    static let defaultMaximumSeparation: TimeInterval = 0.16
+
+    private let maximumSeparation: TimeInterval
+    private var leftCommandDownAt: TimeInterval?
+    private var rightCommandDownAt: TimeInterval?
+    private var leftOptionDownAt: TimeInterval?
+    private var rightOptionDownAt: TimeInterval?
+
+    init(
+        maximumSeparation: TimeInterval = Self.defaultMaximumSeparation
+    ) {
+        self.maximumSeparation = maximumSeparation
+    }
+
+    mutating func noteModifierChange(
+        _ key: PhysicalModifierTriggerKey,
+        isDown: Bool,
+        at uptime: TimeInterval
+    ) {
+        switch key {
+        case .leftCommand:
+            leftCommandDownAt = isDown ? uptime : nil
+        case .rightCommand:
+            rightCommandDownAt = isDown ? uptime : nil
+        case .leftOption:
+            leftOptionDownAt = isDown ? uptime : nil
+        case .rightOption:
+            rightOptionDownAt = isDown ? uptime : nil
+        }
+    }
+
+    func accepts(keys: [PhysicalModifierTriggerKey]) -> Bool {
+        let times = keys.compactMap(downAt)
+        guard times.count == keys.count,
+              let earliest = times.min(),
+              let latest = times.max() else {
+            return false
+        }
+        return latest - earliest <= maximumSeparation
+    }
+
+    mutating func reset() {
+        leftCommandDownAt = nil
+        rightCommandDownAt = nil
+        leftOptionDownAt = nil
+        rightOptionDownAt = nil
+    }
+
+    private func downAt(
+        for key: PhysicalModifierTriggerKey
+    ) -> TimeInterval? {
+        switch key {
+        case .leftCommand:
+            return leftCommandDownAt
+        case .rightCommand:
+            return rightCommandDownAt
+        case .leftOption:
+            return leftOptionDownAt
+        case .rightOption:
+            return rightOptionDownAt
+        }
+    }
+}
+
+extension AlternateTriggerMode {
+    var simultaneousChordKeys: [PhysicalModifierTriggerKey]? {
+        switch self {
+        case .leftOptionDoubleTap:
+            return [.leftCommand, .leftOption]
+        case .rightOptionDoubleTap:
+            return [.rightCommand, .rightOption]
+        case .disabled,
+             .rightCommandTap,
+             .rightCommandDoubleTap,
+             .rightOptionTap,
+             .leftCommandDoubleTap:
+            return nil
+        }
+    }
+}
+
 /// Production timing policy for profile-backed hold-to-release shortcuts.
 ///
-/// CmdTab's accepted interaction contract is a 100 ms hold threshold: a quick
-/// release commits without constructing the overlay, while a held modifier
-/// reveals the switcher. Command locks the first trigger timestamp so key repeat
-/// cannot stretch the deadline; Option preserves the legacy rescheduling path.
+/// CmdTab waits 200 ms before showing the overlay. A deliberate quick chord can
+/// therefore switch without flashing UI, while a held modifier still reveals the
+/// switcher. Command locks the first trigger timestamp so key repeat cannot stretch
+/// the deadline; Option preserves the legacy rescheduling path.
 struct ProfileHotkeyTimingPolicy: Equatable {
     let revealDelay: TimeInterval
     let ignoresRepeatedTriggerBeforeReveal: Bool
@@ -15,13 +153,13 @@ struct ProfileHotkeyTimingPolicy: Equatable {
         switch modifier {
         case .command:
             return Self(
-                revealDelay: 0.10,
+                revealDelay: 0.20,
                 ignoresRepeatedTriggerBeforeReveal: true,
                 earlyReleaseAction: .quickSwitch
             )
         case .option:
             return Self(
-                revealDelay: 0.10,
+                revealDelay: 0.20,
                 ignoresRepeatedTriggerBeforeReveal: false,
                 earlyReleaseAction: .quickSwitch
             )
@@ -51,7 +189,7 @@ struct PendingProfileHotkeyTrigger: Equatable {
             // Command or Option primary modifier. Keep a fail-closed policy here
             // as a second line of defence for corrupt persisted data.
             policy = ProfileHotkeyTimingPolicy(
-                revealDelay: 0.10,
+                revealDelay: 0.20,
                 ignoresRepeatedTriggerBeforeReveal: true,
                 earlyReleaseAction: .none
             )
@@ -179,7 +317,7 @@ struct ProfileHotkeyTimingState {
 
 /// Backward-compatible adapter retained for the original focused profile safety
 /// tests. Production routing uses `ProfileHotkeyTimingState`, whose explicit
-/// 100 ms policy is tested independently below.
+/// hold policy is tested independently above.
 struct ProfileHotkeyTriggerCoordinator {
     private var state = HotkeyTriggerState()
     private(set) var pendingMatch: ShortcutProfileMatch?
