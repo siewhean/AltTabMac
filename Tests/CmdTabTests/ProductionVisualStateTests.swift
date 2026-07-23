@@ -29,10 +29,11 @@ final class ProductionVisualStateTests: XCTestCase {
             )
         )
 
-        XCTAssertEqual(
-            ProductionCapabilitySummary.worstStatus(in: [available, degraded, failed]),
-            .failed("failed fixture")
+        let result = ProductionCapabilitySummary.worstStatus(
+            in: [available, degraded, failed]
         )
+        XCTAssertEqual(result.level, .failed)
+        XCTAssertTrue(result.reason?.contains("failed fixture") == true)
     }
 
     func testMissingWorkspaceMetadataIsReportedAsUnavailable() {
