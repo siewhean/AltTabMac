@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import CmdTab
 
@@ -136,6 +137,50 @@ final class ProductionMembershipPolicyTests: XCTestCase {
                 globalIncludesMinimized: true
             ).isEmpty
         )
+
+        // Arc and Telegram can intermittently return no GPU-backed capture. The
+        // exact preview key may reuse the last local image, but a different window
+        // key must never inherit it.
+        SwitcherPreviewContinuityStore.resetForTesting()
+        let image = NSImage(size: NSSize(width: 80, height: 60))
+        let previewIdentity = SwitcherHistoryIdentity.appWindow(
+            pid: 77,
+            windowID: 700
+        )
+        _ = SwitcherItem(
+            title: "GPU Window",
+            subtitle: "com.example.GPU",
+            icon: nil,
+            previewImage: image,
+            backdropImage: image,
+            previewCacheKey: "exact-gpu-window-v1",
+            historyIdentity: previewIdentity,
+            sourceAppIdentifier: "com.example.GPU"
+        ) {}
+        let transientMiss = SwitcherItem(
+            title: "GPU Window",
+            subtitle: "com.example.GPU",
+            icon: nil,
+            previewImage: nil,
+            backdropImage: nil,
+            previewCacheKey: "exact-gpu-window-v1",
+            historyIdentity: previewIdentity,
+            sourceAppIdentifier: "com.example.GPU"
+        ) {}
+        XCTAssertTrue(transientMiss.previewImage === image)
+        XCTAssertTrue(transientMiss.backdropImage === image)
+
+        let differentWindow = SwitcherItem(
+            title: "Other GPU Window",
+            subtitle: "com.example.GPU",
+            icon: nil,
+            previewImage: nil,
+            previewCacheKey: "exact-gpu-window-v2",
+            historyIdentity: .appWindow(pid: 77, windowID: 701),
+            sourceAppIdentifier: "com.example.GPU"
+        ) {}
+        XCTAssertNil(differentWindow.previewImage)
+        SwitcherPreviewContinuityStore.resetForTesting()
     }
 
     private func configuration(
