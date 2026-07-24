@@ -1,28 +1,45 @@
 import Foundation
 
-/// Production Hot Swap accepts only a side-matched Command+Option chord.
+/// Production Hot Swap supports two deliberate gesture families:
 ///
-/// Earlier builds exposed modifier-only single- and double-tap modes. Those modes
-/// are retained in `AlternateTriggerMode` solely so existing preferences continue
-/// to decode, but they are normalized to `.disabled` and can never activate a
-/// switch. This fail-closed policy prevents two Command taps separated by any
-/// amount of time from unexpectedly changing windows.
+/// - a same-side Command double tap completed within 250 ms; and
+/// - a same-side Command+Option chord whose key-downs arrive within 160 ms.
+///
+/// Modifier-only single taps remain legacy decode-only values and normalize to
+/// `.disabled`, so pressing Option once can never switch windows.
 extension AlternateTriggerMode {
     static let productionHotSwapModes: [AlternateTriggerMode] = [
         .disabled,
+        .leftCommandDoubleTap,
+        .rightCommandDoubleTap,
         .leftOptionDoubleTap,
         .rightOptionDoubleTap,
     ]
 
     var productionSafeMode: AlternateTriggerMode {
         switch self {
-        case .disabled, .leftOptionDoubleTap, .rightOptionDoubleTap:
+        case .disabled,
+             .leftCommandDoubleTap,
+             .rightCommandDoubleTap,
+             .leftOptionDoubleTap,
+             .rightOptionDoubleTap:
             return self
         case .rightCommandTap,
-             .rightCommandDoubleTap,
-             .rightOptionTap,
-             .leftCommandDoubleTap:
+             .rightOptionTap:
             return .disabled
+        }
+    }
+
+    var isProductionImmediateDoubleTap: Bool {
+        switch productionSafeMode {
+        case .leftCommandDoubleTap, .rightCommandDoubleTap:
+            return true
+        case .disabled,
+             .rightCommandTap,
+             .rightOptionTap,
+             .leftOptionDoubleTap,
+             .rightOptionDoubleTap:
+            return false
         }
     }
 
