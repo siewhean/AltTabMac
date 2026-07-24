@@ -6,8 +6,8 @@ This document turns observed tester feedback into explicit acceptance criteria. 
 
 - A deliberate Command-Tab or Option-Tab chord must be accepted when the primary modifier and Tab key-down arrive within 160 ms.
 - Holding Command or Option first and pressing Tab later must be swallowed without switching and without allowing Apple’s native switcher to appear.
-- Optional Hot Swap accepts only a side-matched Command-plus-Option chord with no more than 160 ms between the two modifier key-downs.
-- Modifier-only single-tap and double-tap Hot Swap modes are retired. Existing stored values migrate to **Standard Only**, and two Command taps must never switch windows—whether they are separated by milliseconds, two seconds, or longer.
+- Optional Hot Swap accepts either a same-side Command double tap completed within 250 ms or a side-matched Command-plus-Option chord with no more than 160 ms between the two modifier key-downs.
+- A single Command press and a single Option press must do nothing. Two Command taps whose release-to-release gap exceeds 250 ms must do nothing, including the reported sequence with a delay of several seconds.
 - A quick accepted Command-Tab or Option-Tab chord released before 200 ms must commit without showing or flashing the CmdTab overlay.
 - Holding the primary modifier for 200 ms reveals the overlay; subsequent Tab presses cycle while it is visible.
 - Shift-Command-Tab and Shift-Option-Tab are the reverse shortcuts. Arrow keys remain available while the overlay is visible.
@@ -35,8 +35,8 @@ This document turns observed tester feedback into explicit acceptance criteria. 
 ## Required evidence
 
 - Record a screen observation for quick release, held reveal, delayed chord rejection, reverse cycling, and native-switcher isolation.
-- Set Hot Swap to **Standard Only** and press the same Command key twice with a two-second delay. Nothing may switch. Repeat with quick double taps; nothing may switch.
-- Enable Left Command + Left Option Hot Swap and verify that the two keys activate only when pressed together inside the 160 ms chord window. Repeat for the right-side pair.
+- Select Left or Right Command Double Tap. Two short taps completed within 250 ms must Hot Swap; a single tap, a gap just above 250 ms, and a delay of two seconds or more must not switch.
+- Enable Left Command + Left Option Hot Swap. Option alone and Command alone must do nothing. The pair may activate only when both same-side keys arrive inside the 160 ms chord window. Repeat for the right-side pair.
 - Record the before/after focused `CGWindowID` for a valid quick switch and the minimized A2 restoration row.
 - Immediately after a successful quick switch, use Command-V in a text field. Record that paste succeeds, the focused PID and `CGWindowID` remain unchanged, and no overlay appears.
 - Repeat the pass-through check with at least Command-C and Command-Z; neither may create or commit a switcher session.
