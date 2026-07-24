@@ -157,6 +157,12 @@ enum ReliableWindowPreviewRecovery {
             return
         }
 
+        os_log(
+            .info,
+            log: previewRecoveryLog,
+            "Recovered exact-window preview for window %{public}u",
+            windowID
+        )
         DispatchQueue.main.async {
             NotificationCenter.default.post(
                 name: didRecoverPreviewNotification,
