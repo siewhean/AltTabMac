@@ -67,8 +67,10 @@ final class SwitcherPreferences: ObservableObject {
         didSet {
             let safeMode = alternateTrigger.productionSafeMode
             if safeMode != alternateTrigger {
+                // `@Published` observers re-enter when the wrapped property is
+                // normalized. Let that safe inner assignment persist once rather
+                // than sending duplicate preference notifications.
                 alternateTrigger = safeMode
-                persist(safeMode.rawValue, forKey: alternateTriggerKey)
                 return
             }
             persist(alternateTrigger.rawValue, forKey: alternateTriggerKey)
