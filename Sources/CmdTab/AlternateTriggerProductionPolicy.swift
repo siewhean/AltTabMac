@@ -24,8 +24,9 @@ extension AlternateTriggerMode {
              .leftOptionDoubleTap,
              .rightOptionDoubleTap:
             return self
-        case .rightCommandTap,
-             .rightOptionTap:
+        case .rightCommandTap:
+            return .disabled
+        case .rightOptionTap:
             return .disabled
         }
     }
