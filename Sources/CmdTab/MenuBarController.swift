@@ -307,7 +307,7 @@ final class MenuBarController {
 
         Press a profile's modifier and key as one deliberate chord. Holding Command or Option first and pressing Tab later is ignored. Quick release switches without opening the overlay; keep the modifier held to show it. Use Shift with Command-Tab or Option-Tab to cycle in reverse, or use the arrow keys while the overlay is visible.
 
-        Optional Hot Swap requires the left-side or right-side Command and Option keys to be pressed together. Modifier-only single taps and double taps are disabled, so two Command presses can never switch windows.
+        Optional Hot Swap accepts a short same-side Command double tap completed within 250 ms, or a same-side Command+Option chord pressed within 160 ms. One Command or Option press does nothing, and delayed taps or chords are ignored.
 
         Right-click the visible switcher for exact-window restore, fullscreen, display movement, centering, tiling, and force-quit actions.
 
