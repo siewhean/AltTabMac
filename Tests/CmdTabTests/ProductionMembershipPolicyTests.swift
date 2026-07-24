@@ -139,13 +139,14 @@ final class ProductionMembershipPolicyTests: XCTestCase {
         )
 
         // Arc and Telegram can intermittently return no GPU-backed capture. The
-        // exact key may reuse its last local image, and a brief title/frame key
-        // change may fall back by the same exact window identity. Another identity
-        // must never inherit it, and permission denial clears both records.
+        // exact key may reuse its last local image, and a title/frame key change may
+        // fall back by the same process-generation-scoped exact window identity.
+        // Another identity must never inherit it, and stable permission denial
+        // clears both records.
         SwitcherPreviewContinuityStore.resetForTesting()
         let image = NSImage(size: NSSize(width: 80, height: 60))
         let capturedAt = Date(timeIntervalSince1970: 100)
-        let identityKey = "app-window:77:700|com.example.gpu"
+        let identityKey = "app-window:77:700|com.example.gpu|launch-1"
         let captured = SwitcherPreviewContinuityStore.resolve(
             key: "exact-gpu-window-v1",
             identityKey: identityKey,
@@ -177,15 +178,71 @@ final class ProductionMembershipPolicyTests: XCTestCase {
         )
         XCTAssertTrue(metadataChanged.preview === image)
 
+        let longLivedMetadataChange = SwitcherPreviewContinuityStore.resolve(
+            key: "exact-gpu-window-v3",
+            identityKey: identityKey,
+            preview: nil,
+            backdrop: nil,
+            captureAccessAllowed: true,
+            now: Date(timeIntervalSince1970: 699)
+        )
+        XCTAssertTrue(
+            longLivedMetadataChange.preview === image,
+            "The same process generation and CGWindowID should survive prolonged title/frame churn."
+        )
+
+        let expiredIdentity = SwitcherPreviewContinuityStore.resolve(
+            key: "exact-gpu-window-v4",
+            identityKey: identityKey,
+            preview: nil,
+            backdrop: nil,
+            captureAccessAllowed: true,
+            now: Date(timeIntervalSince1970: 701)
+        )
+        XCTAssertNil(expiredIdentity.preview)
+
         let differentWindow = SwitcherPreviewContinuityStore.resolve(
             key: "exact-gpu-window-v2",
-            identityKey: "app-window:77:701|com.example.gpu",
+            identityKey: "app-window:77:701|com.example.gpu|launch-1",
             preview: nil,
             backdrop: nil,
             captureAccessAllowed: true,
             now: Date(timeIntervalSince1970: 105)
         )
         XCTAssertNil(differentWindow.preview)
+
+        SwitcherPreviewPermissionState.resetForTesting()
+        let denialStart = Date(timeIntervalSince1970: 800)
+        XCTAssertTrue(
+            SwitcherPreviewPermissionState.effectiveAccess(
+                hasCurrentCapture: false,
+                preflightGranted: false,
+                now: denialStart
+            ),
+            "One transient false TCC preflight must not erase stable previews."
+        )
+        XCTAssertTrue(
+            SwitcherPreviewPermissionState.effectiveAccess(
+                hasCurrentCapture: false,
+                preflightGranted: false,
+                now: Date(timeIntervalSince1970: 800.5)
+            )
+        )
+        XCTAssertFalse(
+            SwitcherPreviewPermissionState.effectiveAccess(
+                hasCurrentCapture: false,
+                preflightGranted: false,
+                now: Date(timeIntervalSince1970: 801.1)
+            ),
+            "Sustained permission denial must still clear protected content."
+        )
+        XCTAssertTrue(
+            SwitcherPreviewPermissionState.effectiveAccess(
+                hasCurrentCapture: false,
+                preflightGranted: true,
+                now: Date(timeIntervalSince1970: 801.2)
+            )
+        )
 
         let denied = SwitcherPreviewContinuityStore.resolve(
             key: "exact-gpu-window-v1",
