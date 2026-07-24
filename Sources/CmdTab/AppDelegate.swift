@@ -62,6 +62,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: SwitcherPreferences.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRecoveredWindowPreview(_:)),
+            name: ReliableWindowPreviewRecovery.didRecoverPreviewNotification,
+            object: nil
+        )
 
         focusedWindowHistoryObserver = FocusedWindowHistoryObserver()
         screenTopologyObserver = ScreenTopologyObserver { [weak self] in
@@ -131,12 +137,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
     }
 
+    @objc private func handleRecoveredWindowPreview(_ notification: Notification) {
+        // A deferred ScreenCaptureKit image was added to the exact in-memory
+        // continuity store. Refresh the current base/enriched snapshot so a visible
+        // Arc or Telegram tile can replace its placeholder without another trigger.
+        switcher?.refreshPreviewCache()
+    }
+
     func requestTermination() {
         shouldAllowTermination = true
         NSApp.terminate(nil)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NotificationCenter.default.removeObserver(self)
         SwitcherSessionConfigurationFreeze.shared.end()
         screenTopologyObserver = nil
         focusedWindowHistoryObserver = nil
