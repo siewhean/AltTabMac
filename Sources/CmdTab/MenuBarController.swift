@@ -217,13 +217,7 @@ final class MenuBarController {
     }
 
     private var hotSwapShortcutModes: [AlternateTriggerMode] {
-        [
-            .disabled,
-            .leftCommandDoubleTap,
-            .rightCommandDoubleTap,
-            .leftOptionDoubleTap,
-            .rightOptionDoubleTap,
-        ]
+        AlternateTriggerMode.productionHotSwapModes
     }
 
     @objc private func setWindowVisibilityScope(_ sender: NSMenuItem) {
@@ -247,7 +241,7 @@ final class MenuBarController {
               let trigger = AlternateTriggerMode(rawValue: rawValue) else {
             return
         }
-        preferences.alternateTrigger = trigger
+        preferences.alternateTrigger = trigger.productionSafeMode
     }
 
     @objc private func toggleIncludeMinimizedWindows() {
@@ -312,6 +306,8 @@ final class MenuBarController {
         Click the menu-bar item to edit profiles, show or hide minimized windows, and change visibility or display scope.
 
         Press a profile's modifier and key as one deliberate chord. Holding Command or Option first and pressing Tab later is ignored. Quick release switches without opening the overlay; keep the modifier held to show it. Use Shift with Command-Tab or Option-Tab to cycle in reverse, or use the arrow keys while the overlay is visible.
+
+        Optional Hot Swap requires the left-side or right-side Command and Option keys to be pressed together. Modifier-only single taps and double taps are disabled, so two Command presses can never switch windows.
 
         Right-click the visible switcher for exact-window restore, fullscreen, display movement, centering, tiling, and force-quit actions.
 
