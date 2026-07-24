@@ -1,6 +1,6 @@
 import AppKit
 import CoreGraphics
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 import os.log
 
 private let previewRecoveryLog = OSLog(
@@ -89,7 +89,7 @@ enum ReliableWindowPreviewRecovery {
                 configuration: configuration
             ) { image, _ in
                 finish(
-                    image: image.flatMap(usableImage),
+                    image: image.flatMap { usableImage($0) },
                     exactKey: exactKey,
                     identityKey: identityKey,
                     windowID: windowID
@@ -115,7 +115,10 @@ enum ReliableWindowPreviewRecovery {
             SwitcherPreviewPermissionState.noteSuccessfulCapture()
             let preview = NSImage(
                 cgImage: image,
-                size: NSSize(width: image.width, height: image.height)
+                size: NSSize(
+                    width: CGFloat(image.width),
+                    height: CGFloat(image.height)
+                )
             )
             _ = SwitcherPreviewContinuityStore.resolve(
                 key: exactKey,
