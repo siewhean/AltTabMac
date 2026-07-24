@@ -74,13 +74,20 @@ enum ReliableWindowPreviewRecovery {
 
             let filter = SCContentFilter(desktopIndependentWindow: window)
             let configuration = SCStreamConfiguration()
+            let scale = max(1, CGFloat(filter.pointPixelScale))
             configuration.width = max(
                 80,
-                min(maximumDimension, Int(window.frame.width.rounded(.up)))
+                min(
+                    maximumDimension,
+                    Int((window.frame.width * scale).rounded(.up))
+                )
             )
             configuration.height = max(
                 60,
-                min(maximumDimension, Int(window.frame.height.rounded(.up)))
+                min(
+                    maximumDimension,
+                    Int((window.frame.height * scale).rounded(.up))
+                )
             )
             configuration.showsCursor = false
 
@@ -160,39 +167,11 @@ enum ReliableWindowPreviewRecovery {
     }
 
     private static func usableImage(_ image: CGImage) -> CGImage? {
-        guard image.width >= 40, image.height >= 30,
-              let provider = image.dataProvider,
-              let data = provider.data else {
+        guard image.width >= 40, image.height >= 30 else { return nil }
+        let prepared = AppSwitcher.presentationPreparedWindowCapture(image)
+        guard AppSwitcher.isPresentationUsefulWindowCapture(prepared) else {
             return nil
         }
-
-        let bytesPerPixel = image.bitsPerPixel / 8
-        guard bytesPerPixel >= 4 else { return image }
-        let pointer = CFDataGetBytePtr(data)!
-        let length = CFDataGetLength(data)
-        let bytesPerRow = image.bytesPerRow
-        var visibleSamples = 0
-
-        for row in 1...3 {
-            for column in 1...3 {
-                let x = min(image.width - 1, column * image.width / 4)
-                let y = min(image.height - 1, row * image.height / 4)
-                let base = y * bytesPerRow + x * bytesPerPixel
-                let alphaIndex: Int
-                switch image.alphaInfo {
-                case .premultipliedFirst, .first, .noneSkipFirst:
-                    alphaIndex = base
-                default:
-                    alphaIndex = base + bytesPerPixel - 1
-                }
-                if alphaIndex >= 0,
-                   alphaIndex < length,
-                   pointer[alphaIndex] > 10 {
-                    visibleSamples += 1
-                }
-            }
-        }
-
-        return visibleSamples >= 2 ? image : nil
+        return prepared
     }
 }
