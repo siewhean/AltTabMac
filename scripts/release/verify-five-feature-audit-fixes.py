@@ -108,15 +108,44 @@ def main() -> None:
         "ProfileHotkeyManager.swift",
     )
 
+    state_models = read("Sources/CmdTab/HotkeyStateModels.swift")
+    for literal in (
+        "struct AlternateModifierTriggerState",
+        "maximumDoubleTapGap: TimeInterval = 0.25",
+        "pressedKeys",
+        "mode.productionSafeMode",
+        "gap <= Self.maximumDoubleTapGap",
+        "Option alone",
+        "pressedKeys == monitoredKeys",
+        "struct HotkeyTriggerState",
+    ):
+        require(state_models, literal, "HotkeyStateModels.swift")
+    reject(
+        state_models,
+        "maximumDoubleTapGap: TimeInterval = 1.0",
+        "HotkeyStateModels.swift",
+    )
+
+    package = read("Package.swift")
+    for literal in (
+        'exclude: [',
+        '"HotkeyManager.swift"',
+        "ProfileHotkeyManager",
+    ):
+        require(package, literal, "Package.swift")
+
     hot_swap_policy = read("Sources/CmdTab/AlternateTriggerProductionPolicy.swift")
     for literal in (
         "productionHotSwapModes",
+        ".leftCommandDoubleTap",
+        ".rightCommandDoubleTap",
         ".leftOptionDoubleTap",
         ".rightOptionDoubleTap",
         "productionSafeMode",
         "case .rightCommandTap",
-        "case .rightCommandDoubleTap",
+        "case .rightOptionTap",
         "return .disabled",
+        "isProductionImmediateDoubleTap",
         "isProductionSimultaneousChord",
     ):
         require(hot_swap_policy, literal, "AlternateTriggerProductionPolicy.swift")
@@ -205,11 +234,16 @@ def main() -> None:
         "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
         "Press a profile's modifier and key as one deliberate chord",
         "AlternateTriggerMode.productionHotSwapModes",
-        "Modifier-only single taps and double taps are disabled",
+        "Command double tap completed within 250 ms",
+        "One Command or Option press does nothing",
         "menu.popUp(",
     ):
         require(menu, literal, "MenuBarController.swift")
-    reject(menu, ".leftCommandDoubleTap,\n            .rightCommandDoubleTap", "MenuBarController.swift")
+    reject(
+        menu,
+        "Modifier-only single taps and double taps are disabled",
+        "MenuBarController.swift",
+    )
 
     feedback = read(
         "docs/release/evidence/five-feature-suite/manual-feedback-regressions.md"
@@ -217,13 +251,15 @@ def main() -> None:
     for literal in (
         "160 ms",
         "200 ms",
+        "250 ms",
+        "Option alone",
+        "two seconds",
         "Show Minimized Windows",
         "Arc and Telegram",
         "focused `CGWindowID`",
         "Command-V",
         "must not switch back",
         "stale release owner",
-        "two Command taps",
         "ScreenCaptureKit",
         "600 seconds",
     ):
@@ -287,10 +323,12 @@ def main() -> None:
             "A fresh deliberate Command-Tab chord must work",
         ),
         "Tests/CmdTabTests/ProductionHotSwapPolicyTests.swift": (
-            "testProductionModesExposeOnlySimultaneousSideMatchedChords",
-            "testLegacyModifierOnlyModesMigrateToStandardOnly",
-            "testTwoCommandTapsCannotActivateAfterProductionNormalization",
-            "two-second delay",
+            "testProductionModesExposeImmediateCommandDoubleTapsAndSideMatchedChords",
+            "testOnlyLegacySingleTapModesMigrateToStandardOnly",
+            "testImmediateDoubleCommandAcceptedButDelayedAndOptionAloneRejected",
+            "A two-second delay must never activate Hot Swap",
+            "Option alone must not activate",
+            "above 250 ms must be rejected",
         ),
         "Tests/CmdTabTests/SwitcherProfileSafetyTests.swift": (
             "ProfileHotkeyTriggerCoordinator",
@@ -336,6 +374,7 @@ def main() -> None:
     for relative in (
         "Sources/CmdTab/ProfileHotkeyTimingState.swift",
         "Sources/CmdTab/ProfileHotkeyManager.swift",
+        "Sources/CmdTab/HotkeyStateModels.swift",
         "Sources/CmdTab/AlternateTriggerProductionPolicy.swift",
         "Sources/CmdTab/SwitcherPreferences.swift",
         "Sources/CmdTab/ProductionAppSwitcher.swift",
