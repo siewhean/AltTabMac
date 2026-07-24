@@ -108,6 +108,29 @@ def main() -> None:
         "ProfileHotkeyManager.swift",
     )
 
+    hot_swap_policy = read("Sources/CmdTab/AlternateTriggerProductionPolicy.swift")
+    for literal in (
+        "productionHotSwapModes",
+        ".leftOptionDoubleTap",
+        ".rightOptionDoubleTap",
+        "productionSafeMode",
+        "case .rightCommandTap",
+        "case .rightCommandDoubleTap",
+        "return .disabled",
+        "isProductionSimultaneousChord",
+    ):
+        require(hot_swap_policy, literal, "AlternateTriggerProductionPolicy.swift")
+
+    preferences = read("Sources/CmdTab/SwitcherPreferences.swift")
+    for literal in (
+        "storedAlternateTrigger",
+        "safeAlternateTrigger",
+        "storedAlternateTrigger.productionSafeMode",
+        "alternateTrigger = safeMode",
+        "defaults.set(safeAlternateTrigger.rawValue",
+    ):
+        require(preferences, literal, "SwitcherPreferences.swift")
+
     switcher = read("Sources/CmdTab/ProductionAppSwitcher.swift")
     for literal in (
         "ProductionEnrichmentGate",
@@ -129,19 +152,45 @@ def main() -> None:
 
     item = read("Sources/CmdTab/SwitcherItem.swift")
     for literal in (
+        "SwitcherPreviewPermissionState",
+        "denialConfirmationInterval: TimeInterval = 1.0",
         "SwitcherPreviewContinuityStore",
         "exactKeyMaximumAge: TimeInterval = 120",
-        "identityMaximumAge: TimeInterval = 15",
+        "identityMaximumAge: TimeInterval = 600",
         "entriesByExactKey",
         "entriesByIdentity",
         "identityKey:",
         "captureAccessAllowed",
         "CGPreflightScreenCaptureAccess",
+        "launchDate",
+        "ReliableWindowPreviewRecovery.schedule",
         "entriesByExactKey.removeValue(forKey: key)",
         "entriesByIdentity.removeValue(forKey: identityKey)",
         "previewCacheKey != nil, kind == .appWindow",
     ):
         require(item, literal, "SwitcherItem.swift")
+    reject(item, "identityMaximumAge: TimeInterval = 15", "SwitcherItem.swift")
+
+    recovery = read("Sources/CmdTab/ReliableWindowPreviewRecovery.swift")
+    for literal in (
+        "@preconcurrency import ScreenCaptureKit",
+        "SCShareableContent.getExcludingDesktopWindows",
+        "SCContentFilter(desktopIndependentWindow:",
+        "SCScreenshotManager.captureImage",
+        "inFlightIdentityKeys",
+        "retryAfterByIdentityKey",
+        "didRecoverPreviewNotification",
+        "SwitcherPreviewContinuityStore.resolve",
+    ):
+        require(recovery, literal, "ReliableWindowPreviewRecovery.swift")
+
+    app_delegate = read("Sources/CmdTab/AppDelegate.swift")
+    for literal in (
+        "ReliableWindowPreviewRecovery.didRecoverPreviewNotification",
+        "handleRecoveredWindowPreview",
+        "switcher?.refreshPreviewCache()",
+    ):
+        require(app_delegate, literal, "AppDelegate.swift")
 
     cycle = read("Sources/CmdTab/SwitcherCycleSession.swift")
     for literal in (
@@ -155,9 +204,12 @@ def main() -> None:
         "Show Minimized Windows",
         "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
         "Press a profile's modifier and key as one deliberate chord",
+        "AlternateTriggerMode.productionHotSwapModes",
+        "Modifier-only single taps and double taps are disabled",
         "menu.popUp(",
     ):
         require(menu, literal, "MenuBarController.swift")
+    reject(menu, ".leftCommandDoubleTap,\n            .rightCommandDoubleTap", "MenuBarController.swift")
 
     feedback = read(
         "docs/release/evidence/five-feature-suite/manual-feedback-regressions.md"
@@ -171,6 +223,9 @@ def main() -> None:
         "Command-V",
         "must not switch back",
         "stale release owner",
+        "two Command taps",
+        "ScreenCaptureKit",
+        "600 seconds",
     ):
         require(feedback, literal, "manual-feedback-regressions.md")
 
@@ -231,6 +286,12 @@ def main() -> None:
             "Command-V or any unrelated key must disarm",
             "A fresh deliberate Command-Tab chord must work",
         ),
+        "Tests/CmdTabTests/ProductionHotSwapPolicyTests.swift": (
+            "testProductionModesExposeOnlySimultaneousSideMatchedChords",
+            "testLegacyModifierOnlyModesMigrateToStandardOnly",
+            "testTwoCommandTapsCannotActivateAfterProductionNormalization",
+            "two-second delay",
+        ),
         "Tests/CmdTabTests/SwitcherProfileSafetyTests.swift": (
             "ProfileHotkeyTriggerCoordinator",
             ".quickSwitch(forward)",
@@ -241,7 +302,9 @@ def main() -> None:
             "ProvisionalSwitcherPolicy.permitsBaseSnapshot",
             "must fail closed",
             "SwitcherPreviewContinuityStore.resolve",
-            "identityKey:",
+            "longLivedMetadataChange",
+            "SwitcherPreviewPermissionState.effectiveAccess",
+            "One transient false TCC preflight",
             "captureAccessAllowed: false",
         ),
         "Tests/CmdTabTests/SwitcherCycleSessionTests.swift": (
@@ -273,8 +336,12 @@ def main() -> None:
     for relative in (
         "Sources/CmdTab/ProfileHotkeyTimingState.swift",
         "Sources/CmdTab/ProfileHotkeyManager.swift",
+        "Sources/CmdTab/AlternateTriggerProductionPolicy.swift",
+        "Sources/CmdTab/SwitcherPreferences.swift",
         "Sources/CmdTab/ProductionAppSwitcher.swift",
         "Sources/CmdTab/SwitcherItem.swift",
+        "Sources/CmdTab/ReliableWindowPreviewRecovery.swift",
+        "Sources/CmdTab/AppDelegate.swift",
         "Sources/CmdTab/SwitcherCycleSession.swift",
         "Sources/CmdTab/MenuBarController.swift",
         "Sources/CmdTab/DurableSwitcherHistory.swift",
@@ -282,6 +349,7 @@ def main() -> None:
         "Sources/CmdTab/ProductionSwitcherVisuals.swift",
         "Sources/CmdTab/ProductionDiagnosticsWindow.swift",
         "Tests/CmdTabTests/ProfileHotkeyTimingTests.swift",
+        "Tests/CmdTabTests/ProductionHotSwapPolicyTests.swift",
         "Tests/CmdTabTests/ProductionMembershipPolicyTests.swift",
         "Tests/CmdTabTests/SwitcherCycleSessionTests.swift",
     ):
