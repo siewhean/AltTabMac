@@ -60,9 +60,9 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(displayPlacement.rawValue, forKey: displayPlacementKey) }
     }
 
-    /// Optional secondary trigger for simultaneous side-matched Command+Option
-    /// switching. Legacy modifier-only tap values decode for migration, but are
-    /// normalized to Standard Only and cannot remain active.
+    /// Optional secondary trigger. Production accepts a short same-side Command
+    /// double tap or a simultaneous same-side Command+Option chord. Legacy
+    /// modifier-only single taps decode for migration but normalize to Standard Only.
     @Published var alternateTrigger: AlternateTriggerMode {
         didSet {
             let safeMode = alternateTrigger.productionSafeMode
