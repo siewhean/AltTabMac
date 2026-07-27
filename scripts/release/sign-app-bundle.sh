@@ -19,6 +19,17 @@ case "${TIMESTAMP_MODE}" in
   *) echo "Timestamp mode must be timestamp or none" >&2; exit 2 ;;
 esac
 
+# Library Validation is enabled by Hardened Runtime and requires embedded code to
+# share the host app's Apple-issued Team ID. An ad-hoc identity has no stable Team
+# ID, so a runtime-signed local QA app cannot load the embedded Sparkle framework
+# on current macOS. Keep Hardened Runtime mandatory for real Developer ID builds,
+# but omit it for ad-hoc QA packages instead of weakening the app with the Disable
+# Library Validation entitlement.
+SIGNING_OPTIONS=()
+if [[ "${IDENTITY}" != "-" ]]; then
+  SIGNING_OPTIONS+=(--options runtime)
+fi
+
 SPARKLE_FRAMEWORK="${APP_PATH}/Contents/Frameworks/Sparkle.framework"
 [[ -d "${SPARKLE_FRAMEWORK}" ]] || {
   echo "Missing embedded Sparkle.framework" >&2
@@ -31,7 +42,7 @@ sign_nested() {
   local arguments=(
     --force
     --sign "${IDENTITY}"
-    --options runtime
+    "${SIGNING_OPTIONS[@]}"
     "${TIMESTAMP_ARGUMENT[@]}"
   )
   if [[ "${preserve_entitlements}" == "1" ]]; then
@@ -48,12 +59,13 @@ sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
 sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app"
 sign_nested "${SPARKLE_FRAMEWORK}"
 
-codesign \
-  --force \
-  --sign "${IDENTITY}" \
-  --options runtime \
-  "${TIMESTAMP_ARGUMENT[@]}" \
-  --entitlements "${ENTITLEMENTS_PATH}" \
-  "${APP_PATH}"
+APP_SIGNING_ARGUMENTS=(
+  --force
+  --sign "${IDENTITY}"
+  "${SIGNING_OPTIONS[@]}"
+  "${TIMESTAMP_ARGUMENT[@]}"
+  --entitlements "${ENTITLEMENTS_PATH}"
+)
+codesign "${APP_SIGNING_ARGUMENTS[@]}" "${APP_PATH}"
 
 codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
