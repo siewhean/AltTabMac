@@ -25,9 +25,9 @@ esac
 # on current macOS. Keep Hardened Runtime mandatory for real Developer ID builds,
 # but omit it for ad-hoc QA packages instead of weakening the app with the Disable
 # Library Validation entitlement.
-SIGNING_OPTIONS=()
+USE_HARDENED_RUNTIME=0
 if [[ "${IDENTITY}" != "-" ]]; then
-  SIGNING_OPTIONS+=(--options runtime)
+  USE_HARDENED_RUNTIME=1
 fi
 
 SPARKLE_FRAMEWORK="${APP_PATH}/Contents/Frameworks/Sparkle.framework"
@@ -42,9 +42,11 @@ sign_nested() {
   local arguments=(
     --force
     --sign "${IDENTITY}"
-    "${SIGNING_OPTIONS[@]}"
-    "${TIMESTAMP_ARGUMENT[@]}"
   )
+  if [[ "${USE_HARDENED_RUNTIME}" == "1" ]]; then
+    arguments+=(--options runtime)
+  fi
+  arguments+=("${TIMESTAMP_ARGUMENT[@]}")
   if [[ "${preserve_entitlements}" == "1" ]]; then
     arguments+=(--preserve-metadata=entitlements)
   fi
@@ -62,7 +64,11 @@ sign_nested "${SPARKLE_FRAMEWORK}"
 APP_SIGNING_ARGUMENTS=(
   --force
   --sign "${IDENTITY}"
-  "${SIGNING_OPTIONS[@]}"
+)
+if [[ "${USE_HARDENED_RUNTIME}" == "1" ]]; then
+  APP_SIGNING_ARGUMENTS+=(--options runtime)
+fi
+APP_SIGNING_ARGUMENTS+=(
   "${TIMESTAMP_ARGUMENT[@]}"
   --entitlements "${ENTITLEMENTS_PATH}"
 )
