@@ -104,14 +104,14 @@ SPARKLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString
 }
 LINKED_LIBRARIES="$(otool -L "${EXECUTABLE_PATH}")"
 grep -q '@rpath/Sparkle.framework/Versions/B/Sparkle' <<<"${LINKED_LIBRARIES}" || {
-    echo "CmdTab does not link to the embedded Sparkle framework through @rpath." >&2
-    exit 1
-  }
+  echo "CmdTab does not link to the embedded Sparkle framework through @rpath." >&2
+  exit 1
+}
 LOAD_COMMANDS="$(otool -l "${EXECUTABLE_PATH}")"
 grep -q '@executable_path/../Frameworks' <<<"${LOAD_COMMANDS}" || {
-    echo "CmdTab is missing the application Frameworks runtime search path." >&2
-    exit 1
-  }
+  echo "CmdTab is missing the application Frameworks runtime search path." >&2
+  exit 1
+}
 codesign --verify --deep --strict --verbose=2 "${SPARKLE_FRAMEWORK}"
 
 ARCHITECTURES="$(lipo -archs "${EXECUTABLE_PATH}")"
@@ -143,6 +143,15 @@ if xattr -p com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1; then
   exit 1
 fi
 
+SIGNED_TARGETS=(
+  "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Installer.xpc"
+  "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Downloader.xpc"
+  "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
+  "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app"
+  "${SPARKLE_FRAMEWORK}"
+  "${APP_PATH}"
+)
+
 SIGN_REPORT="$(codesign -d --verbose=4 "${APP_PATH}" 2>&1 || true)"
 case "${EXPECTED_SIGNING}" in
   unsigned)
@@ -152,11 +161,26 @@ case "${EXPECTED_SIGNING}" in
     fi
     ;;
   ad-hoc)
-    codesign --verify --strict --verbose=2 "${APP_PATH}"
+    codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
     grep -q 'Signature=adhoc' <<<"${SIGN_REPORT}" || {
       echo "Expected an ad-hoc signature." >&2
       exit 1
     }
+    if grep -q 'Runtime Version=' <<<"${SIGN_REPORT}"; then
+      echo "Ad-hoc Sparkle QA bundles must not enable Hardened Runtime; library validation would reject an embedded framework without an Apple-issued Team ID." >&2
+      exit 1
+    fi
+    for signed_target in "${SIGNED_TARGETS[@]}"; do
+      NESTED_SIGN_REPORT="$(codesign -d --verbose=4 "${signed_target}" 2>&1)"
+      grep -q 'Signature=adhoc' <<<"${NESTED_SIGN_REPORT}" || {
+        echo "Expected an ad-hoc signature in ${signed_target}." >&2
+        exit 1
+      }
+      if grep -q 'Runtime Version=' <<<"${NESTED_SIGN_REPORT}"; then
+        echo "Ad-hoc nested target unexpectedly enables Hardened Runtime: ${signed_target}." >&2
+        exit 1
+      fi
+    done
     ;;
   developer-id)
     codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
@@ -175,14 +199,6 @@ case "${EXPECTED_SIGNING}" in
       echo "Developer ID bundle is missing a TeamIdentifier." >&2
       exit 1
     }
-    SIGNED_TARGETS=(
-      "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Installer.xpc"
-      "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Downloader.xpc"
-      "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
-      "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app"
-      "${SPARKLE_FRAMEWORK}"
-      "${APP_PATH}"
-    )
     for signed_target in "${SIGNED_TARGETS[@]}"; do
       NESTED_SIGN_REPORT="$(codesign -d --verbose=4 "${signed_target}" 2>&1)"
       grep -q "TeamIdentifier=${APP_TEAM_IDENTIFIER}" <<<"${NESTED_SIGN_REPORT}" || {
