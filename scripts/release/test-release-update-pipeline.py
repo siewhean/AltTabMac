@@ -70,7 +70,7 @@ class ReleaseManifestTests(unittest.TestCase):
         )
         self.assertIsNotNone(
             verify_workflow_actions.USES_KEY_PATTERN.search(
-                '- \"uses\": owner/action@main'
+                '- "uses": owner/action@main'
             )
         )
 
@@ -173,9 +173,17 @@ class ReleaseManifestTests(unittest.TestCase):
                 str(appcast_path),
                 str(manifest_path),
             ]
-            passed = subprocess.run(command + ["--current-build", "1"], capture_output=True, text=True)
+            passed = subprocess.run(
+                command + ["--current-build", "1"],
+                capture_output=True,
+                text=True,
+            )
             self.assertEqual(passed.returncode, 0, passed.stderr)
-            rejected = subprocess.run(command + ["--current-build", "2"], capture_output=True, text=True)
+            rejected = subprocess.run(
+                command + ["--current-build", "2"],
+                capture_output=True,
+                text=True,
+            )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("equal or lower", rejected.stderr)
 
