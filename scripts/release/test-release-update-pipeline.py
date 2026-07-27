@@ -109,7 +109,10 @@ class ReleaseManifestTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('if [[ "${IDENTITY}" != "-" ]]', signer)
-        self.assertIn("SIGNING_OPTIONS+=(--options runtime)", signer)
+        self.assertIn("USE_HARDENED_RUNTIME=1", signer)
+        self.assertIn('arguments+=(--options runtime)', signer)
+        self.assertIn('APP_SIGNING_ARGUMENTS+=(--options runtime)', signer)
+        self.assertNotIn('"${SIGNING_OPTIONS[@]}"', signer)
         self.assertIn(
             "Ad-hoc Sparkle QA bundles must not enable Hardened Runtime",
             verifier,
