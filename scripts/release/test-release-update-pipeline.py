@@ -100,6 +100,22 @@ class ReleaseManifestTests(unittest.TestCase):
         ]:
             self.assertIn(required, verifier)
 
+    def test_ad_hoc_sparkle_packaging_omits_hardened_runtime(self) -> None:
+        signer = (
+            ROOT / "scripts" / "release" / "sign-app-bundle.sh"
+        ).read_text(encoding="utf-8")
+        verifier = (
+            ROOT / "scripts" / "release" / "verify-bundle.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('if [[ "${IDENTITY}" != "-" ]]', signer)
+        self.assertIn("SIGNING_OPTIONS+=(--options runtime)", signer)
+        self.assertIn(
+            "Ad-hoc Sparkle QA bundles must not enable Hardened Runtime",
+            verifier,
+        )
+        self.assertIn("Developer ID bundle is missing Hardened Runtime", verifier)
+
     def test_valid_manifest_and_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             artifact = Path(directory) / "CmdTab.dmg"
