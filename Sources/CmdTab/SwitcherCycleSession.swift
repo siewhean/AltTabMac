@@ -155,17 +155,25 @@ struct SwitcherCycleSession {
     ) -> Int {
         guard items.count > 1 else { return 0 }
 
-        // SwitcherOrdering supplies one global exact-window MRU sequence and
-        // moves the current exact identity to the end. Selection must follow
-        // that visible sequence directly. Scanning for a different PID would
-        // silently group same-application windows and skip a more recent tile.
-        guard reverse else { return 0 }
-
-        if let currentFrontmost,
-           let currentIndex = items.firstIndex(where: { $0.historyIdentity == currentFrontmost }) {
-            return (currentIndex - 1 + items.count) % items.count
+        // SwitcherOrdering normally moves the current exact identity to the end.
+        // Keep a second fail-safe here because a stale or provisional snapshot may
+        // briefly arrive in a different order. A quick trigger must never commit
+        // the already-focused exact window when another target is available.
+        let proposed: Int
+        if reverse,
+           let currentFrontmost,
+           let currentIndex = items.firstIndex(where: {
+               $0.historyIdentity == currentFrontmost
+           }) {
+            proposed = (currentIndex - 1 + items.count) % items.count
+        } else {
+            proposed = reverse ? items.count - 1 : 0
         }
 
-        return items.count - 1
+        guard let currentFrontmost,
+              items[proposed].historyIdentity == currentFrontmost else {
+            return proposed
+        }
+        return (proposed + (reverse ? -1 : 1) + items.count) % items.count
     }
 }

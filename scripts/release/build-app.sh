@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 SCRATCH_PATH="${CMDTAB_BUILD_SCRATCH:-}"
 LINKER_REPRODUCIBILITY="${CMDTAB_LINKER_REPRODUCIBILITY:-1}"
+BUILD_JOBS="${CMDTAB_BUILD_JOBS:-}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "CmdTab must be built on macOS." >&2
@@ -32,6 +33,14 @@ BUILD_ARGUMENTS=(
   --scratch-path "${SCRATCH_PATH}"
 )
 
+if [[ -n "${BUILD_JOBS}" ]]; then
+  [[ "${BUILD_JOBS}" =~ ^[1-9][0-9]*$ ]] || {
+    echo "CMDTAB_BUILD_JOBS must be a positive integer." >&2
+    exit 2
+  }
+  BUILD_ARGUMENTS+=(--jobs "${BUILD_JOBS}")
+fi
+
 case "${LINKER_REPRODUCIBILITY}" in
   1)
     # SwiftPM CLI builds do not reliably inherit Xcode's
@@ -47,8 +56,11 @@ case "${LINKER_REPRODUCIBILITY}" in
     ;;
 esac
 
-printf 'Building %s in %s (deterministic-linker=%s)\n' \
-  "${APP_NAME}" "${SCRATCH_PATH}" "${LINKER_REPRODUCIBILITY}" >&2
+printf 'Building %s in %s (deterministic-linker=%s jobs=%s)\n' \
+  "${APP_NAME}" \
+  "${SCRATCH_PATH}" \
+  "${LINKER_REPRODUCIBILITY}" \
+  "${BUILD_JOBS:-default}" >&2
 swift build "${BUILD_ARGUMENTS[@]}" >&2
 
 BIN_DIR="$(swift build \

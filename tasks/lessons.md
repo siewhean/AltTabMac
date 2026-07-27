@@ -1,5 +1,10 @@
 # Lessons
 
+- 2026-07-23: A resumable QA marker is not evidence by itself. Bind it to the exact clean HEAD and hash-seal its phase log and artifacts; rerunning an earlier phase must invalidate every dependent phase.
+- 2026-07-23: Generated-output exclusions may apply only to untracked outputs. Tracked or staged changes under `dist/` or `.build/` must still fail the source-integrity gate.
+- 2026-07-23: A durable-history ambiguity fixture must remove stronger document identity and exercise the production matcher with candidates inside its ambiguity margin.
+- 2026-07-23: AppKit fixture windows must disable state restoration and reapply intended frames after assigning a content controller; otherwise prior minimized state and fitting-size geometry can invalidate cross-scenario evidence.
+- 2026-07-23: Objective probes must represent unavailable Accessibility state as unknown (`null`), never as a false minimized or fullscreen result.
 - 2026-07-20: Security dependency guards should enforce a minimum safe semantic version, not one exact patch string; package resolution may legitimately select a newer patched release.
 - 2026-07-20: Structured data is not a substitute for visible evidence. Product facts, review dates, breadcrumbs, source links, privacy disclosures, and limitations should exist in canonical HTML and schema together.
 - 2026-07-20: GEO measurement should classify broad discovery sources without collecting prompts or search queries, and it must be interpreted alongside webmaster-platform data because referrers can be stripped.

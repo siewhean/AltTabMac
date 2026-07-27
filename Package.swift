@@ -9,7 +9,13 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "CmdTab",
-            path: "Sources/CmdTab"
+            path: "Sources/CmdTab",
+            exclude: [
+                // The production app uses ProfileHotkeyManager. Shared state
+                // models now live in HotkeyStateModels.swift so the retired
+                // legacy router cannot reintroduce permissive modifier taps.
+                "HotkeyManager.swift"
+            ]
         ),
         .testTarget(
             name: "CmdTabTests",

@@ -1,7 +1,7 @@
 # CmdTab
 
 Last updated: 2026-07-23  
-Active task: begin Phase 2 Developer ID distribution work after the accepted and merged Phase 1 deterministic packaging gate.
+Active task: complete the isolated PR #35 five-feature production QA on `agent/five-feature-production-suite`; do not merge it or advance `main` from this worktree.
 
 ## Product
 
@@ -25,6 +25,16 @@ The public native release remains blocked until CmdTab has:
 - tested update, rollback, diagnostics, security, licensing, and support operations.
 
 No public release claim may treat the accepted local ad-hoc artifact as a distributable build.
+
+## PR #35 five-feature QA
+
+The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly **61 tests** with no failures or unexpected results.
+
+The focused inventory includes deterministic profile hotkey timing regressions that preserve the accepted 100 ms hold-to-show and silent quick-switch contract. It also covers fail-closed provisional profile scope, enrichment coalescing, durable-history write isolation, and truthful Stage Manager inference. The source, package, reproducibility, and packaged-app matrices must all be rerun after any source change.
+
+The deterministic fixtures deliberately include a same-title, no-document-identity window pair for durable-MRU ambiguity testing. Fixture windows disable AppKit restoration and reapply their intended full-size frames after content-controller installation so one scenario cannot leak minimized state or geometry into another. WindowProbe reports minimized and fullscreen Accessibility state as objective values when available and `null` when unavailable.
+
+Automated acceptance does not substitute for the packaged-app manual matrix. Unsupported hardware or desktop configurations must remain `NOT TESTED`, including Intel and any multi-display topology not physically exercised.
 
 ## Phase 1 accepted evidence
 

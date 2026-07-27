@@ -1,5 +1,28 @@
 # Todo
 
+## 2026-07-23 — PR #35 Five-Feature Production QA
+
+- [x] Audit the phased runner, focused-test inventory, deterministic fixtures, and objective probe contract.
+- [x] Require an exact 61-test focused XCTest aggregate with zero failures and zero unexpected results.
+- [x] Bind phase evidence to one clean immutable HEAD and hash-seal phase logs and artifacts.
+- [x] Reject tracked changes everywhere, including tracked files under generated-output directories.
+- [x] Invalidate downstream evidence when an earlier phase is rerun.
+- [x] Make the duplicate-title fixture genuinely ambiguous by removing document identity and keeping candidates within the production matcher margin.
+- [x] Prevent AppKit restoration and content fitting from leaking prior minimized state or collapsed geometry into later fixture scenarios.
+- [x] Add objective minimized/fullscreen/subrole evidence to WindowProbe without representing unknown state as false.
+- [x] Commit and push the hardened branch without merging PR #35.
+- [x] Patch the independent audit blockers: profile quick-switch semantics, enrichment recursion, fail-closed provisional scope, durable-write collisions, and truthful Stage Manager inference.
+- [x] Add targeted regressions and raise the required focused XCTest count from 50 to 61.
+- [ ] Rerun source, tests, package, reproducibility, and finalization from the new exact clean audit-fix HEAD.
+- [ ] Execute only physically observable packaged-app rows and label all unsupported rows `NOT TESTED`.
+- [ ] Complete independent final QA/QC and record PASS/FAIL/NOT TESTED evidence for the audit-fix artifact.
+
+### Review
+
+- The initial feature implementation passed preliminary source verification, 50 focused tests, and 182 full Swift tests, but its evidence runner and fixtures had fail-closed gaps.
+- Independent review of `97fc00eda0a5a8cac40d3910f59c5c7fc82e2456` found four production-path defects and one Stage Manager truthfulness issue. Source fixes and regressions were added afterward, invalidating all earlier phase markers.
+- The next accepted result must come from one exact clean post-audit head. No earlier automated marker, manual checkbox, or WindowProbe output is transferable.
+
 ## 2026-07-23 — Native Production Readiness
 
 Canonical plan: `docs/release/native-production-readiness-plan.md`
@@ -114,7 +137,7 @@ Implementation:
 - [x] Add a lightweight motion primitive for section reveals without introducing a new animation library.
 - [x] Add restrained hero movement and ambient linear drift to the key visuals.
 - [x] Apply reveal/stagger motion across the main website sections with reduced-motion safety.
-- [x] Verify the website still typechecks and builds, then update `README.md` and review notes.
+- [x] Verify the website still typechecks and builds, then update `README.md` and review notes here.
 
 ## Website Motion Review
 

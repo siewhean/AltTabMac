@@ -6,6 +6,7 @@ final class SwitcherPreferences: ObservableObject {
 
     private let includeBackgroundWindowsKey = "includeBackgroundWindows"
     private let windowVisibilityScopeKey = "windowVisibilityScope"
+    private let includeMinimizedWindowsKey = "includeMinimizedWindows"
     private let launchAtLoginKey = "launchAtLogin"
     private let maxWindowsPerAppKey = "maxWindowsPerApp"
     private let enableVibrancyKey = "enableVibrancy"
@@ -21,6 +22,12 @@ final class SwitcherPreferences: ObservableObject {
             persist(windowVisibilityScope.rawValue, forKey: windowVisibilityScopeKey)
             persist(windowVisibilityScope == .allSpaces, forKey: includeBackgroundWindowsKey)
         }
+    }
+
+    /// Include minimized top-level windows as exact switcher targets.
+    /// Kept opt-in for existing users to avoid changing membership unexpectedly.
+    @Published var includeMinimizedWindows: Bool {
+        didSet { persist(includeMinimizedWindows, forKey: includeMinimizedWindowsKey) }
     }
 
     @Published var launchAtLogin: Bool {
@@ -53,9 +60,21 @@ final class SwitcherPreferences: ObservableObject {
         didSet { persist(displayPlacement.rawValue, forKey: displayPlacementKey) }
     }
 
-    /// Optional secondary trigger for one-handed or modifier-tap switching.
+    /// Optional secondary trigger. Production accepts a short same-side Command
+    /// double tap or a simultaneous same-side Command+Option chord. Legacy
+    /// modifier-only single taps decode for migration but normalize to Standard Only.
     @Published var alternateTrigger: AlternateTriggerMode {
-        didSet { persist(alternateTrigger.rawValue, forKey: alternateTriggerKey) }
+        didSet {
+            let safeMode = alternateTrigger.productionSafeMode
+            if safeMode != alternateTrigger {
+                // `@Published` observers re-enter when the wrapped property is
+                // normalized. Let that safe inner assignment persist once rather
+                // than sending duplicate preference notifications.
+                alternateTrigger = safeMode
+                return
+            }
+            persist(alternateTrigger.rawValue, forKey: alternateTriggerKey)
+        }
     }
 
     /// Comma or newline-separated app identifiers / names to keep out of the switcher.
@@ -71,10 +90,14 @@ final class SwitcherPreferences: ObservableObject {
     private init() {
         let defaults = UserDefaults.standard
         let legacyIncludeBackgroundWindows = defaults.object(forKey: includeBackgroundWindowsKey) as? Bool ?? true
+        let storedAlternateTrigger = defaults.string(forKey: alternateTriggerKey)
+            .flatMap(AlternateTriggerMode.init(rawValue:)) ?? .disabled
+        let safeAlternateTrigger = storedAlternateTrigger.productionSafeMode
 
         self.windowVisibilityScope = defaults.string(forKey: windowVisibilityScopeKey)
             .flatMap(WindowVisibilityScope.init(rawValue:))
             ?? (legacyIncludeBackgroundWindows ? .allSpaces : .visibleSpaces)
+        self.includeMinimizedWindows = defaults.object(forKey: includeMinimizedWindowsKey) as? Bool ?? false
         self.launchAtLogin = defaults.object(forKey: launchAtLoginKey) as? Bool ?? true
         // Completeness is the default contract. Users can opt into a cap later,
         // but a fresh installation must not silently hide the fourth window.
@@ -85,10 +108,13 @@ final class SwitcherPreferences: ObservableObject {
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
         self.displayPlacement = defaults.string(forKey: displayPlacementKey)
             .flatMap(SwitcherDisplayPreference.init(rawValue:)) ?? .activeWindowDisplay
-        self.alternateTrigger = defaults.string(forKey: alternateTriggerKey)
-            .flatMap(AlternateTriggerMode.init(rawValue:)) ?? .disabled
+        self.alternateTrigger = safeAlternateTrigger
         self.excludedAppsText = defaults.string(forKey: excludedAppsKey) ?? ""
         self.ignoredWindowTitlesText = defaults.string(forKey: ignoredWindowTitlesKey) ?? ""
+
+        if safeAlternateTrigger != storedAlternateTrigger {
+            defaults.set(safeAlternateTrigger.rawValue, forKey: alternateTriggerKey)
+        }
     }
 
     private func persist(_ value: Any, forKey key: String) {
@@ -114,5 +140,10 @@ final class SwitcherPreferences: ObservableObject {
 
     func excludesWindowTitle(_ title: String) -> Bool {
         WindowExclusionRules.matchesWindowTitle(title, entries: ignoredWindowTitleEntries)
+    }
+
+    func resetDurableWindowHistory() {
+        DurableSwitcherHistoryStore.shared.reset()
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
     }
 }
