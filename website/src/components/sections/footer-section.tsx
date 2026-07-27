@@ -20,6 +20,7 @@ const companyLinks = [
   { href: "/changelog", label: "Changelog" },
   { href: "/help", label: "Help" },
   { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
   { href: "/security", label: "Security" },
 ] as const;
 

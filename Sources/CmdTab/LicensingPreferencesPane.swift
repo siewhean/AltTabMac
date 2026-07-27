@@ -25,6 +25,9 @@ struct LicensingPreferencesPane: View {
         .onAppear {
             controller.refreshStatus()
             lastStatusSignature = statusSignature(for: controller.status)
+            Task {
+                await controller.refreshLicensedDevices()
+            }
         }
         .onChange(of: controller.status) { newStatus in
             let newSignature = statusSignature(for: newStatus)
@@ -84,6 +87,10 @@ struct LicensingPreferencesPane: View {
                         .controlSize(.large)
                     }
                 }
+
+                if let warning = controller.trialWarningMessage {
+                    LicensingInlineMessage(message: warning)
+                }
             }
         }
     }
@@ -137,7 +144,7 @@ struct LicensingPreferencesPane: View {
                     Divider().overlay(Color.white.opacity(0.08))
                 }
 
-                Text("License key")
+                Text("Purchase activation code")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
 
@@ -157,19 +164,34 @@ struct LicensingPreferencesPane: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button(action: { _ = controller.activateEnteredLicenseKey() }) {
-                        Label("Activate License", systemImage: "checkmark.seal.fill")
-                            .frame(maxWidth: .infinity)
+                    Button(action: {
+                        Task {
+                            _ = await controller.activateEnteredLicenseKeyOnline()
+                        }
+                    }) {
+                        if controller.isManagingLicense {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Label("Activate License", systemImage: "checkmark.seal.fill")
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
+                    .disabled(controller.isManagingLicense)
 
-                    Button(action: controller.clearLicense) {
-                        Text("Clear Saved License")
+                    Button(action: {
+                        Task {
+                            _ = await controller.deactivateCurrentDevice()
+                        }
+                    }) {
+                        Text("Deactivate This Mac")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+                    .disabled(controller.isManagingLicense)
                 }
             }
         }
@@ -192,6 +214,19 @@ struct LicensingPreferencesPane: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                if !controller.licensedDevices.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Activated Macs (\(controller.licensedDevices.count) of 3)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.78))
+                        ForEach(controller.licensedDevices, id: \.deviceId) { device in
+                            Text("• \(device.deviceName)")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.58))
+                        }
+                    }
+                }
+
                 HStack(spacing: 12) {
                     Button(action: controller.openHelpPage) {
                         Text("Open Help")
@@ -199,6 +234,18 @@ struct LicensingPreferencesPane: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+
+                    Button(action: {
+                        Task {
+                            _ = await controller.deactivateCurrentDevice()
+                        }
+                    }) {
+                        Text("Deactivate This Mac")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(controller.isManagingLicense)
                 }
             }
         }
@@ -297,7 +344,7 @@ private struct LicenseKeyInputField: NSViewRepresentable {
         textField.focusRingType = .none
         textField.font = .monospacedSystemFont(ofSize: 12, weight: .medium)
         textField.textColor = .white
-        textField.placeholderString = "CMDTAB1.<payload>.<signature>"
+        textField.placeholderString = "CMDTAB-ACT-… or legacy CMDTAB1 key"
         textField.delegate = context.coordinator
         textField.lineBreakMode = .byClipping
         textField.usesSingleLineMode = true

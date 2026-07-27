@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { interactiveDemoWindows } from "@/content/home";
+import { demoNavigationDirection } from "@/lib/demo-keyboard-navigation";
 import { trackSiteEvent } from "@/lib/site-analytics-client";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -244,11 +245,12 @@ export function SwitcherLiveDemo() {
       const count = collection.length;
       if (count === 0) return;
 
-      if (e.key === "Tab" || e.key === "ArrowRight" || e.key === "ArrowDown") {
+      const direction = demoNavigationDirection(e);
+      if (direction === "next") {
         e.preventDefault();
         stopAutoPlay();
         setSelectedIndex((i) => (i + 1) % count);
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      } else if (direction === "previous") {
         e.preventDefault();
         stopAutoPlay();
         setSelectedIndex((i) => (i - 1 + count) % count);
@@ -327,7 +329,7 @@ export function SwitcherLiveDemo() {
             </h3>
             <p className="max-w-xl text-sm leading-6 text-muted">
               Click a mode tab, interact with the switcher, or just watch the auto-demo run.
-              Keyboard navigation works too — press Tab or arrow keys.
+              Keyboard navigation works too — use the arrow keys.
             </p>
           </div>
 

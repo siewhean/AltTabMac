@@ -6,8 +6,12 @@ on:
   push:
     paths:
       - Package.swift
+      - Package.resolved
+      - Resources/Info.plist
+      - release/**
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
+      - scripts/release/**
       - scripts/qa/**
       - .github/workflows/swift.yml
   pull_request:
@@ -15,8 +19,12 @@ on:
       - main
     paths:
       - Package.swift
+      - Package.resolved
+      - Resources/Info.plist
+      - release/**
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
+      - scripts/release/**
       - scripts/qa/**
       - .github/workflows/swift.yml
 
@@ -41,7 +49,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Verify pre-fix model evidence remains reproducible
         shell: bash
@@ -70,6 +78,12 @@ jobs:
 
       - name: Run complete Swift package test suite
         run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
+
+      - name: Verify signed-update and release contracts
+        run: |
+          python3 scripts/release/release_config.py verify-repository
+          python3 scripts/release/test-release-update-pipeline.py
+          bash -n scripts/release/*.sh
 
       - name: Check patch hygiene
         run: git diff --check

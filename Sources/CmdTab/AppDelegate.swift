@@ -11,6 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var hotkeyManager: ProfileHotkeyManager!
     var menuBar: MenuBarController!
     var preferencesWindowController: PreferencesWindowController!
+    var onboardingWindowController: OnboardingWindowController!
+    private var updaterController: UpdaterController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
@@ -28,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         switcher = ProductionSwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
+        onboardingWindowController = OnboardingWindowController()
         preferencesWindowController.onOpenApplications = { [weak self] in
             self?.beginDefaultConfigurationFreeze()
             self?.switcher?.showStandalone()
@@ -39,9 +42,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.switcher?.applyStyleChangeFromSettings()
             self?.preferencesWindowController?.showStyleChangeHUD(for: style)
         }
-        menuBar = MenuBarController(preferencesWindowController: preferencesWindowController)
-
-        requestRequiredPermissionsIfNeeded()
+        preferencesWindowController.onOpenOnboarding = { [weak self] in
+            self?.onboardingWindowController?.show()
+        }
+        onboardingWindowController.onTrySwitcher = { [weak self] in
+            self?.beginDefaultConfigurationFreeze()
+            self?.switcher?.showStandalone()
+        }
+        updaterController = UpdaterController.shared
+        menuBar = MenuBarController(
+            preferencesWindowController: preferencesWindowController,
+            onboardingWindowController: onboardingWindowController,
+            licensingController: LicensingController.shared,
+            updaterController: updaterController
+        )
 
         // ProfileHotkeyManager retries event-tap installation after an
         // Accessibility grant, so users no longer have to discover that a full
@@ -78,6 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+        onboardingWindowController.showAutomaticallyIfNeeded()
     }
 
     private func beginDefaultConfigurationFreeze() {
@@ -91,17 +106,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             profileID: profileID,
             preserveExisting: switcher?.isVisible == true
         )
-    }
-
-    private func requestRequiredPermissionsIfNeeded() {
-        if !AXIsProcessTrusted() {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        }
-
-        if #available(macOS 10.15, *), !CGPreflightScreenCaptureAccess() {
-            _ = CGRequestScreenCaptureAccess()
-        }
     }
 
     private func acquireSingletonLock() -> Bool {
@@ -167,7 +171,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        preferencesWindowController?.show()
+        if onboardingWindowController?.window?.isVisible == true {
+            onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
+        } else {
+            preferencesWindowController?.show()
+        }
         return true
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        onboardingWindowController?.refreshPermissions()
+        Task { @MainActor [weak self] in
+            await self?.menuBar?.refreshLicenseAuthorization()
+        }
     }
 }

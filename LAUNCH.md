@@ -1,120 +1,101 @@
 # CmdTab Launch Checklist
 
-This file separates what is already prepared in the repo from what still requires owner decisions, accounts, and operational setup.
+This checklist separates repository-ready implementation from evidence that
+requires production accounts, Apple credentials, and clean hardware.
 
-## Done In Repo
+## Offer and customer contract
 
-- `website/` is a production-buildable Next.js marketing site.
-- Waitlist capture exists at `POST /api/waitlist`.
-- The site now includes Vercel Analytics page tracking and CTA event tracking.
-- `.env.example` exists in `website/` for the waitlist email setup.
-- The macOS app already builds into `CmdTab.app` via `./build.sh`.
-- `./scripts/build_release_dmg.sh` packages a signed + notarized DMG once Apple credentials are configured.
+- US$12 one-time perpetual personal license.
+- Up to three personally owned Macs with immediate self-service deactivation.
+- All CmdTab 1.x updates.
+- 14-day trial and 14-day full-refund policy.
+- Partial refunds preserve access. Documented full-refund webhooks and
+  repository-owned manual revocation create persistent revocation tombstones.
+  Production chargeback, dispute, and fraud enforcement requires a validated
+  provider reconciliation path and remains an external launch gate.
 
-## You Need To Decide
+The canonical purchase entry is `https://cmdtab.net/buy`. The website must not
+publish a download until `release/stable.json` references a verified immutable
+DMG.
 
-- Final offer:
-  - public 14-day trial
-  - standard one-time license price: `$9.99`
-- Commerce stack:
-  - Lemon Squeezy
-- Support inbox:
-  - beta/support email
-  - refund/contact email
-- Download strategy:
-  - direct app download only
-  - or direct download + Setapp later
+## Repository-ready paths
 
-## Website Launch Steps
+- Versioned onboarding and contextual Accessibility/Screen Recording prompts.
+- Keychain-backed signed, install-bound trial entitlements with exact 14-day
+  UTC expiry and rollback detection.
+- Opaque purchase credentials exchanged for device-bound paid entitlements;
+  three-device activation, deactivation, recovery, refund, and delivery-outbox
+  contracts.
+- Default-off native telemetry and website analytics with withdrawal.
+- Auth0-compatible owner-only dashboard sessions and audited mutations.
+- Sparkle 2.9.2 stable-channel integration, immutable release manifest,
+  signed-appcast tooling, and Sparkle-aware packaging verification.
+- Desktop/mobile/zoom/reflow browser gates and deterministic showcase media at
+  no more than five seconds.
 
-1. Create and verify your sending domain in Resend.
-2. Fill in `website/.env.example` values in Vercel project env vars:
-   - `NEXT_PUBLIC_SITE_URL`
-   - `SITE_URL`
-   - `RESEND_API_KEY`
-   - `WAITLIST_FROM_EMAIL`
-   - `WAITLIST_TO_EMAIL`
-   - `WAITLIST_REPLY_TO_EMAIL`
-   - `NEXT_PUBLIC_CHECKOUT_PROVIDER`
-   - `NEXT_PUBLIC_CHECKOUT_URL`
-   - `NEXT_PUBLIC_STANDARD_CHECKOUT_URL`
-   - `NEXT_PUBLIC_TRIAL_URL`
-   - `NEXT_PUBLIC_SUPPORT_EMAIL`
-   - `LEMONSQUEEZY_WEBHOOK_SECRET`
-   - `CMDTAB_LICENSE_PRIVATE_KEY_PEM`
-   - `LICENSE_DELIVERY_FROM_EMAIL` (optional)
-3. Connect your real domain to the Vercel project.
-4. Confirm the direct purchase flow opens the Lemon Squeezy checkout.
-5. Configure the Lemon Squeezy webhook to `https://cmdtab.net/api/lemonsqueezy/webhook`.
-6. Run a signed test delivery:
-   - `node scripts/send_test_purchase_webhook.mjs --url https://cmdtab.net/api/lemonsqueezy/webhook --email tohsh17@gmail.com`
-7. Provision and monitor:
-   - `tohsh17@gmail.com`
-8. Enable Vercel edge protections and production abuse controls:
-   - WAF / attack challenge mode where appropriate
-   - request throttling / bot protection
-   - deployment access controls
-9. Replace the remaining static walkthrough SVGs with actual product GIFs or MP4 clips.
-10. Keep secrets production-only:
-   - do not commit live env values
-   - use separate preview and production keys
-   - rotate `RESEND_API_KEY` immediately if exposure is suspected
+Repository implementation is not proof that the production services or signed
+artifact have been configured successfully.
 
-## Commerce Steps
+## Production infrastructure
 
-1. Pick a merchant-of-record provider.
-2. Create:
-   - standard price
-   - trial/download delivery flow
-   - hosted checkout URL for the site launch section
-   - webhook secret for `order_created`
-3. Decide license model:
-   - device count
-   - trial duration
-   - re-download policy
-4. Confirm the automatic license email reaches the purchaser inbox from the webhook flow.
-5. Add support/refund policy text to the website before public paid launch.
+1. Provision isolated production Postgres, rate-limit storage, Resend, Auth0,
+   AWS KMS, Vercel, WAF, and backup/restore operations.
+2. Apply `website/db/migrations/001_commerce_lifecycle.sql` twice and verify the
+   second application is idempotent.
+3. Configure the variables documented in `website/.env.example`; production
+   must not contain trial/license private PEM variables.
+4. Provision separate P-256 trial and license KMS keys. Restrict the
+   production Vercel OIDC role to `kms:Sign` and `kms:GetPublicKey` on those
+   exact keys.
+5. Configure Auth0 callback/logout URLs, the exact owner subject, and tenant
+   MFA set to Always.
+6. Configure Lemon Squeezy webhooks at
+   `https://cmdtab.net/api/lemonsqueezy/webhook`, Resend sender validation,
+   operational support/refund mailboxes, and the internal outbox worker.
 
-## macOS Distribution Steps
+## Required sandbox customer lifecycle
 
-1. Export release credentials:
-   - `export CMDTAB_DEVELOPER_ID='Developer ID Application: Your Name (TEAMID)'`
-   - `export CMDTAB_NOTARY_PROFILE='cmdtab-notary-profile'`
-2. Optionally set release metadata overrides:
-   - `export CMDTAB_BUNDLE_ID='net.cmdtab.app'`
-   - `export CMDTAB_VERSION='1.0.0'`
-   - `export CMDTAB_BUILD_NUMBER='1'`
-3. Run `./scripts/release_notarization_checklist.sh` for a human-readable preflight.
-4. Build the signed, notarized DMG with `./scripts/build_release_dmg.sh`.
-5. Upload the DMG from `dist/` and set that public file URL as `NEXT_PUBLIC_TRIAL_URL`.
-6. Redeploy the website after the trial URL is live.
-7. Test on a clean Mac:
-   - install
-   - Accessibility permission
-   - Screen Recording permission
-   - first switch
-   - hot swap
-   - quick actions
+Using Lemon Squeezy test mode and disposable customer data, prove without
+manual database edits:
 
-## Beta Exit Criteria
+1. Website discovery and hosted checkout.
+2. Webhook persistence, fulfillment email, immutable download instructions,
+   and opaque activation credential delivery.
+3. Installation, onboarding, trial start, clock-safe local use, and purchase.
+4. Activation on three named Macs; fourth distinct activation returns
+   `slot_full`.
+5. Deactivation frees a slot immediately; recovery remains enumeration-safe.
+6. Partial refund preserves access; full refund and authoritative revocation
+   prevent recovery.
+7. N-to-N+1 signed update succeeds from the published stable appcast.
 
-- Switching is reliable across your core target apps.
-- Preview capture is reliable enough that the app feels trustworthy.
-- Permission onboarding is understandable.
-- At least 20 to 50 beta users have exercised real workflows.
-- You have a working support inbox and refund policy before enabling paid launch.
+## Developer ID and update release
 
-## Nice-To-Have Before Paid Launch
+Follow `docs/release/signed-update-runbook.md`.
 
-- Actual recorded walkthrough videos for:
-  - Classic Grid
-  - Command Palette
-  - Radial Menu
-  - Quick Actions
-  - Hot Swap
-- Short onboarding screen inside the app for permissions and first use.
-- Event tracking for:
-  - download click
-  - trial start
-  - purchase complete
-- Add `npm run security:check` to your deploy gate or CI before production releases.
+1. Install the intended Developer ID Application identity and reconcile its
+   Team ID with `net.cmdtab.CmdTab`.
+2. Configure a protected `notarytool` profile and Sparkle EdDSA public key.
+3. Run `scripts/release/build-notarized-dmg.sh`.
+4. Retain notarization JSON, stapler validation, nested signature checks,
+   Gatekeeper assessment, manifest, and DMG checksum.
+5. Upload the immutable DMG, commit/deploy its exact `release/stable.json`,
+   verify `/trial` and `/releases/stable.json`, then publish the appcast last.
+6. Never roll clients back to a lower build; publish reverted code as a newly
+   signed higher build.
+
+## Hardware and performance acceptance
+
+- Run clean-install and N-to-N+1 update tests on current Apple Silicon and
+  Intel hardware for the supported macOS range.
+- Run `scripts/performance/run-performance-evidence.sh --mode acceptance` on
+  each accepted hardware class.
+- Retain exact-SHA evidence for 10/25/50-window runs and the 1,000-session soak.
+- Mark unavailable hardware, permissions, credentials, or service evidence
+  `NOT TESTED`; never infer it from unit tests or source inspection.
+
+## Public-launch gate
+
+Public launch is allowed only when repository automation passes on the exact
+candidate and every production, Apple, commerce, mailbox, clean-hardware,
+update, backup/restore, and live-domain item above has retained evidence.

@@ -18,10 +18,15 @@ export type LemonSqueezyOrderWebhook = {
       total_formatted?: string;
       currency?: string;
       status?: string;
+      refunded?: boolean | null;
+      refunded_amount?: number | string | null;
+      refunded_at?: string | null;
       created_at?: string;
       updated_at?: string;
       test_mode?: boolean;
       first_order_item?: {
+        product_id?: number;
+        variant_id?: number;
         product_name?: string;
         variant_name?: string;
       };
@@ -50,4 +55,30 @@ export function verifyLemonSqueezySignature(input: {
 
 export function getOrderAttributes(payload: LemonSqueezyOrderWebhook) {
   return payload.data?.attributes;
+}
+
+export function isExpectedLemonOrder(
+  payload: LemonSqueezyOrderWebhook,
+  expected: {
+    storeId: number;
+    productId: number;
+    variantId: number;
+    testMode: boolean;
+  },
+) {
+  const attributes = getOrderAttributes(payload);
+  return (
+    payload.data?.type === "orders" &&
+    attributes?.store_id === expected.storeId &&
+    attributes.first_order_item?.product_id === expected.productId &&
+    attributes.first_order_item?.variant_id === expected.variantId &&
+    typeof attributes.test_mode === "boolean" &&
+    attributes.test_mode === expected.testMode
+  );
+}
+
+export function isPaidLemonOrderStatus(
+  payload: LemonSqueezyOrderWebhook,
+) {
+  return getOrderAttributes(payload)?.status === "paid";
 }

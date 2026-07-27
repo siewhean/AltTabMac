@@ -5,15 +5,16 @@ export const privacyContent = {
     {
       title: "Website analytics",
       body: [
-        "The website records page path, referrer, event name and context, event timestamp, a locally generated visitor identifier, and a session identifier. Campaign parameters and a broad discovery-source label may be stored so traffic from search, ChatGPT, Copilot, Perplexity, Gemini, Claude, and other referrals can be measured without storing a search query.",
-        "The site also uses Vercel Web Analytics and Speed Insights for aggregate traffic and performance measurement.",
+        "Optional website analytics are off by default. CmdTab does not create its website visitor identifier or session identifier and does not load Vercel Web Analytics or Speed Insights until you accept.",
+        "If accepted, the website records page path, referrer, event name and context, event timestamp, a locally generated visitor identifier, and a session identifier. Campaign parameters and a broad discovery-source label may be stored so traffic from search, ChatGPT, Copilot, Perplexity, Gemini, Claude, and other referrals can be measured without storing a search query.",
+        "You can decline or withdraw consent at any time using the controls on this page. Declining or withdrawing deletes the CmdTab website visitor and session identifiers stored in this browser and stops future optional analytics requests.",
       ],
     },
     {
       title: "Native app telemetry",
       body: [
-        "When the current app starts, it sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",
-        "The current payload contains a pseudonymous install identifier, event name, license state, license identifier when present, app version, macOS version, and event timestamp.",
+        "Optional native-app telemetry is off by default and can be enabled or disabled in CmdTab Settings. When enabled, the app sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",
+        "When enabled, the payload contains a pseudonymous install identifier, event name, license state, license identifier when present, app version, macOS version, and event timestamp.",
         "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, or search queries.",
       ],
     },
@@ -22,26 +23,28 @@ export const privacyContent = {
       body: [
         "Starting a trial sends the email address provided by the user together with the install identifier, app version, and macOS version so the trial period can be registered and enforced.",
         "Purchase, receipt, billing, and license-portal information may be processed by the hosted commerce provider. CmdTab stores the operational records required to fulfil licenses and handle support requests.",
+        "Trial registration, purchase, download, licensing, fulfilment, fraud prevention, refunds, and support are essential product operations. They remain available when optional analytics are declined and are not switched on or off by the analytics controls.",
       ],
     },
     {
       title: "How the information is used",
       body: [
-        "Website analytics are used to understand discovery, page performance, trial and purchase journeys, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
-        "App telemetry is used to understand active installations, trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to reconstruct the contents of a user's open windows.",
+        "When accepted, website analytics are used to understand discovery, page performance, trial and purchase journeys, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
+        "When enabled, app telemetry is used to understand active installations, trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to reconstruct the contents of a user's open windows.",
       ],
     },
     {
       title: "Third-party services",
       body: [
-        "Hosting, edge delivery, Web Analytics, and Speed Insights are provided through Vercel, which may process the operational data needed to deliver and measure the site.",
+        "Hosting and edge delivery are provided through Vercel. If you accept optional analytics, Vercel Web Analytics and Speed Insights also process aggregate traffic and performance measurements.",
         "Transactional email may be delivered through Resend. Hosted checkout, receipt, and license-management links may point to Lemon Squeezy or another configured commerce provider, whose own terms and privacy policy apply to that transaction.",
       ],
     },
     {
       title: "Retention, access, and deletion",
       body: [
-        "CmdTab keeps operational data for analytics, trial enforcement, licensing, fulfilment, support, fraud prevention, and launch operations. Retention periods should be reviewed as the public release process matures and documented here when formal limits are adopted.",
+        "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
+        "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes or until the associated record is deleted. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
         "For access, correction, or deletion requests concerning CmdTab-held data, contact tohsh17@gmail.com and include enough information to locate the relevant trial, purchase, support request, or install record.",
       ],
     },

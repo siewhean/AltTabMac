@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 
-import { setDashboardPassword } from "@/lib/admin-store";
-import { hasAdminSession, validateAdminPassword } from "@/lib/admin-auth";
+import { getAdminSession, isLegacyAdminAuthEnabled, validateAdminPassword } from "@/lib/admin-auth";
+import { isSameOriginAdminMutation } from "@/lib/admin-request-security";
+import { recordAdminAuditEvent, setDashboardPassword } from "@/lib/admin-store";
 
 export async function POST(request: Request) {
-  if (!(await hasAdminSession())) {
+  if (!isSameOriginAdminMutation(request)) {
+    return NextResponse.json({ ok: false, message: "Invalid request origin." }, { status: 403 });
+  }
+  const session = await getAdminSession();
+  if (!session) {
     return NextResponse.redirect(new URL("/dashboard/login", request.url), 303);
+  }
+  if (!isLegacyAdminAuthEnabled() || session.auth !== "legacy") {
+    return NextResponse.json({ ok: false, message: "Legacy authentication is disabled." }, { status: 404 });
   }
 
   const formData = await request.formData();
@@ -34,5 +42,11 @@ export async function POST(request: Request) {
   }
 
   await setDashboardPassword(newPassword);
+  await recordAdminAuditEvent({
+    actorSubject: session.sub,
+    authMode: session.auth,
+    action: "change_legacy_password",
+    outcome: "success",
+  });
   return NextResponse.redirect(new URL("/dashboard/settings?status=updated", request.url), 303);
 }

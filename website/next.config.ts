@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const isProduction = process.env.NODE_ENV === "production";
+const websiteRoot = dirname(fileURLToPath(import.meta.url));
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -22,6 +25,10 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  outputFileTracingRoot: resolve(websiteRoot, ".."),
+  outputFileTracingIncludes: {
+    "/releases/stable.json": ["../release/stable.json"],
+  },
   async headers() {
     return [
       {

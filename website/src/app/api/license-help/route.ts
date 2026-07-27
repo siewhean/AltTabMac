@@ -17,6 +17,10 @@ import {
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
+  IngestRequestError,
+  readBoundedJson,
+} from "@/lib/ingest-request";
+import {
   createLicenseRequest,
   isLicenseRequestStoreConfigured,
   updateLicenseRequestNotificationStatus,
@@ -159,20 +163,13 @@ function formatMetadata(metadata?: Record<string, string>) {
 }
 
 async function parseRequestBody(request: Request) {
-  const rawBody = await request.text();
-  const bodyBytes = Buffer.byteLength(rawBody, "utf8");
-
-  if (bodyBytes === 0) {
-    throw new EmptyBodyError();
-  }
-
-  if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
-    throw new PayloadTooLargeError();
-  }
-
   try {
-    return JSON.parse(rawBody) as unknown;
-  } catch {
+    return await readBoundedJson(request, MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof IngestRequestError) {
+      if (error.code === "payload_too_large") throw new PayloadTooLargeError();
+      if (error.message.includes("required")) throw new EmptyBodyError();
+    }
     throw new InvalidJsonError();
   }
 }

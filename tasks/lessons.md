@@ -1,5 +1,8 @@
 # Lessons
 
+- 2026-07-27: In zsh, `path` is a special array tied to `PATH`; never use
+  `path` as a loop or script variable because it can make every subsequent
+  command unavailable. Use a task-specific name such as `file_path`.
 - 2026-07-23: A resumable QA marker is not evidence by itself. Bind it to the exact clean HEAD and hash-seal its phase log and artifacts; rerunning an earlier phase must invalidate every dependent phase.
 - 2026-07-23: Generated-output exclusions may apply only to untracked outputs. Tracked or staged changes under `dist/` or `.build/` must still fail the source-integrity gate.
 - 2026-07-23: A durable-history ambiguity fixture must remove stronger document identity and exercise the production matcher with candidates inside its ambiguity margin.

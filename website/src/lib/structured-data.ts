@@ -6,6 +6,7 @@ import { showcaseUploadDate } from "@/content/showcase";
 import { siteConfig } from "@/content/site";
 import { getCommerceConfig } from "@/lib/commerce";
 import { getSiteUrl } from "@/lib/env";
+import { getStableReleaseManifest } from "@/lib/stable-release";
 
 const featureList = [
   "Individual macOS window entries",
@@ -19,9 +20,10 @@ const featureList = [
 
 function configuredOffers(siteUrl: string) {
   const commerce = getCommerceConfig();
+  const release = getStableReleaseManifest();
   const offers: Array<Record<string, string>> = [];
 
-  if (commerce.trialDownloadUrl) {
+  if (release) {
     offers.push({
       "@type": "Offer",
       name: productFacts.trialLength,
@@ -35,19 +37,8 @@ function configuredOffers(siteUrl: string) {
   if (commerce.checkoutUrl) {
     offers.push({
       "@type": "Offer",
-      name: commerceContent.founder.title,
-      price: commerceContent.founder.price.replace(/[^0-9.]/g, ""),
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-      url: `${siteUrl}/buy`,
-    });
-  }
-
-  if (commerce.standardCheckoutUrl) {
-    offers.push({
-      "@type": "Offer",
-      name: commerceContent.standard.title,
-      price: commerceContent.standard.price.replace(/[^0-9.]/g, ""),
+      name: commerceContent.license.title,
+      price: commerceContent.license.price.replace(/[^0-9.]/g, ""),
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
       url: `${siteUrl}/buy`,

@@ -1,131 +1,77 @@
 # CmdTab Native Release — Current Implementation Status
 
-**Updated:** 2026-07-23  
+**Updated:** 2026-07-27
 **Canonical long-form plan:** `docs/release/native-production-readiness-plan.md`  
-**Current accepted integration commit:** `f37e47029344e191682bd02ade8d7daf4ea241bd`
+**Implementation branch:** `codex/implementation-plan-phase1`
+**Base:** `origin/main@5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`
 
-## Completed phases
+## Accepted baseline
 
-### Phase 0 — PASS WITH HOSTED-ACTIONS QUOTA WAIVER
+Phase 1 remains the accepted local ad-hoc packaging baseline through PR #31.
+It proved deterministic application assembly, permanent bundle identity,
+rollback-safe beta migration, bundle verification, and local packaged behavior.
+It did not prove Developer ID distribution, notarization, clean hardware,
+production commerce, or updates.
 
-Completed:
+## Repository-owned implementation
 
-- repository-generated output cleanup;
-- one-shot showcase motion and Reduce Motion behavior;
-- README, metadata, provenance, and task reconciliation;
-- Vercel source, dependency, TypeScript, and production-build verification;
-- deferred hosted-runner work recorded under issue #30.
+The current candidate adds:
 
-Hosted GitHub macOS and browser workflows remain deferred, not passed.
+- versioned, reopenable onboarding with contextual permission requests,
+  first-switch practice, safe resume, and proactive trial warnings;
+- default-off native telemetry and website analytics with withdrawal;
+- signed install-bound trial tokens, secure trial clock state, opaque purchase
+  credentials, device-bound paid tokens, grandfathered v1 verification, and
+  offline-indefinite paid authorization;
+- atomic three-device activation, deactivation, enumeration-safe recovery,
+  delivery retry/outbox, and distinct partial/full refund and revocation state;
+- Auth0-compatible owner-only MFA dashboard sessions with idle/absolute limits,
+  generation invalidation, CSRF checks, and audited actions;
+- Sparkle 2.9.2, a stable daily update controller, immutable release manifest,
+  signed appcast tooling, and Sparkle-aware nested packaging verification;
+- a single US$12 offer, terms/refund/device/update/recovery policies, immutable
+  download gating, and deterministic showcase clips no longer than five
+  seconds;
+- hash-bound 10/25/50-window performance tooling and a 1,000-session soak
+  contract that refuses to fabricate unavailable measurements;
+- immutable GitHub Action pins and release-readiness coverage for every PR and
+  `main` push.
 
-### Phase 1 — PASS
+Local automated evidence currently includes 233 passing Swift tests plus two
+updater-configuration tests, 28 passing website security/unit tests,
+TypeScript/build/browser verification, zero
+moderate dependency vulnerabilities, and release/update/performance harness
+tests. Final package/reproducibility and independent integration/security
+results are recorded in `tasks/todo.md` before push.
 
-Accepted source commit:
+## Release truth
 
-```text
-516a9476c01f4d59981f35dc44b6eb09dcd6d790
-```
+The repository is configured to fail closed when production release material is
+absent:
 
-Merged through PR #31:
+- without the production KMS keyrings, production trial/license issuance is
+  unavailable;
+- without `SUPublicEDKey`, local QA builds do not enable the production updater;
+- without `release/stable.json`, `/releases/stable.json` returns 503/no-store
+  and the website exposes no DMG;
+- without complete Auth0 production configuration, the dashboard denies access.
 
-```text
-f37e47029344e191682bd02ade8d7daf4ea241bd
-```
+## External public-launch blockers
 
-Accepted evidence includes:
+The following cannot be accepted from repository automation alone:
 
-- permanent bundle identifier `net.cmdtab.CmdTab`;
-- deterministic local `.app` assembly;
-- empty reviewed entitlement baseline;
-- rollback-safe legacy beta migration logic;
-- strict bundle, metadata, architecture, resource, checksum, and ad-hoc signature verification;
-- byte-for-byte reproducible unsigned builds from the canonical scratch path;
-- bundle migration tests: 6/6;
-- Arc capture fallback tests: 3/3;
-- full Swift package suite: 132/132;
-- packaged menu-bar launch and Command-Tab interception;
-- permission reset and exact-bundle re-grant behavior;
-- Arc real thumbnail and Arc activation.
+- production Vercel/Postgres/rate-limit storage/Resend/KMS/Auth0/WAF
+  configuration, operational mailboxes, and backup/restore evidence;
+- a real Lemon Squeezy test-mode purchase-to-update lifecycle with no manual
+  database intervention;
+- the intended Developer ID identity, Team ID reconciliation, Hardened Runtime
+  signing, notarization, stapling, and Gatekeeper acceptance;
+- clean Apple Silicon and Intel installation and N-to-N+1 update evidence;
+- real 10/25/50-window and 1,000-session performance acceptance on the final
+  signed candidate;
+- restored GitHub-hosted runner/account capacity. Current required workflows
+  fail before their first step and therefore provide no source-quality signal.
 
-The complete record is `docs/release/evidence/phase-1/README.md`.
-
-## Active implementation order
-
-The next sequence is:
-
-```text
-Phase 1 evidence reconciliation
-        ↓
-Phase 2 owner prerequisite confirmation
-        ↓
-Developer ID signing and timestamping
-        ↓
-Notarization and stapling
-        ↓
-Gatekeeper and clean-account installation
-        ↓
-Private API capability providers
-        ↓
-Full interactive macOS acceptance matrix
-        ↓
-Signed updates, rollback, diagnostics, and licensing recovery
-        ↓
-release/native-rc1
-```
-
-Optional switcher features do not enter this sequence before the first safe release candidate.
-
-## Active branch boundaries
-
-### Current branch
-
-```text
-agent/phase-1-evidence-reconciliation
-```
-
-Scope:
-
-- documentation and evidence reconciliation only;
-- no production Swift behavior change;
-- no release artifact change.
-
-### Next implementation branch
-
-```text
-agent/phase-2-developer-id-distribution
-```
-
-Do not create `release/native-rc1` until Developer ID signing, notarization, stapling, Gatekeeper, clean-account installation, capability-provider hardening, desktop acceptance, and release recovery have passed.
-
-## Phase 2 owner prerequisites
-
-The following must be confirmed before Phase 2 can be accepted:
-
-- Apple Developer Program membership;
-- intended Apple Developer Team ID;
-- `net.cmdtab.CmdTab` registered to the intended team;
-- valid `Developer ID Application` certificate;
-- App Store Connect API credentials or a protected `notarytool` profile;
-- first-RC architecture policy;
-- restored GitHub Actions allowance and passing issue #30 acceptance criteria.
-
-Local script implementation may begin before hosted capacity returns, but Phase 2 cannot receive a pass while issue #30 remains unresolved.
-
-## Recommended first-RC architecture policy
-
-Use arm64-only for the first release candidate unless Intel users are an explicit supported audience and a Universal Binary is independently built, packaged, signed, notarized, installed, and tested.
-
-Do not infer processor support from the minimum macOS version.
-
-## Release truth rules
-
-- Reproducibility applies to the unsigned input bundle.
-- Secure timestamps and notarization metadata may make signed outputs nondeterministic.
-- Signed outputs require traceability to the exact unsigned manifest and checksum.
-- Ad-hoc QA identity is not a public-distribution identity.
-- Website and support claims must match the exact accepted artifact.
-- A screenshot is not proof of exact-window activation; the full matrix must record the actual focused `CGWindowID`.
-
-## Parallel website obligation
-
-PR #32 tracks deployment of the already-accepted one-shot showcase source to production. It must not merge while its Vercel result is a build-rate-limit failure. The native Phase 2 implementation may proceed independently, but public production HTML must be reconciled before a release candidate is approved.
+No release branch or public download may be promoted until every applicable
+external item is evidenced. Unsupported hardware or unavailable credentials
+remain `NOT TESTED`, never inferred.

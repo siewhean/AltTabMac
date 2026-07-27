@@ -11,5 +11,9 @@
   "agentApplication": true,
   "highResolutionCapable": true,
   "architecturePolicy": "native-host-only-until-universal-build-is-verified",
-  "distributionChannel": "developer-id-direct"
+  "distributionChannel": "developer-id-direct",
+  "updateChannel": "stable",
+  "sparkleVersion": "2.9.2",
+  "updateFeedURL": "https://cmdtab.net/releases/appcast.xml",
+  "updateCheckIntervalSeconds": 86400
 }

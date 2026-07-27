@@ -15,7 +15,7 @@ export function FaqList({
           className="border-b-0"
         >
           <details className="group py-6">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-lg font-medium tracking-[-0.03em] text-text">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-left text-lg font-medium tracking-[-0.03em] text-text [&::-webkit-details-marker]:hidden">
               <span>{item.question}</span>
               <span
                 aria-hidden="true"

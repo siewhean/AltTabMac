@@ -2,8 +2,11 @@
 
 import { track } from "@vercel/analytics";
 
-const VISITOR_STORAGE_KEY = "cmdtab-website-visitor-id";
-const SESSION_STORAGE_KEY = "cmdtab-website-session-id";
+import {
+  hasAnalyticsConsent,
+  SESSION_STORAGE_KEY,
+  VISITOR_STORAGE_KEY,
+} from "@/lib/analytics-consent";
 
 type AnalyticsPropertyValue = string | number | boolean | null;
 
@@ -148,6 +151,8 @@ export function trackSiteEvent(
   eventName: string,
   data?: Record<string, unknown>,
 ) {
+  if (!hasAnalyticsConsent()) return false;
+
   const sanitized = sanitizeEventData(data);
   track(eventName, sanitized);
 
@@ -162,9 +167,12 @@ export function trackSiteEvent(
     sessionId: getSessionId(),
     occurredAt: new Date().toISOString(),
   });
+  return true;
 }
 
 export function trackSitePageView(path: string) {
+  if (!hasAnalyticsConsent()) return false;
+
   postAnalytics({
     eventType: "pageview",
     path,
@@ -174,4 +182,5 @@ export function trackSitePageView(path: string) {
     sessionId: getSessionId(),
     occurredAt: new Date().toISOString(),
   });
+  return true;
 }

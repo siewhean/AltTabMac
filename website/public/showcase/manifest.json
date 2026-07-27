@@ -12,15 +12,19 @@
       "title": "CmdTab app switcher overview",
       "poster": "overview-poster.webp",
       "video": "overview.mp4",
-      "durationSeconds": 8,
+      "durationSeconds": 4.8,
       "posterWidth": 1920,
       "posterHeight": 1200,
+      "sourceType": "deterministic-product-composite",
+      "sourceLabel": "HD deterministic product composite",
+      "hasAudio": false,
+      "posterBytes": 59250,
+      "posterSha256": "c2c9f66228a7524635f6a5481a317dc4c369d45f206c8ef9bcd60f640aaf414a",
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "sourceType": "deterministic-product-composite",
-      "sourceLabel": "HD deterministic product composite",
-      "hasAudio": false
+      "videoBytes": 367883,
+      "videoSha256": "d12d3fdfb83f8a4550d8165f837616a160ce1a29859625ea752d4fafc131b0a3"
     },
     {
       "id": "classic-grid",
@@ -31,7 +35,9 @@
       "posterHeight": 1200,
       "sourceType": "deterministic-product-composite",
       "sourceLabel": "HD deterministic product poster",
-      "hasAudio": false
+      "hasAudio": false,
+      "posterBytes": 59250,
+      "posterSha256": "c2c9f66228a7524635f6a5481a317dc4c369d45f206c8ef9bcd60f640aaf414a"
     },
     {
       "id": "command-palette",
@@ -42,7 +48,9 @@
       "posterHeight": 1200,
       "sourceType": "deterministic-product-composite",
       "sourceLabel": "HD deterministic product poster",
-      "hasAudio": false
+      "hasAudio": false,
+      "posterBytes": 38960,
+      "posterSha256": "e37f7eee9255e569be4ac3d2a2f418b6236d57c86e7c2cb7acfebf9d86b6add7"
     },
     {
       "id": "radial-menu",
@@ -52,12 +60,16 @@
       "durationSeconds": 5,
       "posterWidth": 1920,
       "posterHeight": 1200,
+      "sourceType": "deterministic-product-composite",
+      "sourceLabel": "HD deterministic product composite",
+      "hasAudio": false,
+      "posterBytes": 64606,
+      "posterSha256": "ceab9c624096c401a1e27d89845f2e7a5ae51faa4c64e1d320bab616ddfcb77b",
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "sourceType": "deterministic-product-composite",
-      "sourceLabel": "HD deterministic product composite",
-      "hasAudio": false
+      "videoBytes": 162754,
+      "videoSha256": "b15392a0146374311e7b52273254452c092735db94279bee650630e9efd271b0"
     },
     {
       "id": "quick-actions",
@@ -67,12 +79,17 @@
       "durationSeconds": 4,
       "posterWidth": 1920,
       "posterHeight": 1200,
+      "sourceType": "deterministic-product-composite",
+      "sourceLabel": "HD deterministic product composite",
+      "hasAudio": false,
+      "posterBytes": 68170,
+      "posterSha256": "96933edad2bf31941568cce23ea65e9f5eb6acd3d1285de0c318293cae9a8db3",
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "sourceType": "deterministic-product-composite",
-      "sourceLabel": "HD deterministic product composite",
-      "hasAudio": false
+      "videoBytes": 140452,
+      "videoSha256": "26c5d4f4fd1992fb7efdeac170d26584d4d6ec1b138da36b15e04cadddc9ff8c"
     }
-  ]
+  ],
+  "motionPolicy": "Autoplay clips run once, never loop, last no more than five seconds, and remain static when reduced motion is requested."
 }

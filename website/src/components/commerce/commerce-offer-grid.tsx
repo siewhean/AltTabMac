@@ -3,6 +3,7 @@ import { MotionReveal } from "@/components/ui/motion-reveal";
 import { commerceContent } from "@/content/commerce";
 import { analyticsAttributes } from "@/lib/analytics";
 import { getCommerceConfig } from "@/lib/commerce";
+import { getStableReleaseManifest } from "@/lib/stable-release";
 
 type CommerceOfferGridProps = {
   context: string;
@@ -10,10 +11,11 @@ type CommerceOfferGridProps = {
 
 export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
   const commerce = getCommerceConfig();
+  const release = getStableReleaseManifest();
 
   return (
     <div className="space-y-6">
-      <MotionReveal direction="left" className="grid gap-6 md:grid-cols-3">
+      <MotionReveal direction="left" className="grid gap-6 md:grid-cols-2">
         <article className="surface-panel flex h-full flex-col p-6">
           <p className="type-eyebrow text-cyan">Trial</p>
           <p className="mt-5 text-4xl font-medium tracking-[-0.06em] text-text">
@@ -23,7 +25,7 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
             Use the full app in real work before you decide.
           </p>
           <ul className="mt-6 grow space-y-3">
-            {commerceContent.standard.points.map((point) => (
+            {commerceContent.trial.points.map((point) => (
               <li key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
                 <span className="mt-2 h-2 w-2 rounded-full bg-success" />
                 <span>{point}</span>
@@ -31,16 +33,16 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
             ))}
           </ul>
           <div className="mt-8">
-            {commerce.trialDownloadUrl ? (
+            {release ? (
               <Button
-                href={commerce.trialDownloadUrl}
+                href={release.dmgURL}
                 variant="secondary"
                 className="w-full"
                 target="_blank"
                 rel="noreferrer"
                 {...analyticsAttributes("commerce_trial_click", context)}
               >
-                {commerceContent.standard.cta}
+                {commerceContent.trial.cta}
               </Button>
             ) : (
               <Button href="/trial" variant="secondary" className="w-full" {...analyticsAttributes("commerce_trial_page_click", context)}>
@@ -51,13 +53,13 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
         </article>
 
         <article className="rounded-[24px] border border-cyan/18 bg-cyan/[0.06] flex h-full flex-col p-6 shadow-panel">
-          <p className="type-eyebrow text-cyan">Founder</p>
+          <p className="type-eyebrow text-cyan">{commerceContent.license.title}</p>
           <p className="mt-5 text-4xl font-medium tracking-[-0.06em] text-text">
-            {commerceContent.founder.price}
+            {commerceContent.license.price}
           </p>
-          <p className="mt-3 text-sm leading-6 text-muted">{commerceContent.founder.note}</p>
+          <p className="mt-3 text-sm leading-6 text-muted">{commerceContent.license.note}</p>
           <ul className="mt-6 grow space-y-3">
-            {commerceContent.founder.points.map((point) => (
+            {commerceContent.license.points.map((point) => (
               <li key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
                 <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
                 <span>{point}</span>
@@ -71,52 +73,13 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
                 className="w-full"
                 target="_blank"
                 rel="noreferrer"
-                {...analyticsAttributes("commerce_founder_checkout_click", context)}
+                {...analyticsAttributes("commerce_license_checkout_click", context)}
               >
-                {commerceContent.founder.cta}
+                {commerceContent.license.cta}
               </Button>
             ) : (
-              <Button href="/help" variant="secondary" className="w-full" {...analyticsAttributes("commerce_founder_fallback_click", context)}>
-                Ask about founder access
-              </Button>
-            )}
-          </div>
-        </article>
-
-        <article className="surface-panel flex h-full flex-col p-6">
-          <p className="type-eyebrow text-cyan">Standard</p>
-          <p className="mt-5 text-2xl font-medium tracking-[-0.04em] text-text">
-            After the trial
-          </p>
-          <p className="mt-3 text-sm leading-6 text-muted">
-            Buy the one-time license after the trial if you want to keep it.
-          </p>
-          <ul className="mt-6 grow space-y-3">
-            {[
-              "One-time purchase after trial",
-              "Separate from trial onboarding",
-              "Use Help if you lose the receipt",
-            ].map((point) => (
-              <li key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
-                <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
-                <span>{point}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8">
-            {commerce.standardCheckoutUrl ? (
-              <Button
-                href={commerce.standardCheckoutUrl}
-                className="w-full"
-                target="_blank"
-                rel="noreferrer"
-                {...analyticsAttributes("commerce_standard_checkout_click", context)}
-              >
-                Buy license
-              </Button>
-            ) : (
-              <Button href="/help" variant="secondary" className="w-full" {...analyticsAttributes("commerce_standard_fallback_click", context)}>
-                Buy path details
+              <Button href="/help" variant="secondary" className="w-full" {...analyticsAttributes("commerce_license_fallback_click", context)}>
+                Ask about purchase access
               </Button>
             )}
           </div>

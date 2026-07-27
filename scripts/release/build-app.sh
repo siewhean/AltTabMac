@@ -6,13 +6,14 @@ CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 SCRATCH_PATH="${CMDTAB_BUILD_SCRATCH:-}"
 LINKER_REPRODUCIBILITY="${CMDTAB_LINKER_REPRODUCIBILITY:-1}"
 BUILD_JOBS="${CMDTAB_BUILD_JOBS:-}"
+BUILD_ARCHITECTURES="${CMDTAB_BUILD_ARCHITECTURES:-}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "CmdTab must be built on macOS." >&2
   exit 1
 fi
 
-for tool in swift python3; do
+for tool in swift python3 ditto lipo; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -27,18 +28,18 @@ if [[ -z "${SCRATCH_PATH}" ]]; then
 fi
 mkdir -p "${SCRATCH_PATH}"
 
-BUILD_ARGUMENTS=(
-  --package-path "${ROOT_DIR}"
-  --configuration release
-  --scratch-path "${SCRATCH_PATH}"
-)
-
 if [[ -n "${BUILD_JOBS}" ]]; then
   [[ "${BUILD_JOBS}" =~ ^[1-9][0-9]*$ ]] || {
     echo "CMDTAB_BUILD_JOBS must be a positive integer." >&2
     exit 2
   }
-  BUILD_ARGUMENTS+=(--jobs "${BUILD_JOBS}")
+fi
+
+if [[ -n "${BUILD_ARCHITECTURES}" ]]; then
+  [[ "${BUILD_ARCHITECTURES}" == "arm64,x86_64" ]] || {
+    echo "CMDTAB_BUILD_ARCHITECTURES must be arm64,x86_64 when set." >&2
+    exit 2
+  }
 fi
 
 case "${LINKER_REPRODUCIBILITY}" in
@@ -46,7 +47,6 @@ case "${LINKER_REPRODUCIBILITY}" in
     # SwiftPM CLI builds do not reliably inherit Xcode's
     # LD_DETERMINISTIC_MODE setting. Keep a valid LC_UUID, but require ld to
     # derive all linker-generated metadata deterministically from the inputs.
-    BUILD_ARGUMENTS+=( -Xlinker -reproducible )
     ;;
   0)
     ;;
@@ -56,23 +56,68 @@ case "${LINKER_REPRODUCIBILITY}" in
     ;;
 esac
 
-printf 'Building %s in %s (deterministic-linker=%s jobs=%s)\n' \
+build_product() {
+  local product_scratch="$1"
+  local target_triple="${2:-}"
+  local build_arguments=(
+    --package-path "${ROOT_DIR}"
+    --configuration release
+    --scratch-path "${product_scratch}"
+  )
+  if [[ -n "${BUILD_JOBS}" ]]; then
+    build_arguments+=(--jobs "${BUILD_JOBS}")
+  fi
+  if [[ -n "${target_triple}" ]]; then
+    build_arguments+=(--triple "${target_triple}")
+  fi
+  build_arguments+=(
+    -Xlinker -rpath
+    -Xlinker "@executable_path/../Frameworks"
+  )
+  if [[ "${LINKER_REPRODUCIBILITY}" == "1" ]]; then
+    # SwiftPM CLI builds do not reliably inherit Xcode's
+    # LD_DETERMINISTIC_MODE setting. Keep a valid LC_UUID, but require ld to
+    # derive all linker-generated metadata deterministically from the inputs.
+    build_arguments+=( -Xlinker -reproducible )
+  fi
+
+  swift build "${build_arguments[@]}" >&2
+  local binary_directory
+  binary_directory="$(swift build "${build_arguments[@]}" --show-bin-path)"
+  local product_binary="${binary_directory}/${APP_NAME}"
+  [[ -f "${product_binary}" && -x "${product_binary}" ]] || {
+    echo "Release executable was not created at ${product_binary}" >&2
+    exit 1
+  }
+  printf '%s\n' "${product_binary}"
+}
+
+printf 'Building %s in %s (deterministic-linker=%s jobs=%s architectures=%s)\n' \
   "${APP_NAME}" \
   "${SCRATCH_PATH}" \
   "${LINKER_REPRODUCIBILITY}" \
-  "${BUILD_JOBS:-default}" >&2
-swift build "${BUILD_ARGUMENTS[@]}" >&2
+  "${BUILD_JOBS:-default}" \
+  "${BUILD_ARCHITECTURES:-host}" >&2
+if [[ "${BUILD_ARCHITECTURES}" == "arm64,x86_64" ]]; then
+  ARM64_BINARY="$(build_product "${SCRATCH_PATH}/arm64" "arm64-apple-macosx13.0")"
+  X86_64_BINARY="$(build_product "${SCRATCH_PATH}/x86_64" "x86_64-apple-macosx13.0")"
+  UNIVERSAL_DIRECTORY="${SCRATCH_PATH}/universal"
+  mkdir -p "${UNIVERSAL_DIRECTORY}"
+  lipo -create \
+    "${ARM64_BINARY}" \
+    "${X86_64_BINARY}" \
+    -output "${UNIVERSAL_DIRECTORY}/${APP_NAME}"
+  chmod 0755 "${UNIVERSAL_DIRECTORY}/${APP_NAME}"
 
-BIN_DIR="$(swift build \
-  --package-path "${ROOT_DIR}" \
-  --configuration release \
-  --scratch-path "${SCRATCH_PATH}" \
-  --show-bin-path)"
-BINARY_PATH="${BIN_DIR}/${APP_NAME}"
-
-if [[ ! -f "${BINARY_PATH}" || ! -x "${BINARY_PATH}" ]]; then
-  echo "Release executable was not created at ${BINARY_PATH}" >&2
-  exit 1
+  ARM64_FRAMEWORK="$(dirname "${ARM64_BINARY}")/Sparkle.framework"
+  [[ -d "${ARM64_FRAMEWORK}" ]] || {
+    echo "Arm64 build is missing Sparkle.framework." >&2
+    exit 1
+  }
+  ditto "${ARM64_FRAMEWORK}" "${UNIVERSAL_DIRECTORY}/Sparkle.framework"
+  BINARY_PATH="${UNIVERSAL_DIRECTORY}/${APP_NAME}"
+else
+  BINARY_PATH="$(build_product "${SCRATCH_PATH}")"
 fi
 
 printf '%s\n' "${BINARY_PATH}"

@@ -57,7 +57,7 @@ export const altTabComparison = {
     [
       "Commercial model",
       "Free open-source core. Pro is US$9.99 once; Pro Lifetime is US$24.99 once; new users receive a 14-day Pro trial.",
-      `${productFacts.trialLength} followed by a one-time purchase. The current founder offer displayed by CmdTab is ${productFacts.founderPrice}.`,
+      `${productFacts.trialLength} followed by a one-time purchase. The current CmdTab personal license is ${productFacts.licensePrice}.`,
     ],
     [
       "Public evidence",

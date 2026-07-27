@@ -8,9 +8,19 @@ VERIFY_TOOL="${ROOT_DIR}/scripts/release/verify-bundle.sh"
 MANIFEST_TOOL="${ROOT_DIR}/scripts/release/write-bundle-manifest.py"
 OUTPUT_APP="${CMDTAB_OUTPUT_APP:-${ROOT_DIR}/dist/CmdTab.app}"
 SKIP_SIGN="${CMDTAB_SKIP_ADHOC_SIGN:-0}"
+SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"
 KEEP_SCRATCH="${CMDTAB_KEEP_RELEASE_SCRATCH:-0}"
 SCRATCH_ROOT="${CMDTAB_RELEASE_SCRATCH:-$(mktemp -d /tmp/cmdtab-package.XXXXXX)}"
 STAGE_APP="${SCRATCH_ROOT}/CmdTab.app"
+
+if [[ "${SKIP_SIGN}" == "1" && -n "${SIGNING_IDENTITY}" ]]; then
+  echo "CMDTAB_SKIP_ADHOC_SIGN and CMDTAB_SIGNING_IDENTITY are mutually exclusive." >&2
+  exit 2
+fi
+if [[ -n "${SIGNING_IDENTITY}" && -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
+  echo "Developer ID packaging requires CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
+  exit 2
+fi
 
 cleanup() {
   if [[ "${KEEP_SCRATCH}" != "1" ]]; then
@@ -26,7 +36,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-for tool in python3 plutil codesign xattr shasum; do
+for tool in python3 plutil codesign xattr shasum ditto; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -42,22 +52,32 @@ BUILD_SCRATCH="${SCRATCH_ROOT}/swift-build"
 BINARY_PATH="$(CMDTAB_BUILD_SCRATCH="${BUILD_SCRATCH}" "${BUILD_TOOL}")"
 
 rm -rf "${STAGE_APP}"
-mkdir -p "${STAGE_APP}/Contents/MacOS" "${STAGE_APP}/Contents/Resources"
+mkdir -p \
+  "${STAGE_APP}/Contents/MacOS" \
+  "${STAGE_APP}/Contents/Resources" \
+  "${STAGE_APP}/Contents/Frameworks"
 
 install -m 0755 "${BINARY_PATH}" "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
+SPARKLE_FRAMEWORK="$(dirname "${BINARY_PATH}")/Sparkle.framework"
+[[ -d "${SPARKLE_FRAMEWORK}" ]] || {
+  echo "SwiftPM did not emit Sparkle.framework beside the release executable." >&2
+  exit 1
+}
+ditto "${SPARKLE_FRAMEWORK}" "${STAGE_APP}/Contents/Frameworks/Sparkle.framework"
 python3 "${CONFIG_TOOL}" render-info-plist "${STAGE_APP}/Contents/Info.plist"
 install -m 0644 "${ROOT_DIR}/Resources/${ICON_FILE}.icns" "${STAGE_APP}/Contents/Resources/${ICON_FILE}.icns"
 if [[ -f "${ROOT_DIR}/Resources/${ICON_FILE}.png" ]]; then
   install -m 0644 "${ROOT_DIR}/Resources/${ICON_FILE}.png" "${STAGE_APP}/Contents/Resources/${ICON_FILE}.png"
 fi
 
-find "${STAGE_APP}" -type d -exec chmod 0755 {} +
-find "${STAGE_APP}" -type f ! -path "*/Contents/MacOS/${EXECUTABLE_NAME}" -exec chmod 0644 {} +
+find "${STAGE_APP}/Contents/MacOS" "${STAGE_APP}/Contents/Resources" \
+  -type d -exec chmod 0755 {} +
+find "${STAGE_APP}/Contents/Resources" -type f -exec chmod 0644 {} +
 chmod 0755 "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
 xattr -cr "${STAGE_APP}" 2>/dev/null || true
 
-if [[ -n "$(find "${STAGE_APP}" -type l -print -quit)" ]]; then
-  echo "Packaged app contains an unexpected symbolic link." >&2
+if [[ -n "$(find "${STAGE_APP}" -type l ! -path "${STAGE_APP}/Contents/Frameworks/Sparkle.framework/*" -print -quit)" ]]; then
+  echo "Packaged app contains a symbolic link outside Sparkle.framework." >&2
   exit 1
 fi
 
@@ -69,15 +89,21 @@ if [[ "${SKIP_SIGN}" == "1" ]]; then
     codesign --remove-signature "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
   fi
   EXPECTED_SIGNING="unsigned"
+elif [[ -n "${SIGNING_IDENTITY}" ]]; then
+  plutil -lint "${ROOT_DIR}/Resources/CmdTab.entitlements" >/dev/null
+  "${ROOT_DIR}/scripts/release/sign-app-bundle.sh" \
+    "${STAGE_APP}" \
+    "${SIGNING_IDENTITY}" \
+    "${ROOT_DIR}/Resources/CmdTab.entitlements" \
+    timestamp
+  EXPECTED_SIGNING="developer-id"
 else
   plutil -lint "${ROOT_DIR}/Resources/CmdTab.entitlements" >/dev/null
-  codesign \
-    --force \
-    --sign - \
-    --timestamp=none \
-    --options runtime \
-    --entitlements "${ROOT_DIR}/Resources/CmdTab.entitlements" \
-    "${STAGE_APP}"
+  "${ROOT_DIR}/scripts/release/sign-app-bundle.sh" \
+    "${STAGE_APP}" \
+    - \
+    "${ROOT_DIR}/Resources/CmdTab.entitlements" \
+    none
   EXPECTED_SIGNING="ad-hoc"
 fi
 
@@ -95,6 +121,7 @@ python3 "${MANIFEST_TOOL}" "${OUTPUT_APP}" "${MANIFEST_PATH}" >/dev/null
   cd "$(dirname "${OUTPUT_APP}")"
   shasum -a 256 "$(basename "${OUTPUT_APP}")/Contents/Info.plist" \
     "$(basename "${OUTPUT_APP}")/Contents/MacOS/${EXECUTABLE_NAME}" \
+    "$(basename "${OUTPUT_APP}")/Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" \
     "$(basename "${OUTPUT_APP}")/Contents/Resources/${ICON_FILE}.icns"
 ) > "${CHECKSUM_PATH}"
 

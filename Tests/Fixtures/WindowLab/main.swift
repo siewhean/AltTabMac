@@ -15,9 +15,11 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
     private var windows: [NSWindow] = []
     private var floatingPanel: NSPanel?
     private let scenario: FixtureScenario
+    private let windowCount: Int
 
-    init(scenario: FixtureScenario) {
+    init(scenario: FixtureScenario, windowCount: Int) {
         self.scenario = scenario
+        self.windowCount = windowCount
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -36,7 +38,7 @@ private final class FixtureDelegate: NSObject, NSApplicationDelegate, NSWindowDe
         let visible = NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
         let size = CGSize(width: min(620, visible.width * 0.45), height: min(440, visible.height * 0.55))
 
-        for index in 0..<3 {
+        for index in 0..<windowCount {
             let title = scenario == .duplicateTitles && index < 2
                 ? "WindowLab — Duplicate"
                 : "WindowLab — A\(index + 1)"
@@ -250,9 +252,21 @@ private final class NSHostinglessFixtureViewController: NSViewController {
     }
 }
 
-let argument = CommandLine.arguments.dropFirst().first ?? FixtureScenario.standard.rawValue
-private let scenario = FixtureScenario(rawValue: argument) ?? .standard
+private let arguments = Array(CommandLine.arguments.dropFirst())
+private let scenario = arguments
+    .compactMap(FixtureScenario.init(rawValue:))
+    .first
+    ?? .standard
+private let windowCount: Int = {
+    guard let index = arguments.firstIndex(of: "--window-count"),
+          arguments.indices.contains(index + 1),
+          let value = Int(arguments[index + 1]),
+          (1...100).contains(value) else {
+        return 3
+    }
+    return value
+}()
 let application = NSApplication.shared
-private let delegate = FixtureDelegate(scenario: scenario)
+private let delegate = FixtureDelegate(scenario: scenario, windowCount: windowCount)
 application.delegate = delegate
 application.run()

@@ -2,19 +2,38 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { renderLicenseDeliveryEmail } from "@/content/license-delivery-email";
-import { getSiteUrl, getServerEnv } from "@/lib/env";
+import { getServerEnv } from "@/lib/env";
+import {
+  IngestRequestError,
+  readBoundedText,
+} from "@/lib/ingest-request";
 import {
   createOrGetLicenseFulfillment,
+  findLicenseFulfillmentByOrder,
   markLicenseFulfillmentRefunded,
-  updateLicenseFulfillmentDeliveryStatus,
 } from "@/lib/license-fulfillment-store";
-import { issueCmdTabLicenseToken } from "@/lib/license-token";
-import { getOrderAttributes, type LemonSqueezyOrderWebhook, verifyLemonSqueezySignature } from "@/lib/lemonsqueezy";
-import { getResendClient } from "@/lib/resend";
+import {
+  classifyOrderRefund,
+  issuePurchaseActivationCredential,
+  lookupHash,
+} from "@/lib/license-lifecycle-contract";
+import {
+  enqueueLicenseEmail,
+  ensureActiveEntitlement,
+  recordOrderAccessState,
+} from "@/lib/license-lifecycle-store";
+import { processLicenseOutbox } from "@/lib/license-outbox";
+import {
+  getOrderAttributes,
+  isExpectedLemonOrder,
+  isPaidLemonOrderStatus,
+  type LemonSqueezyOrderWebhook,
+  verifyLemonSqueezySignature,
+} from "@/lib/lemonsqueezy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
 
 function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, {
@@ -25,43 +44,18 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-async function sendLicenseEmail(input: {
-  email: string;
-  name?: string;
-  licenseKey: string;
-  productName?: string;
-  receiptUrl?: string;
-  orderNumber?: number;
-  testMode: boolean;
-}) {
-  const env = getServerEnv();
-  const resend = getResendClient(env.resendApiKey);
-  const message = renderLicenseDeliveryEmail({
-    email: input.email,
-    name: input.name,
-    licenseKey: input.licenseKey,
-    productName: input.productName,
-    receiptUrl: input.receiptUrl,
-    orderNumber: input.orderNumber,
-    siteUrl: getSiteUrl(),
-    testMode: input.testMode,
-  });
-
-  return resend.emails.send({
-    from: env.licenseDeliveryFromEmail ?? env.waitlistFromEmail,
-    to: input.email,
-    replyTo: env.waitlistReplyToEmail,
-    subject: message.subject,
-    text: message.text,
-    html: message.html,
-  });
-}
-
 export async function POST(request: Request) {
   const requestId = randomUUID();
   const env = getServerEnv();
 
-  if (!env.lemonsqueezyWebhookSecret || !env.cmdtabLicensePrivateKeyPem) {
+  if (
+    !env.lemonsqueezyWebhookSecret ||
+    !env.licenseLookupPepper ||
+    !env.lemonsqueezyStoreId ||
+    !env.lemonsqueezyProductId ||
+    !env.lemonsqueezyVariantId ||
+    env.lemonsqueezyExpectedTestMode === undefined
+  ) {
     return json(
       {
         ok: false,
@@ -73,7 +67,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const rawBody = await request.text();
+  let rawBody: string;
+  try {
+    rawBody = await readBoundedText(request, MAX_WEBHOOK_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof IngestRequestError) {
+      return json(
+        { ok: false, code: error.code, message: error.message, requestId },
+        error.status,
+      );
+    }
+    throw error;
+  }
   const valid = verifyLemonSqueezySignature({
     secret: env.lemonsqueezyWebhookSecret,
     rawBody,
@@ -109,10 +114,65 @@ export async function POST(request: Request) {
 
   const eventName = payload.meta?.event_name ?? "unknown";
   const attributes = getOrderAttributes(payload);
+  const isExpectedOffer = isExpectedLemonOrder(payload, {
+    storeId: env.lemonsqueezyStoreId,
+    productId: env.lemonsqueezyProductId,
+    variantId: env.lemonsqueezyVariantId,
+    testMode: env.lemonsqueezyExpectedTestMode,
+  });
 
-  if (eventName === "order_refunded" && attributes?.identifier) {
-    await markLicenseFulfillmentRefunded(attributes.identifier);
-    return json({ ok: true, handled: true, eventName, requestId });
+  if (!isExpectedOffer) {
+    return json({
+      ok: true,
+      handled: false,
+      eventName,
+      reason: "unrecognized_offer",
+      requestId,
+    });
+  }
+
+  if (
+    eventName === "order_refunded" &&
+    attributes?.identifier
+  ) {
+    const existingFulfillment = await findLicenseFulfillmentByOrder(
+      attributes.identifier,
+    );
+    const classification = classifyOrderRefund({
+      status: attributes.status,
+      refunded: attributes.refunded,
+      refundedAmount: attributes.refunded_amount,
+      total: attributes.total,
+    });
+    if (classification === "partial") {
+      await recordOrderAccessState({
+        orderIdentifier: attributes.identifier,
+        licenseId: existingFulfillment?.licenseId,
+        pepper: env.licenseLookupPepper,
+        state: "partial_refund",
+        reason: "partial_refund",
+        refundedAmount: Number(attributes.refunded_amount ?? 0),
+        total: Number(attributes.total ?? 0),
+      });
+    } else if (classification === "full") {
+      await recordOrderAccessState({
+        orderIdentifier: attributes.identifier,
+        licenseId: existingFulfillment?.licenseId,
+        pepper: env.licenseLookupPepper,
+        state: "revoked",
+        reason: "full_refund",
+        refundedAmount: Number(attributes.refunded_amount ?? attributes.total ?? 0),
+        total: Number(attributes.total ?? 0),
+      });
+      await markLicenseFulfillmentRefunded(attributes.identifier);
+    }
+    return json({
+      ok: true,
+      handled: classification !== "none",
+      eventName,
+      refund: classification,
+      requestId,
+    });
   }
 
   if (eventName !== "order_created") {
@@ -131,17 +191,14 @@ export async function POST(request: Request) {
     );
   }
 
-  if (attributes.status && attributes.status !== "paid") {
+  if (!isPaidLemonOrderStatus(payload)) {
     return json({ ok: true, handled: false, eventName, requestId, status: attributes.status });
   }
 
-  const issued = issueCmdTabLicenseToken({
-    privateKeyPem: env.cmdtabLicensePrivateKeyPem,
-    email: attributes.user_email,
-    purchaserName: attributes.user_name,
-    licenseID: attributes.identifier,
-    issuedAt: attributes.created_at,
-  });
+  // New purchases receive a high-entropy exchange credential, never an
+  // offline-authorizing entitlement. Only /api/license/activate can exchange
+  // it for a device-bound CMDTAB2 token.
+  const activationCredential = issuePurchaseActivationCredential();
 
   const fulfillment = await createOrGetLicenseFulfillment({
     orderIdentifier: attributes.identifier,
@@ -157,9 +214,22 @@ export async function POST(request: Request) {
     totalFormatted: attributes.total_formatted,
     storeId: attributes.store_id,
     lemonsqueezyOrderId: payload.data?.id,
-    licenseId: issued.payload.licenseID,
-    licenseToken: issued.token,
+    licenseId: attributes.identifier,
+    licenseToken: activationCredential,
+    orderLookupHash: lookupHash("order", attributes.identifier, env.licenseLookupPepper),
+    licenseLookupHash: lookupHash("license", attributes.identifier, env.licenseLookupPepper),
+    emailLookupHash: lookupHash("email", attributes.user_email, env.licenseLookupPepper),
+    activationCredentialHash: lookupHash(
+      "license",
+      activationCredential,
+      env.licenseLookupPepper,
+    ),
     testMode: Boolean(attributes.test_mode),
+  });
+  await ensureActiveEntitlement({
+    licenseId: fulfillment.licenseId,
+    orderIdentifier: fulfillment.orderIdentifier,
+    pepper: env.licenseLookupPepper,
   });
 
   if (fulfillment.deliveryStatus === "delivered") {
@@ -172,35 +242,32 @@ export async function POST(request: Request) {
     });
   }
 
-  try {
-    await sendLicenseEmail({
-      email: fulfillment.purchaserEmail,
-      name: fulfillment.purchaserName,
+  await enqueueLicenseEmail({
+    dedupeKey: `purchase:${fulfillment.orderIdentifier}`,
+    kind: "license_delivery",
+    recipientEmail: fulfillment.purchaserEmail,
+    payload: {
+      orderIdentifier: fulfillment.orderIdentifier,
       licenseKey: fulfillment.licenseToken,
       productName: fulfillment.productName,
       receiptUrl: fulfillment.receiptUrl,
       orderNumber: fulfillment.orderNumber,
       testMode: fulfillment.testMode,
-    });
-    await updateLicenseFulfillmentDeliveryStatus(fulfillment.orderIdentifier, "delivered");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown fulfillment error";
-    await updateLicenseFulfillmentDeliveryStatus(fulfillment.orderIdentifier, "failed", message);
-    return json(
-      {
-        ok: false,
-        code: "delivery_failed",
-        message,
-        orderIdentifier: fulfillment.orderIdentifier,
-        requestId,
-      },
-      502,
-    );
-  }
+      name: fulfillment.purchaserName,
+    },
+  });
+  // Best effort keeps the common case immediate. A protected worker retries
+  // persisted jobs, so provider webhook retries are not the only recovery path.
+  const delivery = await processLicenseOutbox(1).catch((error) => {
+    console.error("[CmdTab Website] inline fulfillment attempt failed", error);
+    return { claimed: 0, delivered: 0, failed: 1 };
+  });
 
   return json({
     ok: true,
     handled: true,
+    deliveryQueued: true,
+    delivery,
     orderIdentifier: fulfillment.orderIdentifier,
     requestId,
   });

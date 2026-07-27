@@ -1,6 +1,9 @@
 name: Release Readiness
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     branches:
       - main
@@ -16,7 +19,6 @@ concurrency:
 jobs:
   repository-health:
     name: Repository and runner health
-    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -28,18 +30,18 @@ jobs:
           echo "sha=${GITHUB_SHA}"
           echo "head_ref=${GITHUB_HEAD_REF}"
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Verify repository hygiene
         run: |
           set -euo pipefail
           test -z "$(git ls-files .build)"
           test -z "$(git ls-files | grep -E '(^|/)\.DS_Store$' || true)"
           test -s docs/release/native-production-readiness-plan.md
+          python3 scripts/release/verify-workflow-actions.py
           git diff --check
 
   website-release-gate:
     name: Website Security, SEO, GEO, and browser QA
-    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
@@ -50,9 +52,9 @@ jobs:
         working-directory: website
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -100,7 +102,7 @@ jobs:
           fi
       - name: Upload website evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: phase-0-website-verification
           path: website/verification-artifacts
@@ -109,7 +111,6 @@ jobs:
 
   swift-release-gate:
     name: Swift ${{ matrix.runner }}
-    if: ${{ startsWith(github.head_ref, 'agent/native-release-readiness') || startsWith(github.head_ref, 'agent/validate-native-release-readiness') || startsWith(github.head_ref, 'release/') }}
     strategy:
       fail-fast: false
       matrix:
@@ -126,7 +127,7 @@ jobs:
           echo "runner_arch=${RUNNER_ARCH}"
           echo "sha=${GITHUB_SHA}"
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Verify pre-fix model evidence
         run: |
           python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/switcher-model.json

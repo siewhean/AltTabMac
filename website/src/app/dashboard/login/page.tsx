@@ -3,7 +3,7 @@ import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
-import { hasAdminSession, isAdminAuthConfigured } from "@/lib/admin-auth";
+import { getAdminAuthMode, hasAdminSession, isAdminAuthConfigured } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +45,7 @@ export default async function DashboardLoginPage({
   const params = (await searchParams) ?? {};
   const error = typeof params.error === "string" ? params.error : undefined;
   const authConfigured = await isAdminAuthConfigured();
+  const authMode = getAdminAuthMode();
 
   return (
     <main>
@@ -63,7 +64,22 @@ export default async function DashboardLoginPage({
           </div>
 
           <div className="w-full rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
-          {authConfigured ? (
+          {authConfigured && authMode === "auth0" ? (
+            <div className="space-y-5">
+              <p className="text-sm leading-7 text-muted">
+                Continue through CmdTab&apos;s hosted owner login. Multi-factor authentication is
+                required before the dashboard accepts the configured owner identity.
+              </p>
+              {error ? (
+                <p className="rounded-2xl border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-sm text-rose-100">
+                  Dashboard sign-in could not be verified. Start a new login and try again.
+                </p>
+              ) : null}
+              <Button href="/dashboard/auth/login" className="w-full">
+                Continue with secure login
+              </Button>
+            </div>
+          ) : authConfigured && authMode === "legacy" ? (
             <form action="/dashboard/login/submit" method="post" className="space-y-5">
               <div className="space-y-2">
                 <label
@@ -93,7 +109,8 @@ export default async function DashboardLoginPage({
             </form>
           ) : (
             <div className="rounded-2xl border border-rose-400/20 bg-rose-400/8 px-4 py-3 text-sm text-rose-100">
-              Dashboard login is not configured yet.
+              Dashboard login is unavailable because its production security configuration is
+              incomplete.
             </div>
           )}
         </div>

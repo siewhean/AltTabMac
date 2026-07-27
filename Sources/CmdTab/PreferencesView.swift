@@ -6,8 +6,10 @@ struct PreferencesView: View {
     let onOpenApplications: () -> Void
     let onRefreshPreviews: () -> Void
     let onApplySwitcherStyle: (SwitcherStyle) -> Void
+    let onOpenOnboarding: () -> Void
     @StateObject private var licensingController = LicensingController.shared
     @StateObject private var developerSettings = DeveloperSettings.shared
+    @StateObject private var telemetryPreferences = TelemetryPreferences.shared
     @State private var selectedPane: PreferencesPaneSelection
     @StateObject private var appExclusionCatalog = AppExclusionCatalog()
     @State private var isAppExclusionPickerPresented = false
@@ -18,12 +20,14 @@ struct PreferencesView: View {
         onOpenApplications: @escaping () -> Void,
         onRefreshPreviews: @escaping () -> Void,
         onApplySwitcherStyle: @escaping (SwitcherStyle) -> Void,
+        onOpenOnboarding: @escaping () -> Void = {},
         initialPane: PreferencesPaneSelection = .general
     ) {
         self.preferences = preferences
         self.onOpenApplications = onOpenApplications
         self.onRefreshPreviews = onRefreshPreviews
         self.onApplySwitcherStyle = onApplySwitcherStyle
+        self.onOpenOnboarding = onOpenOnboarding
         _selectedPane = State(initialValue: initialPane)
     }
 
@@ -154,6 +158,8 @@ struct PreferencesView: View {
             )
         case .system:
             startupSection
+            updatesSection
+            privacySection
             permissionsSection
         }
     }
@@ -216,6 +222,45 @@ struct PreferencesView: View {
                     .controlSize(.large)
                 }
             }
+        }
+    }
+
+    private var privacySection: some View {
+        SettingsCard(
+            title: "Privacy",
+            subtitle: "Usage telemetry is optional and disabled by default."
+        ) {
+            SettingsToggleRow(
+                title: "Share Usage Telemetry",
+                subtitle: "Share app launches, hourly usage, trial starts, and license activations, including an installation ID, license state, app and macOS versions, and the license ID when activated.",
+                isOn: Binding(
+                    get: { telemetryPreferences.isEnabled },
+                    set: { isEnabled in
+                        AppTelemetryReporter.shared.setEnabled(
+                            isEnabled,
+                            licensingController: licensingController
+                        )
+                    }
+                )
+            )
+        }
+    }
+
+    private var updatesSection: some View {
+        SettingsCard(
+            title: "Updates",
+            subtitle: "CmdTab checks the stable channel daily after you grant Sparkle permission."
+        ) {
+            SettingsButtonRow(
+                title: "Check for Updates",
+                subtitle: UpdaterController.shared.isConfigured
+                    ? "Look for a newer signed CmdTab release now."
+                    : "Unavailable in this local QA build because no release signing key is embedded.",
+                buttonTitle: "Check Now"
+            ) {
+                UpdaterController.shared.checkForUpdates()
+            }
+            .disabled(!UpdaterController.shared.isConfigured)
         }
     }
 
@@ -366,6 +411,16 @@ struct PreferencesView: View {
 
     private var permissionsSection: some View {
         SettingsCard(title: "Permissions", subtitle: "CmdTab depends on Accessibility and Screen Recording.") {
+            SettingsButtonRow(
+                title: "Setup Guide",
+                subtitle: "Review why CmdTab requests each permission and run the first-switch practice again.",
+                buttonTitle: "Open"
+            ) {
+                onOpenOnboarding()
+            }
+
+            Divider().overlay(Color.white.opacity(0.08))
+
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(PermissionDiagnostics.allStatuses().enumerated()), id: \.offset) { index, status in
                     PermissionStatusRow(status: status)
@@ -614,6 +669,8 @@ private struct SettingsToggleRow: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .tint(.blue)
+                .accessibilityLabel(title)
+                .accessibilityHint(subtitle)
         }
     }
 }

@@ -170,13 +170,16 @@ def main() -> None:
             "switcher = ProductionSwitcherWindowController()",
             "hotkeyManager = ProfileHotkeyManager(switcher: switcher)",
             "ScreenTopologyObserver",
-            "requestRequiredPermissionsIfNeeded",
+            "onboardingWindowController = OnboardingWindowController()",
+            "onboardingWindowController.showAutomaticallyIfNeeded()",
             "beginDefaultConfigurationFreeze",
             "waitForPendingWrites",
         ),
     )
     reject(app_delegate, "switcher = SwitcherWindowController()", "AppDelegate")
     reject(app_delegate, "hotkeyManager = HotkeyManager(switcher: switcher)", "AppDelegate")
+    reject(app_delegate, "AXIsProcessTrustedWithOptions", "AppDelegate")
+    reject(app_delegate, "CGRequestScreenCaptureAccess", "AppDelegate")
 
     require_all(
         ROOT / "Sources" / "CmdTab" / "SwitcherPreferences.swift",

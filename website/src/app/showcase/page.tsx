@@ -73,7 +73,12 @@ export default function ShowcasePage() {
         description="Swipe on mobile or open a card for the detailed behavior."
         className="pt-4 sm:pt-6"
       >
-        <div className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0">
+        <div
+          role="region"
+          aria-label="CmdTab showcase modes and actions"
+          tabIndex={0}
+          className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0"
+        >
           {assets.map((asset) => (
             <article
               key={asset.id}

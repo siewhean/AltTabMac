@@ -57,7 +57,12 @@ export const faqItems = [
   {
     question: "What app telemetry does CmdTab send?",
     answer:
-      "The current app sends a pseudonymous install identifier, event name and timestamp, license state and identifier when present, app version, and macOS version. It reports app activation, an hourly heartbeat while running, trial start, and license activation events.",
+      "Optional native-app telemetry is off by default. If enabled in Settings, the app sends a pseudonymous install identifier, event name and timestamp, license state and identifier when present, app version, and macOS version. It reports app activation, an hourly heartbeat while running, trial start, and license activation events.",
+  },
+  {
+    question: "Does the website use analytics by default?",
+    answer:
+      "No. CmdTab's first-party website analytics, Vercel Web Analytics, and Speed Insights stay off until you accept. You can decline or withdraw on the Privacy page; doing so deletes the website visitor and session identifiers stored by CmdTab in that browser. Trial, purchase, download, licensing, and support features continue to work.",
   },
   {
     question: "What macOS version does CmdTab require?",
@@ -77,7 +82,17 @@ export const faqItems = [
   {
     question: "Is CmdTab a subscription?",
     answer:
-      "No. CmdTab is presented as a one-time purchase rather than a recurring subscription.",
+      "No. CmdTab is US$12 once for one perpetual personal license covering up to three personally owned Macs and all CmdTab 1.x updates.",
+  },
+  {
+    question: "What is the refund policy?",
+    answer:
+      "You may request a full refund within 14 days of purchase through the Help page. Partial refunds preserve access; a full refund, chargeback, payment dispute, fraud determination, or manual revocation ends the license.",
+  },
+  {
+    question: "How do I move CmdTab to another Mac?",
+    answer:
+      "Deactivate an old Mac in the license portal to free its slot immediately, then activate the replacement. One personal license supports up to three active personally owned Macs; use Help if self-service recovery is unavailable.",
   },
   {
     question: "Where can I get support?",

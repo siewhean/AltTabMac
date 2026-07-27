@@ -15,7 +15,7 @@ import {
 
 const title = "Buy CmdTab: 14-day trial and one-time Mac license";
 const description =
-  "Try CmdTab for 14 days, then buy a one-time macOS license if it improves your window-switching workflow. Review current founder and standard pricing without a subscription.";
+  "Try CmdTab for 14 days, then buy one US$12 perpetual personal license for up to three personally owned Macs, with all 1.x updates and no subscription.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Buy", path: "/buy" as const },
@@ -54,7 +54,9 @@ export default function BuyPage() {
         </div>
         <CommerceOfferGrid context="buy_page" />
         <p className="mt-6 max-w-3xl text-sm leading-7 text-subdued">
-          CmdTab is presented as a one-time purchase, not a recurring subscription. Checkout availability and the visible price should be verified on this page before purchase.
+          US$12 is a one-time perpetual personal license for up to three personally owned Macs
+          and all CmdTab 1.x updates. It is not a recurring subscription. A full refund can be
+          requested within 14 days of purchase.
         </p>
       </SectionShell>
 

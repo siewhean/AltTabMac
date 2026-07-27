@@ -16,6 +16,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 const baseUrl = (process.env.VERIFY_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const localRun = /^http:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(baseUrl);
 const root = process.cwd();
+const axeSource = readFileSync(resolve(root, "node_modules/axe-core/axe.min.js"), "utf8");
 const routes = JSON.parse(readFileSync(resolve(root, "src/content/public-routes.json"), "utf8")).map(
   (entry) => entry.path,
 );
@@ -190,6 +191,7 @@ const failures = [];
 const report = [];
 const fail = (message) => failures.push(message);
 let client;
+const freshProfileAnalyticsRequests = [];
 
 try {
   const debuggingPort = await waitForDevToolsPort(
@@ -210,14 +212,30 @@ try {
     client.send("Network.enable"),
     client.send("Log.enable"),
   ]);
+  const removeFreshProfileRequestListener = client.on(
+    "Network.requestWillBeSent",
+    ({ request }) => {
+      const url = String(request?.url || "");
+      if (
+        url.includes("/api/analytics") ||
+        url.includes("/_vercel/insights") ||
+        url.includes("/_vercel/speed-insights")
+      ) {
+        freshProfileAnalyticsRequests.push(url);
+      }
+    },
+  );
   await client.send("Emulation.setEmulatedMedia", {
     media: "screen",
     features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
   });
 
   const profiles = [
-    { name: "desktop", width: 1440, height: 1000, mobile: false },
-    { name: "mobile", width: 390, height: 844, mobile: true },
+    { name: "desktop", width: 1440, height: 1000, mobile: false, motionCheck: true },
+    { name: "mobile", width: 390, height: 844, mobile: true, motionCheck: true },
+    // Effective CSS viewports for a 1280px desktop at 200% and 400% browser zoom.
+    { name: "zoom-200", width: 640, height: 500, mobile: false, motionCheck: false },
+    { name: "zoom-400", width: 320, height: 320, mobile: false, motionCheck: false },
   ];
   const screenshotRoutes = new Set(["/", "/showcase", "/features/window-switcher", "/buy"]);
 
@@ -322,6 +340,38 @@ try {
             height: video.getBoundingClientRect().height,
           }));
           const visibleControls = [...document.querySelectorAll('a, button, summary')].filter(visible);
+          const overflowingElements = [...document.body.querySelectorAll('*')]
+            .filter(visible)
+            .map((element) => {
+              const rect = element.getBoundingClientRect();
+              let ancestor = element.parentElement;
+              let containedByAccessibleScroller = false;
+              while (ancestor) {
+                const ancestorStyle = getComputedStyle(ancestor);
+                const scrollsHorizontally =
+                  ['auto', 'scroll'].includes(ancestorStyle.overflowX) &&
+                  ancestor.scrollWidth > ancestor.clientWidth + 4;
+                if (scrollsHorizontally) {
+                  containedByAccessibleScroller =
+                    ancestor.getAttribute('role') === 'region' &&
+                    ancestor.tabIndex >= 0 &&
+                    Boolean(ancestor.getAttribute('aria-label') || ancestor.getAttribute('aria-labelledby'));
+                  break;
+                }
+                ancestor = ancestor.parentElement;
+              }
+              return {
+                tag: element.tagName.toLowerCase(),
+                text: (element.textContent || '').trim().slice(0, 80),
+                className: typeof element.className === 'string' ? element.className.slice(0, 160) : '',
+                left: Math.round(rect.left),
+                right: Math.round(rect.right),
+                width: Math.round(rect.width),
+                containedByAccessibleScroller,
+              };
+            })
+            .filter(({ left, right }) => left < -4 || right > window.innerWidth + 4)
+            .slice(0, 12);
           const playbackControls = visibleControls
             .filter((element) => /^(play|pause)(?:\s|$)/i.test((element.textContent || element.getAttribute('aria-label') || '').trim()))
             .map(size);
@@ -363,12 +413,31 @@ try {
             ctas,
             modeMetadata,
             videos,
+            overflowingElements,
             scrollableTables,
           };
         })()`,
         returnByValue: true,
       });
       const result = evaluated.result?.value || {};
+      let seriousAxeViolations = [];
+      if (profile.motionCheck) {
+        await client.send("Runtime.evaluate", { expression: axeSource });
+        const axeEvaluation = await client.send("Runtime.evaluate", {
+          expression: `axe.run(document, { resultTypes: ['violations'] }).then(({ violations }) =>
+            violations
+              .filter(({ impact }) => impact === 'serious' || impact === 'critical')
+              .map(({ id, impact, nodes }) => ({
+                id,
+                impact,
+                targets: nodes.slice(0, 3).map(({ target }) => target.join(' ')),
+              }))
+          )`,
+          awaitPromise: true,
+          returnByValue: true,
+        });
+        seriousAxeViolations = axeEvaluation.result?.value || [];
+      }
 
       let mobileMenuResult = null;
       if (profile.mobile) {
@@ -416,6 +485,7 @@ try {
         exceptions,
         failedRequests,
         badResponses,
+        seriousAxeViolations,
       });
 
       if (result.readyState !== "complete") fail(`${profile.name} ${path}: document did not finish loading`);
@@ -423,7 +493,11 @@ try {
       if (result.h1Count !== 1) fail(`${profile.name} ${path}: expected one H1, found ${result.h1Count}`);
       if (result.errorOverlay) fail(`${profile.name} ${path}: a framework error overlay is visible`);
       if (result.horizontalOverflow > 4) {
-        fail(`${profile.name} ${path}: document has ${result.horizontalOverflow}px of horizontal overflow`);
+        const unexpectedOverflow = (result.overflowingElements || [])
+          .filter(({ containedByAccessibleScroller }) => !containedByAccessibleScroller);
+        if (unexpectedOverflow.length) {
+          fail(`${profile.name} ${path}: document has ${result.horizontalOverflow}px of horizontal overflow ${JSON.stringify(unexpectedOverflow)}`);
+        }
       }
       if (result.brokenImages?.length) {
         fail(`${profile.name} ${path}: broken images ${result.brokenImages.join(", ")}`);
@@ -446,6 +520,9 @@ try {
       if (exceptions.length) fail(`${profile.name} ${path}: runtime exceptions ${exceptions.join(" | ")}`);
       if (failedRequests.length) fail(`${profile.name} ${path}: failed requests ${failedRequests.join(" | ")}`);
       if (badResponses.length) fail(`${profile.name} ${path}: bad same-origin responses ${badResponses.join(" | ")}`);
+      if (seriousAxeViolations.length) {
+        fail(`${profile.name} ${path}: axe serious/critical violations ${JSON.stringify(seriousAxeViolations)}`);
+      }
 
       for (const target of result.ctas || []) {
         if (target.height < 44 || target.width < 44) {
@@ -453,7 +530,7 @@ try {
         }
       }
 
-      if (["/", "/showcase"].includes(path)) {
+      if (profile.motionCheck && ["/", "/showcase"].includes(path)) {
         if (result.playbackControls?.length) {
           fail(`${profile.name} ${path}: play or pause controls are still visible`);
         }
@@ -512,6 +589,305 @@ try {
     }
   }
 
+  const freshProfileState = await client.send("Runtime.evaluate", {
+    expression: `(() => ({
+      consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+      visitorId: localStorage.getItem("cmdtab-website-visitor-id"),
+      sessionId: sessionStorage.getItem("cmdtab-website-session-id"),
+      consentBannerVisible: [...document.querySelectorAll("button")].some(
+        (button) => button.textContent?.trim() === "Accept optional analytics"
+      ),
+    }))()`,
+    returnByValue: true,
+  });
+  const freshState = freshProfileState.result?.value || {};
+  if (freshState.consent !== null || freshState.visitorId !== null || freshState.sessionId !== null) {
+    fail(`fresh profile created analytics state before consent: ${JSON.stringify(freshState)}`);
+  }
+  if (!freshState.consentBannerVisible) {
+    fail("fresh profile does not show the optional analytics consent controls");
+  }
+  if (freshProfileAnalyticsRequests.length) {
+    fail(
+      `fresh profile sent analytics requests before consent: ${freshProfileAnalyticsRequests.join(", ")}`,
+    );
+  }
+  const declineFlow = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const decline = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Decline"
+      );
+      if (!decline) return resolve({ ok: false, reason: "decline control missing" });
+      decline.click();
+      await new Promise((done) => setTimeout(done, 150));
+      resolve({
+        ok: true,
+        consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+        visitorId: localStorage.getItem("cmdtab-website-visitor-id"),
+        sessionId: sessionStorage.getItem("cmdtab-website-session-id"),
+      });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const declinedState = declineFlow.result?.value || {};
+  if (
+    !declinedState.ok ||
+    declinedState.consent !== "declined" ||
+    declinedState.visitorId !== null ||
+    declinedState.sessionId !== null
+  ) {
+    fail(`declining analytics did not remain identifier-free: ${JSON.stringify(declinedState)}`);
+  }
+  if (freshProfileAnalyticsRequests.length) {
+    fail(`declining analytics sent analytics requests: ${freshProfileAnalyticsRequests.join(", ")}`);
+  }
+  removeFreshProfileRequestListener();
+
+  const privacyLoadedBeforeAccept = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/privacy` });
+  await privacyLoadedBeforeAccept;
+  await sleep(700);
+  const consentFlowRequests = [];
+  const removeConsentFlowRequestListener = client.on("Network.requestWillBeSent", ({ request }) => {
+    const url = String(request?.url || "");
+    if (
+      url.includes("/api/analytics") ||
+      url.includes("/_vercel/insights") ||
+      url.includes("/_vercel/speed-insights")
+    ) {
+      consentFlowRequests.push(url);
+    }
+  });
+  const consentFlow = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      localStorage.setItem("cmdtab-optional-analytics-consent", "accepted");
+      window.dispatchEvent(new StorageEvent("storage", {
+        key: "cmdtab-optional-analytics-consent",
+        oldValue: "declined",
+        newValue: "accepted",
+        storageArea: localStorage,
+      }));
+      await new Promise((done) => setTimeout(done, 1200));
+      const accepted = {
+        consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+        visitorId: localStorage.getItem("cmdtab-website-visitor-id"),
+        sessionId: sessionStorage.getItem("cmdtab-website-session-id"),
+      };
+      resolve({ ok: true, accepted });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const acceptedState = consentFlow.result?.value || {};
+  if (
+    !acceptedState.ok ||
+    acceptedState.accepted?.consent !== "accepted" ||
+    !acceptedState.accepted?.visitorId ||
+    !acceptedState.accepted?.sessionId
+  ) {
+    fail(`cross-tab acceptance did not create the expected consent-scoped IDs: ${JSON.stringify(acceptedState)}`);
+  }
+  if (!consentFlowRequests.some((url) => url.includes("/api/analytics"))) {
+    fail("cross-tab acceptance did not send the current first-party pageview");
+  }
+
+  const privacyLoaded = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/privacy` });
+  await privacyLoaded;
+  await sleep(700);
+  const withdrawal = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const withdraw = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Withdraw consent"
+      );
+      if (!withdraw) return resolve({ ok: false, reason: "withdraw control missing" });
+      withdraw.click();
+      await new Promise((done) => setTimeout(done, 100));
+      resolve({
+        ok: true,
+        consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+        visitorId: localStorage.getItem("cmdtab-website-visitor-id"),
+        sessionId: sessionStorage.getItem("cmdtab-website-session-id"),
+      });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const withdrawnState = withdrawal.result?.value || {};
+  if (
+    !withdrawnState.ok ||
+    withdrawnState.consent !== "declined" ||
+    withdrawnState.visitorId !== null ||
+    withdrawnState.sessionId !== null
+  ) {
+    fail(`withdrawing analytics did not delete stored IDs: ${JSON.stringify(withdrawnState)}`);
+  }
+  const firstPartyRequestsBeforeReaccept = consentFlowRequests.filter((url) =>
+    url.includes("/api/analytics")
+  ).length;
+  const reaccept = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const accept = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Accept optional analytics"
+      );
+      if (!accept) return resolve({ ok: false, reason: "reaccept control missing" });
+      accept.click();
+      await new Promise((done) => setTimeout(done, 1200));
+      resolve({
+        ok: true,
+        consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+        visitorId: localStorage.getItem("cmdtab-website-visitor-id"),
+        sessionId: sessionStorage.getItem("cmdtab-website-session-id"),
+      });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const reacceptedState = reaccept.result?.value || {};
+  const firstPartyRequestsAfterReaccept = consentFlowRequests.filter((url) =>
+    url.includes("/api/analytics")
+  ).length;
+  if (
+    !reacceptedState.ok ||
+    reacceptedState.consent !== "accepted" ||
+    !reacceptedState.visitorId ||
+    !reacceptedState.sessionId ||
+    firstPartyRequestsAfterReaccept - firstPartyRequestsBeforeReaccept !== 1
+  ) {
+    fail(
+      `reaccepting the same path did not record exactly one pageview: ${JSON.stringify({
+        reacceptedState,
+        firstPartyRequestsBeforeReaccept,
+        firstPartyRequestsAfterReaccept,
+      })}`,
+    );
+  }
+  const finalWithdrawal = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const withdraw = [...document.querySelectorAll("button")].find(
+        (button) => button.textContent?.trim() === "Withdraw consent"
+      );
+      if (!withdraw) return resolve({ ok: false, reason: "final withdraw control missing" });
+      withdraw.click();
+      await new Promise((done) => setTimeout(done, 500));
+      resolve({
+        ok: true,
+        consent: localStorage.getItem("cmdtab-optional-analytics-consent"),
+      });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (
+    !finalWithdrawal.result?.value?.ok ||
+    finalWithdrawal.result?.value?.consent !== "declined"
+  ) {
+    fail(`final analytics withdrawal failed: ${JSON.stringify(finalWithdrawal.result?.value || {})}`);
+  }
+  const requestsAtWithdrawal = consentFlowRequests.length;
+  const postWithdrawalLoaded = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/faq` });
+  await postWithdrawalLoaded;
+  await sleep(700);
+  if (consentFlowRequests.length !== requestsAtWithdrawal) {
+    fail(
+      `analytics requests continued after withdrawal: ${consentFlowRequests
+        .slice(requestsAtWithdrawal)
+        .join(", ")}`,
+    );
+  }
+  removeConsentFlowRequestListener();
+
+  const apiContracts = await client.send("Runtime.evaluate", {
+    expression: `Promise.all([
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: "pageview", path: "/", unexpected: true }),
+      }).then((response) => response.status),
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventType: "pageview", path: "/", eventData: { nested: {} } }),
+      }).then((response) => response.status),
+      fetch("/api/app-telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          installId: "install_test_123",
+          eventName: "app_activation",
+          licenseState: "unregistered",
+          unexpected: true,
+        }),
+      }).then((response) => response.status),
+      fetch("/api/app-telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          installId: "install_test_123",
+          eventName: "app_activation",
+          licenseState: "unregistered",
+          metadata: { nested: {} },
+        }),
+      }).then((response) => response.status),
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ padding: "x".repeat(9 * 1024) }),
+      }).then((response) => response.status),
+      fetch("/api/app-telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          installId: "install_test_123",
+          eventName: "app_activation",
+          licenseState: "unregistered",
+          licenseId: null,
+          appVersion: "1.0.0",
+          osVersion: "macOS 15.5",
+        }),
+      }).then((response) => response.status),
+      fetch("/api/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/jsonp" },
+        body: JSON.stringify({ eventType: "pageview", path: "/" }),
+      }).then((response) => response.status),
+    ])`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const apiStatuses = apiContracts.result?.value || [];
+  if (JSON.stringify(apiStatuses) !== JSON.stringify([400, 400, 400, 400, 413, 204, 415])) {
+    fail(`analytics ingestion contract returned unexpected statuses: ${JSON.stringify(apiStatuses)}`);
+  }
+
+  const rateLimitContracts = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const statuses = [];
+      for (let index = 0; index < 130; index += 1) {
+        const response = await fetch("/api/analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventType: "event",
+            eventName: "rate_limit_contract",
+            path: "/",
+            eventData: { index },
+          }),
+        });
+        statuses.push(response.status);
+      }
+      resolve(statuses);
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const rateLimitStatuses = rateLimitContracts.result?.value || [];
+  if (!rateLimitStatuses.includes(429)) {
+    fail(`analytics ingestion rate limit did not return 429: ${JSON.stringify(rateLimitStatuses)}`);
+  }
+
   await client.send("Emulation.setDeviceMetricsOverride", {
     width: 1440,
     height: 1000,
@@ -526,22 +902,35 @@ try {
   await client.send("Page.navigate", { url: `${baseUrl}/` });
   await loaded;
   await sleep(900);
-  const oneShotEvaluation = await client.send("Runtime.evaluate", {
-    expression: `new Promise(async (resolve) => {
+  const oneShotSetup = await client.send("Runtime.evaluate", {
+    expression: `(() => {
       const video = document.querySelector('video');
-      if (!video) return resolve({ ok: false, reason: 'video missing' });
-      await new Promise((done) => {
-        if (video.readyState >= 1) done();
-        else video.addEventListener('loadedmetadata', done, { once: true });
-      });
+      if (!video) return { ok: false, reason: 'video missing' };
+      if (video.readyState < 1) return { ok: false, reason: 'video metadata unavailable' };
       video.currentTime = Math.max(0, video.duration - 0.12);
-      await video.play();
-      await new Promise((done) => setTimeout(done, 500));
-      window.scrollTo(0, document.body.scrollHeight);
-      await new Promise((done) => setTimeout(done, 200));
-      window.scrollTo(0, 0);
-      await new Promise((done) => setTimeout(done, 500));
-      resolve({
+      void video.play();
+      return { ok: true, duration: video.duration };
+    })()`,
+    returnByValue: true,
+  });
+  if (!oneShotSetup.result?.value?.ok) {
+    fail(`one-shot autoplay setup failed: ${JSON.stringify(oneShotSetup.result?.value || {})}`);
+  } else {
+    await sleep(500);
+    await client.send("Runtime.evaluate", {
+      expression: "window.scrollTo(0, document.body.scrollHeight)",
+    });
+    await sleep(200);
+    await client.send("Runtime.evaluate", {
+      expression: "window.scrollTo(0, 0)",
+    });
+    await sleep(500);
+  }
+  const oneShotEvaluation = await client.send("Runtime.evaluate", {
+    expression: `(() => {
+      const video = document.querySelector('video');
+      if (!video) return { ok: false, reason: 'video missing' };
+      return {
         ok: video.ended && video.paused && !video.loop && video.dataset.autoplayMode === 'one-shot',
         ended: video.ended,
         paused: video.paused,
@@ -549,9 +938,8 @@ try {
         currentTime: video.currentTime,
         duration: video.duration,
         autoplayMode: video.dataset.autoplayMode || null,
-      });
-    })`,
-    awaitPromise: true,
+      };
+    })()`,
     returnByValue: true,
   });
   const oneShotResult = oneShotEvaluation.result?.value || {};
@@ -622,5 +1010,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Browser verification passed for ${routes.length} routes at desktop and mobile viewports, one-shot autoplay, reduced-motion safety, 44px targets, mobile navigation, and accessible wide tables.`,
+  `Browser verification passed for ${routes.length} routes at desktop, mobile, 200% zoom, and 400% zoom/320px reflow viewports, axe with no serious/critical violations, one-shot autoplay, reduced-motion safety, 44px targets, mobile navigation, and accessible wide tables.`,
 );
