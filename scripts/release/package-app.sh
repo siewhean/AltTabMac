@@ -98,6 +98,10 @@ elif [[ -n "${SIGNING_IDENTITY}" ]]; then
     timestamp
   EXPECTED_SIGNING="developer-id"
 else
+  # Local acceptance packages are ad-hoc signed without Hardened Runtime. An
+  # ad-hoc identity has no Apple Team ID, so enabling library validation would
+  # make macOS reject the embedded Sparkle framework before main() executes.
+  # Developer ID packaging above keeps Hardened Runtime enabled.
   plutil -lint "${ROOT_DIR}/Resources/CmdTab.entitlements" >/dev/null
   "${ROOT_DIR}/scripts/release/sign-app-bundle.sh" \
     "${STAGE_APP}" \
