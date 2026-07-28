@@ -42,6 +42,8 @@ assert.match(
   "showcase player must expose its selected autoplay mode",
 );
 assert.match(player, /if \(!loopPlayback\) hasCompletedRef\.current = true/, "one-shot players must freeze after completion");
+
+// These assertions protect both text layers: the React overlay and the labels burned into generated frames.
 assert.doesNotMatch(
   generator,
   /⌘\s*W|Command-W|Close selected window|QUICK ACTION/,
