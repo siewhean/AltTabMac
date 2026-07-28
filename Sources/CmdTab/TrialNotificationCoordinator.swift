@@ -87,14 +87,11 @@ final class TrialNotificationCoordinator {
                 case .authorized, .provisional:
                     self.schedule(plan)
                 case .notDetermined:
-                    self.center.requestAuthorization(options: [.alert, .sound]) {
-                        granted,
-                        _ in
-                        guard granted else { return }
-                        Task { @MainActor [weak self] in
-                            self?.schedule(plan)
-                        }
-                    }
+                    let granted = (try? await self.center.requestAuthorization(
+                        options: [.alert, .sound]
+                    )) ?? false
+                    guard granted else { return }
+                    self.schedule(plan)
                 case .denied:
                     break
                 @unknown default:
