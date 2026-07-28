@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/internal/license-outbox",
-      "schedule": "*/5 * * * *"
+      "schedule": "15 2 * * *"
     },
     {
       "path": "/api/trial/reminder",
