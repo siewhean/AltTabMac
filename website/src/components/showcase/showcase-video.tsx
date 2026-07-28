@@ -9,15 +9,21 @@ export function ShowcaseVideo({
   priority = false,
   compact = false,
   showCaption = true,
+  loopPlayback = false,
 }: {
   asset: ShowcaseAsset;
   priority?: boolean;
   compact?: boolean;
   showCaption?: boolean;
+  loopPlayback?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hasCompletedRef = useRef(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(true);
+
+  useEffect(() => {
+    hasCompletedRef.current = false;
+  }, [asset.video, loopPlayback]);
 
   useEffect(() => {
     if (!asset.video) return;
@@ -44,7 +50,7 @@ export function ShowcaseVideo({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (hasCompletedRef.current) return;
+        if (!loopPlayback && hasCompletedRef.current) return;
         if (entry?.isIntersecting && entry.intersectionRatio >= 0.35) {
           void video.play().catch(() => undefined);
         } else {
@@ -56,7 +62,7 @@ export function ShowcaseVideo({
 
     observer.observe(video);
     return () => observer.disconnect();
-  }, [asset.video, prefersReducedMotion, priority]);
+  }, [asset.video, loopPlayback, prefersReducedMotion, priority]);
 
   const descriptionId = showCaption ? `${asset.id}-media-description` : undefined;
 
@@ -72,10 +78,11 @@ export function ShowcaseVideo({
             height={asset.videoHeight}
             muted
             playsInline
+            loop={loopPlayback}
             preload={priority ? "auto" : "metadata"}
-            data-autoplay-mode="one-shot"
+            data-autoplay-mode={loopPlayback ? "loop" : "one-shot"}
             onEnded={() => {
-              hasCompletedRef.current = true;
+              if (!loopPlayback) hasCompletedRef.current = true;
             }}
             aria-label={showCaption ? undefined : asset.title}
             aria-describedby={descriptionId}
