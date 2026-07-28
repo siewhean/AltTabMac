@@ -21,27 +21,83 @@ function getProxySessionPolicy() {
   return getProxyAdminSessionPolicy();
 }
 
-function redirectToLogin(request: NextRequest) {
-  return NextResponse.redirect(new URL("/dashboard/login", request.url));
+function contentSecurityPolicy(nonce: string) {
+  const developmentScriptPolicy =
+    process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    `connect-src 'self'${process.env.NODE_ENV === "production" ? "" : " ws: wss:"}`,
+    "font-src 'self' data:",
+    "frame-src 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' data: blob:",
+    "manifest-src 'self'",
+    "media-src 'self' blob:",
+    "object-src 'none'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptPolicy}`,
+    `style-src-elem 'self' 'nonce-${nonce}'`,
+    "style-src-attr 'unsafe-inline'",
+    "worker-src 'self' blob:",
+    "upgrade-insecure-requests",
+  ].join("; ");
+}
+
+function responseWithSecurityHeaders(
+  response: NextResponse,
+  policy: string,
+) {
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
+}
+
+function nextResponse(requestHeaders: Headers, policy: string) {
+  return responseWithSecurityHeaders(
+    NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    }),
+    policy,
+  );
+}
+
+function redirectToLogin(request: NextRequest, policy: string) {
+  return responseWithSecurityHeaders(
+    NextResponse.redirect(new URL("/dashboard/login", request.url)),
+    policy,
+  );
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (PUBLIC_DASHBOARD_PATHS.has(pathname)) return NextResponse.next();
+  const nonce = btoa(crypto.randomUUID());
+  const policy = contentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", policy);
 
-  const policy = getProxySessionPolicy();
+  const { pathname } = request.nextUrl;
+  if (!pathname.startsWith("/dashboard")) {
+    return nextResponse(requestHeaders, policy);
+  }
+  if (PUBLIC_DASHBOARD_PATHS.has(pathname)) {
+    return nextResponse(requestHeaders, policy);
+  }
+
+  const sessionPolicy = getProxySessionPolicy();
   const raw = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  if (!policy || !raw) return redirectToLogin(request);
+  if (!sessionPolicy || !raw) return redirectToLogin(request, policy);
 
   const nowSeconds = Math.floor(Date.now() / 1000);
-  const session = await validateAdminSessionToken(raw, policy, nowSeconds);
-  if (!session) return redirectToLogin(request);
+  const session = await validateAdminSessionToken(raw, sessionPolicy, nowSeconds);
+  if (!session) return redirectToLogin(request, policy);
 
   const refreshed = refreshedAdminSessionClaims(session, nowSeconds);
-  const response = NextResponse.next();
+  const response = nextResponse(requestHeaders, policy);
   response.cookies.set(
     ADMIN_SESSION_COOKIE,
-    await createAdminSessionToken(refreshed, policy.secret),
+    await createAdminSessionToken(refreshed, sessionPolicy.secret),
     {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -54,5 +110,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|woff|woff2)$).*)",
+  ],
 };
