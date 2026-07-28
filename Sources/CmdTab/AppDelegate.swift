@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     private var screenTopologyObserver: ScreenTopologyObserver?
     private var licensingObserver: AnyCancellable?
+    private var pendingActivationDeepLink: ActivationDeepLink?
     private let trialNotificationCoordinator = TrialNotificationCoordinator()
     var switcher: ProductionSwitcherWindowController!
     var hotkeyManager: ProfileHotkeyManager!
@@ -102,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
         onboardingWindowController.showAutomaticallyIfNeeded()
+        processPendingActivationDeepLink()
     }
 
     private func beginDefaultConfigurationFreeze() {
@@ -120,6 +122,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func refreshTrialNotifications() {
         LicensingController.shared.refreshStatus()
         trialNotificationCoordinator.refresh(for: LicensingController.shared.status)
+    }
+
+    private func processPendingActivationDeepLink() {
+        guard let link = pendingActivationDeepLink,
+              preferencesWindowController != nil else {
+            return
+        }
+        pendingActivationDeepLink = nil
+        let controller = LicensingController.shared
+        controller.enteredLicenseKey = link.activationCode
+        preferencesWindowController.showLicensing()
+        Task { @MainActor in
+            _ = await controller.activateEnteredLicenseKeyOnline()
+        }
     }
 
     private func acquireSingletonLock() -> Bool {
@@ -192,6 +208,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferencesWindowController?.show()
         }
         return true
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let link = urls.lazy.compactMap(ActivationDeepLink.parse).first else {
+            return
+        }
+        pendingActivationDeepLink = link
+        processPendingActivationDeepLink()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
