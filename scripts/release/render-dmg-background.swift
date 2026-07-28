@@ -4,7 +4,7 @@ import AppKit
 import Foundation
 
 let arguments = CommandLine.arguments
- guard arguments.count == 2 else {
+if arguments.count != 2 {
     fputs("Usage: render-dmg-background.swift /path/to/background.png\n", stderr)
     exit(2)
 }
@@ -13,8 +13,6 @@ let outputURL = URL(fileURLWithPath: arguments[1])
 let size = NSSize(width: 660, height: 420)
 let image = NSImage(size: size)
 image.lockFocus()
-
-defer { image.unlockFocus() }
 
 let canvas = NSRect(origin: .zero, size: size)
 let gradient = NSGradient(colors: [
@@ -71,6 +69,8 @@ let footerAttributes: [NSAttributedString.Key: Any] = [
     in: NSRect(x: 80, y: 30, width: 500, height: 24),
     withAttributes: footerAttributes
 )
+
+image.unlockFocus()
 
 guard let tiff = image.tiffRepresentation,
       let bitmap = NSBitmapImageRep(data: tiff),
