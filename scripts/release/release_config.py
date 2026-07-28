@@ -80,6 +80,13 @@ def plist_for(
         "CFBundleIconFile": config["iconFile"],
         "CFBundlePackageType": config["packageType"],
         "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleURLTypes": [
+            {
+                "CFBundleTypeRole": "Viewer",
+                "CFBundleURLName": "net.cmdtab.activation",
+                "CFBundleURLSchemes": ["cmdtab"],
+            }
+        ],
         "LSMinimumSystemVersion": config["minimumSystemVersion"],
         "LSUIElement": bool(config["agentApplication"]),
         "NSHighResolutionCapable": bool(config["highResolutionCapable"]),
@@ -244,6 +251,18 @@ def verify_repository(config: dict[str, Any]) -> None:
         main_source,
         "BundleIdentityMigration.migrateIfNeeded()",
         "startup bundle-identity migration",
+    )
+
+    activation_source = ROOT / "Sources" / "CmdTab" / "ActivationDeepLink.swift"
+    require_literal(
+        activation_source,
+        'static let scheme = "cmdtab"',
+        "one-click activation URL scheme",
+    )
+    require_literal(
+        activation_source,
+        "maximumCodeLength = 4_096",
+        "activation-link input bound",
     )
 
     build_tool = ROOT / "scripts" / "release" / "build-app.sh"
