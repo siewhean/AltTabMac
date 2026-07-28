@@ -11,7 +11,7 @@ if [[ -z "${SIGNING_IDENTITY}" || -z "${NOTARY_PROFILE}" || -z "${CMDTAB_SPARKLE
   echo "Set CMDTAB_SIGNING_IDENTITY, CMDTAB_NOTARY_PROFILE, and CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
   exit 2
 fi
-for tool in codesign ditto hdiutil python3 spctl xcrun; do
+for tool in codesign ditto hdiutil osascript python3 spctl swift xcrun; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
 if ! git -C "${ROOT_DIR}" diff --quiet ||
@@ -23,21 +23,36 @@ fi
 
 VERSION="$(python3 "${CONFIG_TOOL}" get marketingVersion)"
 BUILD="$(python3 "${CONFIG_TOOL}" get buildNumber)"
+VOLUME_NAME="CmdTab ${VERSION}"
 APP_PATH="${OUTPUT_DIR}/CmdTab.app"
 ZIP_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}.zip"
 DMG_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}.dmg"
+DMG_RW_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}-layout.dmg"
 EVIDENCE_DIR="${OUTPUT_DIR}/notarization"
 DMG_STAGE="$(mktemp -d /tmp/cmdtab-dmg-stage.XXXXXX)"
+DMG_MOUNT="$(mktemp -d /tmp/cmdtab-dmg-mount.XXXXXX)"
+DMG_DEVICE=""
+BACKGROUND_PATH="${DMG_STAGE}/.background/background.png"
 
 cleanup() {
+  if [[ -n "${DMG_DEVICE}" ]]; then
+    hdiutil detach "${DMG_DEVICE}" -force >/dev/null 2>&1 || true
+  fi
   case "${DMG_STAGE}" in
     /tmp/cmdtab-dmg-stage.*) rm -rf "${DMG_STAGE}" ;;
     *) echo "Refusing to remove unexpected DMG staging path: ${DMG_STAGE}" >&2 ;;
   esac
+  case "${DMG_MOUNT}" in
+    /tmp/cmdtab-dmg-mount.*) rm -rf "${DMG_MOUNT}" ;;
+    *) echo "Refusing to remove unexpected DMG mount path: ${DMG_MOUNT}" >&2 ;;
+  esac
+  rm -f "${DMG_RW_PATH}"
 }
 trap cleanup EXIT
 
 mkdir -p "${OUTPUT_DIR}" "${EVIDENCE_DIR}"
+rm -f "${ZIP_PATH}" "${DMG_PATH}" "${DMG_PATH}.sha256" "${DMG_RW_PATH}"
+
 CMDTAB_OUTPUT_APP="${APP_PATH}" \
 CMDTAB_SIGNING_IDENTITY="${SIGNING_IDENTITY}" \
 CMDTAB_SPARKLE_PUBLIC_ED_KEY="${CMDTAB_SPARKLE_PUBLIC_ED_KEY}" \
@@ -45,6 +60,7 @@ CMDTAB_BUILD_ARCHITECTURES="arm64,x86_64" \
 CMDTAB_EXPECTED_ARCHITECTURES="arm64,x86_64" \
   "${ROOT_DIR}/scripts/release/package-app.sh"
 
+# Notarize and staple the application before sealing it into the user-facing DMG.
 ditto -c -k --keepParent "${APP_PATH}" "${ZIP_PATH}"
 xcrun notarytool submit "${ZIP_PATH}" \
   --keychain-profile "${NOTARY_PROFILE}" \
@@ -56,14 +72,81 @@ python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data.get(
 xcrun stapler staple "${APP_PATH}"
 xcrun stapler validate "${APP_PATH}"
 
+# Build a deterministic Finder-facing drag-to-Applications layout. The background
+# is generated from source so release assembly does not depend on an unreviewed
+# binary design asset.
 ditto "${APP_PATH}" "${DMG_STAGE}/CmdTab.app"
 ln -s /Applications "${DMG_STAGE}/Applications"
+swift "${ROOT_DIR}/scripts/release/render-dmg-background.swift" "${BACKGROUND_PATH}"
+[[ -s "${BACKGROUND_PATH}" ]] || {
+  echo "DMG background was not generated." >&2
+  exit 1
+}
+
 hdiutil create \
-  -volname "CmdTab" \
+  -volname "${VOLUME_NAME}" \
   -srcfolder "${DMG_STAGE}" \
-  -format UDZO \
+  -format UDRW \
+  -fs HFS+ \
   -ov \
-  "${DMG_PATH}"
+  "${DMG_RW_PATH}"
+
+ATTACH_OUTPUT="$(
+  hdiutil attach "${DMG_RW_PATH}" \
+    -readwrite \
+    -noverify \
+    -noautoopen \
+    -mountpoint "${DMG_MOUNT}"
+)"
+DMG_DEVICE="$(awk '/^\/dev\// { print $1; exit }' <<<"${ATTACH_OUTPUT}")"
+[[ -n "${DMG_DEVICE}" ]] || {
+  echo "Could not determine the mounted DMG device." >&2
+  printf '%s\n' "${ATTACH_OUTPUT}" >&2
+  exit 1
+}
+[[ -d "${DMG_MOUNT}/CmdTab.app" && -L "${DMG_MOUNT}/Applications" ]] || {
+  echo "Mounted DMG is missing its application or Applications link." >&2
+  exit 1
+}
+
+osascript <<APPLESCRIPT
+tell application "Finder"
+  tell disk "${VOLUME_NAME}"
+    open
+    set current view of container window to icon view
+    set toolbar visible of container window to false
+    set statusbar visible of container window to false
+    set pathbar visible of container window to false
+    set sidebar width of container window to 0
+    set bounds of container window to {100, 100, 760, 520}
+    set viewOptions to the icon view options of container window
+    set arrangement of viewOptions to not arranged
+    set icon size of viewOptions to 112
+    set text size of viewOptions to 13
+    set background picture of viewOptions to file ".background:background.png"
+    set position of item "CmdTab.app" of container window to {180, 220}
+    set position of item "Applications" of container window to {480, 220}
+    update without registering applications
+    delay 2
+    close
+  end tell
+end tell
+APPLESCRIPT
+
+sync
+hdiutil detach "${DMG_DEVICE}"
+DMG_DEVICE=""
+
+hdiutil convert "${DMG_RW_PATH}" \
+  -format UDZO \
+  -imagekey zlib-level=9 \
+  -ov \
+  -o "${DMG_PATH}"
+[[ -s "${DMG_PATH}" ]] || {
+  echo "Compressed DMG was not created." >&2
+  exit 1
+}
+
 codesign --force --sign "${SIGNING_IDENTITY}" --timestamp "${DMG_PATH}"
 xcrun notarytool submit "${DMG_PATH}" \
   --keychain-profile "${NOTARY_PROFILE}" \
@@ -84,4 +167,5 @@ shasum -a 256 "${DMG_PATH}" > "${DMG_PATH}.sha256"
 
 printf 'Notarized app: %s\n' "${APP_PATH}"
 printf 'Notarized DMG: %s\n' "${DMG_PATH}"
+printf 'DMG volume: %s\n' "${VOLUME_NAME}"
 printf 'Evidence: %s\n' "${EVIDENCE_DIR}"
