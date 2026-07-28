@@ -73,11 +73,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
-        licensingObserver = LicensingController.shared.objectWillChange.sink { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.refreshTrialNotifications()
+        licensingObserver = LicensingController.shared.$status
+            .removeDuplicates()
+            .sink { [weak self] status in
+                self?.trialNotificationCoordinator.refresh(for: status)
             }
-        }
         refreshTrialNotifications()
 
         NotificationCenter.default.addObserver(
@@ -120,7 +120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshTrialNotifications() {
-        LicensingController.shared.refreshStatus()
         trialNotificationCoordinator.refresh(for: LicensingController.shared.status)
     }
 
@@ -220,6 +219,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         onboardingWindowController?.refreshPermissions()
+        LicensingController.shared.refreshStatus()
         refreshTrialNotifications()
         Task { @MainActor [weak self] in
             await self?.menuBar?.refreshLicenseAuthorization()
