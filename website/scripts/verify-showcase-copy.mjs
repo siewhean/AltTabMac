@@ -10,9 +10,11 @@ const hero = read("src/components/sections/hero-section.tsx");
 const showcasePage = read("src/app/showcase/page.tsx");
 const showcase = read("src/content/showcase.ts");
 const player = read("src/components/showcase/showcase-video.tsx");
+const generator = read("scripts/generate-hd-showcase-media.mjs");
 
 assert.match(hero, /ShowcaseVideo/, "homepage hero must keep the autoplay product demonstration");
 assert.match(hero, /ShowcaseVideo[\s\S]*loopPlayback/, "homepage hero video must opt into looping playback");
+assert.match(hero, /showOverlay=\{false\}/, "homepage hero must hide the overview text overlay");
 assert.match(showcasePage, /CmdTab in motion/, "showcase page must use the simplified visible heading");
 assert.doesNotMatch(
   homePage,
@@ -21,7 +23,7 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   `${homePage}\n${hero}\n${showcasePage}`,
-  /What is shown|Read the media description|Resolution<|Format<|Source</,
+  /What is shown|Read the media description|Resolution<|Format<|Source/,
   "visible marketing pages must not restore removed explanatory clutter",
 );
 assert.match(showcase, /deterministic HD product composite/i, "showcase contract must identify deterministic HD composites");
@@ -31,6 +33,8 @@ assert.match(showcase, /homepage hero overview loops while visible/i, "showcase 
 assert.match(showcase, /showcase-page autoplay clips run once for no more than five seconds/i, "showcase contract must state the one-shot showcase boundary");
 assert.match(showcase, /prefer reduced motion/i, "showcase contract must state the reduced-motion boundary");
 assert.match(player, /loopPlayback = false/, "showcase player must default to one-shot playback");
+assert.match(player, /showOverlay = true/, "showcase player must keep overlays by default outside the hero");
+assert.match(player, /\{showOverlay \? \(/, "showcase player must conditionally render its visible title overlay");
 assert.match(player, /loop=\{loopPlayback\}/, "showcase player must apply the native loop attribute only when requested");
 assert.match(
   player,
@@ -38,6 +42,18 @@ assert.match(
   "showcase player must expose its selected autoplay mode",
 );
 assert.match(player, /if \(!loopPlayback\) hasCompletedRef\.current = true/, "one-shot players must freeze after completion");
+
+// These assertions protect both text layers: the React overlay and the labels burned into generated frames.
+assert.doesNotMatch(
+  generator,
+  /⌘\s*W|Command-W|Close selected window|QUICK ACTION/,
+  "generated showcase frames must not contain the removed central shortcut badge",
+);
+assert.doesNotMatch(
+  showcase,
+  /Command-W badge|Command-W annotation/,
+  "showcase descriptions must not claim the removed shortcut badge is visible",
+);
 assert.doesNotMatch(
   `${hero}\n${showcasePage}\n${showcase}`,
   /authentic production Radial Menu render|production-swiftui-render|rendered from CmdTab(?:’|')s actual SwiftUI\/AppKit switcher views/i,
@@ -49,4 +65,4 @@ assert.doesNotMatch(
   "showcase copy must not advertise obsolete low-resolution media",
 );
 
-console.log("Hero-loop and one-shot showcase autoplay copy verification passed.");
+console.log("Clean hero overlay, hero loop, and one-shot showcase autoplay verification passed.");
