@@ -15,6 +15,7 @@ function validEnvironment() {
     DATABASE_URL: "postgres://user:password@db.example.net:5432/cmdtab",
     RESEND_API_KEY: "re_test_value",
     WAITLIST_FROM_EMAIL: "hello@cmdtab.net",
+    WAITLIST_TO_EMAIL: "owner@cmdtab.net",
     LEMONSQUEEZY_WEBHOOK_SECRET: "webhook-secret-value",
     LICENSE_DELIVERY_FROM_EMAIL: "hello@cmdtab.net",
     CMDTAB_LICENSE_LOOKUP_PEPPER: "lookup-pepper-with-at-least-thirty-two-characters",
@@ -56,6 +57,7 @@ test("production commerce guard reports missing checkout, secrets, database, and
   assert.ok(issues.some((issue) => issue.includes("NEXT_PUBLIC_CHECKOUT_PROVIDER")));
   assert.ok(issues.some((issue) => issue.includes("NEXT_PUBLIC_CHECKOUT_URL")));
   assert.ok(issues.some((issue) => issue.includes("DATABASE_URL")));
+  assert.ok(issues.some((issue) => issue.includes("WAITLIST_TO_EMAIL")));
   assert.ok(issues.some((issue) => issue.includes("CMDTAB_LICENSE_LOOKUP_PEPPER")));
   assert.ok(issues.some((issue) => issue.includes("CMDTAB_LICENSE_KMS_KEY_ID")));
   assert.ok(issues.some((issue) => issue.includes("CMDTAB_LICENSE_PRIVATE_KEY_PEM is forbidden")));
