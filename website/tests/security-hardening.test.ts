@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { constantTimeEqual } from "../src/lib/constant-time.js";
 import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
@@ -16,6 +17,12 @@ test("arrow keys preserve forward and backward demo navigation", () => {
   assert.equal(demoNavigationDirection({ key: "ArrowDown", shiftKey: false }), "next");
   assert.equal(demoNavigationDirection({ key: "ArrowLeft", shiftKey: false }), "previous");
   assert.equal(demoNavigationDirection({ key: "ArrowUp", shiftKey: false }), "previous");
+});
+
+test("constant-time secret comparison handles unequal lengths without an early return", () => {
+  assert.equal(constantTimeEqual("correct horse", "correct horse"), true);
+  assert.equal(constantTimeEqual("short", "a considerably longer secret"), false);
+  assert.equal(constantTimeEqual("same-length-a", "same-length-b"), false);
 });
 
 test("CSV export neutralizes spreadsheet formula prefixes", () => {
