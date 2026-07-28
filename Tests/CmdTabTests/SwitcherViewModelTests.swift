@@ -41,14 +41,13 @@ final class SwitcherViewModelTests: XCTestCase {
     func testGridNavigationWrapsAcrossUnevenLastRow() {
         let viewModel = makeViewModel(itemCount: 5)
         viewModel.layout = SwitcherLayoutMetrics(
-            panelWidth: 800,
-            panelHeight: 500,
+            columns: 3,
             cardWidth: 200,
             cardHeight: 150,
             thumbnailHeight: 110,
-            columns: 3,
             gridSpacing: 12,
             outerPadding: 16,
+            contentWidth: 800,
             contentHeight: 450
         )
 
