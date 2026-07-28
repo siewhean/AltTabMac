@@ -15,6 +15,7 @@ const verifierPath = fileURLToPath(
 function validEnvironment() {
   return {
     VERCEL_ENV: "production",
+    CMDTAB_REQUIRE_COMMERCE_READY: "1",
     NEXT_PUBLIC_SITE_URL: "https://cmdtab.net",
     NEXT_PUBLIC_CHECKOUT_PROVIDER: "lemonsqueezy",
     NEXT_PUBLIC_CHECKOUT_URL: "https://store.cmdtab.net/checkout/buy/test",
@@ -70,9 +71,16 @@ test("production commerce guard reports missing checkout, secrets, database, and
   assert.ok(issues.some((issue) => issue.includes("EXPECT_TEST_MODE must be false")));
 });
 
-test("readiness enforcement is automatic in production and opt-in elsewhere", () => {
-  assert.equal(shouldRequireCommerceReadiness({ VERCEL_ENV: "production" }), true);
+test("commerce readiness enforcement is an explicit launch switch in every environment", () => {
+  assert.equal(shouldRequireCommerceReadiness({ VERCEL_ENV: "production" }), false);
   assert.equal(shouldRequireCommerceReadiness({ VERCEL_ENV: "preview" }), false);
+  assert.equal(
+    shouldRequireCommerceReadiness({
+      VERCEL_ENV: "production",
+      CMDTAB_REQUIRE_COMMERCE_READY: "1",
+    }),
+    true,
+  );
   assert.equal(
     shouldRequireCommerceReadiness({
       VERCEL_ENV: "preview",
@@ -80,6 +88,16 @@ test("readiness enforcement is automatic in production and opt-in elsewhere", ()
     }),
     true,
   );
+});
+
+test("production deployment remains safe when the commerce launch switch is disabled", () => {
+  const result = spawnSync(process.execPath, [verifierPath], {
+    env: { VERCEL_ENV: "production" },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /checkout and fulfilment remain fail-closed/);
 });
 
 test("readiness CLI fails closed for an incomplete forced deployment", () => {
