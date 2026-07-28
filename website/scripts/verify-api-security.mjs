@@ -25,9 +25,22 @@ assert.match(activation, /"license-activation"/);
 const webhook = read("src/app/api/lemonsqueezy/webhook/route.ts");
 assert.match(webhook, /readBoundedText\(request, MAX_WEBHOOK_BODY_BYTES\)/);
 assert.doesNotMatch(webhook, /await request\.text\(\)/);
-assert.match(webhook, /issuePurchaseActivationCredential\(\)/);
-assert.match(webhook, /enqueueLicenseEmail\(/);
-assert.match(webhook, /processLicenseOutbox\(1\)/);
+assert.match(webhook, /fulfillPaidPurchase\(/);
+assert.match(webhook, /createOrGetFulfillment: createOrGetLicenseFulfillment/);
+assert.match(webhook, /reportInlineDeliveryFailure\(error\)/);
+
+const purchaseFulfillment = read("src/lib/purchase-fulfillment.ts");
+assert.match(purchaseFulfillment, /issuePurchaseActivationCredential\(\)/);
+assert.match(purchaseFulfillment, /ensureActiveEntitlement\(/);
+assert.match(purchaseFulfillment, /enqueueLicenseEmail\(/);
+assert.match(purchaseFulfillment, /processLicenseOutbox\(1\)/);
+assert.match(purchaseFulfillment, /deliveryStatus === "delivered"/);
+assert.match(purchaseFulfillment, /purchase:\$\{fulfillment\.orderIdentifier\}/);
+
+const purchaseTests = read("tests/purchase-fulfillment.test.ts");
+assert.match(purchaseTests, /duplicate delivered webhook remains idempotent/);
+assert.match(purchaseTests, /email provider failure stays queued/);
+assert.match(purchaseTests, /entitlement persistence failure stops/);
 
 const outboxRoute = read("src/app/api/internal/license-outbox/route.ts");
 assert.match(outboxRoute, /export async function GET\(request: Request\)/);
