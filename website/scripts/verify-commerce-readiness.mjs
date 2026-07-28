@@ -150,13 +150,18 @@ export function validateCommerceEnvironment(env) {
   return issues;
 }
 
+// The application and API routes already fail closed when commerce is not
+// configured. This build-time guard is therefore an explicit launch switch,
+// not a requirement for deploying unrelated website or app changes to main.
 export function shouldRequireCommerceReadiness(env) {
-  return env.VERCEL_ENV === "production" || env.CMDTAB_REQUIRE_COMMERCE_READY === "1";
+  return value(env, "CMDTAB_REQUIRE_COMMERCE_READY") === "1";
 }
 
 function run() {
   if (!shouldRequireCommerceReadiness(process.env)) {
-    console.log("Production commerce readiness check skipped outside production.");
+    console.log(
+      "Commerce readiness gate is disabled; checkout and fulfilment remain fail-closed.",
+    );
     return;
   }
 
