@@ -48,8 +48,41 @@ python3 "${CONFIG_TOOL}" verify-repository
 APP_NAME="$(python3 "${CONFIG_TOOL}" get appName)"
 EXECUTABLE_NAME="$(python3 "${CONFIG_TOOL}" get executableName)"
 ICON_FILE="$(python3 "${CONFIG_TOOL}" get iconFile)"
+ARCHITECTURE_POLICY="$(python3 "${CONFIG_TOOL}" get architecturePolicy)"
+REQUESTED_BUILD_ARCHITECTURES="${CMDTAB_BUILD_ARCHITECTURES:-}"
+REQUESTED_EXPECTED_ARCHITECTURES="${CMDTAB_EXPECTED_ARCHITECTURES:-}"
+
+case "${ARCHITECTURE_POLICY}" in
+  universal-arm64-x86_64)
+    if [[ -n "${REQUESTED_BUILD_ARCHITECTURES}" &&
+          "${REQUESTED_BUILD_ARCHITECTURES}" != "arm64,x86_64" ]]; then
+      echo "Release architecture policy requires arm64,x86_64 builds." >&2
+      exit 2
+    fi
+    if [[ -n "${REQUESTED_EXPECTED_ARCHITECTURES}" &&
+          "${REQUESTED_EXPECTED_ARCHITECTURES}" != "arm64,x86_64" ]]; then
+      echo "Release architecture policy requires arm64,x86_64 verification." >&2
+      exit 2
+    fi
+    BUILD_ARCHITECTURES="arm64,x86_64"
+    EXPECTED_ARCHITECTURES="arm64,x86_64"
+    ;;
+  native-host-only-until-universal-build-is-verified)
+    BUILD_ARCHITECTURES="${REQUESTED_BUILD_ARCHITECTURES}"
+    EXPECTED_ARCHITECTURES="${REQUESTED_EXPECTED_ARCHITECTURES}"
+    ;;
+  *)
+    echo "Unsupported release architecture policy: ${ARCHITECTURE_POLICY}" >&2
+    exit 2
+    ;;
+esac
+
 BUILD_SCRATCH="${SCRATCH_ROOT}/swift-build"
-BINARY_PATH="$(CMDTAB_BUILD_SCRATCH="${BUILD_SCRATCH}" "${BUILD_TOOL}")"
+BINARY_PATH="$(
+  CMDTAB_BUILD_SCRATCH="${BUILD_SCRATCH}" \
+  CMDTAB_BUILD_ARCHITECTURES="${BUILD_ARCHITECTURES}" \
+    "${BUILD_TOOL}"
+)"
 
 rm -rf "${STAGE_APP}"
 mkdir -p \
@@ -111,7 +144,8 @@ else
   EXPECTED_SIGNING="ad-hoc"
 fi
 
-"${VERIFY_TOOL}" "${STAGE_APP}" "${EXPECTED_SIGNING}"
+CMDTAB_EXPECTED_ARCHITECTURES="${EXPECTED_ARCHITECTURES}" \
+  "${VERIFY_TOOL}" "${STAGE_APP}" "${EXPECTED_SIGNING}"
 
 mkdir -p "$(dirname "${OUTPUT_APP}")"
 rm -rf "${OUTPUT_APP}"
@@ -132,3 +166,4 @@ python3 "${MANIFEST_TOOL}" "${OUTPUT_APP}" "${MANIFEST_PATH}" >/dev/null
 printf 'Packaged %s\n' "${OUTPUT_APP}"
 printf 'Manifest %s\n' "${MANIFEST_PATH}"
 printf 'Checksums %s\n' "${CHECKSUM_PATH}"
+printf 'Architecture policy %s\n' "${ARCHITECTURE_POLICY}"
