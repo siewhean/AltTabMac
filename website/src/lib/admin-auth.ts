@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { timingSafeEqual } from "node:crypto";
 
 import {
   getAdminSessionPolicyConfiguration,
@@ -8,6 +7,7 @@ import {
 } from "@/lib/admin-auth-config";
 import { getDashboardAuthSummary, validateStoredDashboardPassword } from "@/lib/admin-store";
 import { getAuth0Configuration } from "@/lib/auth0-oidc";
+import { constantTimeEqual } from "@/lib/constant-time";
 import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_IDLE_SECONDS,
@@ -115,12 +115,7 @@ export async function validateAdminPassword(input: string) {
   if (!isLegacyAdminAuthEnabled()) return false;
   const databaseMatch = await validateStoredDashboardPassword(input);
   const expected = getDashboardPassword();
-  const inputBytes = Buffer.from(input);
-  const expectedBytes = Buffer.from(expected ?? "");
-  const environmentMatch =
-    Boolean(expected) &&
-    inputBytes.length === expectedBytes.length &&
-    timingSafeEqual(inputBytes, expectedBytes);
+  const environmentMatch = Boolean(expected) && constantTimeEqual(input, expected ?? "");
   if (databaseMatch !== null) return databaseMatch || environmentMatch;
   return environmentMatch;
 }
