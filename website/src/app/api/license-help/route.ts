@@ -17,6 +17,10 @@ import {
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
+  IngestRequestError,
+  readBoundedJson,
+} from "@/lib/ingest-request";
+import {
   createLicenseRequest,
   isLicenseRequestStoreConfigured,
   updateLicenseRequestNotificationStatus,
@@ -105,20 +109,13 @@ function isSameOrigin(request: Request) {
   const requestOrigin = new URL(request.url).origin;
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
-
-  if (origin) {
-    return origin === requestOrigin;
+  if (origin) return origin === requestOrigin;
+  if (!referer) return true;
+  try {
+    return new URL(referer).origin === requestOrigin;
+  } catch {
+    return false;
   }
-
-  if (referer) {
-    try {
-      return new URL(referer).origin === requestOrigin;
-    } catch {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function passesFetchSiteProtection(request: Request) {
@@ -130,12 +127,10 @@ function passesFetchSiteProtection(request: Request) {
 function getClientIp(request: Request) {
   const realIp = request.headers.get("x-real-ip")?.trim();
   if (realIp) return realIp;
-
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (request.headers.has("x-vercel-id") && forwardedFor) {
     return forwardedFor.split(",")[0]?.trim() ?? "unknown";
   }
-
   return "unknown";
 }
 
@@ -152,27 +147,19 @@ function reasonLabel(reason: string) {
 
 function formatMetadata(metadata?: Record<string, string>) {
   if (!metadata || Object.keys(metadata).length === 0) return "None provided";
-
   return Object.entries(metadata)
     .map(([key, value]) => `${key}: ${value}`)
     .join("\n");
 }
 
 async function parseRequestBody(request: Request) {
-  const rawBody = await request.text();
-  const bodyBytes = Buffer.byteLength(rawBody, "utf8");
-
-  if (bodyBytes === 0) {
-    throw new EmptyBodyError();
-  }
-
-  if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
-    throw new PayloadTooLargeError();
-  }
-
   try {
-    return JSON.parse(rawBody) as unknown;
-  } catch {
+    return await readBoundedJson(request, MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof IngestRequestError) {
+      if (error.code === "payload_too_large") throw new PayloadTooLargeError();
+      if (error.message.includes("required")) throw new EmptyBodyError();
+    }
     throw new InvalidJsonError();
   }
 }
@@ -188,7 +175,6 @@ async function submitOwnerNotification(payload: {
 }) {
   const env = getServerEnv();
   const resend = getResendClient(env.resendApiKey);
-
   const text = [
     licenseEmailContent.ownerNotification.heading,
     "",
@@ -204,7 +190,6 @@ async function submitOwnerNotification(payload: {
     "Metadata:",
     formatMetadata(payload.metadata),
   ].join("\n");
-
   return resend.emails.send({
     from: env.waitlistFromEmail,
     to: env.waitlistToEmail,
@@ -226,7 +211,6 @@ async function sendApplicantConfirmationEmail(payload: {
     reasonLabel: reasonLabel(payload.reason),
     siteUrl: getSiteUrl(),
   });
-
   return resend.emails.send({
     from: env.waitlistFromEmail,
     to: payload.email,
@@ -276,14 +260,25 @@ export async function POST(request: Request) {
 
     const body = await parseRequestBody(request);
     const payload = licenseHelpPayloadSchema.parse(body);
-
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip: getClientIp(request),
       userAgent: getUserAgent(request),
     });
 
     if (!rateLimit.allowed) {
+      if ("unavailable" in rateLimit) {
+        return jsonResponse(
+          {
+            ok: false,
+            code: "service_unavailable",
+            message: "Abuse protection is temporarily unavailable. Please try again shortly.",
+            requestId,
+          },
+          503,
+          { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        );
+      }
       return jsonResponse(
         {
           ok: false,
@@ -299,8 +294,7 @@ export async function POST(request: Request) {
     const duplicateFingerprint = createFingerprint(
       `${payload.email}|${payload.purchaseEmail ?? ""}|${payload.reason}|${payload.message.trim().toLowerCase()}`,
     );
-
-    if (recentlySubmitted(duplicateFingerprint)) {
+    if (await recentlySubmitted(duplicateFingerprint)) {
       return jsonResponse({
         ok: true,
         requestId,
@@ -348,12 +342,16 @@ export async function POST(request: Request) {
       });
       await updateLicenseRequestNotificationStatus(requestId, "delivered");
     } catch (error) {
-      notificationError = error instanceof Error ? error.message : "Unknown notification error.";
-      await updateLicenseRequestNotificationStatus(requestId, "failed", notificationError);
+      notificationError =
+        error instanceof Error ? error.message : "Unknown notification error.";
+      await updateLicenseRequestNotificationStatus(
+        requestId,
+        "failed",
+        notificationError,
+      );
     }
 
-    markSubmitted(duplicateFingerprint);
-
+    await markSubmitted(duplicateFingerprint);
     return jsonResponse({
       ok: true,
       requestId,
@@ -390,10 +388,9 @@ export async function POST(request: Request) {
     if (error instanceof ZodError) {
       const fieldErrors = error.flatten().fieldErrors;
       const normalizedFieldErrors = Object.fromEntries(
-        Object.entries(fieldErrors as Record<string, string[] | undefined>).map(([key, value]) => [
-          key,
-          value?.[0] ?? "Invalid value.",
-        ]),
+        Object.entries(fieldErrors as Record<string, string[] | undefined>).map(
+          ([key, value]) => [key, value?.[0] ?? "Invalid value."],
+        ),
       );
       return jsonResponse(
         {
@@ -413,6 +410,10 @@ export async function POST(request: Request) {
         ? "Email delivery is not configured yet."
         : "Unexpected error while creating the request.";
 
+    console.error("[CmdTab Website] license-help request failed", {
+      requestId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return jsonResponse(
       {
         ok: false,

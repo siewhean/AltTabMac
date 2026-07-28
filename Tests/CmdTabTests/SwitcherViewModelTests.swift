@@ -2,18 +2,87 @@ import XCTest
 @testable import CmdTab
 
 final class SwitcherViewModelTests: XCTestCase {
-    func testResolvedSelectedIndexClampsToLastVisibleItem() {
+    func testResolvedSelectedIndexIsNilWhenThereAreNoItems() {
         let viewModel = SwitcherViewModel()
-        viewModel.items = [
-            makeItem(title: "Finder", appID: "com.apple.finder", identity: .appWindow(pid: 101, windowID: 11)),
-            makeItem(title: "Arc", appID: "company.thebrowser.Browser", identity: .appWindow(pid: 202, windowID: 22)),
-        ]
+        viewModel.selectedIndex = 4
+
+        XCTAssertNil(viewModel.resolvedSelectedIndex)
+    }
+
+    func testResolvedSelectedIndexClampsToLastVisibleItem() {
+        let viewModel = makeViewModel(itemCount: 2)
         viewModel.selectedIndex = 7
 
         XCTAssertEqual(viewModel.resolvedSelectedIndex, 1)
     }
 
-    private func makeItem(title: String, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
+    func testMoveWrapsForwardAndBackward() {
+        let viewModel = makeViewModel(itemCount: 3)
+        viewModel.selectedIndex = 2
+
+        viewModel.move(by: 1)
+        XCTAssertEqual(viewModel.selectedIndex, 0)
+
+        viewModel.move(by: -1)
+        XCTAssertEqual(viewModel.selectedIndex, 2)
+    }
+
+    func testMoveDoesNothingWithoutItems() {
+        let viewModel = SwitcherViewModel()
+        viewModel.selectedIndex = 3
+
+        viewModel.move(by: 1)
+        viewModel.moveUp()
+        viewModel.moveDown()
+
+        XCTAssertEqual(viewModel.selectedIndex, 3)
+    }
+
+    func testGridNavigationWrapsAcrossUnevenLastRow() {
+        let viewModel = makeViewModel(itemCount: 5)
+        viewModel.layout = SwitcherLayoutMetrics(
+            columns: 3,
+            cardWidth: 200,
+            cardHeight: 150,
+            thumbnailHeight: 110,
+            gridSpacing: 12,
+            outerPadding: 16,
+            contentWidth: 800,
+            contentHeight: 450
+        )
+
+        viewModel.selectedIndex = 1
+        viewModel.moveUp()
+        XCTAssertEqual(viewModel.selectedIndex, 4)
+
+        viewModel.moveDown()
+        XCTAssertEqual(viewModel.selectedIndex, 1)
+
+        viewModel.selectedIndex = 4
+        viewModel.moveDown()
+        XCTAssertEqual(viewModel.selectedIndex, 1)
+    }
+
+    private func makeViewModel(itemCount: Int) -> SwitcherViewModel {
+        let viewModel = SwitcherViewModel()
+        viewModel.items = (0..<itemCount).map { index in
+            makeItem(
+                title: "Window \(index)",
+                appID: "com.example.app\(index)",
+                identity: .appWindow(
+                    pid: Int32(100 + index),
+                    windowID: UInt32(10 + index)
+                )
+            )
+        }
+        return viewModel
+    }
+
+    private func makeItem(
+        title: String,
+        appID: String,
+        identity: SwitcherHistoryIdentity
+    ) -> SwitcherItem {
         SwitcherItem(
             title: title,
             subtitle: appID,

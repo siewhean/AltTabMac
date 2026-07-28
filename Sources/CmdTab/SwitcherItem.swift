@@ -103,8 +103,13 @@ enum SwitcherPreviewContinuityStore {
         lock.lock()
         defer { lock.unlock() }
 
+        let exactIdentityKey = scopedExactKey(
+            exactKey: key,
+            identityKey: identityKey
+        )
+
         guard captureAccessAllowed else {
-            entriesByExactKey.removeValue(forKey: key)
+            removeExactEntry(forKey: exactIdentityKey)
             entriesByIdentity.removeValue(forKey: identityKey)
             return ResolvedImages(preview: nil, backdrop: nil)
         }
@@ -116,13 +121,13 @@ enum SwitcherPreviewContinuityStore {
                 backdrop: backdrop,
                 capturedAt: now
             )
-            entriesByExactKey[key] = entry
+            entriesByExactKey[exactIdentityKey] = entry
             entriesByIdentity[identityKey] = entry
             trimLocked()
             return ResolvedImages(preview: preview, backdrop: backdrop)
         }
 
-        if let exact = entriesByExactKey[key],
+        if let exact = entriesByExactKey[exactIdentityKey],
            now.timeIntervalSince(exact.capturedAt) <= exactKeyMaximumAge {
             return ResolvedImages(
                 preview: exact.preview,
@@ -148,6 +153,17 @@ enum SwitcherPreviewContinuityStore {
         lock.unlock()
         SwitcherPreviewPermissionState.resetForTesting()
         ReliableWindowPreviewRecovery.resetForTesting()
+    }
+
+    private static func scopedExactKey(
+        exactKey: String,
+        identityKey: String
+    ) -> String {
+        "\(identityKey)||\(exactKey)"
+    }
+
+    private static func removeExactEntry(forKey key: String) {
+        entriesByExactKey.removeValue(forKey: key)
     }
 
     private static func pruneLocked(now: Date) {

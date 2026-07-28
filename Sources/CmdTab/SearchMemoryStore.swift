@@ -1,4 +1,10 @@
 import Foundation
+import os.log
+
+private let searchMemoryLog = OSLog(
+    subsystem: "CmdTab",
+    category: "SearchMemoryStore"
+)
 
 final class SearchMemoryStore {
     static let shared = SearchMemoryStore()
@@ -22,11 +28,24 @@ final class SearchMemoryStore {
         self.defaults = defaults
         self.defaultsKey = defaultsKey
 
-        if let data = defaults.data(forKey: defaultsKey),
-           let decoded = try? JSONDecoder().decode([String: RememberedSelection].self, from: data) {
-            self.entries = decoded
-        } else {
+        guard let data = defaults.data(forKey: defaultsKey) else {
             self.entries = [:]
+            return
+        }
+        do {
+            self.entries = try JSONDecoder().decode(
+                [String: RememberedSelection].self,
+                from: data
+            )
+        } catch {
+            self.entries = [:]
+            os_log(
+                .error,
+                log: searchMemoryLog,
+                "Discarded invalid search-memory data (bytes=%{public}d, error=%{public}@)",
+                data.count,
+                String(describing: error)
+            )
         }
     }
 
@@ -75,12 +94,23 @@ final class SearchMemoryStore {
     }
 
     private func persistLocked() {
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        defaults.set(data, forKey: defaultsKey)
+        do {
+            defaults.set(try JSONEncoder().encode(entries), forKey: defaultsKey)
+        } catch {
+            os_log(
+                .error,
+                log: searchMemoryLog,
+                "Could not persist search memory (entries=%{public}d, error=%{public}@)",
+                entries.count,
+                String(describing: error)
+            )
+        }
     }
 
     private func normalizedMemoryQuery(_ query: String) -> String {
-        let filteredScalars = query.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        let filteredScalars = query.unicodeScalars.filter {
+            CharacterSet.alphanumerics.contains($0)
+        }
         return String(String.UnicodeScalarView(filteredScalars)).lowercased()
     }
 }

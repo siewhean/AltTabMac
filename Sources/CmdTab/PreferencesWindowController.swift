@@ -5,6 +5,7 @@ final class PreferencesWindowController: NSWindowController {
     var onOpenApplications: (() -> Void)?
     var onRefreshPreviews: (() -> Void)?
     var onApplySwitcherStyle: ((SwitcherStyle) -> Void)?
+    var onOpenOnboarding: (() -> Void)?
     private var preferredInitialPane: PreferencesPaneSelection = .general
 
     private let styleChangeHUDController = StyleChangeHUDController()
@@ -15,6 +16,7 @@ final class PreferencesWindowController: NSWindowController {
             onOpenApplications: { },
             onRefreshPreviews: { },
             onApplySwitcherStyle: { _ in },
+            onOpenOnboarding: { },
             initialPane: .general
         )
         let hostingController = NSHostingController(rootView: rootView)
@@ -67,6 +69,7 @@ final class PreferencesWindowController: NSWindowController {
             onOpenApplications: { [weak self] in self?.onOpenApplications?() },
             onRefreshPreviews: { [weak self] in self?.onRefreshPreviews?() },
             onApplySwitcherStyle: { [weak self] style in self?.onApplySwitcherStyle?(style) },
+            onOpenOnboarding: { [weak self] in self?.onOpenOnboarding?() },
             initialPane: preferredInitialPane
         )
     }

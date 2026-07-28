@@ -4,7 +4,7 @@ import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { getDashboardAuthSummary } from "@/lib/admin-store";
-import { requireAdminSession } from "@/lib/admin-auth";
+import { getAdminAuthMode, requireAdminSession } from "@/lib/admin-auth";
 import { formatSingaporeDateTime } from "@/lib/date";
 import { isDatabaseConfigured } from "@/lib/postgres";
 
@@ -30,6 +30,7 @@ export default async function DashboardSettingsPage({
   const error = typeof params.error === "string" ? params.error : undefined;
   const databaseConfigured = isDatabaseConfigured();
   const authSummary = await getDashboardAuthSummary();
+  const authMode = getAdminAuthMode();
 
   return (
     <DashboardShell
@@ -41,13 +42,8 @@ export default async function DashboardSettingsPage({
         {[
           { label: "Database", value: databaseConfigured ? "Connected" : "Missing" },
           {
-            label: "Password source",
-            value:
-              authSummary.source === "database"
-                ? "Database"
-                : authSummary.source === "environment"
-                  ? "Environment"
-                  : "Missing",
+            label: "Authentication",
+            value: authMode === "auth0" ? "Auth0 Universal Login" : "Development fallback",
           },
           {
             label: "Password updated",
@@ -66,7 +62,7 @@ export default async function DashboardSettingsPage({
         ))}
       </section>
 
-      <section className="surface-panel p-6">
+      {authMode === "legacy" ? <section className="surface-panel p-6">
         <div className="border-b border-white/8 pb-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
             Security
@@ -139,7 +135,7 @@ export default async function DashboardSettingsPage({
             </p>
           </div>
         </form>
-      </section>
+      </section> : null}
 
       <section className="surface-panel p-6">
         <div className="border-b border-white/8 pb-5">
@@ -152,12 +148,13 @@ export default async function DashboardSettingsPage({
         </div>
         <div className="mt-5 space-y-3 text-sm leading-7 text-muted">
           <p>
-            The dashboard uses the connected Postgres database to store waitlist entries and, after
-            your first password change, the dashboard login hash.
+            Production access uses Auth0 Universal Login, an exact owner subject, required MFA, a
+            fifteen-minute idle timeout, and a two-hour absolute timeout. Postgres stores the
+            dashboard&apos;s administrative audit trail.
           </p>
           <p>
-            If you ever need to invalidate access manually, rotate the dashboard password here and
-            old sessions will naturally expire within twelve hours.
+            To invalidate every active dashboard session, rotate the configured session generation
+            and deploy it together with the unchanged session secret.
           </p>
         </div>
       </section>

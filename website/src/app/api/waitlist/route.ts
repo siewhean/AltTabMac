@@ -16,6 +16,10 @@ import {
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
+  IngestRequestError,
+  readBoundedJson,
+} from "@/lib/ingest-request";
+import {
   isWaitlistStoreConfigured,
   updateWaitlistNotificationStatus,
   upsertWaitlistSubmission,
@@ -219,20 +223,13 @@ async function submitWaitlistNotification(payload: {
 }
 
 async function parseRequestBody(request: Request) {
-  const rawBody = await request.text();
-  const bodyBytes = Buffer.byteLength(rawBody, "utf8");
-
-  if (bodyBytes === 0) {
-    throw new EmptyBodyError();
-  }
-
-  if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
-    throw new PayloadTooLargeError();
-  }
-
   try {
-    return JSON.parse(rawBody) as unknown;
-  } catch {
+    return await readBoundedJson(request, MAX_REQUEST_BODY_BYTES);
+  } catch (error) {
+    if (error instanceof IngestRequestError) {
+      if (error.code === "payload_too_large") throw new PayloadTooLargeError();
+      if (error.message.includes("required")) throw new EmptyBodyError();
+    }
     throw new InvalidJsonError();
   }
 }
@@ -296,13 +293,25 @@ export async function POST(request: Request) {
 
     const ip = getClientIp(request);
     const userAgent = getUserAgent(request);
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip,
       userAgent,
     });
 
     if (!rateLimit.allowed) {
+      if ("unavailable" in rateLimit) {
+        return jsonResponse(
+          {
+            ok: false,
+            code: "service_unavailable",
+            message: "Abuse protection is temporarily unavailable. Please try again shortly.",
+            requestId,
+          },
+          503,
+          { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        );
+      }
       return jsonResponse(
         {
           ok: false,
@@ -312,6 +321,7 @@ export async function POST(request: Request) {
           requestId,
         },
         429,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) },
       );
     }
 
@@ -320,7 +330,10 @@ export async function POST(request: Request) {
       `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
     );
 
-    if (recentlySubmitted(emailFingerprint) || recentlySubmitted(requestFingerprint)) {
+    if (
+      (await recentlySubmitted(emailFingerprint)) ||
+      (await recentlySubmitted(requestFingerprint))
+    ) {
       return jsonResponse(
         {
           ok: true,
@@ -381,8 +394,8 @@ export async function POST(request: Request) {
           "failed",
           deliveryError.message,
         );
-        markSubmitted(emailFingerprint);
-        markSubmitted(requestFingerprint);
+        await markSubmitted(emailFingerprint);
+        await markSubmitted(requestFingerprint);
 
         return jsonResponse({
           ok: true,
@@ -411,8 +424,8 @@ export async function POST(request: Request) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
     }
 
-    markSubmitted(emailFingerprint);
-    markSubmitted(requestFingerprint);
+    await markSubmitted(emailFingerprint);
+    await markSubmitted(requestFingerprint);
 
     return jsonResponse({
       ok: true,

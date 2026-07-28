@@ -5,6 +5,7 @@ import { getSql, isDatabaseConfigured } from "@/lib/postgres";
 type LicenseFulfillmentRow = {
   id: string;
   order_identifier: string;
+  order_lookup_hash: string | null;
   order_number: number | null;
   event_name: string;
   purchaser_email: string;
@@ -18,6 +19,9 @@ type LicenseFulfillmentRow = {
   store_id: number | null;
   lemonsqueezy_order_id: string | null;
   license_id: string;
+  license_lookup_hash: string | null;
+  email_lookup_hash: string | null;
+  activation_credential_hash: string | null;
   license_token: string;
   delivery_status: string;
   delivery_error: string | null;
@@ -31,6 +35,7 @@ type LicenseFulfillmentRow = {
 export type LicenseFulfillment = {
   id: string;
   orderIdentifier: string;
+  orderLookupHash?: string;
   orderNumber?: number;
   eventName: string;
   purchaserEmail: string;
@@ -44,6 +49,9 @@ export type LicenseFulfillment = {
   storeId?: number;
   lemonsqueezyOrderId?: string;
   licenseId: string;
+  licenseLookupHash?: string;
+  emailLookupHash?: string;
+  activationCredentialHash?: string;
   licenseToken: string;
   deliveryStatus: "stored" | "delivered" | "failed" | "refunded";
   deliveryError?: string;
@@ -78,6 +86,7 @@ async function ensureSchema() {
     create table if not exists license_fulfillments (
       id text primary key,
       order_identifier text not null unique,
+      order_lookup_hash text,
       order_number integer,
       event_name text not null,
       purchaser_email text not null,
@@ -91,6 +100,9 @@ async function ensureSchema() {
       store_id integer,
       lemonsqueezy_order_id text,
       license_id text not null,
+      license_lookup_hash text,
+      email_lookup_hash text,
+      activation_credential_hash text,
       license_token text not null,
       delivery_status text not null default 'stored',
       delivery_error text,
@@ -101,6 +113,13 @@ async function ensureSchema() {
       updated_at timestamptz not null default now()
     )
   `;
+  await sql`
+    alter table license_fulfillments
+      add column if not exists order_lookup_hash text,
+      add column if not exists license_lookup_hash text,
+      add column if not exists email_lookup_hash text
+      , add column if not exists activation_credential_hash text
+  `;
 
   schemaReady = true;
 }
@@ -109,6 +128,7 @@ function mapRow(row: LicenseFulfillmentRow): LicenseFulfillment {
   return {
     id: row.id,
     orderIdentifier: row.order_identifier,
+    orderLookupHash: row.order_lookup_hash ?? undefined,
     orderNumber: row.order_number ?? undefined,
     eventName: row.event_name,
     purchaserEmail: row.purchaser_email,
@@ -122,6 +142,9 @@ function mapRow(row: LicenseFulfillmentRow): LicenseFulfillment {
     storeId: row.store_id ?? undefined,
     lemonsqueezyOrderId: row.lemonsqueezy_order_id ?? undefined,
     licenseId: row.license_id,
+    licenseLookupHash: row.license_lookup_hash ?? undefined,
+    emailLookupHash: row.email_lookup_hash ?? undefined,
+    activationCredentialHash: row.activation_credential_hash ?? undefined,
     licenseToken: row.license_token,
     deliveryStatus: row.delivery_status as LicenseFulfillment["deliveryStatus"],
     deliveryError: row.delivery_error ?? undefined,
@@ -135,6 +158,7 @@ function mapRow(row: LicenseFulfillmentRow): LicenseFulfillment {
 
 export async function createOrGetLicenseFulfillment(input: {
   orderIdentifier: string;
+  orderLookupHash?: string;
   orderNumber?: number;
   eventName: string;
   purchaserEmail: string;
@@ -148,6 +172,9 @@ export async function createOrGetLicenseFulfillment(input: {
   storeId?: number;
   lemonsqueezyOrderId?: string;
   licenseId: string;
+  licenseLookupHash?: string;
+  emailLookupHash?: string;
+  activationCredentialHash?: string;
   licenseToken: string;
   testMode: boolean;
 }) {
@@ -157,6 +184,7 @@ export async function createOrGetLicenseFulfillment(input: {
     insert into license_fulfillments (
       id,
       order_identifier,
+      order_lookup_hash,
       order_number,
       event_name,
       purchaser_email,
@@ -170,6 +198,9 @@ export async function createOrGetLicenseFulfillment(input: {
       store_id,
       lemonsqueezy_order_id,
       license_id,
+      license_lookup_hash,
+      email_lookup_hash,
+      activation_credential_hash,
       license_token,
       delivery_status,
       delivery_error,
@@ -177,6 +208,7 @@ export async function createOrGetLicenseFulfillment(input: {
     ) values (
       ${randomUUID()},
       ${input.orderIdentifier},
+      ${input.orderLookupHash ?? null},
       ${input.orderNumber ?? null},
       ${input.eventName},
       ${input.purchaserEmail.trim().toLowerCase()},
@@ -190,6 +222,9 @@ export async function createOrGetLicenseFulfillment(input: {
       ${input.storeId ?? null},
       ${input.lemonsqueezyOrderId ?? null},
       ${input.licenseId},
+      ${input.licenseLookupHash ?? null},
+      ${input.emailLookupHash ?? null},
+      ${input.activationCredentialHash ?? null},
       ${input.licenseToken},
       ${"stored"},
       ${null},
@@ -198,6 +233,10 @@ export async function createOrGetLicenseFulfillment(input: {
     on conflict (order_identifier) do update
       set
         order_number = coalesce(license_fulfillments.order_number, excluded.order_number),
+        order_lookup_hash = coalesce(license_fulfillments.order_lookup_hash, excluded.order_lookup_hash),
+        license_lookup_hash = coalesce(license_fulfillments.license_lookup_hash, excluded.license_lookup_hash),
+        email_lookup_hash = coalesce(license_fulfillments.email_lookup_hash, excluded.email_lookup_hash),
+        activation_credential_hash = coalesce(license_fulfillments.activation_credential_hash, excluded.activation_credential_hash),
         purchaser_name = coalesce(license_fulfillments.purchaser_name, excluded.purchaser_name),
         product_name = coalesce(license_fulfillments.product_name, excluded.product_name),
         variant_name = coalesce(license_fulfillments.variant_name, excluded.variant_name),
@@ -244,6 +283,19 @@ export async function updateLicenseFulfillmentDeliveryStatus(
 
 export async function markLicenseFulfillmentRefunded(orderIdentifier: string) {
   return updateLicenseFulfillmentDeliveryStatus(orderIdentifier, "refunded");
+}
+
+export async function findLicenseFulfillmentByOrder(
+  orderIdentifier: string,
+) {
+  await ensureSchema();
+  const [row] = await getSql()<LicenseFulfillmentRow[]>`
+    select *
+    from license_fulfillments
+    where order_identifier = ${orderIdentifier}
+    limit 1
+  `;
+  return row ? mapRow(row) : null;
 }
 
 export async function listLicenseFulfillments(limit = 50) {

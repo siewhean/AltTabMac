@@ -25,6 +25,9 @@ struct LicensingPreferencesPane: View {
         .onAppear {
             controller.refreshStatus()
             lastStatusSignature = statusSignature(for: controller.status)
+            Task {
+                await controller.refreshLicensedDevices()
+            }
         }
         .onChange(of: controller.status) { newStatus in
             let newSignature = statusSignature(for: newStatus)
@@ -42,7 +45,7 @@ struct LicensingPreferencesPane: View {
     private var statusCard: some View {
         LicensingCard(
             title: "License Status",
-            subtitle: "CmdTab starts with a server-backed 14-day trial, then unlocks permanently with a signed license."
+            subtitle: "CmdTab starts with a server-signed 14-day trial. Email is optional and is used only for reminders."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .center, spacing: 14) {
@@ -84,6 +87,10 @@ struct LicensingPreferencesPane: View {
                         .controlSize(.large)
                     }
                 }
+
+                if let warning = controller.trialWarningMessage {
+                    LicensingInlineMessage(message: warning)
+                }
             }
         }
     }
@@ -100,18 +107,19 @@ struct LicensingPreferencesPane: View {
         LicensingCard(
             title: controller.status.requiresTrialRegistration ? "Start your 14-day trial" : "Activate This Mac",
             subtitle: controller.status.requiresTrialRegistration
-                ? "Register this Mac with your email before you use CmdTab. This prevents trial abuse across resets and reinstalls."
-                : "Paste the signed license key from your purchase email to unlock CmdTab on this Mac."
+                ? "Start on this Mac immediately. Add an email only when you want an expiry reminder."
+                : "Open the one-click link from your purchase email, or paste the activation credential below."
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 if controller.status.requiresTrialRegistration {
-                    Text("Email")
+                    Text("Email for reminders (optional)")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
 
-                    TextField("you@mac.com", text: $controller.enteredTrialEmail)
+                    TextField("you@mac.com (optional)", text: $controller.enteredTrialEmail)
                         .textFieldStyle(.roundedBorder)
                         .frame(height: 32)
+                        .accessibilityLabel("Optional email for trial reminders")
 
                     Button(action: {
                         Task {
@@ -130,6 +138,11 @@ struct LicensingPreferencesPane: View {
                     .tint(.blue)
                     .disabled(controller.isStartingTrial)
 
+                    Text("Leave the field blank to start without sharing an email. Local trial warnings still appear in CmdTab.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.52))
+                        .fixedSize(horizontal: false, vertical: true)
+
                     if let message = controller.trialMessage {
                         LicensingInlineMessage(message: message)
                     }
@@ -137,7 +150,7 @@ struct LicensingPreferencesPane: View {
                     Divider().overlay(Color.white.opacity(0.08))
                 }
 
-                Text("License key")
+                Text("Purchase activation code")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
 
@@ -157,19 +170,34 @@ struct LicensingPreferencesPane: View {
                 }
 
                 HStack(spacing: 12) {
-                    Button(action: { _ = controller.activateEnteredLicenseKey() }) {
-                        Label("Activate License", systemImage: "checkmark.seal.fill")
-                            .frame(maxWidth: .infinity)
+                    Button(action: {
+                        Task {
+                            _ = await controller.activateEnteredLicenseKeyOnline()
+                        }
+                    }) {
+                        if controller.isManagingLicense {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Label("Activate License", systemImage: "checkmark.seal.fill")
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
+                    .disabled(controller.isManagingLicense)
 
-                    Button(action: controller.clearLicense) {
-                        Text("Clear Saved License")
+                    Button(action: {
+                        Task {
+                            _ = await controller.deactivateCurrentDevice()
+                        }
+                    }) {
+                        Text("Deactivate This Mac")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+                    .disabled(controller.isManagingLicense)
                 }
             }
         }
@@ -192,6 +220,19 @@ struct LicensingPreferencesPane: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
+                if !controller.licensedDevices.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Activated Macs (\(controller.licensedDevices.count) of 3)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.78))
+                        ForEach(controller.licensedDevices, id: \.deviceId) { device in
+                            Text("• \(device.deviceName)")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundColor(.white.opacity(0.58))
+                        }
+                    }
+                }
+
                 HStack(spacing: 12) {
                     Button(action: controller.openHelpPage) {
                         Text("Open Help")
@@ -199,6 +240,18 @@ struct LicensingPreferencesPane: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
+
+                    Button(action: {
+                        Task {
+                            _ = await controller.deactivateCurrentDevice()
+                        }
+                    }) {
+                        Text("Deactivate This Mac")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                    .disabled(controller.isManagingLicense)
                 }
             }
         }
@@ -247,7 +300,7 @@ struct LicensingPreferencesPane: View {
         case .licensed:
             return "checkmark.seal.fill"
         case .unregistered:
-            return "envelope.badge"
+            return "timer"
         case .activeTrial:
             return "timer"
         case .expired:
@@ -297,7 +350,7 @@ private struct LicenseKeyInputField: NSViewRepresentable {
         textField.focusRingType = .none
         textField.font = .monospacedSystemFont(ofSize: 12, weight: .medium)
         textField.textColor = .white
-        textField.placeholderString = "CMDTAB1.<payload>.<signature>"
+        textField.placeholderString = "CMDTAB-ACT-… or legacy CMDTAB1 key"
         textField.delegate = context.coordinator
         textField.lineBreakMode = .byClipping
         textField.usesSingleLineMode = true

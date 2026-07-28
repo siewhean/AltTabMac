@@ -5,8 +5,7 @@ export const dashboardContent = {
   summary:
     "This page is the owner-facing view of the website funnel, pricing setup, event instrumentation, and operational support flows. Core website traffic and interaction metrics are mirrored into this dashboard from the live site.",
   offer: [
-    { label: "Founder price", value: commerceContent.founder.price },
-    { label: "Standard price", value: commerceContent.standard.price },
+    { label: "License price", value: commerceContent.license.price },
     { label: "Trial length", value: commerceContent.trialLength },
   ],
   funnelMetrics: [

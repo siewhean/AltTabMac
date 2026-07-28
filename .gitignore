@@ -1,6 +1,14 @@
 # Local secrets and deployment state
 .vercel/
 .secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.csr
 
 # Swift Package Manager and Xcode derived output
 .build/

@@ -1,7 +1,11 @@
 # CmdTab
 
-Last updated: 2026-07-23  
-Active task: complete the isolated PR #35 five-feature production QA on `agent/five-feature-production-suite`; do not merge it or advance `main` from this worktree.
+Last updated: 2026-07-27
+Active task: complete the remaining repository-owned production-readiness
+stages on `codex/implementation-plan-phase1`. The native lifecycle now includes
+versioned, reopenable onboarding with contextual permission requests, safe
+resume, first-switch practice, and exact trial warnings. Protected hotkey, MRU,
+activation, and removal-animation behavior remains unchanged.
 
 ## Product
 
@@ -25,6 +29,23 @@ The public native release remains blocked until CmdTab has:
 - tested update, rollback, diagnostics, security, licensing, and support operations.
 
 No public release claim may treat the accepted local ad-hoc artifact as a distributable build.
+
+The licensing migration now includes an additive `CMDTAB2` P-256
+token/keyring contract and separate trial/license AWS KMS signer abstraction.
+Existing `CMDTAB1` paid licenses remain supported for offline compatibility;
+production KMS provisioning and embedding its public keyrings in the signed
+app remain release gates.
+
+The repository-owned commerce lifecycle now exchanges a high-entropy opaque
+purchase activation code for an install-bound signed entitlement, keeps paid
+access offline after activation, and transactionally limits each license to
+three named Macs. Deactivation frees a slot immediately; recovery is
+enumeration-safe; fulfillment uses a retryable outbox; partial refunds preserve
+access; and authoritative full-refund or revocation states persist as hashed
+tombstones. The migration is idempotent and local real-PostgreSQL concurrency
+evidence covers three successful devices, fourth-device rejection, immediate
+deactivation, and subsequent activation. Live Lemon Squeezy, email-provider,
+KMS, and production-database execution remain external release gates.
 
 ## PR #35 five-feature QA
 
@@ -73,6 +94,14 @@ Phase 1 local evidence proves the current deterministic host-architecture packag
 
 Automated SwiftPM evidence does not replace packaged-app testing for permissions, focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, Secure Input, signing, notarization, installation, updates, or rollback.
 
+The repository now includes a real-machine, hash-bound performance harness for
+10/25/50-window scenarios and a 1,000-session soak. Readiness mode validates the
+harness only; acceptance requires a clean packaged candidate and every
+threshold to pass. The available older package produced a truthful blocked
+smoke result, and the current `dist/CmdTab.app` is unsigned/non-launchable, so
+no performance acceptance claim has been made. See
+[`docs/qa/performance-evidence.md`](docs/qa/performance-evidence.md).
+
 ## Showcase media
 
 The canonical website showcase is `/showcase`.
@@ -88,7 +117,14 @@ The showcase demonstrates presentation. It does not prove signed-app permissions
 
 ## Website and discovery
 
-The website uses one canonical route registry for metadata, sitemap, IndexNow, and verification. The 22 public routes cover product behavior, four feature modes/actions, evidence, guides, comparisons, compatibility, permissions, privacy, commerce, support, and the showcase.
+The website uses one canonical route registry for metadata, sitemap, IndexNow, and verification. The 23 public routes cover product behavior, four feature modes/actions, evidence, guides, comparisons, compatibility, permissions, privacy, terms, commerce, support, and the showcase.
+
+The private dashboard is production-fail-closed behind Auth0 Universal Login,
+exact owner-subject authorization, required MFA evidence, 15-minute idle and
+two-hour absolute application sessions, session-generation invalidation, and
+audited administrative actions. Shared-password access is an explicit
+non-production fallback only; see
+[`docs/security/dashboard-authentication.md`](docs/security/dashboard-authentication.md).
 
 Public claims must be visible in canonical HTML and supported by source, code, tests, or clearly labelled media. Do not publish ScreenCaptureKit, latency, RAM, Universal Binary, Apple Silicon, Intel, processor, fake rating, testimonial, or directory-status claims without evidence.
 
@@ -106,7 +142,7 @@ npm run build
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
-A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 22-route sitemap, and no unsupported claims.
+A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 
 ## Remaining signed-app acceptance boundary
 

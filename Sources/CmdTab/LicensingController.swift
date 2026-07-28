@@ -36,7 +36,7 @@ enum LicensingStatus: Equatable {
     }
 }
 
-enum LicensingMessageTone {
+enum LicensingMessageTone: Equatable {
     case success
     case warning
     case error
@@ -75,22 +75,31 @@ enum LicenseValidationError: LocalizedError, Equatable {
 
 @MainActor
 final class LicensingController: ObservableObject {
-    static let shared = LicensingController()
+    static let shared = LicensingController(telemetryReporter: AppTelemetryReporter.shared)
 
     @Published private(set) var status: LicensingStatus
     @Published var enteredLicenseKey = ""
     @Published var enteredTrialEmail = ""
     @Published private(set) var isStartingTrial = false
+    @Published private(set) var isManagingLicense = false
+    @Published private(set) var licensedDevices: [LicensedDeviceDTO] = []
     @Published private(set) var trialMessage: LicensingMessage?
     @Published private(set) var licenseMessage: LicensingMessage?
 
     private let trialStore: TrialStartDateStore
     private let trialClaimStore: TrialClaimStore
     private let licenseStore: LicenseKeyStore
+    private let deviceEntitlementStore: DeviceLicenseEntitlementStore
     private let activationMetadataStore: LicenseActivationMetadataStore
     private let payloadCacheStore: LicensedPayloadCacheStore
     private let installIDStore: AppInstallIDStore
+    private let deviceIdentityStore: LicenseDeviceIdentityStore
+    private let trialClaimAuthenticator: TrialClaimAuthenticating
+    private let secureTrialClockStore: SecureTrialClockStore
+    private let revocationStore: LicenseRevocationStore
+    private let paidEntitlementVerifier: LicenseTokenVerifier
     private let serverClient: CmdTabServerClient
+    private let telemetryReporter: AppTelemetryReporting?
     private let currentDate: () -> Date
     private let publicKeyDERBase64: String
     private let developerSettings: DeveloperSettings
@@ -98,12 +107,23 @@ final class LicensingController: ObservableObject {
 
     init(
         trialStore: TrialStartDateStore = UserDefaultsTrialStartDateStore(),
-        trialClaimStore: TrialClaimStore = UserDefaultsTrialClaimStore(),
+        trialClaimStore: TrialClaimStore = KeychainTrialClaimStore(),
         licenseStore: LicenseKeyStore = KeychainLicenseKeyStore(),
+        deviceEntitlementStore: DeviceLicenseEntitlementStore =
+            KeychainDeviceLicenseEntitlementStore(),
         activationMetadataStore: LicenseActivationMetadataStore = UserDefaultsLicenseActivationMetadataStore(),
         payloadCacheStore: LicensedPayloadCacheStore = UserDefaultsLicensedPayloadCacheStore(),
         installIDStore: AppInstallIDStore = UserDefaultsAppInstallIDStore(),
+        deviceIdentityStore: LicenseDeviceIdentityStore = KeychainLicenseDeviceIdentityStore(),
+        trialClaimAuthenticator: TrialClaimAuthenticating = SignedTrialClaimAuthenticator(),
+        secureTrialClockStore: SecureTrialClockStore =
+            KeychainSecureTrialClockStore(),
+        revocationStore: LicenseRevocationStore =
+            KeychainLicenseRevocationStore(),
+        licenseV2PublicKeysDERBase64: [String: String] =
+            LicensingConfiguration.licensePublicKeyringDERBase64,
         serverClient: CmdTabServerClient = LiveCmdTabServerClient(),
+        telemetryReporter: AppTelemetryReporting? = nil,
         currentDate: @escaping () -> Date = Date.init,
         publicKeyDERBase64: String = LicensingConfiguration.publicKeyDERBase64,
         developerSettings: DeveloperSettings? = nil
@@ -111,10 +131,22 @@ final class LicensingController: ObservableObject {
         self.trialStore = trialStore
         self.trialClaimStore = trialClaimStore
         self.licenseStore = licenseStore
+        self.deviceEntitlementStore = deviceEntitlementStore
         self.activationMetadataStore = activationMetadataStore
         self.payloadCacheStore = payloadCacheStore
         self.installIDStore = installIDStore
+        self.deviceIdentityStore = deviceIdentityStore
+        self.trialClaimAuthenticator = trialClaimAuthenticator
+        self.secureTrialClockStore = secureTrialClockStore
+        self.revocationStore = revocationStore
+        self.paidEntitlementVerifier = LicenseTokenVerifier(
+            keyring: LicenseTokenKeyring(
+                legacyV1PublicKeyDERBase64: publicKeyDERBase64,
+                v2PublicKeysDERBase64: licenseV2PublicKeysDERBase64
+            )
+        )
         self.serverClient = serverClient
+        self.telemetryReporter = telemetryReporter
         self.currentDate = currentDate
         self.publicKeyDERBase64 = publicKeyDERBase64
         self.developerSettings = developerSettings ?? .shared
@@ -149,7 +181,7 @@ final class LicensingController: ObservableObject {
     var licenseSummaryDetail: String {
         switch status {
         case .unregistered:
-            return "Use your email to register this Mac and start the 14-day trial. This helps prevent repeated trial abuse."
+            return "Start the trial on this Mac. Email is optional and is used only for trial reminders."
         case let .licensed(payload, activatedAt):
             let issuedAt = payload.issuedDate.map { Self.displayFormatter.string(from: $0) } ?? payload.issuedAt
             let activatedCopy = activatedAt.map { "Activated \(Self.displayFormatter.string(from: $0))." } ?? "Activated on this Mac."
@@ -157,18 +189,97 @@ final class LicensingController: ObservableObject {
         case let .activeTrial(startedAt, endsAt, _):
             return "Started \(Self.displayFormatter.string(from: startedAt)). Ends \(Self.displayFormatter.string(from: endsAt))."
         case let .expired(_, endedAt, daysOverdue):
-            let overdueCopy = daysOverdue <= 1 ? "The trial expired yesterday." : "The trial expired \(daysOverdue) days ago."
+            let overdueCopy: String
+            switch daysOverdue {
+            case 0:
+                overdueCopy = "The trial just expired."
+            case 1:
+                overdueCopy = "The trial expired 1 day ago."
+            default:
+                overdueCopy = "The trial expired \(daysOverdue) days ago."
+            }
             return "\(overdueCopy) Buy CmdTab or enter a valid license to keep using the switcher. Trial ended \(Self.displayFormatter.string(from: endedAt))."
+        }
+    }
+
+    var trialWarningMessage: LicensingMessage? {
+        switch status {
+        case let .activeTrial(_, endsAt, daysRemaining) where daysRemaining <= 3:
+            let remainingCopy = daysRemaining == 1
+                ? "1 day remains"
+                : "\(daysRemaining) days remain"
+            return LicensingMessage(
+                tone: .warning,
+                text: "\(remainingCopy) in your trial. Access ends exactly \(Self.boundaryFormatter.string(from: endsAt))."
+            )
+        case let .expired(_, endedAt, _):
+            return LicensingMessage(
+                tone: .error,
+                text: "Your trial ended \(Self.displayFormatter.string(from: endedAt)). CmdTab now leaves the native macOS switcher shortcut available."
+            )
+        default:
+            return nil
+        }
+    }
+
+    var menuBarTrialStatusTitle: String? {
+        switch status {
+        case let .activeTrial(_, _, daysRemaining) where daysRemaining <= 3:
+            return daysRemaining == 1
+                ? "Trial: 1 Day Remaining"
+                : "Trial: \(daysRemaining) Days Remaining"
+        case .expired:
+            return "Trial Expired"
+        default:
+            return nil
         }
     }
 
     func refreshStatus() {
         let now = currentDate()
 
-        if let cachedPayload = payloadCacheStore.loadPayload() {
-            status = .licensed(payload: cachedPayload, activatedAt: activationMetadataStore.loadActivationDate())
+        if let paidEntitlement = deviceEntitlementStore.loadEntitlement(),
+           let verifiedPayload = try? validatePaidDeviceEntitlement(
+            paidEntitlement
+           ) {
+            guard !isRevoked(
+                payload: verifiedPayload,
+                entitlementToken: paidEntitlement
+            ) else {
+                try? deviceEntitlementStore.clearEntitlement()
+                try? licenseStore.clearLicenseKey()
+                payloadCacheStore.clearPayload()
+                status = .unregistered
+                return
+            }
+            payloadCacheStore.savePayload(verifiedPayload)
+            status = .licensed(
+                payload: verifiedPayload,
+                activatedAt: activationMetadataStore.loadActivationDate()
+            )
+            return
+        } else {
+            try? deviceEntitlementStore.clearEntitlement()
+        }
+
+        if let storedToken = licenseStore.loadLicenseKeySilently(),
+           let verifiedPayload = try? validateLicenseKey(normalizeToken(storedToken)) {
+            guard !isLicenseRevoked(verifiedPayload.licenseID) else {
+                try? licenseStore.clearLicenseKey()
+                payloadCacheStore.clearPayload()
+                status = .unregistered
+                return
+            }
+            payloadCacheStore.savePayload(verifiedPayload)
+            status = .licensed(
+                payload: verifiedPayload,
+                activatedAt: activationMetadataStore.loadActivationDate()
+            )
             return
         }
+        // A decoded UserDefaults cache is display metadata only. It must never
+        // grant paid access without re-verifying the signed Keychain token.
+        payloadCacheStore.clearPayload()
 
         if let overrideStatus = developerOverrideStatus(now: now) {
             status = overrideStatus
@@ -176,9 +287,33 @@ final class LicensingController: ObservableObject {
         }
 
         if let claim = trialClaimStore.loadClaim(),
+           let trialInstallBinding = try? deviceIdentifier(),
+           trialClaimAuthenticator.validates(
+            claim,
+            installID: trialInstallBinding
+           ),
            let startedAt = claim.startedDate,
-           let endsAt = claim.endsDate {
-            enteredTrialEmail = claim.email
+           let claimedEndsAt = claim.endsDate {
+            if let lastSeen = secureTrialClockStore.loadLastSeenDate(),
+               now.addingTimeInterval(Self.clockRollbackTolerance) < lastSeen {
+                enteredTrialEmail = Self.visibleTrialEmail(claim.email)
+                status = .unregistered
+                trialMessage = LicensingMessage(
+                    tone: .warning,
+                    text: "The system clock moved backwards. Connect to the internet and revalidate the trial."
+                )
+                return
+            }
+            let endsAt = Self.trialEndDate(startedAt: startedAt)
+            guard abs(claimedEndsAt.timeIntervalSince(endsAt)) <=
+                    Self.trialClaimSerializationTolerance else {
+                trialClaimStore.clearClaim()
+                enteredTrialEmail = ""
+                status = .unregistered
+                return
+            }
+            enteredTrialEmail = Self.visibleTrialEmail(claim.email)
+            secureTrialClockStore.saveLastSeenDate(now)
             if now < endsAt {
                 status = .activeTrial(
                     startedAt: startedAt,
@@ -186,7 +321,7 @@ final class LicensingController: ObservableObject {
                     daysRemaining: Self.daysRemaining(until: endsAt, now: now)
                 )
             } else {
-                let overdue = max(1, Calendar.current.dateComponents([.day], from: endsAt, to: now).day ?? 1)
+                let overdue = Self.daysOverdue(since: endsAt, now: now)
                 status = .expired(startedAt: startedAt, endedAt: endsAt, daysOverdue: overdue)
             }
             return
@@ -201,8 +336,12 @@ final class LicensingController: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
 
-        guard normalizedEmail.contains("@"), normalizedEmail.contains(".") else {
-            trialMessage = LicensingMessage(tone: .error, text: "Enter a valid email to start the trial.")
+        if !normalizedEmail.isEmpty,
+           (!normalizedEmail.contains("@") || !normalizedEmail.contains(".")) {
+            trialMessage = LicensingMessage(
+                tone: .error,
+                text: "Enter a valid email or leave the field blank."
+            )
             return false
         }
 
@@ -212,18 +351,35 @@ final class LicensingController: ObservableObject {
         do {
             let claim = try await serverClient.startTrial(
                 email: normalizedEmail,
-                installID: installID,
+                installID: try deviceIdentifier(),
                 appVersion: appVersion,
                 osVersion: osVersion
             )
             trialClaimStore.saveClaim(claim)
-            enteredTrialEmail = claim.email
+            let authoritativeDate = claim.validatedDate ?? currentDate()
+            secureTrialClockStore.saveLastSeenDate(
+                max(
+                    secureTrialClockStore.loadLastSeenDate()
+                        ?? authoritativeDate,
+                    authoritativeDate
+                )
+            )
+            enteredTrialEmail = Self.visibleTrialEmail(claim.email)
+            refreshStatus()
+            guard case .activeTrial = status else {
+                trialMessage = LicensingMessage(
+                    tone: .error,
+                    text: "The trial response could not be verified. Please try again."
+                )
+                return false
+            }
             trialMessage = LicensingMessage(
                 tone: .success,
-                text: "Your 14-day trial is active on this Mac."
+                text: normalizedEmail.isEmpty
+                    ? "Your 14-day trial is active on this Mac. Email reminders are off."
+                    : "Your 14-day trial is active on this Mac."
             )
-            refreshStatus()
-            AppTelemetryReporter.shared.trackTrialStarted(licensingController: self)
+            telemetryReporter?.trackTrialStarted(licensingController: self)
             return true
         } catch {
             trialMessage = LicensingMessage(
@@ -273,16 +429,19 @@ final class LicensingController: ObservableObject {
 
     func clearTrialClaim() {
         trialClaimStore.clearClaim()
+        secureTrialClockStore.clearLastSeenDate()
         enteredTrialEmail = ""
         refreshStatus()
     }
 
     func resetLiveTrialFromToday(clearSavedLicense: Bool) {
         trialClaimStore.clearClaim()
+        secureTrialClockStore.clearLastSeenDate()
         trialStore.saveTrialStartDate(.distantPast)
         enteredTrialEmail = ""
         if clearSavedLicense {
             try? licenseStore.clearLicenseKey()
+            try? deviceEntitlementStore.clearEntitlement()
             activationMetadataStore.clearActivationDate()
             payloadCacheStore.clearPayload()
             enteredLicenseKey = ""
@@ -307,6 +466,127 @@ final class LicensingController: ObservableObject {
     }
 
     @discardableResult
+    func activateEnteredLicenseKeyOnline() async -> Bool {
+        guard !isManagingLicense else { return false }
+        isManagingLicense = true
+        defer { isManagingLicense = false }
+
+        do {
+            let normalized = normalizeToken(enteredLicenseKey)
+            guard !normalized.isEmpty else {
+                throw LicenseValidationError.empty
+            }
+            let activation = try await serverClient.activateLicense(
+                licenseKey: normalized,
+                deviceID: try deviceIdentifier(),
+                deviceName: Host.current().localizedName ?? "Mac"
+            )
+            let paidPayload = try validatePaidDeviceEntitlement(
+                activation.entitlementToken
+            )
+            try deviceEntitlementStore.saveEntitlement(
+                activation.entitlementToken
+            )
+            try licenseStore.saveLicenseKey(normalized)
+            activationMetadataStore.saveActivationDate(currentDate())
+            payloadCacheStore.savePayload(paidPayload)
+            enteredLicenseKey = normalized
+            status = .licensed(
+                payload: paidPayload,
+                activatedAt: activationMetadataStore.loadActivationDate()
+            )
+            licensedDevices = activation.devices
+            licenseMessage = LicensingMessage(
+                tone: .success,
+                text: "CmdTab is now activated on this Mac."
+            )
+            telemetryReporter?.trackLicenseActivation(
+                licensingController: self
+            )
+            return true
+        } catch {
+            let description = (error as? LocalizedError)?.errorDescription
+                ?? "This Mac could not be activated right now."
+            licenseMessage = LicensingMessage(tone: .error, text: description)
+            refreshStatus()
+            return false
+        }
+    }
+
+    func refreshLicensedDevices() async {
+        guard let storedToken = serverActivationCredential() else {
+            licensedDevices = []
+            return
+        }
+        do {
+            let result = try await serverClient.listDeviceStatus(
+                licenseKey: storedToken,
+                deviceID: try deviceIdentifier()
+            )
+            licensedDevices = result.devices
+            if result.currentActivationActive == false,
+               let entitlement = deviceEntitlementStore.loadEntitlement() {
+                try? revocationStore.saveRevocation(
+                    licenseID: tokenRevocationIdentifier(entitlement)
+                )
+                try? deviceEntitlementStore.clearEntitlement()
+                try? licenseStore.clearLicenseKey()
+                payloadCacheStore.clearPayload()
+                licensedDevices = []
+                refreshStatus()
+            }
+        } catch {
+            if case CmdTabServerClientError.licenseRevoked = error {
+                if let currentLicenseID {
+                    try? revocationStore.saveRevocation(
+                        licenseID: licenseRevocationIdentifier(currentLicenseID)
+                    )
+                }
+                try? deviceEntitlementStore.clearEntitlement()
+                try? licenseStore.clearLicenseKey()
+                payloadCacheStore.clearPayload()
+                licensedDevices = []
+                refreshStatus()
+                return
+            }
+            // Paid authorization remains available offline indefinitely.
+            // A transient listing failure must not change local access.
+        }
+    }
+
+    @discardableResult
+    func deactivateCurrentDevice() async -> Bool {
+        guard !isManagingLicense else { return false }
+        guard let storedToken = serverActivationCredential() else {
+            clearLicense()
+            return true
+        }
+        isManagingLicense = true
+        defer { isManagingLicense = false }
+        do {
+            let entitlement = deviceEntitlementStore.loadEntitlement()
+            licensedDevices = try await serverClient.deactivateLicense(
+                licenseKey: storedToken,
+                deviceID: try deviceIdentifier()
+            )
+            if let entitlement {
+                try? revocationStore.saveRevocation(
+                    licenseID: tokenRevocationIdentifier(entitlement)
+                )
+            }
+            clearLicense()
+            return true
+        } catch {
+            licenseMessage = LicensingMessage(
+                tone: .error,
+                text: (error as? LocalizedError)?.errorDescription
+                    ?? "This Mac could not be deactivated right now."
+            )
+            return false
+        }
+    }
+
+    @discardableResult
     func activateLicense(_ value: String) -> Bool {
         do {
             let normalized = normalizeToken(value)
@@ -323,7 +603,7 @@ final class LicensingController: ObservableObject {
                 tone: .success,
                 text: "CmdTab is now activated for \(payload.email)."
             )
-            AppTelemetryReporter.shared.trackLicenseActivation(licensingController: self)
+            telemetryReporter?.trackLicenseActivation(licensingController: self)
             return true
         } catch {
             let description = (error as? LocalizedError)?.errorDescription ?? "This license key could not be verified."
@@ -335,6 +615,7 @@ final class LicensingController: ObservableObject {
 
     func clearLicense() {
         try? licenseStore.clearLicenseKey()
+        try? deviceEntitlementStore.clearEntitlement()
         activationMetadataStore.clearActivationDate()
         payloadCacheStore.clearPayload()
         enteredLicenseKey = ""
@@ -352,7 +633,7 @@ final class LicensingController: ObservableObject {
             if status.requiresTrialRegistration {
                 trialMessage = LicensingMessage(
                     tone: .warning,
-                    text: "Start the trial with your email before using CmdTab on this Mac."
+                    text: "Start the trial before using CmdTab on this Mac. Email is optional."
                 )
             } else {
                 licenseMessage = LicensingMessage(
@@ -411,10 +692,87 @@ final class LicensingController: ObservableObject {
         return payload
     }
 
+    private func validatePaidDeviceEntitlement(
+        _ value: String
+    ) throws -> SignedLicensePayload {
+        let verified = try paidEntitlementVerifier.verify(
+            value,
+            context: LicenseTokenVerificationContext(
+                expectedType: .license,
+                expectedBinding: (.activation, try deviceIdentifier()),
+                now: currentDate()
+            )
+        )
+        guard case let .tokenV2(payload) = verified else {
+            throw LicenseValidationError.invalidSignature
+        }
+        return SignedLicensePayload(
+            version: payload.v,
+            product: LicensingConfiguration.productIdentifier,
+            email: "Licensed CmdTab owner",
+            licenseID: payload.order,
+            issuedAt: ISO8601DateFormatter().string(
+                from: Date(timeIntervalSince1970: TimeInterval(payload.iat))
+            ),
+            purchaserName: nil
+        )
+    }
+
     private func normalizeToken(_ value: String) -> String {
         value
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "\\s+", with: "", options: .regularExpression)
+    }
+
+    private func serverActivationCredential() -> String? {
+        guard let stored = licenseStore.loadLicenseKeySilently() else {
+            return nil
+        }
+        let normalized = normalizeToken(stored)
+        if normalized.range(
+            of: "^CMDTAB-ACT-[A-Za-z0-9_-]{43}$",
+            options: .regularExpression
+        ) != nil {
+            return normalized
+        }
+        return (try? validateLicenseKey(normalized)) == nil
+            ? nil
+            : normalized
+    }
+
+    private func deviceIdentifier() throws -> String {
+        SHA256.hash(data: try deviceIdentityStore.loadOrCreateSecret())
+            .map { String(format: "%02x", $0) }
+            .joined()
+    }
+
+    private func isRevoked(
+        payload: SignedLicensePayload,
+        entitlementToken: String
+    ) -> Bool {
+        isLicenseRevoked(payload.licenseID)
+            || revocationStore.isRevoked(
+                licenseID: tokenRevocationIdentifier(entitlementToken)
+            )
+    }
+
+    private func isLicenseRevoked(_ licenseID: String) -> Bool {
+        // The unprefixed lookup preserves the original one-value tombstone.
+        revocationStore.isRevoked(licenseID: licenseID)
+            || revocationStore.isRevoked(
+                licenseID: licenseRevocationIdentifier(licenseID)
+            )
+    }
+
+    private func licenseRevocationIdentifier(_ licenseID: String) -> String {
+        "license:\(licenseID)"
+    }
+
+    private func tokenRevocationIdentifier(_ token: String) -> String {
+        let digest = SHA256.hash(data: Data(token.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return "token:\(digest)"
     }
 
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
@@ -425,7 +783,7 @@ final class LicensingController: ObservableObject {
             return nil
         case .freshTrial:
             let startedAt = now
-            let endsAt = Calendar.current.date(byAdding: .day, value: LicensingConfiguration.trialLengthDays, to: startedAt) ?? startedAt
+            let endsAt = Self.trialEndDate(startedAt: startedAt)
             return .activeTrial(
                 startedAt: startedAt,
                 endsAt: endsAt,
@@ -433,7 +791,7 @@ final class LicensingController: ObservableObject {
             )
         case .oneDayLeft:
             let endsAt = now.addingTimeInterval(12 * 60 * 60)
-            let startedAt = Calendar.current.date(byAdding: .day, value: -LicensingConfiguration.trialLengthDays, to: endsAt) ?? now
+            let startedAt = endsAt.addingTimeInterval(-Self.trialDuration)
             return .activeTrial(
                 startedAt: startedAt,
                 endsAt: endsAt,
@@ -441,11 +799,11 @@ final class LicensingController: ObservableObject {
             )
         case .expiredTrial:
             let endedAt = now.addingTimeInterval(-(2 * 60 * 60))
-            let startedAt = Calendar.current.date(byAdding: .day, value: -LicensingConfiguration.trialLengthDays, to: endedAt) ?? endedAt
+            let startedAt = endedAt.addingTimeInterval(-Self.trialDuration)
             return .expired(
                 startedAt: startedAt,
                 endedAt: endedAt,
-                daysOverdue: 1
+                daysOverdue: Self.daysOverdue(since: endedAt, now: now)
             )
         case .simulatedLicensed:
             return .licensed(
@@ -462,15 +820,45 @@ final class LicensingController: ObservableObject {
         }
     }
 
+    private static let anonymousTrialEmailSuffix = "@trial.cmdtab.invalid"
+    private static let secondsPerDay: TimeInterval = 24 * 60 * 60
+    private static let trialDuration =
+        TimeInterval(LicensingConfiguration.trialLengthDays) * secondsPerDay
+    private static let trialClaimSerializationTolerance: TimeInterval = 1
+    private static let clockRollbackTolerance: TimeInterval = 5 * 60
+
+    private static func visibleTrialEmail(_ claimEmail: String) -> String {
+        claimEmail.hasSuffix(anonymousTrialEmailSuffix) ? "" : claimEmail
+    }
+
+    private static func trialEndDate(startedAt: Date) -> Date {
+        startedAt.addingTimeInterval(trialDuration)
+    }
+
     private static func daysRemaining(until endDate: Date, now: Date) -> Int {
-        let components = Calendar.current.dateComponents([.day], from: now, to: endDate)
-        return max(1, (components.day ?? 0) + 1)
+        let remaining = endDate.timeIntervalSince(now)
+        return min(
+            LicensingConfiguration.trialLengthDays,
+            max(1, Int(ceil(remaining / secondsPerDay)))
+        )
+    }
+
+    private static func daysOverdue(since endDate: Date, now: Date) -> Int {
+        max(0, Int(floor(now.timeIntervalSince(endDate) / secondsPerDay)))
     }
 
     private static let displayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
+        return formatter
+    }()
+
+    private static let boundaryFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "MMM d, yyyy 'at' HH:mm 'UTC'"
         return formatter
     }()
 }

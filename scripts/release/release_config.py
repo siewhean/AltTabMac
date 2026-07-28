@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import plistlib
 import re
 import subprocess
@@ -28,6 +30,10 @@ REQUIRED_KEYS = {
     "highResolutionCapable",
     "architecturePolicy",
     "distributionChannel",
+    "updateChannel",
+    "sparkleVersion",
+    "updateFeedURL",
+    "updateCheckIntervalSeconds",
 }
 
 
@@ -48,11 +54,23 @@ def load_config(path: Path) -> dict[str, Any]:
         raise SystemExit("minimumSystemVersion is invalid")
     if data["packageType"] != "APPL":
         raise SystemExit("packageType must remain APPL")
+    if data["updateChannel"] != "stable":
+        raise SystemExit("Only the stable update channel is supported for v1")
+    if data["sparkleVersion"] != "2.9.2":
+        raise SystemExit("Sparkle must remain pinned to reviewed version 2.9.2")
+    if not re.fullmatch(r"https://[^\s]+", data["updateFeedURL"]):
+        raise SystemExit("updateFeedURL must be an HTTPS URL")
+    if data["updateCheckIntervalSeconds"] != 86400:
+        raise SystemExit("updateCheckIntervalSeconds must remain one day")
     return data
 
 
-def plist_for(config: dict[str, Any]) -> dict[str, Any]:
-    return {
+def plist_for(
+    config: dict[str, Any],
+    *,
+    include_environment_key: bool = True,
+) -> dict[str, Any]:
+    plist = {
         "CFBundleName": config["appName"],
         "CFBundleDisplayName": config["appName"],
         "CFBundleIdentifier": config["bundleIdentifier"],
@@ -62,11 +80,23 @@ def plist_for(config: dict[str, Any]) -> dict[str, Any]:
         "CFBundleIconFile": config["iconFile"],
         "CFBundlePackageType": config["packageType"],
         "CFBundleInfoDictionaryVersion": "6.0",
+        "CFBundleURLTypes": [
+            {
+                "CFBundleTypeRole": "Viewer",
+                "CFBundleURLName": "net.cmdtab.activation",
+                "CFBundleURLSchemes": ["cmdtab"],
+            }
+        ],
         "LSMinimumSystemVersion": config["minimumSystemVersion"],
         "LSUIElement": bool(config["agentApplication"]),
         "NSHighResolutionCapable": bool(config["highResolutionCapable"]),
         "NSSupportsAutomaticTermination": False,
         "NSSupportsSuddenTermination": False,
+        "SUFeedURL": config["updateFeedURL"],
+        "SUScheduledCheckInterval": config["updateCheckIntervalSeconds"],
+        "SUEnableSystemProfiling": False,
+        "SURequireSignedFeed": True,
+        "SUVerifyUpdateBeforeExtraction": True,
         "NSAccessibilityUsageDescription": (
             "CmdTab needs Accessibility permission to intercept Command-Tab and "
             "Option-Tab and activate the selected window."
@@ -76,6 +106,20 @@ def plist_for(config: dict[str, Any]) -> dict[str, Any]:
             "Captured window images stay on your Mac."
         ),
     }
+    public_key = (
+        os.environ.get("CMDTAB_SPARKLE_PUBLIC_ED_KEY", "").strip()
+        if include_environment_key
+        else ""
+    )
+    if public_key:
+        try:
+            decoded_key = base64.b64decode(public_key, validate=True)
+        except ValueError as error:
+            raise SystemExit("CMDTAB_SPARKLE_PUBLIC_ED_KEY must be valid base64") from error
+        if len(decoded_key) != 32:
+            raise SystemExit("CMDTAB_SPARKLE_PUBLIC_ED_KEY must decode to exactly 32 bytes")
+        plist["SUPublicEDKey"] = public_key
+    return plist
 
 
 def render(config: dict[str, Any], output: Path) -> None:
@@ -84,10 +128,15 @@ def render(config: dict[str, Any], output: Path) -> None:
         plistlib.dump(plist_for(config), handle, fmt=plistlib.FMT_XML, sort_keys=True)
 
 
-def verify_info(config: dict[str, Any], path: Path) -> None:
+def verify_info(
+    config: dict[str, Any],
+    path: Path,
+    *,
+    include_environment_key: bool = True,
+) -> None:
     with path.open("rb") as handle:
         actual = plistlib.load(handle)
-    expected = plist_for(config)
+    expected = plist_for(config, include_environment_key=include_environment_key)
     if actual != expected:
         missing = sorted(expected.keys() - actual.keys())
         extra = sorted(actual.keys() - expected.keys())
@@ -127,7 +176,20 @@ def tracked_paths(pathspec: str) -> list[str]:
 
 
 def verify_repository(config: dict[str, Any]) -> None:
-    verify_info(config, ROOT / "Resources" / "Info.plist")
+    verify_info(
+        config,
+        ROOT / "Resources" / "Info.plist",
+        include_environment_key=False,
+    )
+
+    sensitive_paths = set(tracked_paths(".secrets"))
+    for extension in ("pem", "key", "p12", "pfx", "cer", "crt", "der", "csr"):
+        sensitive_paths.update(tracked_paths(f"*.{extension}"))
+    if sensitive_paths:
+        raise SystemExit(
+            "Sensitive key or certificate material remains tracked:\n  "
+            + "\n  ".join(sorted(sensitive_paths)[:20])
+        )
 
     with (ROOT / "Resources" / "CmdTab.entitlements").open("rb") as handle:
         entitlements = plistlib.load(handle)
@@ -191,16 +253,43 @@ def verify_repository(config: dict[str, Any]) -> None:
         "startup bundle-identity migration",
     )
 
+    activation_source = ROOT / "Sources" / "CmdTab" / "ActivationDeepLink.swift"
+    require_literal(
+        activation_source,
+        'static let scheme = "cmdtab"',
+        "one-click activation URL scheme",
+    )
+    require_literal(
+        activation_source,
+        "maximumCodeLength = 4_096",
+        "activation-link input bound",
+    )
+
     build_tool = ROOT / "scripts" / "release" / "build-app.sh"
     require_literal(
         build_tool,
-        "BUILD_ARGUMENTS+=( -Xlinker -reproducible )",
+        "build_arguments+=( -Xlinker -reproducible )",
         "deterministic linker mode",
     )
     reject_literal(
         build_tool,
         "-no_uuid",
         "release linker mode that removes the Mach-O UUID",
+    )
+    require_literal(
+        build_tool,
+        'BUILD_ARCHITECTURES="${CMDTAB_BUILD_ARCHITECTURES:-}"',
+        "credential-gated Universal Binary build control",
+    )
+    require_literal(
+        build_tool,
+        "lipo -create",
+        "Universal Binary merge",
+    )
+    require_literal(
+        build_tool,
+        '-Xlinker "@executable_path/../Frameworks"',
+        "embedded framework runtime search path",
     )
 
     package_tool = ROOT / "scripts" / "release" / "package-app.sh"
@@ -209,6 +298,20 @@ def verify_repository(config: dict[str, Any]) -> None:
         "codesign --remove-signature",
         "unsigned reproducibility signature normalization",
     )
+
+    package_manifest = ROOT / "Package.swift"
+    require_literal(
+        package_manifest,
+        'exact: "2.9.2"',
+        "exact Sparkle SwiftPM dependency",
+    )
+    resolved = json.loads((ROOT / "Package.resolved").read_text(encoding="utf-8"))
+    sparkle_pins = [
+        pin for pin in resolved.get("pins", [])
+        if pin.get("identity") == "sparkle"
+    ]
+    if len(sparkle_pins) != 1 or sparkle_pins[0].get("state", {}).get("version") != "2.9.2":
+        raise SystemExit("Package.resolved does not pin Sparkle 2.9.2 exactly")
 
     tracked_app = tracked_paths("CmdTab.app")
     if tracked_app:

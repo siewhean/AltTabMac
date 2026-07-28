@@ -1,19 +1,32 @@
 import AppKit
+import Combine
 
+@MainActor
 final class MenuBarController {
 
     private static var sharedStatusItem: NSStatusItem?
     private var statusItem: NSStatusItem!
     private let preferences = SwitcherPreferences.shared
     private let preferencesWindowController: PreferencesWindowController
+    private let onboardingWindowController: OnboardingWindowController
+    private let licensingController: LicensingController
+    private let updaterController: UpdaterController?
     private lazy var profilePreferencesWindowController = ProductionProfilePreferencesWindowController()
     private lazy var diagnosticsWindowController = ProductionDiagnosticsWindowController()
     private var contextMenu: NSMenu?
+    private var licensingObserver: AnyCancellable?
+    private var licensingRefreshTimer: Timer?
 
     init(
-        preferencesWindowController: PreferencesWindowController
+        preferencesWindowController: PreferencesWindowController,
+        onboardingWindowController: OnboardingWindowController,
+        licensingController: LicensingController,
+        updaterController: UpdaterController? = nil
     ) {
         self.preferencesWindowController = preferencesWindowController
+        self.onboardingWindowController = onboardingWindowController
+        self.licensingController = licensingController
+        self.updaterController = updaterController
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handlePreferencesDidChange),
@@ -27,6 +40,26 @@ final class MenuBarController {
             object: nil
         )
         build()
+        licensingObserver = licensingController.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.updateMenu()
+            }
+        }
+        licensingRefreshTimer = Timer.scheduledTimer(
+            withTimeInterval: 6 * 60 * 60,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refreshLicenseAuthorization()
+            }
+        }
+        Task {
+            await refreshLicenseAuthorization()
+        }
+    }
+
+    deinit {
+        licensingRefreshTimer?.invalidate()
     }
 
     private func build() {
@@ -51,6 +84,26 @@ final class MenuBarController {
 
     func updateMenu() {
         let menu = NSMenu()
+
+        if let warningTitle = licensingController.menuBarTrialStatusTitle,
+           let warning = licensingController.trialWarningMessage {
+            let warningItem = NSMenuItem(
+                title: warningTitle,
+                action: #selector(openLicensing),
+                keyEquivalent: ""
+            )
+            warningItem.image = NSImage(
+                systemSymbolName: "exclamationmark.triangle.fill",
+                accessibilityDescription: warningTitle
+            )
+            warningItem.toolTip = warning.text
+            warningItem.target = self
+            menu.addItem(warningItem)
+            menu.addItem(.separator())
+            statusItem.button?.toolTip = "CmdTab — \(warning.text)"
+        } else {
+            statusItem.button?.toolTip = "Click for CmdTab controls and settings."
+        }
 
         let profilesItem = NSMenuItem(
             title: "Shortcut Profiles…",
@@ -122,6 +175,14 @@ final class MenuBarController {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
+        let onboardingItem = NSMenuItem(
+            title: "Setup Guide…",
+            action: #selector(openOnboarding),
+            keyEquivalent: ""
+        )
+        onboardingItem.target = self
+        menu.addItem(onboardingItem)
+
         let diagnosticsItem = NSMenuItem(
             title: "Diagnostics…",
             action: #selector(openDiagnostics),
@@ -153,6 +214,18 @@ final class MenuBarController {
         )
         aboutItem.target = self
         menu.addItem(aboutItem)
+
+        let updateItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(checkForUpdates),
+            keyEquivalent: ""
+        )
+        updateItem.target = self
+        updateItem.isEnabled = updaterController?.isConfigured == true
+        updateItem.toolTip = updaterController?.isConfigured == true
+            ? "Check the stable CmdTab update channel."
+            : "Updates are unavailable in this local QA build."
+        menu.addItem(updateItem)
 
         menu.addItem(.separator())
 
@@ -260,6 +333,10 @@ final class MenuBarController {
         preferencesWindowController.show(initialPane: .general)
     }
 
+    @objc private func openOnboarding() {
+        onboardingWindowController.show()
+    }
+
     @objc private func openDiagnostics() {
         diagnosticsWindowController.show()
     }
@@ -279,6 +356,7 @@ final class MenuBarController {
     }
 
     @objc private func handleStatusItemClick() {
+        refreshLicenseStatus()
         guard let menu = contextMenu,
               let button = statusItem.button else {
             preferencesWindowController.show()
@@ -289,6 +367,19 @@ final class MenuBarController {
             at: NSPoint(x: 0, y: button.bounds.maxY),
             in: button
         )
+    }
+
+    private func refreshLicenseStatus() {
+        licensingController.refreshStatus()
+        updateMenu()
+    }
+
+    func refreshLicenseAuthorization() async {
+        refreshLicenseStatus()
+        if licensingController.currentLicenseID != nil {
+            await licensingController.refreshLicensedDevices()
+            updateMenu()
+        }
     }
 
     @objc private func handlePreferencesDidChange() {
@@ -319,5 +410,9 @@ final class MenuBarController {
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.runModal()
+    }
+
+    @objc private func checkForUpdates() {
+        updaterController?.checkForUpdates()
     }
 }

@@ -8,8 +8,8 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { commercePageContent } from "@/content/commerce-pages";
 import { productFacts } from "@/content/product-facts";
 import { analyticsAttributes } from "@/lib/analytics";
-import { getCommerceConfig } from "@/lib/commerce";
 import { createPageMetadata } from "@/lib/seo";
+import { getStableReleaseManifest } from "@/lib/stable-release";
 import {
   createBreadcrumbStructuredData,
   createWebPageStructuredData,
@@ -31,7 +31,7 @@ export const metadata = createPageMetadata({
 });
 
 export default function TrialPage() {
-  const commerce = getCommerceConfig();
+  const release = getStableReleaseManifest();
 
   return (
     <main>
@@ -81,14 +81,14 @@ export default function TrialPage() {
               <p>{commercePageContent.trial.note}</p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {commerce.trialDownloadUrl ? (
+              {release ? (
                 <Button
-                  href={commerce.trialDownloadUrl}
+                  href={release.dmgURL}
                   target="_blank"
                   rel="noreferrer"
                   {...analyticsAttributes("trial_page_download_click", "trial_page")}
                 >
-                  Download the trial
+                  Download CmdTab {release.version}
                 </Button>
               ) : (
                 <Button href="/help" variant="secondary" {...analyticsAttributes("trial_page_support_click", "trial_page")}>
@@ -99,6 +99,16 @@ export default function TrialPage() {
                 Review pricing
               </Button>
             </div>
+            {release ? (
+              <p className="mt-4 text-xs leading-6 text-subdued">
+                Build {release.build} · {release.bytes.toLocaleString("en-US")} bytes · SHA-256{" "}
+                <code className="break-all">{release.sha256}</code>
+              </p>
+            ) : (
+              <p className="mt-4 text-xs leading-6 text-subdued">
+                Download remains unavailable until a signed, notarized DMG is bound to the stable release manifest.
+              </p>
+            )}
           </MotionReveal>
         </div>
       </SectionShell>

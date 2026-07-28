@@ -7,6 +7,7 @@ type LicenseDeliveryEmailInput = {
   orderNumber?: number;
   siteUrl: string;
   testMode?: boolean;
+  recovery?: boolean;
 };
 
 function firstName(name?: string) {
@@ -23,28 +24,36 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+function activationUrl(licenseKey: string) {
+  return `cmdtab://activate?code=${encodeURIComponent(licenseKey)}`;
+}
+
 export const licenseDeliveryEmailContent = {
-  subject: "Your CmdTab license key",
-  preview: "Your CmdTab purchase is confirmed and your license key is ready.",
+  subject: "Your CmdTab activation code",
+  preview: "Your CmdTab purchase is confirmed and your activation code is ready.",
   bullets: [
-    "Paste the key into CmdTab > Settings > Licensing.",
-    "The key activates this Mac without an online account.",
-    "Keep the purchase email and key somewhere safe.",
+    "Open the one-click activation link on a Mac with CmdTab installed.",
+    "Activation authorizes this Mac for permanent offline use.",
+    "You can activate up to three personally owned Macs and deactivate one to free its slot.",
   ],
   footer:
-    "Reply to this email if you need activation help or need to recover the purchase later.",
+    "The activation link opens CmdTab directly and does not send the code to CmdTab’s website. Manual paste remains available in CmdTab > Settings > Licensing.",
 } as const;
 
 export function renderLicenseDeliveryEmail(input: LicenseDeliveryEmailInput) {
-  const subject = input.testMode
-    ? `[Test Mode] ${licenseDeliveryEmailContent.subject}`
+  const baseSubject = input.recovery
+    ? "Your recovered CmdTab license"
     : licenseDeliveryEmailContent.subject;
-  const greeting = `Hi ${firstName(input.name)}, your CmdTab license is ready.`;
+  const subject = input.testMode ? `[Test Mode] ${baseSubject}` : baseSubject;
+  const greeting = input.recovery
+    ? `Hi ${firstName(input.name)}, here is the CmdTab license requested for this email.`
+    : `Hi ${firstName(input.name)}, your CmdTab license is ready.`;
   const productLine = input.productName
     ? `Purchase: ${input.productName}${input.orderNumber ? ` · Order #${input.orderNumber}` : ""}`
     : input.orderNumber
       ? `Order #${input.orderNumber}`
       : "CmdTab one-time purchase";
+  const oneClickActivationUrl = activationUrl(input.licenseKey);
 
   const text = [
     licenseDeliveryEmailContent.preview,
@@ -52,12 +61,18 @@ export function renderLicenseDeliveryEmail(input: LicenseDeliveryEmailInput) {
     greeting,
     productLine,
     "",
-    "License key:",
+    "One-click activation:",
+    oneClickActivationUrl,
+    "",
+    "Activation code (manual fallback):",
     input.licenseKey,
     "",
     "What to do next:",
     ...licenseDeliveryEmailContent.bullets.map((item) => `- ${item}`),
     input.receiptUrl ? `- Receipt: ${input.receiptUrl}` : null,
+    `- Purchase confirmation: ${input.siteUrl}/thank-you`,
+    `- Download or update CmdTab: ${input.siteUrl}/trial`,
+    `- Recover this purchase again: ${input.siteUrl}/help`,
     "",
     `CmdTab help: ${input.siteUrl}/help`,
     "",
@@ -83,7 +98,7 @@ export function renderLicenseDeliveryEmail(input: LicenseDeliveryEmailInput) {
             <p style="margin:0 0 14px;font-size:16px;line-height:1.75;color:#D8E0EE;">${escapeHtml(greeting)}</p>
             <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">${escapeHtml(productLine)}</p>
             <div style="margin:22px 0;padding:18px 18px 16px;border-radius:22px;border:1px solid rgba(121,175,255,0.22);background:rgba(121,175,255,0.08);">
-              <p style="margin:0 0 10px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#9CC6FF;">License key</p>
+              <p style="margin:0 0 10px;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#9CC6FF;">Activation code</p>
               <code style="display:block;word-break:break-word;font-size:14px;line-height:1.8;color:#F7FAFF;">${escapeHtml(input.licenseKey)}</code>
             </div>
             <div style="display:grid;gap:10px;">
@@ -99,8 +114,14 @@ export function renderLicenseDeliveryEmail(input: LicenseDeliveryEmailInput) {
                 .join("")}
             </div>
             <div style="margin-top:26px;display:flex;gap:12px;flex-wrap:wrap;">
-              <a href="${escapeHtml(input.siteUrl)}/help" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
-                Open Help
+              <a href="${escapeHtml(oneClickActivationUrl)}" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
+                Activate CmdTab
+              </a>
+              <a href="${escapeHtml(input.siteUrl)}/thank-you" style="display:inline-block;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);color:#E8EEF9;text-decoration:none;font-weight:600;font-size:14px;background:rgba(255,255,255,0.04);">
+                Purchase confirmation
+              </a>
+              <a href="${escapeHtml(input.siteUrl)}/trial" style="display:inline-block;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);color:#E8EEF9;text-decoration:none;font-weight:600;font-size:14px;background:rgba(255,255,255,0.04);">
+                Download CmdTab
               </a>
               ${
                 input.receiptUrl

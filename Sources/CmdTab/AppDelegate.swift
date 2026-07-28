@@ -1,16 +1,23 @@
 import AppKit
+import Combine
 import Darwin
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var singletonLockFileDescriptor: Int32 = -1
     private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     private var screenTopologyObserver: ScreenTopologyObserver?
+    private var licensingObserver: AnyCancellable?
+    private var pendingActivationDeepLink: ActivationDeepLink?
+    private let trialNotificationCoordinator = TrialNotificationCoordinator()
     var switcher: ProductionSwitcherWindowController!
     var hotkeyManager: ProfileHotkeyManager!
     var menuBar: MenuBarController!
     var preferencesWindowController: PreferencesWindowController!
+    var onboardingWindowController: OnboardingWindowController!
+    private var updaterController: UpdaterController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
@@ -28,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         switcher = ProductionSwitcherWindowController()
         preferencesWindowController = PreferencesWindowController()
+        onboardingWindowController = OnboardingWindowController()
         preferencesWindowController.onOpenApplications = { [weak self] in
             self?.beginDefaultConfigurationFreeze()
             self?.switcher?.showStandalone()
@@ -39,9 +47,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.switcher?.applyStyleChangeFromSettings()
             self?.preferencesWindowController?.showStyleChangeHUD(for: style)
         }
-        menuBar = MenuBarController(preferencesWindowController: preferencesWindowController)
-
-        requestRequiredPermissionsIfNeeded()
+        preferencesWindowController.onOpenOnboarding = { [weak self] in
+            self?.onboardingWindowController?.show()
+        }
+        onboardingWindowController.onTrySwitcher = { [weak self] in
+            self?.beginDefaultConfigurationFreeze()
+            self?.switcher?.showStandalone()
+        }
+        updaterController = UpdaterController.shared
+        menuBar = MenuBarController(
+            preferencesWindowController: preferencesWindowController,
+            onboardingWindowController: onboardingWindowController,
+            licensingController: LicensingController.shared,
+            updaterController: updaterController
+        )
 
         // ProfileHotkeyManager retries event-tap installation after an
         // Accessibility grant, so users no longer have to discover that a full
@@ -55,6 +74,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
+        licensingObserver = LicensingController.shared.$status
+            .removeDuplicates()
+            .sink { [weak self] status in
+                self?.trialNotificationCoordinator.refresh(for: status)
+            }
+        refreshTrialNotifications()
 
         NotificationCenter.default.addObserver(
             self,
@@ -78,6 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         LaunchAtLoginController.shared.sync(enabled: SwitcherPreferences.shared.launchAtLogin)
+        onboardingWindowController.showAutomaticallyIfNeeded()
+        processPendingActivationDeepLink()
     }
 
     private func beginDefaultConfigurationFreeze() {
@@ -93,14 +120,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    private func requestRequiredPermissionsIfNeeded() {
-        if !AXIsProcessTrusted() {
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
-            _ = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        }
+    private func refreshTrialNotifications() {
+        trialNotificationCoordinator.refresh(for: LicensingController.shared.status)
+    }
 
-        if #available(macOS 10.15, *), !CGPreflightScreenCaptureAccess() {
-            _ = CGRequestScreenCaptureAccess()
+    private func processPendingActivationDeepLink() {
+        guard let link = pendingActivationDeepLink,
+              preferencesWindowController != nil else {
+            return
+        }
+        pendingActivationDeepLink = nil
+        let controller = LicensingController.shared
+        controller.enteredLicenseKey = link.activationCode
+        preferencesWindowController.showLicensing()
+        Task { @MainActor in
+            _ = await controller.activateEnteredLicenseKeyOnline()
         }
     }
 
@@ -151,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         NotificationCenter.default.removeObserver(self)
+        licensingObserver = nil
         SwitcherSessionConfigurationFreeze.shared.end()
         screenTopologyObserver = nil
         focusedWindowHistoryObserver = nil
@@ -167,7 +202,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        preferencesWindowController?.show()
+        if onboardingWindowController?.window?.isVisible == true {
+            onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
+        } else {
+            preferencesWindowController?.show()
+        }
         return true
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let link = urls.lazy.compactMap(ActivationDeepLink.parse).first else {
+            return
+        }
+        pendingActivationDeepLink = link
+        processPendingActivationDeepLink()
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        onboardingWindowController?.refreshPermissions()
+        LicensingController.shared.refreshStatus()
+        refreshTrialNotifications()
+        Task { @MainActor [weak self] in
+            await self?.menuBar?.refreshLicenseAuthorization()
+        }
     }
 }

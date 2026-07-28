@@ -1,80 +1,94 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const ADMIN_COOKIE = "cmdtab_admin_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+import { getProxyAdminSessionPolicy } from "@/lib/admin-auth-config";
+import {
+  ADMIN_SESSION_COOKIE,
+  adminSessionCookieMaxAge,
+  createAdminSessionToken,
+  refreshedAdminSessionClaims,
+  validateAdminSessionToken,
+} from "@/lib/admin-session-token";
+import { contentSecurityPolicy } from "@/lib/content-security-policy";
 
-function base64UrlToUint8Array(value: string) {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  const decoded = atob(padded);
-  return Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+const PUBLIC_DASHBOARD_PATHS = new Set([
+  "/dashboard/login",
+  "/dashboard/login/submit",
+  "/dashboard/auth/login",
+  "/dashboard/auth/callback",
+]);
+
+function getProxySessionPolicy() {
+  return getProxyAdminSessionPolicy();
 }
 
-async function signValue(value: string, secret: string) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
+function responseWithSecurityHeaders(
+  response: NextResponse,
+  policy: string,
+) {
+  response.headers.set("Content-Security-Policy", policy);
+  return response;
+}
+
+function nextResponse(requestHeaders: Headers, policy: string) {
+  return responseWithSecurityHeaders(
+    NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    }),
+    policy,
   );
-
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
-  return btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
 }
 
-async function hasValidAdminSession(request: NextRequest) {
-  const secret =
-    process.env.ADMIN_DASHBOARD_SECRET?.trim() || process.env.ADMIN_DASHBOARD_PASSWORD?.trim();
-  if (!secret) return false;
-
-  const raw = request.cookies.get(ADMIN_COOKIE)?.value;
-  if (!raw) return false;
-
-  const [issuedAt, signature] = raw.split(".");
-  if (!issuedAt || !signature) return false;
-
-  const expectedSignature = await signValue(issuedAt, secret);
-  const providedBytes = base64UrlToUint8Array(signature);
-  const expectedBytes = base64UrlToUint8Array(expectedSignature);
-
-  if (providedBytes.length !== expectedBytes.length) return false;
-
-  let mismatch = 0;
-  for (let index = 0; index < providedBytes.length; index += 1) {
-    mismatch |= providedBytes[index] ^ expectedBytes[index];
-  }
-  if (mismatch !== 0) return false;
-
-  const issuedAtSeconds = Number.parseInt(issuedAt, 10);
-  if (!Number.isFinite(issuedAtSeconds)) return false;
-
-  const age = Math.floor(Date.now() / 1000) - issuedAtSeconds;
-  return age >= 0 && age <= SESSION_TTL_SECONDS;
-}
-
-function redirectToLogin(request: NextRequest) {
-  return NextResponse.redirect(new URL("/dashboard/login", request.url));
+function redirectToLogin(request: NextRequest, policy: string) {
+  return responseWithSecurityHeaders(
+    NextResponse.redirect(new URL("/dashboard/login", request.url)),
+    policy,
+  );
 }
 
 export async function proxy(request: NextRequest) {
+  const nonce = btoa(crypto.randomUUID());
+  const policy = contentSecurityPolicy(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", policy);
+
   const { pathname } = request.nextUrl;
-
-  if (pathname === "/dashboard/login" || pathname === "/dashboard/login/submit") {
-    return NextResponse.next();
+  if (!pathname.startsWith("/dashboard")) {
+    return nextResponse(requestHeaders, policy);
+  }
+  if (PUBLIC_DASHBOARD_PATHS.has(pathname)) {
+    return nextResponse(requestHeaders, policy);
   }
 
-  if (!(await hasValidAdminSession(request))) {
-    return redirectToLogin(request);
-  }
+  const sessionPolicy = getProxySessionPolicy();
+  const raw = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
+  if (!sessionPolicy || !raw) return redirectToLogin(request, policy);
 
-  return NextResponse.next();
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const session = await validateAdminSessionToken(raw, sessionPolicy, nowSeconds);
+  if (!session) return redirectToLogin(request, policy);
+
+  const refreshed = refreshedAdminSessionClaims(session, nowSeconds);
+  const response = nextResponse(requestHeaders, policy);
+  response.cookies.set(
+    ADMIN_SESSION_COOKIE,
+    await createAdminSessionToken(refreshed, sessionPolicy.secret),
+    {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/dashboard",
+      maxAge: adminSessionCookieMaxAge(refreshed, nowSeconds),
+    },
+  );
+  return response;
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mp4|woff|woff2)$).*)",
+  ],
 };

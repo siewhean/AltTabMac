@@ -1,5 +1,209 @@
 # Todo
 
+## 2026-07-27 — Production Dashboard Authentication Hardening
+
+- [x] Add Auth0 Universal Login authorization-code/PKCE callback contracts with
+  exact owner-subject authorization and fail-closed production configuration.
+- [x] Replace twelve-hour password sessions with signed 15-minute idle/two-hour
+  absolute sessions and explicit session-generation invalidation.
+- [x] Enforce same-origin CSRF checks on dashboard mutations and retain
+  shared-password login only as an explicit non-production fallback.
+- [x] Add durable, non-secret audit records for dashboard login, logout, export,
+  and development-password changes.
+- [x] Add hermetic authentication/session/security tests, document the
+  production configuration contract, and complete independent QA/QC.
+
+Dashboard authentication review:
+
+- Production fails closed unless the complete HTTPS Auth0/OIDC, exact owner
+  subject, session-secret, and session-generation contract is valid. The proxy
+  and server share the same configuration parser.
+- Authorization uses code flow with PKCE, state, nonce, fixed callback URLs,
+  RS256/JWKS verification, exact issuer/audience/owner checks, and required MFA
+  evidence. Logout clears the local cookie before using a fixed Auth0 logout
+  return URL; fresh login always prompts for authentication.
+- Signed sessions enforce an exact 15-minute idle and two-hour absolute limit.
+  Rotating the bounded generation value invalidates all existing sessions.
+- Dashboard mutations require exact same-origin requests. Successful login,
+  logout, CSV export, and development-password changes write non-secret audit
+  events when Postgres is configured; an unavailable audit store cannot prevent
+  logout.
+- Independent QA found three P2 issues in proxy fail-closed behavior and logout
+  handling; all were corrected and covered by regressions. Website unit tests
+  passed 24/24, TypeScript passed, the production Webpack build passed, and
+  `git diff --check` passed.
+
+## 2026-07-27 — Production Readiness, Remaining Repository-Owned Stages
+
+Execution is authorized on `codex/implementation-plan-phase1`, based on the
+current `origin/main` commit
+`5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`. Complete repository-owned
+implementation and verification before pushing. Keep credential-, Apple-, and
+clean-hardware-only evidence explicitly blocked rather than simulating it.
+
+### Native customer lifecycle
+
+- [x] Add versioned, reopenable onboarding with contextual Accessibility and
+  optional Screen Recording steps, first-switch practice, safe resume, and
+  completion. Entitlement authority remains owned by the coordinated signed
+  token-v2 licensing work below.
+- [x] Add exact trial countdown and warning surfaces without unsigned offline
+  entitlement fallback or expired-trial event-tap disruption.
+- [x] Add focused onboarding, permission-state, resume, and trial-warning tests.
+
+Native lifecycle review:
+
+- Removed the simultaneous launch-time Accessibility and Screen Recording
+  prompts. Each macOS request now follows an explanation and explicit action;
+  Screen Recording is optional.
+- Added a versioned durable state machine for Welcome, permissions, access,
+  first-switch practice, and completion. Incomplete setup resumes at its saved
+  step; completed setup can be reviewed from the menu bar or Settings.
+- Reused the existing licensing controller as the access gate without granting
+  an offline provisional trial. Signed token-v2 authority is completed and
+  verified in the commerce/licensing stage, not asserted by onboarding.
+- Added final-three-day and exact UTC expiry messaging in onboarding and the
+  Licensing pane. Expired/unregistered shortcut pass-through remains unchanged.
+- Final QA remediation routes onboarding activation through the async online
+  device-registration path with progress and disabled states, records practice
+  only after invoking the switcher and labels it as an attempt, and refreshes a
+  compact final-three-day or expiry warning in the regular menu-bar menu.
+
+### Commerce and licensing lifecycle
+
+- [x] Add safe activation, device listing/deactivation, three-device atomic
+  allocation, enumeration-safe recovery, and native activation UX without
+  exposing permanent license keys in URLs or raw hardware identifiers.
+- [x] Distinguish partial refunds from documented full-refund webhooks and
+  repository-owned manual revocation; preserve perpetual recovery tombstones.
+- [ ] Validate and operate the production provider reconciliation path for
+  chargebacks, disputes, and fraud. Lemon Squeezy does not document the
+  invented order-level event names previously assumed here, so this remains an
+  external launch gate rather than simulated webhook coverage.
+- [x] Add fulfillment retry/reconciliation, thank-you/download/recovery
+  instructions, migrations, and transactional/API regression coverage.
+
+Commerce lifecycle review:
+
+- New purchases receive an opaque activation code that is exchanged online for
+  an install-bound `CMDTAB2` entitlement. The app stores the resulting signed
+  entitlement in Keychain for perpetual offline paid use; grandfathered
+  `CMDTAB1` licenses remain supported during migration.
+- Device allocation is serialized transactionally and capped at three named
+  Macs. A fourth activation returns the current device list, deactivation frees
+  the slot immediately, and native requests never place credentials in URLs or
+  bind access to a raw hardware UUID.
+- Valid recovery requests are enumeration-safe. Fulfillment uses a durable
+  leased claim/retry/dead-letter outbox with crashed-worker reclamation and
+  provider-result validation; customer email includes activation, download,
+  update, device-limit, recovery, refund, and support instructions.
+- Partial refunds preserve access. Full refunds and authoritative revocation
+  states create persistent hashed tombstones; native paid access is removed
+  only after an authoritative revocation response.
+- The standalone migration applied twice cleanly to disposable PostgreSQL.
+  Against a real local Next.js/PostgreSQL stack, four concurrent distinct-device
+  activations produced three successes and one slot-full response; deactivation
+  then allowed the fourth device. No manual database mutation was used.
+- Website type checks and 28 unit tests plus the complete 233-test Swift suite
+  pass. Live
+  Lemon Squeezy, delivery-provider, KMS, and production-database evidence remain
+  external launch gates and are not inferred from the local contract tests.
+
+### Signed updates and release tooling
+
+- [x] Pin Sparkle 2.9.2, add an app-lifetime updater controller and visible
+  stable-channel daily update checks with standard consent.
+- [x] Add a canonical immutable release manifest and signed appcast
+  generation/validation bound to the notarized artifact.
+- [x] Extend packaging and nested signing verification for Sparkle while
+  preserving deterministic local-build gates where applicable.
+
+### Website and browser release gate
+
+- [x] Resolve the existing showcase autoplay clips that exceed five seconds
+  without fabricating product footage or weakening the browser contract.
+- [x] Complete launch CTA, download/release-manifest, policy/help, responsive,
+  accessibility, and security checks that are supported by repository truth.
+- [x] Pass unit, privacy, typecheck, production build, rendered, and
+  desktop/mobile browser gates.
+
+### Real-machine performance evidence
+
+- [x] Add deterministic 10/25/50-window WindowLab fixture arguments and a
+  hash-bound macOS probe for reveal, selection, observation capture, CPU, RSS,
+  and externally observed event-tap responsiveness. Internal preview/backdrop
+  capture is not claimed by this external harness.
+- [x] Add exact readiness/full-acceptance matrices, a 1,000-session soak,
+  machine-readable raw results and manifest, hermetic evaluator tests, and
+  explicit no-fabrication behavior when permissions or observations fail.
+- [ ] Run and retain full acceptance evidence on the final clean packaged
+  candidate. Smoke execution correctly refused to measure the currently
+  unsigned/non-launchable `dist/CmdTab.app`; it is not release evidence.
+
+### Integration and release
+
+- [x] Reconcile README, launch/status docs, migrations, manifests, and task
+  evidence with the exact implemented state.
+- [ ] Run full Swift, website, release, packaging, reproducibility, dependency,
+  and secret-leak checks from one clean candidate commit.
+- [ ] Complete independent final security and QA/QC review with no P0-P2
+  findings.
+- [ ] Commit the reviewed implementation and push it to GitHub; fast-forward
+  `main` directly if permitted, otherwise push the identical branch and open a
+  required-check PR.
+- [x] Record external-only public-launch blockers: production credentials and
+  infrastructure, real Lemon Squeezy sandbox lifecycle, Developer ID
+  notarization/Gatekeeper, and clean Apple Silicon/Intel N-to-N+1 update proof.
+
+## 2026-07-27 — Corrected Production-Readiness Plan, Slice 1
+
+The external comprehensive-audit plan was reviewed against canonical `main`
+at `5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`. This slice implements only
+the current, evidence-backed P0/P1 delta and does not refactor protected
+switcher internals.
+
+### Plan reconciliation
+
+- [x] Confirm expired and unregistered hotkeys already pass through to macOS;
+  do not disable or uninstall the event tap.
+- [x] Confirm native telemetry is always active, while the current website
+  accurately discloses that behavior; reframe the issue as missing user
+  choice rather than a disclosure mismatch.
+- [x] Confirm `website/.env` is already ignored and no secret `.env` file is
+  tracked.
+- [x] Reject unsafe plan items: unsigned local provisional trials, permanent
+  license keys in URLs, raw hardware UUID binding, weekly-only revocation,
+  and client update downgrades.
+
+### Slice 1 implementation
+
+- [ ] Add characterization coverage proving expired and unregistered hotkeys
+  remain available to the native macOS switcher.
+- [ ] Correct trial status to exact 14-day UTC boundaries and add deterministic
+  3-day, 1-day, final-day, and expired milestone coverage.
+- [ ] Restore default-off native telemetry preferences without creating an
+  install identifier before consent; add a Settings control and hermetic
+  reporter tests.
+- [ ] Reconcile native privacy, FAQ, and product-fact copy with the new
+  default-off behavior.
+- [ ] Add default-off website analytics consent and withdrawal behavior,
+  including removal of persistent visitor/session identifiers.
+- [ ] Harden telemetry and analytics ingestion with bounded schemas and rate
+  limits, and stop generic telemetry from mutating trial state.
+- [ ] Run focused tests, complete Swift tests, website tests/typecheck/build,
+  and independent final QA/QC.
+
+### Deferred follow-on slices
+
+- [ ] Add versioned, reopenable onboarding with contextual sequential
+  Accessibility and optional Screen Recording prompts.
+- [ ] Add safe server-backed trial retry UX; do not grant an unsigned local
+  fallback entitlement.
+- [ ] Add trial-warning surfaces after the exact boundary model is accepted.
+- [ ] Implement token-v2 device activation, safe one-time fulfillment,
+  refund/revocation semantics, and signed updates in their dedicated release
+  phases.
+
 ## 2026-07-23 — PR #35 Five-Feature Production QA
 
 - [x] Audit the phased runner, focused-test inventory, deterministic fixtures, and objective probe contract.

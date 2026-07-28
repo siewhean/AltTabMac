@@ -1,93 +1,128 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import {
+  getAdminSessionPolicyConfiguration,
+  isLegacyAdminAuthAllowed,
+} from "@/lib/admin-auth-config";
 import { getDashboardAuthSummary, validateStoredDashboardPassword } from "@/lib/admin-store";
+import { getAuth0Configuration } from "@/lib/auth0-oidc";
+import { constantTimeEqual } from "@/lib/constant-time";
+import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_IDLE_SECONDS,
+  adminSessionCookieMaxAge,
+  createAdminSessionToken,
+  type AdminAuthMode,
+  validateAdminSessionToken,
+} from "@/lib/admin-session-token";
 
-const ADMIN_COOKIE = "cmdtab_admin_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 12;
+function isProduction() {
+  return process.env.NODE_ENV === "production";
+}
 
 function getDashboardPassword() {
   return process.env.ADMIN_DASHBOARD_PASSWORD?.trim() || null;
 }
 
-function getDashboardSecret() {
-  return process.env.ADMIN_DASHBOARD_SECRET?.trim() || getDashboardPassword();
+export function isLegacyAdminAuthEnabled() {
+  return isLegacyAdminAuthAllowed();
 }
 
-function signValue(value: string, secret: string) {
-  return createHmac("sha256", secret).update(value).digest("base64url");
+export function getAdminSessionPolicy() {
+  const ownerSubject = getAuth0Configuration()?.ownerSubject ?? null;
+  return getAdminSessionPolicyConfiguration(process.env, ownerSubject);
 }
 
-function safeEqual(a: string, b: string) {
-  const aBuffer = Buffer.from(a);
-  const bBuffer = Buffer.from(b);
-  if (aBuffer.length !== bBuffer.length) return false;
-  return timingSafeEqual(aBuffer, bBuffer);
+export function getAdminAuthMode(): AdminAuthMode | null {
+  if (getAuth0Configuration() && getAdminSessionPolicy()) return "auth0";
+  if (isLegacyAdminAuthEnabled() && getAdminSessionPolicy() && getDashboardPassword()) {
+    return "legacy";
+  }
+  return null;
 }
 
 export async function isAdminAuthConfigured() {
+  const mode = getAdminAuthMode();
+  if (mode === "auth0") return true;
+  if (mode !== "legacy") return false;
   const authSummary = await getDashboardAuthSummary();
-  return authSummary.source !== "missing" && Boolean(getDashboardSecret());
+  return authSummary.source !== "missing";
 }
 
-export async function createAdminSession() {
-  const secret = getDashboardSecret();
-  if (!secret) {
-    throw new Error("Admin dashboard secret is not configured.");
+export async function createAdminSession(subject: string, auth: AdminAuthMode) {
+  const policy = getAdminSessionPolicy();
+  if (!policy) throw new Error("Admin dashboard session configuration is incomplete.");
+  if (auth === "auth0" && subject !== policy.ownerSubject) {
+    throw new Error("Admin dashboard subject is not authorized.");
+  }
+  if (auth === "legacy" && !policy.legacyEnabled) {
+    throw new Error("Legacy dashboard authentication is disabled.");
   }
 
-  const issuedAt = Math.floor(Date.now() / 1000).toString();
-  const signature = signValue(issuedAt, secret);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const token = await createAdminSessionToken(
+    {
+      sub: subject,
+      auth,
+      iat: nowSeconds,
+      lst: nowSeconds,
+      gen: policy.generation,
+    },
+    policy.secret,
+  );
   const cookieStore = await cookies();
-
-  cookieStore.set(ADMIN_COOKIE, `${issuedAt}.${signature}`, {
+  cookieStore.set(ADMIN_SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS,
+    secure: isProduction(),
+    sameSite: "strict",
+    path: "/dashboard",
+    maxAge: ADMIN_SESSION_IDLE_SECONDS,
   });
 }
 
 export async function clearAdminSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(ADMIN_COOKIE);
+  cookieStore.set(ADMIN_SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: isProduction(),
+    sameSite: "strict",
+    path: "/dashboard",
+    maxAge: 0,
+  });
+}
+
+export async function getAdminSession() {
+  const policy = getAdminSessionPolicy();
+  if (!policy) return null;
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
+  if (!raw) return null;
+  return validateAdminSessionToken(raw, policy);
 }
 
 export async function hasAdminSession() {
-  const secret = getDashboardSecret();
-  if (!secret) return false;
-
-  const cookieStore = await cookies();
-  const raw = cookieStore.get(ADMIN_COOKIE)?.value;
-  if (!raw) return false;
-
-  const [issuedAt, signature] = raw.split(".");
-  if (!issuedAt || !signature) return false;
-
-  const expectedSignature = signValue(issuedAt, secret);
-  if (!safeEqual(signature, expectedSignature)) return false;
-
-  const age = Math.floor(Date.now() / 1000) - Number.parseInt(issuedAt, 10);
-  return Number.isFinite(age) && age >= 0 && age <= SESSION_TTL_SECONDS;
+  return Boolean(await getAdminSession());
 }
 
 export async function requireAdminSession() {
-  if (!(await hasAdminSession())) {
-    redirect("/dashboard/login");
-  }
+  const session = await getAdminSession();
+  if (!session) redirect("/dashboard/login");
+  return session;
 }
 
 export async function validateAdminPassword(input: string) {
+  if (!isLegacyAdminAuthEnabled()) return false;
   const databaseMatch = await validateStoredDashboardPassword(input);
   const expected = getDashboardPassword();
-  const environmentMatch = expected ? safeEqual(input, expected) : false;
-
-  if (databaseMatch !== null) {
-    return databaseMatch || environmentMatch;
-  }
-
+  const environmentMatch = Boolean(expected) && constantTimeEqual(input, expected ?? "");
+  if (databaseMatch !== null) return databaseMatch || environmentMatch;
   return environmentMatch;
+}
+
+export function adminSessionRemainingMaxAge(
+  session: Awaited<ReturnType<typeof getAdminSession>>,
+  nowSeconds = Math.floor(Date.now() / 1000),
+) {
+  return session ? adminSessionCookieMaxAge(session, nowSeconds) : 0;
 }

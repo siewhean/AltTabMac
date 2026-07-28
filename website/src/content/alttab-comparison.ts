@@ -6,6 +6,8 @@ export const altTabComparison = {
     "This comparison uses AltTab’s official product, pricing, and terms pages plus CmdTab’s canonical product and evidence pages. Feature tiers, prices, download counts, and compatibility can change after the review date.",
   adoptionNote:
     "AltTab’s official pricing page displayed 8.2 million downloads and 16,000 GitHub stars on the review date. Those are adoption signals, not a controlled reliability benchmark.",
+  whyPay:
+    `CmdTab is not charging for a generic Command-Tab replacement. The ${productFacts.licensePrice} one-time license funds a narrower exact-window workflow: one global window-level MRU sequence, three switcher modes, remembered search choices, Hot Swap, Quick Actions, and an evidence-led native release process. Choose it only when that specific workflow saves enough repeated friction to justify paying; otherwise AltTab’s free core or Apple’s built-in switcher is the more rational choice.`,
   sources: [
     {
       label: "AltTab official product page",
@@ -57,7 +59,7 @@ export const altTabComparison = {
     [
       "Commercial model",
       "Free open-source core. Pro is US$9.99 once; Pro Lifetime is US$24.99 once; new users receive a 14-day Pro trial.",
-      `${productFacts.trialLength} followed by a one-time purchase. The current founder offer displayed by CmdTab is ${productFacts.founderPrice}.`,
+      `${productFacts.trialLength} followed by a one-time purchase. The current CmdTab personal license is ${productFacts.licensePrice}.`,
     ],
     [
       "Public evidence",
@@ -77,9 +79,9 @@ export const altTabComparison = {
         "AltTab is the stronger default for users who want a widely adopted Windows-style switcher, a free open-source core, high-quality thumbnails, and an optional paid power-user tier.",
     },
     {
-      title: "Choose CmdTab when its exact-window workflow matches you",
+      title: "Pay for CmdTab only when its exact-window workflow earns it",
       body:
-        "CmdTab is the more specific fit when you want one global exact-window MRU sequence, three presentation modes, remembered Command Palette choices, and the current Quick Actions and Space/display controls.",
+        "CmdTab is the more specific fit when one global exact-window MRU sequence, three presentation modes, remembered Command Palette choices, Hot Swap, and Quick Actions remove enough repeated friction to justify a one-time license. The trial exists to test that claim before paying.",
     },
     {
       title: "Keep the built-in switcher when simplicity wins",

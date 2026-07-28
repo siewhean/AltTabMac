@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 
 import { getSql, isDatabaseConfigured } from "@/lib/postgres";
-import { touchTrialClaim } from "@/lib/trial-claim-store";
 
 type AppUsageRow = {
   id: string;
@@ -105,7 +104,6 @@ export async function recordAppUsageEvent(input: AppUsageEventInput) {
     returning *
   `;
 
-  await touchTrialClaim(input.installId);
   return row ?? null;
 }
 

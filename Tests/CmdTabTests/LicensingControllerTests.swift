@@ -1,10 +1,48 @@
 import CryptoKit
 import Foundation
+import Security
 import XCTest
 @testable import CmdTab
 
 @MainActor
 final class LicensingControllerTests: XCTestCase {
+    func testTrialClaimParsesFractionalAndWholeSecondISO8601WithoutChangingWireStrings() {
+        let fractionalStart = "2026-07-27T12:34:56.123Z"
+        let fractionalEnd = "2026-08-10T12:34:56.123Z"
+        let wholeSecondStart = "2026-07-27T12:34:56Z"
+        let wholeSecondEnd = "2026-08-10T12:34:56Z"
+        let fractionalClaim = makeTrialClaim(
+            startedAt: fractionalStart,
+            endsAt: fractionalEnd
+        )
+        let wholeSecondClaim = makeTrialClaim(
+            startedAt: wholeSecondStart,
+            endsAt: wholeSecondEnd
+        )
+
+        guard let parsedFractionalStart = fractionalClaim.startedDate,
+              let parsedFractionalEnd = fractionalClaim.endsDate,
+              let parsedWholeSecondStart = wholeSecondClaim.startedDate,
+              let parsedWholeSecondEnd = wholeSecondClaim.endsDate else {
+            return XCTFail("Expected both JavaScript and legacy ISO-8601 shapes to parse")
+        }
+
+        XCTAssertEqual(
+            parsedFractionalStart.timeIntervalSince(parsedWholeSecondStart),
+            0.123,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            parsedFractionalEnd.timeIntervalSince(parsedWholeSecondEnd),
+            0.123,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(fractionalClaim.startedAt, fractionalStart)
+        XCTAssertEqual(fractionalClaim.endsAt, fractionalEnd)
+        XCTAssertEqual(wholeSecondClaim.startedAt, wholeSecondStart)
+        XCTAssertEqual(wholeSecondClaim.endsAt, wholeSecondEnd)
+    }
+
     func testUnregisteredWithoutServerTrialClaim() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let trialStore = MemoryTrialStartDateStore(date: Calendar.current.date(byAdding: .day, value: -2, to: now))
@@ -81,6 +119,134 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertFalse(controller.hasUnlockedAccess)
     }
 
+    func testNewPurchaseActivationCredentialCannotUnlockLocally() {
+        let materials = makeSigningMaterials()
+        let controller = makeController(
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        XCTAssertFalse(
+            controller.activateLicense(
+                "CMDTAB-ACT-\(String(repeating: "a", count: 43))"
+            )
+        )
+        XCTAssertFalse(controller.hasUnlockedAccess)
+    }
+
+    func testAuthoritativeRevocationCreatesPersistentTombstoneButTransientFailuresDoNot() async throws {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let token = try signedToken(
+            email: "revoked@example.com",
+            name: nil,
+            licenseID: "LIC-REV",
+            privateKey: materials.privateKey,
+            issuedAt: now
+        )
+        let licenseStore = MemoryLicenseKeyStore()
+        licenseStore.value = token
+        let revocationStore = MemoryLicenseRevocationStore()
+        let serverClient = MockCmdTabServerClient()
+        serverClient.listResult = .failure(CmdTabServerClientError.invalidResponse)
+        let controller = makeController(
+            licenseStore: licenseStore,
+            revocationStore: revocationStore,
+            serverClient: serverClient,
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        await controller.refreshLicensedDevices()
+        XCTAssertTrue(controller.hasUnlockedAccess)
+        XCTAssertTrue(revocationStore.revokedIdentifiers.isEmpty)
+
+        serverClient.listResult = .failure(CmdTabServerClientError.licenseRevoked)
+        await controller.refreshLicensedDevices()
+        XCTAssertFalse(controller.hasUnlockedAccess)
+        XCTAssertTrue(
+            revocationStore.revokedIdentifiers.contains("license:LIC-REV")
+        )
+        XCTAssertNil(licenseStore.value)
+    }
+
+    func testRemoteDeactivationWithEmptyDeviceListRevokesRetainedToken() async throws {
+        let legacy = makeSigningMaterials()
+        let v2 = P256.Signing.PrivateKey()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let secret = Data(repeating: 5, count: 32)
+        let deviceID = SHA256.hash(data: secret)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let entitlement = try signedV2Entitlement(
+            privateKey: v2,
+            kid: "license-empty-list",
+            type: .license,
+            subject: "owner@example.com",
+            order: "LIC-EMPTY",
+            bindingType: .activation,
+            bindingValue: deviceID,
+            issuedAt: now
+        )
+        let entitlementStore = MemoryDeviceLicenseEntitlementStore()
+        entitlementStore.value = entitlement
+        let credentialStore = MemoryLicenseKeyStore()
+        credentialStore.value =
+            "CMDTAB-ACT-\(String(repeating: "q", count: 43))"
+        let revocations = MemoryLicenseRevocationStore()
+        let server = MockCmdTabServerClient()
+        server.listResult = .success([])
+        server.currentActivationActive = false
+        let controller = makeController(
+            licenseStore: credentialStore,
+            deviceEntitlementStore: entitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(
+                secret: secret
+            ),
+            revocationStore: revocations,
+            licenseV2PublicKeysDERBase64: [
+                "license-empty-list":
+                    v2.publicKey.derRepresentation.base64EncodedString(),
+            ],
+            serverClient: server,
+            currentDate: { now },
+            publicKeyBase64: legacy.publicKeyBase64
+        )
+
+        XCTAssertTrue(controller.hasUnlockedAccess)
+        await controller.refreshLicensedDevices()
+        XCTAssertFalse(controller.hasUnlockedAccess)
+        XCTAssertNil(entitlementStore.value)
+        XCTAssertNil(credentialStore.value)
+        XCTAssertTrue(
+            revocations.revokedIdentifiers.contains {
+                $0.hasPrefix("token:")
+            }
+        )
+    }
+
+    func testRevocationFallbackSurvivesKeychainFailureAndStoreRecreation() throws {
+        let suiteName = "CmdTabTests.revocation.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let key = "revocation-fallback"
+        let failingStore = ThrowingLicenseKeyStore()
+        let first = KeychainLicenseRevocationStore(
+            store: failingStore,
+            defaults: defaults,
+            fallbackKey: key
+        )
+
+        XCTAssertThrowsError(try first.saveRevocation(licenseID: "license-hash"))
+        XCTAssertTrue(first.isRevoked(licenseID: "license-hash"))
+
+        let recreated = KeychainLicenseRevocationStore(
+            store: failingStore,
+            defaults: defaults,
+            fallbackKey: key
+        )
+        XCTAssertTrue(recreated.isRevoked(licenseID: "license-hash"))
+    }
+
     func testActiveTrialStillHandlesCustomSwitcherShortcut() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let claimStore = MemoryTrialClaimStore(claim: makeTrialClaim(email: "trial@example.com", installID: "install-1", startedAt: now))
@@ -91,6 +257,280 @@ final class LicensingControllerTests: XCTestCase {
         )
 
         XCTAssertTrue(controller.shouldHandleCustomSwitcherShortcut())
+    }
+
+    func testExactFourteenDayServerClaimUsesUTCMilestonesAndStopsClaimingShortcutAtExpiry() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let secondsPerDay: TimeInterval = 24 * 60 * 60
+        let exactEnd = startedAt.addingTimeInterval(
+            TimeInterval(LicensingConfiguration.trialLengthDays) * secondsPerDay
+        )
+        var now = startedAt
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(
+                claim: makeTrialClaim(
+                    email: "trial@example.com",
+                    installID: "install-boundary",
+                    startedAt: startedAt
+                )
+            ),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        assertActiveTrial(
+            controller,
+            expectedStart: startedAt,
+            expectedEnd: exactEnd,
+            expectedDaysRemaining: 14,
+            expectedTitle: "14 days left in trial"
+        )
+
+        now = startedAt.addingTimeInterval(11 * secondsPerDay)
+        controller.refreshStatus()
+        assertActiveTrial(
+            controller,
+            expectedStart: startedAt,
+            expectedEnd: exactEnd,
+            expectedDaysRemaining: 3,
+            expectedTitle: "3 days left in trial"
+        )
+
+        now = startedAt.addingTimeInterval(13 * secondsPerDay)
+        controller.refreshStatus()
+        assertActiveTrial(
+            controller,
+            expectedStart: startedAt,
+            expectedEnd: exactEnd,
+            expectedDaysRemaining: 1,
+            expectedTitle: "1 day left in trial"
+        )
+
+        now = exactEnd.addingTimeInterval(-1)
+        controller.refreshStatus()
+        assertActiveTrial(
+            controller,
+            expectedStart: startedAt,
+            expectedEnd: exactEnd,
+            expectedDaysRemaining: 1,
+            expectedTitle: "1 day left in trial"
+        )
+
+        now = exactEnd
+        controller.refreshStatus()
+        guard case let .expired(expiredStart, endedAt, daysOverdue) = controller.status else {
+            return XCTFail("Expected trial to expire at the exact 14-day boundary")
+        }
+        XCTAssertEqual(expiredStart, startedAt)
+        XCTAssertEqual(endedAt, exactEnd)
+        XCTAssertEqual(daysOverdue, 0)
+        XCTAssertTrue(controller.licenseSummaryDetail.hasPrefix("The trial just expired."))
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
+
+        now = exactEnd.addingTimeInterval(secondsPerDay)
+        controller.refreshStatus()
+        guard case let .expired(_, endedAt, daysOverdue) = controller.status else {
+            return XCTFail("Expected trial to remain expired after its boundary")
+        }
+        XCTAssertEqual(endedAt, exactEnd)
+        XCTAssertEqual(daysOverdue, 1)
+        XCTAssertTrue(controller.licenseSummaryDetail.hasPrefix("The trial expired 1 day ago."))
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
+    }
+
+    func testTrialWarningAppearsOnlyDuringFinalThreeDaysAndAtExpiry() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let day: TimeInterval = 24 * 60 * 60
+        var now = startedAt.addingTimeInterval(10 * day)
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(
+                claim: makeTrialClaim(
+                    email: "trial@example.com",
+                    installID: "install-warning",
+                    startedAt: startedAt
+                )
+            ),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        XCTAssertNil(controller.trialWarningMessage)
+        XCTAssertNil(controller.menuBarTrialStatusTitle)
+
+        now = startedAt.addingTimeInterval(11 * day)
+        controller.refreshStatus()
+        XCTAssertTrue(
+            controller.trialWarningMessage?.text.hasPrefix("3 days remain") == true
+        )
+        XCTAssertEqual(controller.menuBarTrialStatusTitle, "Trial: 3 Days Remaining")
+
+        now = startedAt.addingTimeInterval(14 * day)
+        controller.refreshStatus()
+        XCTAssertEqual(controller.trialWarningMessage?.tone, .error)
+        XCTAssertTrue(
+            controller.trialWarningMessage?.text.contains("native macOS switcher") == true
+        )
+        XCTAssertEqual(controller.menuBarTrialStatusTitle, "Trial Expired")
+    }
+
+    func testClockRollbackCannotLowerSecureTimeDuringOnlineRevalidation() async {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let claim = makeTrialClaim(
+            email: "rollback@example.com",
+            installID: "server-binding",
+            startedAt: now.addingTimeInterval(-24 * 60 * 60)
+        )
+        let clockStore = MemorySecureTrialClockStore(
+            date: now.addingTimeInterval(60 * 60)
+        )
+        let serverClient = MockCmdTabServerClient()
+        serverClient.trialResult = .success(claim)
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: claim),
+            secureTrialClockStore: clockStore,
+            serverClient: serverClient,
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected suspicious rollback to fail closed")
+        }
+        XCTAssertEqual(
+            controller.trialMessage?.text,
+            "The system clock moved backwards. Connect to the internet and revalidate the trial."
+        )
+
+        let revalidated = await controller.startTrialRegistration()
+        XCTAssertFalse(revalidated)
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected the still-rolled-back clock to remain blocked")
+        }
+        XCTAssertEqual(clockStore.date, now.addingTimeInterval(60 * 60))
+    }
+
+    func testSignedInstallBoundTrialAuthenticatesAndTamperingFailsClosed() throws {
+        let v1 = makeSigningMaterials()
+        let trialPrivateKey = P256.Signing.PrivateKey()
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let now = startedAt.addingTimeInterval(60)
+        let secret = Data(repeating: 9, count: 32)
+        let binding = SHA256.hash(data: secret)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let claimID = "trial-signed-1"
+        let email = "signed@example.com"
+        let token = try signedV2Entitlement(
+            privateKey: trialPrivateKey,
+            kid: "trial-test-1",
+            type: .trial,
+            subject: email,
+            order: claimID,
+            bindingType: .install,
+            bindingValue: binding,
+            issuedAt: startedAt
+        )
+        let claim = TrialClaimRecord(
+            id: claimID,
+            email: email,
+            installID: binding,
+            startedAt: ISO8601DateFormatter().string(from: startedAt),
+            endsAt: ISO8601DateFormatter().string(
+                from: startedAt.addingTimeInterval(14 * 24 * 60 * 60)
+            ),
+            appVersion: "1.0",
+            osVersion: "14.0",
+            entitlementToken: token
+        )
+        let authenticator = SignedTrialClaimAuthenticator(
+            legacyPublicKeyDERBase64: v1.publicKeyBase64,
+            v2PublicKeysDERBase64: [
+                "trial-test-1":
+                    trialPrivateKey.publicKey.derRepresentation.base64EncodedString(),
+            ]
+        )
+        let valid = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: claim),
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(secret: secret),
+            trialClaimAuthenticator: authenticator,
+            currentDate: { now },
+            publicKeyBase64: v1.publicKeyBase64
+        )
+        guard case .activeTrial = valid.status else {
+            return XCTFail("Expected signed, install-bound claim to activate")
+        }
+
+        let tamperedClaim = TrialClaimRecord(
+            id: claim.id,
+            email: "attacker@example.com",
+            installID: claim.installID,
+            startedAt: claim.startedAt,
+            endsAt: claim.endsAt,
+            appVersion: claim.appVersion,
+            osVersion: claim.osVersion,
+            entitlementToken: token
+        )
+        let tampered = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: tamperedClaim),
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(secret: secret),
+            trialClaimAuthenticator: authenticator,
+            currentDate: { now },
+            publicKeyBase64: v1.publicKeyBase64
+        )
+        guard case .unregistered = tampered.status else {
+            return XCTFail("Expected tampered claim fields to fail closed")
+        }
+    }
+
+    func testOverlongServerClaimIsRejectedAndCleared() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let secondsPerDay: TimeInterval = 24 * 60 * 60
+        let claimedEnd = startedAt.addingTimeInterval(15 * secondsPerDay)
+        let claimStore = MemoryTrialClaimStore(
+            claim: makeTrialClaim(
+                email: "trial@example.com",
+                installID: "install-overlong-claim",
+                startedAt: startedAt,
+                endsAt: claimedEnd
+            )
+        )
+        let controller = makeController(
+            trialClaimStore: claimStore,
+            currentDate: { startedAt },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected inconsistent overlong claim to fail closed")
+        }
+        XCTAssertNil(claimStore.claim)
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
+    }
+
+    func testEarlyServerClaimIsRejectedAndCleared() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let secondsPerDay: TimeInterval = 24 * 60 * 60
+        let claimedEnd = startedAt.addingTimeInterval(13 * secondsPerDay)
+        let claimStore = MemoryTrialClaimStore(
+            claim: makeTrialClaim(
+                email: "trial@example.com",
+                installID: "install-early-claim",
+                startedAt: startedAt,
+                endsAt: claimedEnd
+            )
+        )
+        let controller = makeController(
+            trialClaimStore: claimStore,
+            currentDate: { startedAt },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected inconsistent early claim to fail closed")
+        }
+        XCTAssertNil(claimStore.claim)
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
     }
 
     func testDeveloperExpiredTrialOverrideInTestChannel() {
@@ -134,7 +574,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertEqual(activatedAt, now)
     }
 
-    func testCachedRealLicenseWinsOverDeveloperOverride() {
+    func testVerifiedKeychainLicenseWinsOverDeveloperOverride() throws {
         let materials = makeSigningMaterials()
         let defaults = UserDefaults(suiteName: UUID().uuidString)!
         let developerSettings = DeveloperSettings(defaults: defaults, keyPrefix: "CmdTab.test")
@@ -151,7 +591,16 @@ final class LicensingControllerTests: XCTestCase {
             purchaserName: "Real License"
         )
 
+        let licenseStore = MemoryLicenseKeyStore()
+        licenseStore.value = try signedToken(
+            email: payload.email,
+            name: payload.purchaserName,
+            licenseID: payload.licenseID,
+            privateKey: materials.privateKey,
+            issuedAt: now
+        )
         let controller = makeController(
+            licenseStore: licenseStore,
             payloadCacheStore: MemoryLicensedPayloadCacheStore(payload: payload),
             currentDate: { now },
             publicKeyBase64: materials.publicKeyBase64,
@@ -159,7 +608,7 @@ final class LicensingControllerTests: XCTestCase {
         )
 
         guard case let .licensed(licensedPayload, _) = controller.status else {
-            return XCTFail("Expected cached real license to win over developer override")
+            return XCTFail("Expected verified real license to win over developer override")
         }
 
         XCTAssertEqual(licensedPayload.licenseID, "LIC-REAL")
@@ -191,10 +640,10 @@ final class LicensingControllerTests: XCTestCase {
             return XCTFail("Expected live active trial state")
         }
 
-        XCTAssertEqual(daysRemaining, 13)
+        XCTAssertEqual(daysRemaining, 12)
     }
 
-    func testCachedPayloadPreventsSilentFallbackPromptPath() throws {
+    func testCachedPayloadCannotGrantPaidAccessWithoutSignedKeychainToken() throws {
         let materials = makeSigningMaterials()
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let payload = SignedLicensePayload(
@@ -217,16 +666,14 @@ final class LicensingControllerTests: XCTestCase {
             publicKeyBase64: materials.publicKeyBase64
         )
 
-        guard case let .licensed(cachedPayload, activatedAt) = controller.status else {
-            return XCTFail("Expected cached licensed state")
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected unsigned cache metadata to fail closed")
         }
-
-        XCTAssertEqual(cachedPayload.licenseID, "LIC-CACHED")
-        XCTAssertEqual(activatedAt, now)
-        XCTAssertEqual(licenseStore.silentLoadCount, 0)
+        XCTAssertNil(payloadCacheStore.payload)
+        XCTAssertEqual(licenseStore.silentLoadCount, 1)
     }
 
-    func testNoCachedPayloadDoesNotTouchKeychainDuringPassiveRefresh() {
+    func testPassiveRefreshChecksKeychainForSignedPaidEntitlement() {
         let materials = makeSigningMaterials()
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let trialStore = MemoryTrialStartDateStore(date: now)
@@ -243,7 +690,7 @@ final class LicensingControllerTests: XCTestCase {
             return XCTFail("Expected unregistered state")
         }
 
-        XCTAssertEqual(licenseStore.silentLoadCount, 0)
+        XCTAssertEqual(licenseStore.silentLoadCount, 1)
     }
 
     func testStartTrialRegistrationActivatesTrialState() async {
@@ -276,7 +723,107 @@ final class LicensingControllerTests: XCTestCase {
             return XCTFail("Expected active trial state")
         }
 
-        XCTAssertEqual(daysRemaining, 15)
+        XCTAssertEqual(daysRemaining, 14)
+    }
+
+    func testStartTrialRegistrationAcceptsJavaScriptFractionalTimestampClaim() async {
+        let claim = makeTrialClaim(
+            startedAt: "2026-07-27T12:34:56.123Z",
+            endsAt: "2026-08-10T12:34:56.123Z"
+        )
+        guard let startedAt = claim.startedDate,
+              let endsAt = claim.endsDate else {
+            return XCTFail("Expected API-shaped fractional timestamps to parse")
+        }
+        let claimStore = MemoryTrialClaimStore()
+        let serverClient = MockCmdTabServerClient()
+        serverClient.trialResult = .success(claim)
+        let controller = makeController(
+            trialClaimStore: claimStore,
+            serverClient: serverClient,
+            currentDate: { startedAt },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        controller.enteredTrialEmail = claim.email
+        let activated = await controller.startTrialRegistration()
+
+        XCTAssertTrue(activated)
+        XCTAssertEqual(claimStore.claim, claim)
+        assertActiveTrial(
+            controller,
+            expectedStart: startedAt,
+            expectedEnd: endsAt,
+            expectedDaysRemaining: 14,
+            expectedTitle: "14 days left in trial"
+        )
+        XCTAssertEqual(endsAt.timeIntervalSince(startedAt), 14 * 24 * 60 * 60)
+    }
+
+    func testStartTrialRegistrationRejectsEarlyServerClaim() async {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let claimStore = MemoryTrialClaimStore()
+        let serverClient = MockCmdTabServerClient()
+        serverClient.trialResult = .success(
+            makeTrialClaim(
+                email: "trial@example.com",
+                installID: "install-early-response",
+                startedAt: startedAt,
+                endsAt: startedAt.addingTimeInterval(13 * 24 * 60 * 60)
+            )
+        )
+        let controller = makeController(
+            trialClaimStore: claimStore,
+            serverClient: serverClient,
+            currentDate: { startedAt },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        controller.enteredTrialEmail = "trial@example.com"
+        let started = await controller.startTrialRegistration()
+        XCTAssertFalse(started)
+        XCTAssertNil(claimStore.claim)
+        XCTAssertEqual(
+            controller.trialMessage?.text,
+            "The trial response could not be verified. Please try again."
+        )
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected early registration response to fail closed")
+        }
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
+    }
+
+    func testStartTrialRegistrationRejectsOverlongServerClaim() async {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let claimStore = MemoryTrialClaimStore()
+        let serverClient = MockCmdTabServerClient()
+        serverClient.trialResult = .success(
+            makeTrialClaim(
+                email: "trial@example.com",
+                installID: "install-overlong-response",
+                startedAt: startedAt,
+                endsAt: startedAt.addingTimeInterval(15 * 24 * 60 * 60)
+            )
+        )
+        let controller = makeController(
+            trialClaimStore: claimStore,
+            serverClient: serverClient,
+            currentDate: { startedAt },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        controller.enteredTrialEmail = "trial@example.com"
+        let started = await controller.startTrialRegistration()
+        XCTAssertFalse(started)
+        XCTAssertNil(claimStore.claim)
+        XCTAssertEqual(
+            controller.trialMessage?.text,
+            "The trial response could not be verified. Please try again."
+        )
+        guard case .unregistered = controller.status else {
+            return XCTFail("Expected overlong registration response to fail closed")
+        }
+        XCTAssertFalse(controller.shouldHandleCustomSwitcherShortcut())
     }
 
     func testStartTrialRegistrationShowsBlockedMessage() async {
@@ -337,13 +884,117 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertEqual(payload.licenseID, "LIC-123")
     }
 
+    func testOnlineActivationRegistersHashedKeychainDeviceBeforeSavingLicense() async throws {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let token = "CMDTAB-ACT-\(String(repeating: "z", count: 43))"
+        let licenseStore = MemoryLicenseKeyStore()
+        let deviceEntitlementStore = MemoryDeviceLicenseEntitlementStore()
+        let revocationStore = MemoryLicenseRevocationStore()
+        let v2PrivateKey = P256.Signing.PrivateKey()
+        let deviceSecret = Data(repeating: 7, count: 32)
+        let deviceID = SHA256.hash(data: deviceSecret)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let paidEntitlement = try signedV2Entitlement(
+            privateKey: v2PrivateKey,
+            kid: "license-test-1",
+            type: .license,
+            subject: "user@example.com",
+            order: "LIC-ONLINE",
+            bindingType: .activation,
+            bindingValue: deviceID,
+            issuedAt: now
+        )
+        let serverClient = MockCmdTabServerClient()
+        serverClient.activationResult = .success(
+            LicenseActivationResult(
+                devices: [
+                    LicensedDeviceDTO(
+                        deviceId: String(repeating: "d", count: 64),
+                        deviceName: "Test Mac",
+                        activatedAt: "2026-07-27T12:00:00Z"
+                    ),
+                ],
+                entitlementToken: paidEntitlement
+            )
+        )
+        let controller = makeController(
+            licenseStore: licenseStore,
+            deviceEntitlementStore: deviceEntitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(
+                secret: deviceSecret
+            ),
+            revocationStore: revocationStore,
+            licenseV2PublicKeysDERBase64: [
+                "license-test-1":
+                    v2PrivateKey.publicKey.derRepresentation.base64EncodedString(),
+            ],
+            serverClient: serverClient,
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+        controller.enteredLicenseKey = token
+
+        let activated = await controller.activateEnteredLicenseKeyOnline()
+        XCTAssertTrue(activated)
+        XCTAssertEqual(licenseStore.value, token)
+        XCTAssertEqual(deviceEntitlementStore.value, paidEntitlement)
+        XCTAssertEqual(serverClient.activationCalls.count, 1)
+        XCTAssertEqual(serverClient.activationCalls[0].licenseKey, token)
+        XCTAssertEqual(serverClient.activationCalls[0].deviceID.count, 64)
+        XCTAssertNotEqual(
+            serverClient.activationCalls[0].deviceID,
+            Data(repeating: 7, count: 32).base64EncodedString()
+        )
+        XCTAssertEqual(controller.licensedDevices.first?.deviceName, "Test Mac")
+
+        serverClient.deactivationResult = .success([])
+        let deactivated = await controller.deactivateCurrentDevice()
+        XCTAssertTrue(deactivated)
+        XCTAssertEqual(serverClient.deactivationCalls.first?.licenseKey, token)
+        XCTAssertNil(licenseStore.value)
+        XCTAssertNil(deviceEntitlementStore.value)
+        XCTAssertEqual(revocationStore.revokedIdentifiers.count, 1)
+        XCTAssertTrue(
+            revocationStore.revokedIdentifiers.first?.hasPrefix("token:") == true
+        )
+
+        // Restoring a saved perpetual token after freeing its slot must not
+        // regain access on this Mac.
+        deviceEntitlementStore.value = paidEntitlement
+        let restored = makeController(
+            licenseStore: licenseStore,
+            deviceEntitlementStore: deviceEntitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(
+                secret: deviceSecret
+            ),
+            revocationStore: revocationStore,
+            licenseV2PublicKeysDERBase64: [
+                "license-test-1":
+                    v2PrivateKey.publicKey.derRepresentation.base64EncodedString(),
+            ],
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+        XCTAssertFalse(restored.hasUnlockedAccess)
+        XCTAssertNil(deviceEntitlementStore.value)
+    }
+
     private func makeController(
         trialStore: TrialStartDateStore = MemoryTrialStartDateStore(),
         trialClaimStore: TrialClaimStore = MemoryTrialClaimStore(),
         licenseStore: LicenseKeyStore = MemoryLicenseKeyStore(),
+        deviceEntitlementStore: DeviceLicenseEntitlementStore =
+            MemoryDeviceLicenseEntitlementStore(),
         activationMetadataStore: LicenseActivationMetadataStore = MemoryLicenseActivationMetadataStore(),
         payloadCacheStore: LicensedPayloadCacheStore = MemoryLicensedPayloadCacheStore(),
         installIDStore: AppInstallIDStore = MemoryAppInstallIDStore(),
+        deviceIdentityStore: LicenseDeviceIdentityStore = MemoryLicenseDeviceIdentityStore(),
+        trialClaimAuthenticator: TrialClaimAuthenticating = TrustingTrialClaimAuthenticator(),
+        secureTrialClockStore: SecureTrialClockStore = MemorySecureTrialClockStore(),
+        revocationStore: LicenseRevocationStore = MemoryLicenseRevocationStore(),
+        licenseV2PublicKeysDERBase64: [String: String] = [:],
         serverClient: CmdTabServerClient = MockCmdTabServerClient(),
         currentDate: @escaping () -> Date = Date.init,
         publicKeyBase64: String,
@@ -353,9 +1004,15 @@ final class LicensingControllerTests: XCTestCase {
             trialStore: trialStore,
             trialClaimStore: trialClaimStore,
             licenseStore: licenseStore,
+            deviceEntitlementStore: deviceEntitlementStore,
             activationMetadataStore: activationMetadataStore,
             payloadCacheStore: payloadCacheStore,
             installIDStore: installIDStore,
+            deviceIdentityStore: deviceIdentityStore,
+            trialClaimAuthenticator: trialClaimAuthenticator,
+            secureTrialClockStore: secureTrialClockStore,
+            revocationStore: revocationStore,
+            licenseV2PublicKeysDERBase64: licenseV2PublicKeysDERBase64,
             serverClient: serverClient,
             currentDate: currentDate,
             publicKeyDERBase64: publicKeyBase64,
@@ -396,17 +1053,93 @@ final class LicensingControllerTests: XCTestCase {
         ].joined(separator: ".")
     }
 
-    private func makeTrialClaim(email: String, installID: String, startedAt: Date) -> TrialClaimRecord {
-        let endsAt = Calendar.current.date(byAdding: .day, value: LicensingConfiguration.trialLengthDays, to: startedAt) ?? startedAt
+    private func signedV2Entitlement(
+        privateKey: P256.Signing.PrivateKey,
+        kid: String,
+        type: CmdTabEntitlementType,
+        subject: String,
+        order: String,
+        bindingType: CmdTabEntitlementBindingType,
+        bindingValue: String,
+        issuedAt: Date
+    ) throws -> String {
+        let issued = Int64(issuedAt.timeIntervalSince1970.rounded(.down))
+        let payload = CmdTabTokenV2Payload(
+            v: 2,
+            kid: kid,
+            typ: type,
+            aud: "cmdtab",
+            sub: LicenseTokenVerifier.hashIdentifier(subject),
+            order: LicenseTokenVerifier.hashIdentifier(order),
+            binding: CmdTabTokenV2Binding(
+                typ: bindingType,
+                hash: LicenseTokenVerifier.hashIdentifier(bindingValue)
+            ),
+            iat: issued,
+            exp: type == .trial ? issued + 14 * 24 * 60 * 60 : nil,
+            updates: "1.x"
+        )
+        let data = try JSONEncoder().encode(payload)
+        let signature = try privateKey.signature(for: data).derRepresentation
+        return [
+            "CMDTAB2",
+            data.base64URLEncodedString(),
+            signature.base64URLEncodedString(),
+        ].joined(separator: ".")
+    }
+
+    private func makeTrialClaim(
+        email: String,
+        installID: String,
+        startedAt: Date,
+        endsAt: Date? = nil
+    ) -> TrialClaimRecord {
+        let defaultEnd = startedAt.addingTimeInterval(
+            TimeInterval(LicensingConfiguration.trialLengthDays) * 24 * 60 * 60
+        )
         return TrialClaimRecord(
             id: UUID().uuidString,
             email: email,
             installID: installID,
             startedAt: ISO8601DateFormatter().string(from: startedAt),
-            endsAt: ISO8601DateFormatter().string(from: endsAt),
+            endsAt: ISO8601DateFormatter().string(from: endsAt ?? defaultEnd),
             appVersion: "1.0.0",
             osVersion: "14.0.0"
         )
+    }
+
+    private func makeTrialClaim(
+        startedAt: String,
+        endsAt: String
+    ) -> TrialClaimRecord {
+        TrialClaimRecord(
+            id: UUID().uuidString,
+            email: "trial@example.com",
+            installID: "install-api-shaped",
+            startedAt: startedAt,
+            endsAt: endsAt,
+            appVersion: "1.0.0",
+            osVersion: "14.0.0"
+        )
+    }
+
+    private func assertActiveTrial(
+        _ controller: LicensingController,
+        expectedStart: Date,
+        expectedEnd: Date,
+        expectedDaysRemaining: Int,
+        expectedTitle: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case let .activeTrial(startedAt, endsAt, daysRemaining) = controller.status else {
+            return XCTFail("Expected active trial state", file: file, line: line)
+        }
+        XCTAssertEqual(startedAt, expectedStart, file: file, line: line)
+        XCTAssertEqual(endsAt, expectedEnd, file: file, line: line)
+        XCTAssertEqual(daysRemaining, expectedDaysRemaining, file: file, line: line)
+        XCTAssertEqual(controller.licenseSummaryTitle, expectedTitle, file: file, line: line)
+        XCTAssertTrue(controller.shouldHandleCustomSwitcherShortcut(), file: file, line: line)
     }
 }
 
@@ -448,6 +1181,23 @@ private final class MemoryLicenseKeyStore: LicenseKeyStore {
     }
 }
 
+private final class MemoryDeviceLicenseEntitlementStore:
+    DeviceLicenseEntitlementStore {
+    var value: String?
+
+    func loadEntitlement() -> String? {
+        value
+    }
+
+    func saveEntitlement(_ value: String) throws {
+        self.value = value
+    }
+
+    func clearEntitlement() throws {
+        value = nil
+    }
+}
+
 private final class MemoryTrialClaimStore: TrialClaimStore {
     var claim: TrialClaimRecord?
 
@@ -482,6 +1232,65 @@ private final class MemoryAppInstallIDStore: AppInstallIDStore {
     func saveInstallID(_ value: String) {
         self.value = value
     }
+}
+
+private final class MemoryLicenseDeviceIdentityStore: LicenseDeviceIdentityStore {
+    let secret: Data
+
+    init(secret: Data = Data(repeating: 1, count: 32)) {
+        self.secret = secret
+    }
+
+    func loadOrCreateSecret() throws -> Data {
+        secret
+    }
+}
+
+private struct TrustingTrialClaimAuthenticator: TrialClaimAuthenticating {
+    func validates(_ claim: TrialClaimRecord, installID: String) -> Bool {
+        true
+    }
+}
+
+private final class MemorySecureTrialClockStore: SecureTrialClockStore {
+    var date: Date?
+
+    init(date: Date? = nil) {
+        self.date = date
+    }
+
+    func loadLastSeenDate() -> Date? {
+        date
+    }
+
+    func saveLastSeenDate(_ value: Date) {
+        date = value
+    }
+
+    func clearLastSeenDate() {
+        date = nil
+    }
+}
+
+private final class MemoryLicenseRevocationStore: LicenseRevocationStore {
+    var revokedIdentifiers = Set<String>()
+
+    func isRevoked(licenseID: String) -> Bool {
+        revokedIdentifiers.contains(licenseID)
+    }
+
+    func saveRevocation(licenseID: String) throws {
+        revokedIdentifiers.insert(licenseID)
+    }
+}
+
+private final class ThrowingLicenseKeyStore: LicenseKeyStore {
+    func loadLicenseKey() -> String? { nil }
+    func loadLicenseKeySilently() -> String? { nil }
+    func saveLicenseKey(_ value: String) throws {
+        throw LicenseKeyStoreError.unexpectedStatus(errSecNotAvailable)
+    }
+    func clearLicenseKey() throws {}
 }
 
 private final class MemoryLicenseActivationMetadataStore: LicenseActivationMetadataStore {
@@ -534,7 +1343,12 @@ private final class MockCmdTabServerClient: CmdTabServerClient {
 
     var trialResult: Result<TrialClaimRecord, Error>?
     var startTrialCalls: [StartTrialCall] = []
-    var telemetryEventNames: [String] = []
+    var activationResult: Result<LicenseActivationResult, Error>?
+    var activationCalls: [(licenseKey: String, deviceID: String, deviceName: String)] = []
+    var deactivationResult: Result<[LicensedDeviceDTO], Error>?
+    var deactivationCalls: [(licenseKey: String, deviceID: String)] = []
+    var listResult: Result<[LicensedDeviceDTO], Error>?
+    var currentActivationActive: Bool?
 
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord {
         startTrialCalls.append(
@@ -551,15 +1365,44 @@ private final class MockCmdTabServerClient: CmdTabServerClient {
         return try trialResult.get()
     }
 
-    func sendAppTelemetry(
-        installID: String,
-        eventName: String,
-        licenseState: String,
-        licenseID: String?,
-        appVersion: String,
-        osVersion: String
-    ) async {
-        telemetryEventNames.append(eventName)
+    func activateLicense(
+        licenseKey: String,
+        deviceID: String,
+        deviceName: String
+    ) async throws -> LicenseActivationResult {
+        activationCalls.append((licenseKey, deviceID, deviceName))
+        guard let activationResult else {
+            throw CmdTabServerClientError.invalidResponse
+        }
+        return try activationResult.get()
+    }
+
+    func deactivateLicense(
+        licenseKey: String,
+        deviceID: String
+    ) async throws -> [LicensedDeviceDTO] {
+        deactivationCalls.append((licenseKey, deviceID))
+        guard let deactivationResult else {
+            throw CmdTabServerClientError.invalidResponse
+        }
+        return try deactivationResult.get()
+    }
+
+    func listDevices(licenseKey: String) async throws -> [LicensedDeviceDTO] {
+        guard let listResult else {
+            throw CmdTabServerClientError.invalidResponse
+        }
+        return try listResult.get()
+    }
+
+    func listDeviceStatus(
+        licenseKey: String,
+        deviceID: String
+    ) async throws -> LicenseDeviceListResult {
+        LicenseDeviceListResult(
+            devices: try await listDevices(licenseKey: licenseKey),
+            currentActivationActive: currentActivationActive
+        )
     }
 }
 

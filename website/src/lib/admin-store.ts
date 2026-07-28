@@ -17,6 +17,14 @@ export type DashboardAuthSummary = {
   updatedAt?: string;
 };
 
+export type AdminAuditEvent = {
+  actorSubject: string;
+  authMode: "auth0" | "legacy";
+  action: "login" | "logout" | "export_waitlist" | "change_legacy_password";
+  outcome: "success" | "denied" | "failed";
+  metadata?: Record<string, string | number | boolean | null>;
+};
+
 let schemaReady = false;
 
 function safeEqual(a: string, b: string) {
@@ -40,6 +48,21 @@ async function ensureSchema() {
       value jsonb not null,
       updated_at timestamptz not null default now()
     )
+  `;
+  await sql`
+    create table if not exists admin_audit_log (
+      id bigserial primary key,
+      actor_subject text not null,
+      auth_mode text not null check (auth_mode in ('auth0', 'legacy')),
+      action text not null,
+      outcome text not null check (outcome in ('success', 'denied', 'failed')),
+      metadata jsonb not null default '{}'::jsonb,
+      created_at timestamptz not null default now()
+    )
+  `;
+  await sql`
+    create index if not exists admin_audit_log_created_at_idx
+    on admin_audit_log (created_at desc)
   `;
 
   schemaReady = true;
@@ -105,4 +128,29 @@ export async function setDashboardPassword(password: string) {
   `;
 
   return updatedAt;
+}
+
+export async function recordAdminAuditEvent(event: AdminAuditEvent) {
+  if (!isDatabaseConfigured()) return false;
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    insert into admin_audit_log (
+      actor_subject,
+      auth_mode,
+      action,
+      outcome,
+      metadata,
+      created_at
+    )
+    values (
+      ${event.actorSubject},
+      ${event.authMode},
+      ${event.action},
+      ${event.outcome},
+      ${sql.json(event.metadata ?? {})},
+      now()
+    )
+  `;
+  return true;
 }

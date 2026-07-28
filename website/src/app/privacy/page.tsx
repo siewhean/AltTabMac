@@ -1,3 +1,4 @@
+import { AnalyticsPrivacyControls } from "@/components/analytics-consent-controls";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
@@ -54,6 +55,7 @@ export default function PrivacyPage() {
           </Button>
         </div>
         <div className="space-y-10">
+          <AnalyticsPrivacyControls />
           {privacyContent.sections.map((section) => (
             <section key={section.title} className="border-t border-white/8 pt-6">
               <h2 className="text-2xl font-medium tracking-[-0.03em] text-text">
@@ -69,13 +71,16 @@ export default function PrivacyPage() {
             </section>
           ))}
 
-          <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
+          <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row sm:flex-wrap">
             <Button href="/permissions">Review app permissions</Button>
             <Button href={`mailto:${productFacts.contactEmail}`} variant="secondary">
               Privacy request
             </Button>
             <Button href="/security" variant="secondary">
               View security policy
+            </Button>
+            <Button href="/terms" variant="secondary">
+              License and retention terms
             </Button>
           </div>
         </div>

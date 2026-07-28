@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 
+import {
+  AnalyticsConsentBanner,
+  OptionalAnalytics,
+} from "@/components/analytics-consent-controls";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteEventTracker } from "@/components/site-event-tracker";
 import { SitePageTracker } from "@/components/site-page-tracker";
@@ -103,8 +105,8 @@ export default function RootLayout({
         {children}
         <SitePageTracker />
         <SiteEventTracker />
-        <Analytics />
-        <SpeedInsights />
+        <AnalyticsConsentBanner />
+        <OptionalAnalytics />
       </body>
     </html>
   );

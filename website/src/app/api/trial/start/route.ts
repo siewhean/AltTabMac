@@ -1,20 +1,43 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 import { renderTrialStartedEmail } from "@/content/trial-email";
 import { createOrGetTrialClaim } from "@/lib/trial-claim-store";
 import { getServerEnv, getSiteUrl } from "@/lib/env";
 import { getResendClient } from "@/lib/resend";
+import { getTrialTokenSigner } from "@/lib/aws-kms-p256";
+import {
+  enforceIngestRateLimit,
+  IngestRequestError,
+  ingestJsonResponse,
+  readBoundedJson,
+} from "@/lib/ingest-request";
+import { issueCmdTabTokenV2 } from "@/lib/license-signing";
 
+const MAX_REQUEST_BODY_BYTES = 4 * 1024;
+const optionalEmailSchema = z.union([
+  z.string().trim().email().max(320),
+  z.literal(""),
+]).optional();
 const payloadSchema = z.object({
-  email: z.string().trim().email().max(320),
-  installId: z.string().trim().min(8).max(120),
+  email: optionalEmailSchema,
+  installId: z.string().trim().regex(/^[a-f0-9]{64}$/),
   appVersion: z.string().trim().max(80).optional(),
   osVersion: z.string().trim().max(80).optional(),
 });
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function anonymousTrialSubject(installId: string) {
+  const digest = createHash("sha256")
+    .update(`cmdtab-anonymous-trial:${installId}`)
+    .digest("hex")
+    .slice(0, 32);
+  return `anonymous+${digest}@trial.cmdtab.invalid`;
+}
 
 async function sendTrialStartedEmail(input: {
   email: string;
@@ -41,10 +64,26 @@ async function sendTrialStartedEmail(input: {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await enforceIngestRateLimit(request, "trial-start");
+  if (!rateLimit.allowed) {
+    if ("unavailable" in rateLimit) {
+      return ingestJsonResponse({ ok: false, code: "service_unavailable" }, 503);
+    }
+    return ingestJsonResponse(
+      { ok: false, code: "rate_limited" },
+      429,
+      { "Retry-After": String(rateLimit.retryAfterSeconds) },
+    );
+  }
+
   try {
-    const payload = payloadSchema.parse(await request.json());
+    const payload = payloadSchema.parse(
+      await readBoundedJson(request, MAX_REQUEST_BODY_BYTES),
+    );
+    const contactEmail = payload.email?.trim().toLowerCase() || undefined;
+    const claimSubject = contactEmail ?? anonymousTrialSubject(payload.installId);
     const result = await createOrGetTrialClaim({
-      email: payload.email,
+      email: claimSubject,
       installId: payload.installId,
       appVersion: payload.appVersion,
       osVersion: payload.osVersion,
@@ -55,21 +94,30 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           ok: false,
-          code: result.reason,
-          message:
-            result.reason === "email_already_used"
-              ? "This email has already started a CmdTab trial."
-              : "This Mac already has a trial registered with another email.",
+          code: "trial_unavailable",
+          message: "A CmdTab trial is already registered for this Mac or email.",
         },
         { status: 409 },
       );
     }
 
+    const entitlement = await issueCmdTabTokenV2({
+      signer: getTrialTokenSigner(),
+      typ: "trial",
+      subjectIdentifier: result.claim.email,
+      orderIdentifier: result.claim.id,
+      binding: {
+        typ: "install",
+        value: result.claim.installId,
+      },
+      issuedAt: new Date(result.claim.startedAt),
+    });
+
     let notificationDelivered = false;
-    if (result.kind === "created") {
+    if (result.kind === "created" && contactEmail) {
       try {
         await sendTrialStartedEmail({
-          email: result.claim.email,
+          email: contactEmail,
           startedAt: result.claim.startedAt,
           endsAt: result.claim.endsAt,
         });
@@ -82,10 +130,29 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       alreadyRegistered: result.kind === "existing",
+      anonymous: !contactEmail,
       notificationDelivered,
       claim: result.claim,
+      entitlementToken: entitlement.token,
+      serverTime: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof IngestRequestError) {
+      return ingestJsonResponse(
+        { ok: false, code: error.code, message: error.message },
+        error.status,
+      );
+    }
+    if (error instanceof ZodError) {
+      return ingestJsonResponse(
+        {
+          ok: false,
+          code: "invalid_request",
+          message: "We could not start the trial with those details.",
+        },
+        400,
+      );
+    }
     console.error("[CmdTab Website] trial start failed", error);
     return NextResponse.json(
       {

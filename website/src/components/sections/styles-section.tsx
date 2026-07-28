@@ -18,7 +18,12 @@ export function StylesSection() {
       title="Three ways to switch."
       description="Scan with thumbnails, search by name, or move by position."
     >
-      <div className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0">
+      <div
+        role="region"
+        aria-label="CmdTab switcher modes"
+        tabIndex={0}
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
+      >
         {styleVariants.map((variant, index) => (
           <MotionReveal
             key={variant.id}

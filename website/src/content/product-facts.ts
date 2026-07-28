@@ -12,8 +12,10 @@ export const productFacts = {
   minimumMacOS: "macOS 13.0 (Ventura) or later",
   trialLength: commerceContent.trialLength,
   licenseModel: "One-time purchase",
-  founderPrice: commerceContent.founder.price,
-  standardPrice: commerceContent.standard.price,
+  licensePrice: commerceContent.license.price,
+  licensedMacs: 3,
+  updateEntitlement: "All CmdTab 1.x updates",
+  refundPolicy: "14-day full refund",
   reviewedAt: "2026-07-22",
   sourceRepository: "https://github.com/siewhean/AltTabMac",
   developerProfile: "https://github.com/siewhean",
@@ -35,7 +37,7 @@ export const productFacts = {
   quickActions: ["Hide app", "Minimize window", "Close window", "Quit app"],
   appTelemetry: {
     cadence:
-      "An activation event is sent when the app starts, followed by an hourly heartbeat while it remains running.",
+      "Optional app telemetry is off by default. If enabled, an activation event is sent when the app starts, followed by an hourly heartbeat while it remains running.",
     events: ["App activation", "Hourly heartbeat", "Trial started", "License activated"],
     fields: [
       "Pseudonymous install identifier",

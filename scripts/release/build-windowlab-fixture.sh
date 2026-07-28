@@ -4,11 +4,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SOURCE="${ROOT_DIR}/Tests/Fixtures/WindowLab/main.swift"
 OUTPUT_APP="${CMDTAB_WINDOWLAB_OUTPUT_APP:-${ROOT_DIR}/dist/fixtures/WindowLab.app}"
-SCRATCH="${CMDTAB_WINDOWLAB_SCRATCH:-$(mktemp -d /tmp/cmdtab-windowlab.XXXXXX)}"
+OWNS_SCRATCH=0
+if [[ -n "${CMDTAB_WINDOWLAB_SCRATCH:-}" ]]; then
+  SCRATCH="${CMDTAB_WINDOWLAB_SCRATCH}"
+else
+  SCRATCH="$(mktemp -d /tmp/cmdtab-windowlab.XXXXXX)"
+  OWNS_SCRATCH=1
+fi
 BINARY="${SCRATCH}/WindowLab"
 
 cleanup() {
-  if [[ "${CMDTAB_KEEP_WINDOWLAB_SCRATCH:-0}" != "1" ]]; then
+  if [[ "${OWNS_SCRATCH}" == "1" &&
+        "${CMDTAB_KEEP_WINDOWLAB_SCRATCH:-0}" != "1" ]]; then
     rm -rf "${SCRATCH}"
   fi
 }
@@ -19,7 +26,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
   exit 1
 fi
 
-for tool in swiftc codesign plutil shasum; do
+for tool in swiftc codesign plutil shasum python3; do
   command -v "${tool}" >/dev/null 2>&1 || {
     echo "Missing required tool: ${tool}" >&2
     exit 1
@@ -31,9 +38,20 @@ done
   exit 1
 }
 
+OUTPUT_APP="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${OUTPUT_APP}")"
+case "${OUTPUT_APP}" in
+  "${ROOT_DIR}"/dist/*.app|/tmp/*.app|/private/tmp/*.app) ;;
+  *)
+    echo "WindowLab output must be an .app under repository dist/ or /tmp." >&2
+    exit 1
+    ;;
+esac
+
 mkdir -p "${SCRATCH}" "$(dirname "${OUTPUT_APP}")"
+ARCHITECTURE="$(uname -m)"
 swiftc \
   -O \
+  -target "${ARCHITECTURE}-apple-macosx13.0" \
   -framework AppKit \
   -framework Foundation \
   -Xlinker -reproducible \
@@ -76,3 +94,4 @@ codesign --verify --strict --verbose=2 "${OUTPUT_APP}"
 printf 'Packaged fixture: %s\n' "${OUTPUT_APP}"
 printf 'Scenarios: standard minimized duplicate-titles fullscreen floating-panel delayed-focus unresponsive\n'
 printf 'Launch example: open %q --args minimized\n' "${OUTPUT_APP}"
+printf 'Performance example: open %q --args standard --window-count 50\n' "${OUTPUT_APP}"
