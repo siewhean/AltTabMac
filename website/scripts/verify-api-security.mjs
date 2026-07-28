@@ -46,7 +46,7 @@ const outboxCron = vercelConfig.crons?.find(
   (cron) => cron.path === "/api/internal/license-outbox",
 );
 assert.ok(outboxCron, "license outbox retry cron is missing");
-assert.equal(outboxCron.schedule, "*/5 * * * *");
+assert.equal(outboxCron.schedule, "15 2 * * *");
 
 for (const path of [
   "src/lib/license-api.ts",
