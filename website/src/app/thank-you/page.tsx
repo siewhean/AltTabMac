@@ -1,17 +1,15 @@
-import { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SectionShell } from "@/components/ui/section-shell";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = {
+export const metadata = createPageMetadata({
   title: "Thank You for Purchasing CmdTab — Next-Generation Window Switcher for Mac",
   description: "Your purchase is complete. Activate CmdTab on your Mac with one click.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+  path: "/thank-you",
+  noIndex: true,
+});
 
 export default function ThankYouPage({
   searchParams,
