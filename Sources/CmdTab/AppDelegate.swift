@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Darwin
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -7,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     private var screenTopologyObserver: ScreenTopologyObserver?
+    private var licensingObserver: AnyCancellable?
+    private let trialNotificationCoordinator = TrialNotificationCoordinator()
     var switcher: ProductionSwitcherWindowController!
     var hotkeyManager: ProfileHotkeyManager!
     var menuBar: MenuBarController!
@@ -69,6 +72,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AppTelemetryReporter.shared.startSession(licensingController: LicensingController.shared)
+        licensingObserver = LicensingController.shared.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.refreshTrialNotifications()
+            }
+        }
+        refreshTrialNotifications()
 
         NotificationCenter.default.addObserver(
             self,
@@ -106,6 +115,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             profileID: profileID,
             preserveExisting: switcher?.isVisible == true
         )
+    }
+
+    private func refreshTrialNotifications() {
+        LicensingController.shared.refreshStatus()
+        trialNotificationCoordinator.refresh(for: LicensingController.shared.status)
     }
 
     private func acquireSingletonLock() -> Bool {
@@ -155,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         NotificationCenter.default.removeObserver(self)
+        licensingObserver = nil
         SwitcherSessionConfigurationFreeze.shared.end()
         screenTopologyObserver = nil
         focusedWindowHistoryObserver = nil
@@ -181,6 +196,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         onboardingWindowController?.refreshPermissions()
+        refreshTrialNotifications()
         Task { @MainActor [weak self] in
             await self?.menuBar?.refreshLicenseAuthorization()
         }
