@@ -94,7 +94,13 @@ export function HeroSection() {
             className="hero-enter relative ml-auto w-full max-w-[820px]"
             style={{ "--enter-delay": "240ms" } as CSSProperties}
           >
-            <ShowcaseVideo asset={overview} priority showCaption={false} loopPlayback />
+            <ShowcaseVideo
+              asset={overview}
+              priority
+              showCaption={false}
+              showOverlay={false}
+              loopPlayback
+            />
           </div>
         </div>
       </div>
