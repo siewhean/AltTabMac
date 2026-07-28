@@ -99,4 +99,22 @@ assert.match(lifecycle, /limit 100/);
 assert.match(lifecycle, /attempts < 8/);
 assert.match(lifecycle, /2 \*\* Math\.min\(attempts, 10\)/);
 
+// A nonce-based strict CSP cannot protect a statically prerendered App Router
+// page: build-time framework scripts have no request nonce and are blocked in
+// production. The root layout must therefore keep every inherited page dynamic.
+const proxy = read("src/proxy.ts");
+const csp = read("src/lib/content-security-policy.ts");
+const layout = read("src/app/layout.tsx");
+const globalStyles = read("src/app/globals.css");
+assert.match(proxy, /requestHeaders\.set\("x-nonce", nonce\)/);
+assert.match(proxy, /requestHeaders\.set\("Content-Security-Policy", policy\)/);
+assert.match(csp, /script-src 'self' 'nonce-\$\{nonce\}' 'strict-dynamic'/);
+if (/\.motion-reveal\s*\{[\s\S]*?opacity:\s*0/.test(globalStyles)) {
+  assert.match(
+    layout,
+    /export const dynamic = "force-dynamic"/,
+    "nonce-protected pages with hydration-dependent hidden content must be dynamically rendered",
+  );
+}
+
 console.log("API security source verification passed");
