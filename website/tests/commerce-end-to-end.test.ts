@@ -46,7 +46,9 @@ test("verified paid order flows through licence email to a device-bound offline 
     },
     async enqueueLicenseEmail(input) {
       const licenseKey = input.payload.licenseKey;
-      assert.equal(typeof licenseKey, "string");
+      if (typeof licenseKey !== "string") {
+        throw new TypeError("purchase email payload must contain a licence key");
+      }
       deliveredEmail = renderLicenseDeliveryEmail({
         email: input.recipientEmail,
         name:
