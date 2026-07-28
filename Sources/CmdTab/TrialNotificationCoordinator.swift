@@ -81,21 +81,25 @@ final class TrialNotificationCoordinator {
 
         guard !plan.reminders.isEmpty else { return }
         center.getNotificationSettings { [weak self] settings in
-            guard let self else { return }
-            switch settings.authorizationStatus {
-            case .authorized, .provisional:
-                self.schedule(plan)
-            case .notDetermined:
-                self.center.requestAuthorization(options: [.alert, .sound]) {
-                    granted,
-                    _ in
-                    guard granted else { return }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                switch settings.authorizationStatus {
+                case .authorized, .provisional:
                     self.schedule(plan)
+                case .notDetermined:
+                    self.center.requestAuthorization(options: [.alert, .sound]) {
+                        granted,
+                        _ in
+                        guard granted else { return }
+                        Task { @MainActor [weak self] in
+                            self?.schedule(plan)
+                        }
+                    }
+                case .denied, .ephemeral:
+                    break
+                @unknown default:
+                    break
                 }
-            case .denied, .ephemeral:
-                break
-            @unknown default:
-                break
             }
         }
     }
