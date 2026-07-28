@@ -1,8 +1,15 @@
 import { createPageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/json-ld";
+import { createBreadcrumbStructuredData } from "@/lib/structured-data";
 import Link from "next/link";
 import { Suspense } from "react";
 import { SectionShell } from "@/components/ui/section-shell";
 import { Button } from "@/components/ui/button";
+
+const breadcrumbs = [
+  { name: "Home", path: "/" as const },
+  { name: "Thank You", path: "/thank-you" as const },
+];
 
 export const metadata = createPageMetadata({
   title: "Thank You for Purchasing CmdTab — Next-Generation Window Switcher for Mac",
@@ -17,9 +24,12 @@ export default function ThankYouPage({
   searchParams: Promise<{ key?: string }>;
 }) {
   return (
-    <Suspense fallback={<ThankYouLoading />}>
-      <ThankYouContent searchParams={searchParams} />
-    </Suspense>
+    <main>
+      <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
+      <Suspense fallback={<ThankYouLoading />}>
+        <ThankYouContent searchParams={searchParams} />
+      </Suspense>
+    </main>
   );
 }
 
