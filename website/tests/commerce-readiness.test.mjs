@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   shouldRequireCommerceReadiness,
   validateCommerceEnvironment,
 } from "../scripts/verify-commerce-readiness.mjs";
+
+const verifierPath = fileURLToPath(
+  new URL("../scripts/verify-commerce-readiness.mjs", import.meta.url),
+);
 
 function validEnvironment() {
   return {
@@ -74,4 +80,26 @@ test("readiness enforcement is automatic in production and opt-in elsewhere", ()
     }),
     true,
   );
+});
+
+test("readiness CLI fails closed for an incomplete forced deployment", () => {
+  const result = spawnSync(process.execPath, [verifierPath], {
+    env: { CMDTAB_REQUIRE_COMMERCE_READY: "1" },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Production commerce configuration is incomplete/);
+  assert.match(result.stderr, /NEXT_PUBLIC_CHECKOUT_URL/);
+  assert.match(result.stderr, /CMDTAB_LICENSE_KMS_KEY_ID/);
+});
+
+test("readiness CLI succeeds for a complete production environment", () => {
+  const result = spawnSync(process.execPath, [verifierPath], {
+    env: validEnvironment(),
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /Production commerce readiness verification passed/);
 });
