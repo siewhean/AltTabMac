@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Darwin
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var singletonLockFileDescriptor: Int32 = -1
@@ -119,12 +120,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    @MainActor
     private func refreshTrialNotifications() {
         trialNotificationCoordinator.refresh(for: LicensingController.shared.status)
     }
 
-    @MainActor
     private func processPendingActivationDeepLink() {
         guard let link = pendingActivationDeepLink,
               preferencesWindowController != nil else {
