@@ -10,7 +10,7 @@
   "packageType": "APPL",
   "agentApplication": true,
   "highResolutionCapable": true,
-  "architecturePolicy": "native-host-only-until-universal-build-is-verified",
+  "architecturePolicy": "universal-arm64-x86_64",
   "distributionChannel": "developer-id-direct",
   "updateChannel": "stable",
   "sparkleVersion": "2.9.2",
