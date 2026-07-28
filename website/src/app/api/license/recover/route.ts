@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   try {
     const payload = recoverLicenseSchema.parse(await readBoundedJson(request));
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip: getIngestClient(request).ip,
       userAgent: request.headers.get("user-agent") ?? "unknown",
