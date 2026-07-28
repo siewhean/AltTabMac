@@ -1,30 +1,39 @@
-import { timingSafeEqual } from "node:crypto";
-
-import { getLicenseLifecycleEnv } from "@/lib/env";
+import { optionalStrongInternalSecret, getLicenseLifecycleEnv } from "@/lib/env";
+import { isAuthorizedInternalWorker } from "@/lib/internal-worker-auth";
 import { licenseJson } from "@/lib/license-api";
 import { processLicenseOutbox } from "@/lib/license-outbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function authorized(request: Request, secret: string) {
-  const provided = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  const expectedBytes = Buffer.from(secret);
-  const providedBytes = Buffer.from(provided);
-  return (
-    expectedBytes.length === providedBytes.length &&
-    timingSafeEqual(expectedBytes, providedBytes)
-  );
-}
-
-export async function POST(request: Request) {
-  const secret = getLicenseLifecycleEnv().outboxSecret;
-  if (!secret || !authorized(request, secret)) {
+async function runOutbox(request: Request, secret: string | null | undefined) {
+  if (!isAuthorizedInternalWorker(request, secret)) {
     return licenseJson(
       { ok: false, code: "unauthorized", message: "Unauthorized." },
       401,
     );
   }
+
   const result = await processLicenseOutbox(25);
   return licenseJson({ ok: true, ...result });
+}
+
+/**
+ * Vercel Cron invokes configured paths with GET and sends CRON_SECRET as a
+ * Bearer token. This keeps failed purchase/recovery emails moving without
+ * relying on Lemon Squeezy to retry the original webhook.
+ */
+export async function GET(request: Request) {
+  return runOutbox(
+    request,
+    optionalStrongInternalSecret(process.env.CRON_SECRET),
+  );
+}
+
+/**
+ * Manual/operational worker invocation remains available behind its separate
+ * high-entropy secret.
+ */
+export async function POST(request: Request) {
+  return runOutbox(request, getLicenseLifecycleEnv().outboxSecret);
 }
