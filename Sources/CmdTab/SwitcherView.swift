@@ -39,19 +39,79 @@ final class ClickableHostingView<Content: View>: NSHostingView<Content> {
 struct SwitcherView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
+    @ObservedObject private var featureHints = SwitcherFeatureHintStore.shared
 
     var body: some View {
-        Group {
-            switch preferences.switcherStyle {
-            case .classicGrid:
-                ClassicGridView(viewModel: viewModel)
-            case .commandPalette:
-                CommandPaletteView(viewModel: viewModel)
-            case .radialMenu:
-                RadialMenuView(viewModel: viewModel)
+        ZStack(alignment: .bottom) {
+            Group {
+                switch preferences.switcherStyle {
+                case .classicGrid:
+                    ClassicGridView(viewModel: viewModel)
+                case .commandPalette:
+                    CommandPaletteView(viewModel: viewModel)
+                case .radialMenu:
+                    RadialMenuView(viewModel: viewModel)
+                }
+            }
+            .id(preferences.switcherStyle)
+
+            if let hint = featureHints.visibleHint {
+                SwitcherFeatureHintBanner(hint: hint)
+                    .padding(.bottom, 16)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .allowsHitTesting(false)
             }
         }
-        .id(preferences.switcherStyle)
+        .animation(.easeOut(duration: 0.18), value: featureHints.visibleHint?.id)
+        .onAppear {
+            featureHints.presentHint(for: preferences.switcherStyle)
+        }
+        .onChange(of: preferences.switcherStyle) { style in
+            featureHints.presentHint(for: style)
+        }
+        .onDisappear {
+            featureHints.dismiss()
+        }
+        .task(id: featureHints.visibleHint?.id) {
+            guard featureHints.visibleHint != nil else { return }
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            featureHints.dismiss()
+        }
+    }
+}
+
+private struct SwitcherFeatureHintBanner: View {
+    let hint: SwitcherFeatureHint
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "lightbulb.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(hint.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(hint.message)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 520, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.24), radius: 18, y: 8)
+        )
     }
 }
 
