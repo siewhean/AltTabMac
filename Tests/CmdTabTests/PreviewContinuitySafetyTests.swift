@@ -63,6 +63,33 @@ final class PreviewContinuitySafetyTests: XCTestCase {
         XCTAssertNil(expired.preview)
     }
 
+    func testExactMetadataKeyCannotCrossProcessGeneration() {
+        let image = NSImage(size: NSSize(width: 120, height: 90))
+        let capturedAt = Date(timeIntervalSince1970: 200)
+        let exactKey = "same-pid-window-title-frame"
+
+        _ = SwitcherPreviewContinuityStore.resolve(
+            key: exactKey,
+            identityKey: "app-window:77:700|com.example.gpu|launch-1",
+            preview: image,
+            backdrop: image,
+            captureAccessAllowed: true,
+            now: capturedAt
+        )
+
+        let restartedProcess = SwitcherPreviewContinuityStore.resolve(
+            key: exactKey,
+            identityKey: "app-window:77:700|com.example.gpu|launch-2",
+            preview: nil,
+            backdrop: nil,
+            captureAccessAllowed: true,
+            now: Date(timeIntervalSince1970: 205)
+        )
+
+        XCTAssertNil(restartedProcess.preview)
+        XCTAssertNil(restartedProcess.backdrop)
+    }
+
     func testPermissionDenialRequiresStableFalseSignalAndSuccessfulAccessResetsIt() {
         let start = Date(timeIntervalSince1970: 1_000)
 
