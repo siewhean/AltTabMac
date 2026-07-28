@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 
@@ -15,8 +17,12 @@ import {
 import { issueCmdTabTokenV2 } from "@/lib/license-signing";
 
 const MAX_REQUEST_BODY_BYTES = 4 * 1024;
+const optionalEmailSchema = z.union([
+  z.string().trim().email().max(320),
+  z.literal(""),
+]).optional();
 const payloadSchema = z.object({
-  email: z.string().trim().email().max(320),
+  email: optionalEmailSchema,
   installId: z.string().trim().regex(/^[a-f0-9]{64}$/),
   appVersion: z.string().trim().max(80).optional(),
   osVersion: z.string().trim().max(80).optional(),
@@ -24,6 +30,14 @@ const payloadSchema = z.object({
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function anonymousTrialSubject(installId: string) {
+  const digest = createHash("sha256")
+    .update(`cmdtab-anonymous-trial:${installId}`)
+    .digest("hex")
+    .slice(0, 32);
+  return `anonymous+${digest}@trial.cmdtab.invalid`;
+}
 
 async function sendTrialStartedEmail(input: {
   email: string;
@@ -66,8 +80,10 @@ export async function POST(request: Request) {
     const payload = payloadSchema.parse(
       await readBoundedJson(request, MAX_REQUEST_BODY_BYTES),
     );
+    const contactEmail = payload.email?.trim().toLowerCase() || undefined;
+    const claimSubject = contactEmail ?? anonymousTrialSubject(payload.installId);
     const result = await createOrGetTrialClaim({
-      email: payload.email,
+      email: claimSubject,
       installId: payload.installId,
       appVersion: payload.appVersion,
       osVersion: payload.osVersion,
@@ -79,7 +95,7 @@ export async function POST(request: Request) {
         {
           ok: false,
           code: "trial_unavailable",
-          message: "A CmdTab trial is already registered for these details.",
+          message: "A CmdTab trial is already registered for this Mac or email.",
         },
         { status: 409 },
       );
@@ -98,10 +114,10 @@ export async function POST(request: Request) {
     });
 
     let notificationDelivered = false;
-    if (result.kind === "created") {
+    if (result.kind === "created" && contactEmail) {
       try {
         await sendTrialStartedEmail({
-          email: result.claim.email,
+          email: contactEmail,
           startedAt: result.claim.startedAt,
           endsAt: result.claim.endsAt,
         });
@@ -114,6 +130,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       alreadyRegistered: result.kind === "existing",
+      anonymous: !contactEmail,
       notificationDelivered,
       claim: result.claim,
       entitlementToken: entitlement.token,
