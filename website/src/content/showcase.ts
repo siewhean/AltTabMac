@@ -37,7 +37,7 @@ export const showcaseAssets: ReadonlyArray<ShowcaseAsset> = [
     description:
       "A sharp HD product composite introduces Classic Grid, Command Palette, Radial Menu, and Quick Actions using current interface geometry and controlled fixture windows.",
     transcript:
-      "The clip opens on Classic Grid and moves the selected exact-window tile. It changes to Command Palette and narrows the visible fixture set with a local query. It then presents Radial Menu before ending with a selected fixture target leaving the grid after a Quick Action annotation.",
+      "The clip opens on Classic Grid and moves the selected exact-window tile. It changes to Command Palette and narrows the visible fixture set with a local query. It then presents Radial Menu before ending with a selected fixture target leaving the grid after a Quick Action.",
     poster: "/showcase/overview-poster.webp",
     video: "/showcase/overview.mp4",
     durationSeconds: 4.8,
@@ -101,9 +101,9 @@ export const showcaseAssets: ReadonlyArray<ShowcaseAsset> = [
     title: "Quick Actions selected-item mutation",
     eyebrow: "Quick Actions",
     description:
-      "A sharp HD product composite shows a selected fixture target leaving the grid after a capture-only Command-W annotation.",
+      "A sharp HD product composite shows a selected fixture target leaving the grid after a close Quick Action.",
     transcript:
-      "A controlled fixture window is selected in the grid. A capture-only Command-W badge explains the close action. The selected target leaves and the remaining fixture cards reflow.",
+      "A controlled fixture window is selected in the grid. The close action is applied, the selected target leaves, and the remaining fixture cards reflow.",
     poster: "/showcase/quick-actions-poster.webp",
     video: "/showcase/quick-actions.mp4",
     durationSeconds: 4,
