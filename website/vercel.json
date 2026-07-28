@@ -1,5 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
+    {
+      "path": "/api/internal/license-outbox",
+      "schedule": "*/5 * * * *"
+    },
     {
       "path": "/api/trial/reminder",
       "schedule": "0 1 * * *"
