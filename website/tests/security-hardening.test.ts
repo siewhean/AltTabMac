@@ -6,6 +6,7 @@ import { contentSecurityPolicy } from "../src/lib/content-security-policy.js";
 import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
+import { isAuthorizedInternalWorker } from "../src/lib/internal-worker-auth.js";
 import { parseStableReleaseManifest } from "../src/lib/stable-release.js";
 
 test("Tab and Shift-Tab escape the switcher demo", () => {
@@ -24,6 +25,44 @@ test("constant-time secret comparison handles unequal lengths without an early r
   assert.equal(constantTimeEqual("correct horse", "correct horse"), true);
   assert.equal(constantTimeEqual("short", "a considerably longer secret"), false);
   assert.equal(constantTimeEqual("same-length-a", "same-length-b"), false);
+});
+
+test("internal workers require an exact Bearer secret", () => {
+  const secret = "a-secure-random-worker-secret-value-1234";
+  assert.equal(
+    isAuthorizedInternalWorker(
+      new Request("https://cmdtab.net/api/internal/license-outbox", {
+        headers: { authorization: `Bearer ${secret}` },
+      }),
+      secret,
+    ),
+    true,
+  );
+  assert.equal(
+    isAuthorizedInternalWorker(
+      new Request("https://cmdtab.net/api/internal/license-outbox", {
+        headers: { authorization: "Bearer wrong" },
+      }),
+      secret,
+    ),
+    false,
+  );
+  assert.equal(
+    isAuthorizedInternalWorker(
+      new Request("https://cmdtab.net/api/internal/license-outbox"),
+      secret,
+    ),
+    false,
+  );
+  assert.equal(
+    isAuthorizedInternalWorker(
+      new Request("https://cmdtab.net/api/internal/license-outbox", {
+        headers: { authorization: `Bearer ${secret}` },
+      }),
+      undefined,
+    ),
+    false,
+  );
 });
 
 test("production CSP uses a nonce instead of unsafe-inline scripts", () => {
