@@ -95,7 +95,7 @@ final class TrialNotificationCoordinator {
                             self?.schedule(plan)
                         }
                     }
-                case .denied, .ephemeral:
+                case .denied:
                     break
                 @unknown default:
                     break
