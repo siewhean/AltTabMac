@@ -74,6 +74,26 @@ class ReleaseManifestTests(unittest.TestCase):
             )
         )
 
+    def test_private_secret_path_detection(self) -> None:
+        self.assertTrue(
+            verify_workflow_actions.is_private_secret_path(".secrets/token")
+        )
+        self.assertTrue(
+            verify_workflow_actions.is_private_secret_path(
+                "website/.secrets/signing-key.pem"
+            )
+        )
+        self.assertFalse(
+            verify_workflow_actions.is_private_secret_path(
+                "website/.env.example"
+            )
+        )
+        self.assertFalse(
+            verify_workflow_actions.is_private_secret_path(
+                "docs/secrets-management.md"
+            )
+        )
+
     def test_release_signing_requires_clean_untracked_state_and_notarized_dmg(self) -> None:
         notarized_build = (
             ROOT / "scripts" / "release" / "build-notarized-dmg.sh"
