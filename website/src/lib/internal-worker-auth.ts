@@ -1,4 +1,4 @@
-import { constantTimeEqual } from "@/lib/constant-time";
+import { constantTimeEqual } from "./constant-time";
 
 function bearerToken(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
