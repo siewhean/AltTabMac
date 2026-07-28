@@ -25,6 +25,28 @@ assert.match(activation, /"license-activation"/);
 const webhook = read("src/app/api/lemonsqueezy/webhook/route.ts");
 assert.match(webhook, /readBoundedText\(request, MAX_WEBHOOK_BODY_BYTES\)/);
 assert.doesNotMatch(webhook, /await request\.text\(\)/);
+assert.match(webhook, /issuePurchaseActivationCredential\(\)/);
+assert.match(webhook, /enqueueLicenseEmail\(/);
+assert.match(webhook, /processLicenseOutbox\(1\)/);
+
+const outboxRoute = read("src/app/api/internal/license-outbox/route.ts");
+assert.match(outboxRoute, /export async function GET\(request: Request\)/);
+assert.match(outboxRoute, /process\.env\.CRON_SECRET/);
+assert.match(outboxRoute, /export async function POST\(request: Request\)/);
+assert.match(outboxRoute, /getLicenseLifecycleEnv\(\)\.outboxSecret/);
+assert.match(outboxRoute, /isAuthorizedInternalWorker\(request, secret\)/);
+assert.match(outboxRoute, /processLicenseOutbox\(25\)/);
+
+const workerAuth = read("src/lib/internal-worker-auth.ts");
+assert.match(workerAuth, /constantTimeEqual\(bearerToken\(request\), expectedSecret\)/);
+assert.match(workerAuth, /\^Bearer\\s\+\(\.\+\)\$\/i/);
+
+const vercelConfig = JSON.parse(read("vercel.json"));
+const outboxCron = vercelConfig.crons?.find(
+  (cron) => cron.path === "/api/internal/license-outbox",
+);
+assert.ok(outboxCron, "license outbox retry cron is missing");
+assert.equal(outboxCron.schedule, "*/5 * * * *");
 
 for (const path of [
   "src/lib/license-api.ts",
@@ -61,5 +83,7 @@ assert.match(env, /candidate\.length < 32/);
 const lifecycle = read("src/lib/license-lifecycle-store.ts");
 assert.match(lifecycle, /lifecycle_backfilled_at is null/);
 assert.match(lifecycle, /limit 100/);
+assert.match(lifecycle, /attempts < 8/);
+assert.match(lifecycle, /2 \*\* Math\.min\(attempts, 10\)/);
 
 console.log("API security source verification passed");
