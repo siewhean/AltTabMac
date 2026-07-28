@@ -1,7 +1,7 @@
 import {
   issuePurchaseActivationCredential,
   lookupHash,
-} from "@/lib/license-lifecycle-contract";
+} from "./license-lifecycle-contract";
 
 export type PaidPurchaseInput = {
   orderIdentifier: string;
