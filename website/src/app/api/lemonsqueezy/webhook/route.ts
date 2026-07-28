@@ -8,21 +8,11 @@ import {
   readBoundedText,
 } from "@/lib/ingest-request";
 import {
-  createOrGetLicenseFulfillment,
   findLicenseFulfillmentByOrder,
   markLicenseFulfillmentRefunded,
 } from "@/lib/license-fulfillment-store";
-import {
-  classifyOrderRefund,
-  issuePurchaseActivationCredential,
-  lookupHash,
-} from "@/lib/license-lifecycle-contract";
-import {
-  enqueueLicenseEmail,
-  ensureActiveEntitlement,
-  recordOrderAccessState,
-} from "@/lib/license-lifecycle-store";
-import { processLicenseOutbox } from "@/lib/license-outbox";
+import { classifyOrderRefund } from "@/lib/license-lifecycle-contract";
+import { recordOrderAccessState } from "@/lib/license-lifecycle-store";
 import {
   getOrderAttributes,
   isExpectedLemonOrder,
@@ -30,6 +20,13 @@ import {
   type LemonSqueezyOrderWebhook,
   verifyLemonSqueezySignature,
 } from "@/lib/lemonsqueezy";
+import { fulfillPaidPurchase } from "@/lib/purchase-fulfillment";
+import { createOrGetLicenseFulfillment } from "@/lib/license-fulfillment-store";
+import {
+  enqueueLicenseEmail,
+  ensureActiveEntitlement,
+} from "@/lib/license-lifecycle-store";
+import { processLicenseOutbox } from "@/lib/license-outbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -195,80 +192,51 @@ export async function POST(request: Request) {
     return json({ ok: true, handled: false, eventName, requestId, status: attributes.status });
   }
 
-  // New purchases receive a high-entropy exchange credential, never an
-  // offline-authorizing entitlement. Only /api/license/activate can exchange
-  // it for a device-bound CMDTAB2 token.
-  const activationCredential = issuePurchaseActivationCredential();
+  const result = await fulfillPaidPurchase(
+    {
+      orderIdentifier: attributes.identifier,
+      orderNumber: attributes.order_number,
+      eventName,
+      purchaserEmail: attributes.user_email,
+      purchaserName: attributes.user_name,
+      productName: attributes.first_order_item?.product_name,
+      variantName: attributes.first_order_item?.variant_name,
+      receiptUrl: attributes.urls?.receipt,
+      currency: attributes.currency,
+      total: attributes.total ? String(attributes.total) : undefined,
+      totalFormatted: attributes.total_formatted,
+      storeId: attributes.store_id,
+      lemonsqueezyOrderId: payload.data?.id,
+      testMode: Boolean(attributes.test_mode),
+      lookupPepper: env.licenseLookupPepper,
+    },
+    {
+      createOrGetFulfillment: createOrGetLicenseFulfillment,
+      ensureActiveEntitlement,
+      enqueueLicenseEmail,
+      processLicenseOutbox,
+      reportInlineDeliveryFailure(error) {
+        console.error("[CmdTab Website] inline fulfillment attempt failed", error);
+      },
+    },
+  );
 
-  const fulfillment = await createOrGetLicenseFulfillment({
-    orderIdentifier: attributes.identifier,
-    orderNumber: attributes.order_number,
-    eventName,
-    purchaserEmail: attributes.user_email,
-    purchaserName: attributes.user_name,
-    productName: attributes.first_order_item?.product_name,
-    variantName: attributes.first_order_item?.variant_name,
-    receiptUrl: attributes.urls?.receipt,
-    currency: attributes.currency,
-    total: attributes.total ? String(attributes.total) : undefined,
-    totalFormatted: attributes.total_formatted,
-    storeId: attributes.store_id,
-    lemonsqueezyOrderId: payload.data?.id,
-    licenseId: attributes.identifier,
-    licenseToken: activationCredential,
-    orderLookupHash: lookupHash("order", attributes.identifier, env.licenseLookupPepper),
-    licenseLookupHash: lookupHash("license", attributes.identifier, env.licenseLookupPepper),
-    emailLookupHash: lookupHash("email", attributes.user_email, env.licenseLookupPepper),
-    activationCredentialHash: lookupHash(
-      "license",
-      activationCredential,
-      env.licenseLookupPepper,
-    ),
-    testMode: Boolean(attributes.test_mode),
-  });
-  await ensureActiveEntitlement({
-    licenseId: fulfillment.licenseId,
-    orderIdentifier: fulfillment.orderIdentifier,
-    pepper: env.licenseLookupPepper,
-  });
-
-  if (fulfillment.deliveryStatus === "delivered") {
+  if (result.kind === "duplicate") {
     return json({
       ok: true,
       handled: true,
       duplicate: true,
-      orderIdentifier: fulfillment.orderIdentifier,
+      orderIdentifier: result.orderIdentifier,
       requestId,
     });
   }
-
-  await enqueueLicenseEmail({
-    dedupeKey: `purchase:${fulfillment.orderIdentifier}`,
-    kind: "license_delivery",
-    recipientEmail: fulfillment.purchaserEmail,
-    payload: {
-      orderIdentifier: fulfillment.orderIdentifier,
-      licenseKey: fulfillment.licenseToken,
-      productName: fulfillment.productName,
-      receiptUrl: fulfillment.receiptUrl,
-      orderNumber: fulfillment.orderNumber,
-      testMode: fulfillment.testMode,
-      name: fulfillment.purchaserName,
-    },
-  });
-  // Best effort keeps the common case immediate. A protected worker retries
-  // persisted jobs, so provider webhook retries are not the only recovery path.
-  const delivery = await processLicenseOutbox(1).catch((error) => {
-    console.error("[CmdTab Website] inline fulfillment attempt failed", error);
-    return { claimed: 0, delivered: 0, failed: 1 };
-  });
 
   return json({
     ok: true,
     handled: true,
     deliveryQueued: true,
-    delivery,
-    orderIdentifier: fulfillment.orderIdentifier,
+    delivery: result.delivery,
+    orderIdentifier: result.orderIdentifier,
     requestId,
   });
 }
