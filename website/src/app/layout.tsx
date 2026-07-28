@@ -13,6 +13,11 @@ import { createHomeStructuredData } from "@/lib/structured-data";
 
 import "./globals.css";
 
+// A per-request CSP nonce is injected by proxy.ts. Next.js can only attach that
+// nonce to its framework and hydration scripts during dynamic rendering; static
+// prerendering would emit nonce-less scripts that production CSP correctly blocks.
+export const dynamic = "force-dynamic";
+
 const siteUrl = getSiteUrl();
 const defaultTitle = `${siteConfig.name} macOS window switcher for individual windows and search`;
 const defaultShowcasePoster = "/showcase/overview-poster.webp";
