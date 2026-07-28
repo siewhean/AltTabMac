@@ -45,7 +45,7 @@ struct LicensingPreferencesPane: View {
     private var statusCard: some View {
         LicensingCard(
             title: "License Status",
-            subtitle: "CmdTab starts with a server-backed 14-day trial, then unlocks permanently with a signed license."
+            subtitle: "CmdTab starts with a server-signed 14-day trial. Email is optional and is used only for reminders."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .center, spacing: 14) {
@@ -107,18 +107,19 @@ struct LicensingPreferencesPane: View {
         LicensingCard(
             title: controller.status.requiresTrialRegistration ? "Start your 14-day trial" : "Activate This Mac",
             subtitle: controller.status.requiresTrialRegistration
-                ? "Register this Mac with your email before you use CmdTab. This prevents trial abuse across resets and reinstalls."
-                : "Paste the signed license key from your purchase email to unlock CmdTab on this Mac."
+                ? "Start on this Mac immediately. Add an email only when you want an expiry reminder."
+                : "Open the one-click link from your purchase email, or paste the activation credential below."
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 if controller.status.requiresTrialRegistration {
-                    Text("Email")
+                    Text("Email for reminders (optional)")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
 
-                    TextField("you@mac.com", text: $controller.enteredTrialEmail)
+                    TextField("you@mac.com (optional)", text: $controller.enteredTrialEmail)
                         .textFieldStyle(.roundedBorder)
                         .frame(height: 32)
+                        .accessibilityLabel("Optional email for trial reminders")
 
                     Button(action: {
                         Task {
@@ -136,6 +137,11 @@ struct LicensingPreferencesPane: View {
                     .buttonStyle(.borderedProminent)
                     .tint(.blue)
                     .disabled(controller.isStartingTrial)
+
+                    Text("Leave the field blank to start without sharing an email. Local trial warnings still appear in CmdTab.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.52))
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if let message = controller.trialMessage {
                         LicensingInlineMessage(message: message)
@@ -294,7 +300,7 @@ struct LicensingPreferencesPane: View {
         case .licensed:
             return "checkmark.seal.fill"
         case .unregistered:
-            return "envelope.badge"
+            return "timer"
         case .activeTrial:
             return "timer"
         case .expired:
