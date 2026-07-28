@@ -9,6 +9,7 @@ import {
   refreshedAdminSessionClaims,
   validateAdminSessionToken,
 } from "@/lib/admin-session-token";
+import { contentSecurityPolicy } from "@/lib/content-security-policy";
 
 const PUBLIC_DASHBOARD_PATHS = new Set([
   "/dashboard/login",
@@ -19,29 +20,6 @@ const PUBLIC_DASHBOARD_PATHS = new Set([
 
 function getProxySessionPolicy() {
   return getProxyAdminSessionPolicy();
-}
-
-function contentSecurityPolicy(nonce: string) {
-  const developmentScriptPolicy =
-    process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
-  return [
-    "default-src 'self'",
-    "base-uri 'self'",
-    `connect-src 'self'${process.env.NODE_ENV === "production" ? "" : " ws: wss:"}`,
-    "font-src 'self' data:",
-    "frame-src 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "img-src 'self' data: blob:",
-    "manifest-src 'self'",
-    "media-src 'self' blob:",
-    "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptPolicy}`,
-    `style-src-elem 'self' 'nonce-${nonce}'`,
-    "style-src-attr 'unsafe-inline'",
-    "worker-src 'self' blob:",
-    "upgrade-insecure-requests",
-  ].join("; ");
 }
 
 function responseWithSecurityHeaders(
