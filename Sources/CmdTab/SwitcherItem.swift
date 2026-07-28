@@ -109,7 +109,7 @@ enum SwitcherPreviewContinuityStore {
         )
 
         guard captureAccessAllowed else {
-            entriesByExactKey.removeValue(forKey: exactIdentityKey)
+            removeExactEntry(forKey: exactIdentityKey)
             entriesByIdentity.removeValue(forKey: identityKey)
             return ResolvedImages(preview: nil, backdrop: nil)
         }
@@ -160,6 +160,10 @@ enum SwitcherPreviewContinuityStore {
         identityKey: String
     ) -> String {
         "\(identityKey)||\(exactKey)"
+    }
+
+    private static func removeExactEntry(forKey key: String) {
+        entriesByExactKey.removeValue(forKey: key)
     }
 
     private static func pruneLocked(now: Date) {
