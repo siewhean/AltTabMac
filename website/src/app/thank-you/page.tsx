@@ -58,6 +58,7 @@ async function ThankYouContent({
   return (
     <SectionShell
       headingAs="h1"
+      breadcrumbs={breadcrumbs}
       eyebrow="Purchase Complete"
       title="Thank you for choosing CmdTab!"
       description="Your license key is ready. Activate it directly in the app or copy it below."
