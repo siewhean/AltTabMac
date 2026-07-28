@@ -99,8 +99,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-cyan focus:p-3 focus:font-semibold focus:text-slate-950">
+          Skip to main content
+        </a>
         <JsonLd data={createHomeStructuredData()} />
-        {children}
+        <div id="main-content">{children}</div>
         <SitePageTracker />
         <SiteEventTracker />
         <Analytics />

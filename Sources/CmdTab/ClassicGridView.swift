@@ -150,6 +150,9 @@ struct ClassicItemCardView: View {
         .contentShape(Rectangle())
         .scaleEffect(isSelected ? 1.04 : 1.0)
         .animation(.spring(response: 0.16, dampingFraction: 0.78), value: isSelected)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title), \(item.subtitle)")
+        .accessibilityHint(isSelected ? "Currently selected window" : "Select to switch to window")
     }
 
     @ViewBuilder

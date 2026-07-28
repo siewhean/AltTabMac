@@ -15,6 +15,19 @@ final class SwitcherPreferences: ObservableObject {
     private let alternateTriggerKey = "alternateTrigger"
     private let excludedAppsKey = "excludedAppsText"
     private let ignoredWindowTitlesKey = "ignoredWindowTitlesText"
+    private let isTelemetryOptedInKey = "isTelemetryOptedIn"
+    private let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+    private let showQuickActionHintsKey = "showQuickActionHints"
+
+    /// Opt-in flag for anonymous app analytics & crash telemetry. Defaults to false (disabled).
+    @Published var isTelemetryOptedIn: Bool {
+        didSet { persist(isTelemetryOptedIn, forKey: isTelemetryOptedInKey) }
+    }
+
+    /// True if the user has completed or dismissed the first-launch onboarding window.
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { persist(hasCompletedOnboarding, forKey: hasCompletedOnboardingKey) }
+    }
 
     @Published var windowVisibilityScope: WindowVisibilityScope {
         didSet {
@@ -41,6 +54,11 @@ final class SwitcherPreferences: ObservableObject {
     /// Show the selected window preview behind the switcher surface.
     @Published var showSelectedPreviewBackdrop: Bool {
         didSet { persist(showSelectedPreviewBackdrop, forKey: showSelectedPreviewBackdropKey) }
+    }
+
+    /// Show quick action shortcut hints at the bottom of the switcher interface.
+    @Published var showQuickActionHints: Bool {
+        didSet { persist(showQuickActionHints, forKey: showQuickActionHintsKey) }
     }
 
     /// Which UI presentation style to use for the switcher overlay.
@@ -81,6 +99,7 @@ final class SwitcherPreferences: ObservableObject {
         self.maxWindowsPerApp = defaults.object(forKey: maxWindowsPerAppKey) as? Int ?? 0
         self.enableVibrancy = defaults.object(forKey: enableVibrancyKey) as? Bool ?? true
         self.showSelectedPreviewBackdrop = defaults.object(forKey: showSelectedPreviewBackdropKey) as? Bool ?? false
+        self.showQuickActionHints = defaults.object(forKey: showQuickActionHintsKey) as? Bool ?? true
         self.switcherStyle = defaults.string(forKey: switcherStyleKey)
             .flatMap(SwitcherStyle.init(rawValue:)) ?? .classicGrid
         self.displayPlacement = defaults.string(forKey: displayPlacementKey)
@@ -89,6 +108,8 @@ final class SwitcherPreferences: ObservableObject {
             .flatMap(AlternateTriggerMode.init(rawValue:)) ?? .disabled
         self.excludedAppsText = defaults.string(forKey: excludedAppsKey) ?? ""
         self.ignoredWindowTitlesText = defaults.string(forKey: ignoredWindowTitlesKey) ?? ""
+        self.isTelemetryOptedIn = defaults.object(forKey: isTelemetryOptedInKey) as? Bool ?? false
+        self.hasCompletedOnboarding = defaults.object(forKey: hasCompletedOnboardingKey) as? Bool ?? false
     }
 
     private func persist(_ value: Any, forKey key: String) {

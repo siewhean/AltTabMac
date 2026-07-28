@@ -162,16 +162,25 @@ final class LicensingController: ObservableObject {
         }
     }
 
+    nonisolated static let didChangeNotification = Notification.Name("LicensingController.didChange")
+
     func refreshStatus() {
+        let oldStatus = status
         let now = currentDate()
 
         if let cachedPayload = payloadCacheStore.loadPayload() {
             status = .licensed(payload: cachedPayload, activatedAt: activationMetadataStore.loadActivationDate())
+            if status != oldStatus {
+                NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+            }
             return
         }
 
         if let overrideStatus = developerOverrideStatus(now: now) {
             status = overrideStatus
+            if status != oldStatus {
+                NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+            }
             return
         }
 
@@ -189,10 +198,16 @@ final class LicensingController: ObservableObject {
                 let overdue = max(1, Calendar.current.dateComponents([.day], from: endsAt, to: now).day ?? 1)
                 status = .expired(startedAt: startedAt, endedAt: endsAt, daysOverdue: overdue)
             }
+            if status != oldStatus {
+                NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+            }
             return
         }
 
         status = .unregistered
+        if status != oldStatus {
+            NotificationCenter.default.post(name: Self.didChangeNotification, object: self)
+        }
     }
 
     @discardableResult
@@ -226,12 +241,31 @@ final class LicensingController: ObservableObject {
             AppTelemetryReporter.shared.trackTrialStarted(licensingController: self)
             return true
         } catch {
+            if case let CmdTabServerClientError.blocked(message) = error {
+                trialMessage = LicensingMessage(tone: .error, text: message)
+                refreshStatus()
+                return false
+            }
+
+            let startedDate = currentDate()
+            let endsDate = Calendar.current.date(byAdding: .day, value: 14, to: startedDate) ?? startedDate.addingTimeInterval(14 * 86400)
+            let provisionalClaim = TrialClaimRecord(
+                id: "local_offline_\(UUID().uuidString.lowercased())",
+                email: normalizedEmail,
+                installID: installID,
+                startedAt: iso8601.string(from: startedDate),
+                endsAt: iso8601.string(from: endsDate),
+                appVersion: appVersion,
+                osVersion: osVersion
+            )
+            trialClaimStore.saveClaim(provisionalClaim)
+            enteredTrialEmail = normalizedEmail
             trialMessage = LicensingMessage(
-                tone: .error,
-                text: (error as? LocalizedError)?.errorDescription ?? "We could not start the trial right now."
+                tone: .warning,
+                text: "Offline: Started local 14-day trial. Registration will sync when online."
             )
             refreshStatus()
-            return false
+            return true
         }
     }
 
@@ -306,10 +340,22 @@ final class LicensingController: ObservableObject {
         activateLicense(enteredLicenseKey)
     }
 
+    static func isValidKeyFormat(_ key: String) -> Bool {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 8, trimmed.count <= 2048 else { return false }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./+=:"))
+        return trimmed.unicodeScalars.allSatisfy { allowed.contains($0) }
+    }
+
     @discardableResult
     func activateLicense(_ value: String) -> Bool {
         do {
             let normalized = normalizeToken(value)
+            guard Self.isValidKeyFormat(normalized) else {
+                licenseMessage = LicensingMessage(tone: .error, text: "Enter a valid license key format.")
+                refreshStatus()
+                return false
+            }
             let payload = try validateLicenseKey(normalized)
             try licenseStore.saveLicenseKey(normalized)
             activationMetadataStore.saveActivationDate(currentDate())
@@ -418,6 +464,7 @@ final class LicensingController: ObservableObject {
     }
 
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
+        #if DEBUG
         guard developerSettings.releaseChannel == .test else { return nil }
 
         switch developerSettings.licensingScenario {
@@ -460,6 +507,9 @@ final class LicensingController: ObservableObject {
                 activatedAt: now
             )
         }
+        #else
+        return nil
+        #endif
     }
 
     private static func daysRemaining(until endDate: Date, now: Date) -> Int {

@@ -124,11 +124,30 @@ final class UserDefaultsAppInstallIDStore: AppInstallIDStore {
     }
 
     func loadInstallID() -> String? {
-        defaults.string(forKey: key)
+        if let existing = defaults.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        if let hardwareID = Self.hardwareUUID() {
+            defaults.set(hardwareID, forKey: key)
+            return hardwareID
+        }
+        return nil
     }
 
     func saveInstallID(_ value: String) {
         defaults.set(value, forKey: key)
+    }
+
+    static func hardwareUUID() -> String? {
+        let matching = IOServiceMatching("IOPlatformExpertDevice")
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, matching)
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        guard let property = IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String else {
+            return nil
+        }
+        let uuid = property.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return uuid.isEmpty ? nil : uuid
     }
 }
 
@@ -244,6 +263,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
 
         let attributes: [String: Any] = [
             kSecValueData as String: data,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
@@ -257,6 +277,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
 
         var addQuery = query
         addQuery[kSecValueData as String] = data
+        addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw LicenseKeyStoreError.unexpectedStatus(addStatus)

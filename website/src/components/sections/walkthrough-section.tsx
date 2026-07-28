@@ -9,32 +9,39 @@ export function WalkthroughSection() {
     <SectionShell
       id="walkthrough"
       eyebrow="Live walkthroughs"
-      title="See how the modes work in actual use."
-      description="Open it, move fast, and commit. Each mode gives you a different path to the same result."
+      title="Learn CmdTab in four practical steps."
+      description="Each mode solves a different switching moment. Try one step at a time, in this order, to get the first week of use right."
     >
       <div className="space-y-12">
-        <div className="grid gap-10 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {walkthroughSteps.map((step, index) => (
             <MotionReveal
               key={step.id}
               delay={index * 80}
               direction={index % 2 === 0 ? "left" : "right"}
-              className="grid gap-5 border-t border-white/8 pt-6 lg:grid-cols-[92px_minmax(0,1fr)]"
+              className="h-full"
             >
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                  {step.eyebrow}
-                </p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
-                    {step.title}
-                  </h3>
-                  <p className="max-w-xl text-base leading-7 text-muted">{step.body}</p>
+              <article className="surface-panel h-full p-6 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <p className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cyan/30 bg-cyan/10 text-xs font-semibold tracking-[0.16em] text-cyan">
+                      {String(index + 1).padStart(2, "0")}
+                    </p>
+                    <div className="space-y-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
+                        {step.eyebrow}
+                      </p>
+                      <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
+                        {step.title}
+                      </h3>
+                    </div>
+                  </div>
+                  <p className="max-w-xl text-base leading-7 text-muted">
+                    {step.body}
+                  </p>
                 </div>
                 <ScreenshotFrame assetId={step.screenshotId as never} />
-              </div>
+              </article>
             </MotionReveal>
           ))}
         </div>

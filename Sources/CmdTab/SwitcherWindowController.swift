@@ -24,11 +24,13 @@ private final class SwitcherPanel: NSPanel {
     var onKeyEvent: ((NSEvent) -> Bool)?
     var onScrollEvent: ((NSEvent) -> Bool)?
 
+    private let escapeKeyCode: UInt16 = 53
+
     override func keyDown(with event: NSEvent) {
         if onKeyEvent?(event) == true {
             return
         }
-        if event.keyCode == 53 {
+        if event.keyCode == escapeKeyCode {
             onEscapePressed?()
             return
         }
@@ -97,6 +99,7 @@ final class SwitcherWindowController {
     /// can still behave correctly before the system notification arrives.
     private var activeFrontmostPID: pid_t = 0
     private var frontmostOverride: FrontmostOverrideState?
+    var onVisibilityChanged: ((Bool) -> Void)?
 
     var isVisible: Bool { viewModel.isVisible }
     var currentStyle: SwitcherStyle { preferences.switcherStyle }
@@ -189,11 +192,21 @@ final class SwitcherWindowController {
     }
 
     func moveSelectionUp() {
+        if preferences.switcherStyle == .radialMenu {
+            moveSelectionInRadialMenu(by: -1)
+            return
+        }
+
         session?.moveUp(columns: viewModel.layout.columns)
         syncViewModelSelection()
     }
 
     func moveSelectionDown() {
+        if preferences.switcherStyle == .radialMenu {
+            moveSelectionInRadialMenu(by: 1)
+            return
+        }
+
         session?.moveDown(columns: viewModel.layout.columns)
         syncViewModelSelection()
     }
@@ -696,6 +709,7 @@ final class SwitcherWindowController {
         panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
         viewModel.isVisible = true
+        onVisibilityChanged?(true)
     }
 
     private func hidePanel() {
@@ -705,6 +719,7 @@ final class SwitcherWindowController {
         backdropPanel.orderOut(nil)
         tearDownMirroredPanels()
         resetSessionState()
+        onVisibilityChanged?(false)
     }
 
     private func resetSessionState() {

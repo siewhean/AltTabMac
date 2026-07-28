@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Verify pre-fix model evidence remains reproducible
         shell: bash
@@ -69,6 +69,14 @@ jobs:
 
       - name: Run complete Swift package test suite
         run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
+
+      - name: Check Swift format and syntax hygiene
+        run: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            swiftlint --strict
+          else
+            echo "swiftlint not available on runner — skipping static linting step"
+          fi
 
       - name: Check patch hygiene
         run: git diff --check

@@ -24,6 +24,12 @@ export async function POST(request: Request) {
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[CmdTab Website] app telemetry ingest failed", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { ok: false, code: "invalid_payload", message: "Malformed telemetry payload." },
+        { status: 400 },
+      );
+    }
     return new NextResponse(null, { status: 204 });
   }
 }

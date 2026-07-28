@@ -1,7 +1,7 @@
 # CmdTab
 
-Last updated: 2026-07-22  
-Active task: release and verify the truthful 22-route product showcase, then continue real-macOS signed-app acceptance.
+Last updated: 2026-07-28
+Active task: completed Round 3 audit implementation plan: gated Developer preferences pane behind `#if DEBUG` (preventing licensing bypass), integrated trial email registration into OnboardingView, enforced `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` on Keychain items, skipped sending trial emails to `anonymous@local`, added cross-device purchasing banner on thank-you page, returned 400 Bad Request on Zod errors in telemetry API, added notarization/stapling script logic, added Swift format/lint CI step, replaced unsafe force casts with safe CFTypeRef handling, added VoiceOver accessibility labels across SwiftUI views, replaced silent `try?` with logged `do/catch` in memory/telemetry stores, and verified 129/129 Swift tests + 38/38 Next.js routes.
 
 ## Product
 

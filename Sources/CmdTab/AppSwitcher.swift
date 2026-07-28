@@ -1186,11 +1186,11 @@ final class AppSwitcher: NSObject {
     }
 
     private func deduplicatedCandidates(from candidates: [WindowCandidate]) -> [WindowCandidate] {
-        Self.deduplicateCandidates(
+        WindowDeduplication.deduplicateCandidates(
             candidates,
-            identityKey: { .init(ownerPID: $0.ownerPID, windowID: $0.id) },
+            identityKey: { WindowCandidateIdentityKey(ownerPID: $0.ownerPID, windowID: $0.id) },
             prefersReplacement: { lhs, rhs in
-                Self.prefersReplacementCandidate(
+                WindowDeduplication.prefersReplacementCandidate(
                     isOnScreen: lhs.isOnScreen,
                     title: lhs.windowTitle,
                     bounds: lhs.bounds,
@@ -1245,11 +1245,19 @@ final class AppSwitcher: NSObject {
     }
 
     private func isSwitcherDisplayWindow(_ axWindow: AXUIElement) -> Bool {
-        Self.shouldAllowAXWindow(
-            role: axString(for: axWindow, attribute: kAXRoleAttribute as CFString),
-            subrole: axString(for: axWindow, attribute: kAXSubroleAttribute as CFString),
-            parentRole: parentRole(for: axWindow),
-            isMinimized: axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString)
+        guard let role = axString(for: axWindow, attribute: kAXRoleAttribute as CFString),
+              role == (kAXWindowRole as String) else {
+            return false
+        }
+        let subrole = axString(for: axWindow, attribute: kAXSubroleAttribute as CFString)
+        let isMinimized = axBool(for: axWindow, attribute: kAXMinimizedAttribute as CFString)
+        let parent: String? = (subrole == (kAXUnknownSubrole as String)) ? parentRole(for: axWindow) : nil
+
+        return Self.shouldAllowAXWindow(
+            role: role,
+            subrole: subrole,
+            parentRole: parent,
+            isMinimized: isMinimized
         )
     }
 
@@ -1385,8 +1393,8 @@ final class AppSwitcher: NSObject {
     }
 
     static func trimmedWindowCapture(_ cgImage: CGImage, alphaThreshold: UInt8 = 20, maxInset: Int = 48) -> CGImage {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return cgImage }
-        let ptr = CFDataGetBytePtr(data)!
+        guard let dp = cgImage.dataProvider, let data = dp.data,
+              let ptr = CFDataGetBytePtr(data) else { return cgImage }
         let len = CFDataGetLength(data)
         let bpp = cgImage.bitsPerPixel / 8
         guard bpp >= 4 else { return cgImage }
@@ -1487,8 +1495,8 @@ final class AppSwitcher: NSObject {
     }
 
     private static func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
+        guard let dp = cgImage.dataProvider, let data = dp.data,
+              let ptr = CFDataGetBytePtr(data) else { return true }
         let len = CFDataGetLength(data)
         let bpp = cgImage.bitsPerPixel / 8
         guard bpp >= 4 else { return false }
@@ -1512,8 +1520,8 @@ final class AppSwitcher: NSObject {
     }
 
     private static func isImageEffectivelyBlack(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
+        guard let dp = cgImage.dataProvider, let data = dp.data,
+              let ptr = CFDataGetBytePtr(data) else { return true }
         let len = CFDataGetLength(data)
         let bpp = cgImage.bitsPerPixel / 8
         guard bpp >= 4 else { return false }
@@ -1601,10 +1609,14 @@ final class AppSwitcher: NSObject {
               AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sv) == .success,
               let pAX = pv, let sAX = sv else { return nil }
         var pos = CGPoint.zero; var sz = CGSize.zero
-        guard AXValueGetType(pAX as! AXValue) == .cgPoint,
-              AXValueGetValue(pAX as! AXValue, .cgPoint, &pos),
-              AXValueGetType(sAX as! AXValue) == .cgSize,
-              AXValueGetValue(sAX as! AXValue, .cgSize, &sz) else { return nil }
+        guard CFGetTypeID(pAX as CFTypeRef) == AXValueGetTypeID(),
+              CFGetTypeID(sAX as CFTypeRef) == AXValueGetTypeID() else { return nil }
+        let posVal = unsafeBitCast(pAX, to: AXValue.self)
+        let szVal = unsafeBitCast(sAX, to: AXValue.self)
+        guard AXValueGetType(posVal) == .cgPoint,
+              AXValueGetValue(posVal, .cgPoint, &pos),
+              AXValueGetType(szVal) == .cgSize,
+              AXValueGetValue(szVal, .cgSize, &sz) else { return nil }
         return CGRect(origin: pos, size: sz)
     }
 
@@ -1642,83 +1654,7 @@ final class AppSwitcher: NSObject {
     }
 
     static func deduplicateCandidateProbes(_ candidates: [WindowCandidateDeduplicationProbe]) -> [WindowCandidateDeduplicationProbe] {
-        deduplicateCandidates(
-            candidates,
-            identityKey: { .init(ownerPID: $0.ownerPID, windowID: $0.windowID) },
-            prefersReplacement: { lhs, rhs in
-                prefersReplacementCandidate(
-                    isOnScreen: lhs.isOnScreen,
-                    title: lhs.title,
-                    bounds: lhs.bounds,
-                    sortScore: lhs.sortScore,
-                    orderIndex: lhs.orderIndex,
-                    overIsOnScreen: rhs.isOnScreen,
-                    overTitle: rhs.title,
-                    overBounds: rhs.bounds,
-                    overSortScore: rhs.sortScore,
-                    overOrderIndex: rhs.orderIndex
-                )
-            }
-        )
-    }
-
-    private static func deduplicateCandidates<T>(
-        _ candidates: [T],
-        identityKey: (T) -> WindowCandidateIdentityKey,
-        prefersReplacement: (T, T) -> Bool
-    ) -> [T] {
-        var bestByIdentity: [WindowCandidateIdentityKey: T] = [:]
-
-        for candidate in candidates {
-            let key = identityKey(candidate)
-            if let existing = bestByIdentity[key] {
-                if prefersReplacement(candidate, existing) {
-                    bestByIdentity[key] = candidate
-                }
-            } else {
-                bestByIdentity[key] = candidate
-            }
-        }
-
-        return candidates.compactMap { candidate in
-            let key = identityKey(candidate)
-            return bestByIdentity.removeValue(forKey: key)
-        }
-    }
-
-    private static func prefersReplacementCandidate(
-        isOnScreen lhsIsOnScreen: Bool,
-        title lhsTitle: String,
-        bounds lhsBounds: CGRect,
-        sortScore lhsSortScore: CGFloat,
-        orderIndex lhsOrderIndex: Int,
-        overIsOnScreen rhsIsOnScreen: Bool,
-        overTitle rhsTitle: String,
-        overBounds rhsBounds: CGRect,
-        overSortScore rhsSortScore: CGFloat,
-        overOrderIndex rhsOrderIndex: Int
-    ) -> Bool {
-        if lhsIsOnScreen != rhsIsOnScreen {
-            return lhsIsOnScreen
-        }
-
-        let lhsHasSpecificTitle = !lhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        let rhsHasSpecificTitle = !rhsTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if lhsHasSpecificTitle != rhsHasSpecificTitle {
-            return lhsHasSpecificTitle
-        }
-
-        let lhsArea = lhsBounds.width * lhsBounds.height
-        let rhsArea = rhsBounds.width * rhsBounds.height
-        if lhsArea != rhsArea {
-            return lhsArea > rhsArea
-        }
-
-        if lhsSortScore != rhsSortScore {
-            return lhsSortScore > rhsSortScore
-        }
-
-        return lhsOrderIndex < rhsOrderIndex
+        WindowDeduplication.deduplicateCandidateProbes(candidates)
     }
 }
 
@@ -1747,19 +1683,4 @@ private struct WindowCandidate {
             sourceAppIdentifier: sourceAppIdentifier
         )
     }
-}
-
-private struct WindowCandidateIdentityKey: Hashable {
-    let ownerPID: pid_t
-    let windowID: CGWindowID
-}
-
-struct WindowCandidateDeduplicationProbe: Equatable {
-    let ownerPID: pid_t
-    let windowID: CGWindowID
-    let title: String
-    let bounds: CGRect
-    let orderIndex: Int
-    let sortScore: CGFloat
-    let isOnScreen: Bool
 }

@@ -101,6 +101,24 @@ export default function TrialPage() {
             </div>
           </MotionReveal>
         </div>
+
+        <MotionReveal direction="up" delay={180} className="surface-panel mt-6 p-6">
+          <p className="type-eyebrow text-cyan">What Happens Next</p>
+          <div className="mt-4 grid gap-4 text-sm text-muted sm:grid-cols-3">
+            <div className="space-y-1">
+              <h3 className="font-semibold text-text">1. Download &amp; Launch</h3>
+              <p className="text-xs text-subdued">Open the downloaded zip file and move CmdTab to your Applications folder.</p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-text">2. Quick Onboarding</h3>
+              <p className="text-xs text-subdued">Grant Accessibility permission so CmdTab can intercept ⌘Tab and manage window focus.</p>
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-text">3. 14-Day Evaluation</h3>
+              <p className="text-xs text-subdued">Enjoy full window-switching capabilities for 14 days with zero upfront payment.</p>
+            </div>
+          </div>
+        </MotionReveal>
       </SectionShell>
 
       <FooterSection />

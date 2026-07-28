@@ -35,5 +35,19 @@
     <false/>
     <key>NSSupportsSuddenTermination</key>
     <false/>
+    <!-- Custom URL Scheme (cmdtab://activate?key=...) -->
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>CFBundleURLName</key>
+            <string>com.user.CmdTab.url-scheme</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>cmdtab</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

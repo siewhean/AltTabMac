@@ -22,6 +22,10 @@ final class ClickableHostingView<Content: View>: NSHostingView<Content> {
         // Do NOT call super — prevents AppKit from doing focus-ring stuff.
     }
 
+    override func rightMouseDown(with event: NSEvent) {
+        super.rightMouseDown(with: event)
+    }
+
     // acceptsFirstMouse so the very first click (before we are key) still fires.
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
@@ -41,17 +45,53 @@ struct SwitcherView: View {
     @ObservedObject private var preferences = SwitcherPreferences.shared
 
     var body: some View {
-        Group {
-            switch preferences.switcherStyle {
-            case .classicGrid:
-                ClassicGridView(viewModel: viewModel)
-            case .commandPalette:
-                CommandPaletteView(viewModel: viewModel)
-            case .radialMenu:
-                RadialMenuView(viewModel: viewModel)
+        VStack(spacing: 8) {
+            Group {
+                switch preferences.switcherStyle {
+                case .classicGrid:
+                    ClassicGridView(viewModel: viewModel)
+                case .commandPalette:
+                    CommandPaletteView(viewModel: viewModel)
+                case .radialMenu:
+                    RadialMenuView(viewModel: viewModel)
+                }
+            }
+            if preferences.showQuickActionHints {
+                quickActionFooterBar
             }
         }
-        .id(preferences.switcherStyle)
+    }
+
+    private var quickActionFooterBar: some View {
+        HStack(spacing: 14) {
+            shortcutHint(key: "⌘H", label: "Hide")
+            shortcutHint(key: "⌘M", label: "Minimize")
+            shortcutHint(key: "⌘W", label: "Close")
+            shortcutHint(key: "⌘Q", label: "Quit")
+        }
+        .font(.system(size: 11, weight: .medium, design: .rounded))
+        .foregroundColor(.white.opacity(0.60))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 5)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.40))
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+
+    private func shortcutHint(key: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Text(key)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(Color.white.opacity(0.14))
+                .cornerRadius(4)
+            Text(label)
+        }
     }
 }
 

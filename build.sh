@@ -63,19 +63,31 @@ chmod +x "${CONTENTS}/MacOS/${APP_NAME}"
 xattr -cr "${APP_BUNDLE}" 2>/dev/null || true
 
 # Sign with Hardened Runtime enabled.
-# --options runtime  activates the Hardened Runtime, enforcing library validation,
-#                    unsigned code injection prevention, and making the entitlements
-#                    network-deny clauses binding at the kernel level.
-# --entitlements     supplies the declared capability boundary for the process.
-# --sign -           ad-hoc identity; replace with a Developer ID for notarization.
+# Supply DEVELOPER_ID="Developer ID Application: ..." for distribution builds.
+# Notarization step: xcrun notarytool submit CmdTab.zip --keychain-profile "AC_PROFILE" --wait
+SIGNING_IDENTITY="${DEVELOPER_ID:--}"
 ENTITLEMENTS_FILE="${SCRIPT_DIR}/Resources/CmdTab.entitlements"
+
 if [ -f "$ENTITLEMENTS_FILE" ]; then
-    codesign --sign - --force --deep --options runtime \
+    echo "Signing app bundle with identity '${SIGNING_IDENTITY}' and Hardened Runtime..."
+    codesign --sign "${SIGNING_IDENTITY}" --force --deep --options runtime \
         --entitlements "$ENTITLEMENTS_FILE" \
-        "${APP_BUNDLE}" 2>/dev/null || true
+        "${APP_BUNDLE}"
 else
     echo "Warning: entitlements file not found — signing without Hardened Runtime"
-    codesign --sign - --force --deep "${APP_BUNDLE}" 2>/dev/null || true
+    codesign --sign "${SIGNING_IDENTITY}" --force --deep "${APP_BUNDLE}"
+fi
+
+if [ "${NOTARIZE:-false}" = "true" ] && [ -n "${KEYCHAIN_PROFILE:-}" ]; then
+    echo "Creating zip archive for notarization..."
+    ZIP_PATH="$SCRATCH/${APP_NAME}.zip"
+    ditto -c -k --keepParent "${APP_BUNDLE}" "$ZIP_PATH"
+
+    echo "Submitting ${APP_NAME}.zip to Apple Notary Service (profile: ${KEYCHAIN_PROFILE})..."
+    xcrun notarytool submit "$ZIP_PATH" --keychain-profile "$KEYCHAIN_PROFILE" --wait
+
+    echo "Stapling notarization ticket to ${APP_BUNDLE}..."
+    xcrun stapler staple "${APP_BUNDLE}"
 fi
 
 echo ""

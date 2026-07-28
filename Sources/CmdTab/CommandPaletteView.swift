@@ -205,5 +205,8 @@ private struct PaletteRowView: View {
                 )
         )
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(primaryText)\(secondaryText != nil ? ", \(secondaryText!)" : "")")
+        .accessibilityHint(isSelected ? "Currently selected window" : "Select to switch to window")
     }
 }

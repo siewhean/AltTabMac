@@ -94,20 +94,19 @@ final class LiveCmdTabServerClient: CmdTabServerClient {
         var request = URLRequest(url: LicensingConfiguration.appTelemetryAPIURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "installId": installID,
-            "eventName": eventName,
-            "licenseState": licenseState,
-            "licenseId": licenseID as Any,
-            "appVersion": appVersion,
-            "osVersion": osVersion,
-            "occurredAt": ISO8601DateFormatter().string(from: Date()),
-        ])
-
         do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: [
+                "installId": installID,
+                "eventName": eventName,
+                "licenseState": licenseState,
+                "licenseId": licenseID as Any,
+                "appVersion": appVersion,
+                "osVersion": osVersion,
+                "occurredAt": ISO8601DateFormatter().string(from: Date()),
+            ])
             _ = try await session.data(for: request)
         } catch {
-            // Best-effort only.
+            NSLog("[CmdTab] AppTelemetry send error: \(error)")
         }
     }
 }
@@ -138,6 +137,11 @@ final class AppTelemetryReporter {
     }
 
     func startSession(licensingController: LicensingController) {
+        guard SwitcherPreferences.shared.isTelemetryOptedIn else {
+            heartbeatTask?.cancel()
+            heartbeatTask = nil
+            return
+        }
         let installID = installID()
         Task {
             await client.sendAppTelemetry(
@@ -156,6 +160,7 @@ final class AppTelemetryReporter {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 60 * 60 * 1_000_000_000)
                 if Task.isCancelled { break }
+                guard SwitcherPreferences.shared.isTelemetryOptedIn else { break }
                 await client.sendAppTelemetry(
                     installID: installID,
                     eventName: "app_heartbeat",
@@ -169,6 +174,7 @@ final class AppTelemetryReporter {
     }
 
     func trackLicenseActivation(licensingController: LicensingController) {
+        guard SwitcherPreferences.shared.isTelemetryOptedIn else { return }
         let installID = installID()
         Task {
             await client.sendAppTelemetry(
@@ -183,6 +189,7 @@ final class AppTelemetryReporter {
     }
 
     func trackTrialStarted(licensingController: LicensingController) {
+        guard SwitcherPreferences.shared.isTelemetryOptedIn else { return }
         let installID = installID()
         Task {
             await client.sendAppTelemetry(

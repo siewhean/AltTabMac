@@ -147,14 +147,17 @@ struct PreferencesView: View {
             shortcutsSection
         case .licensing:
             LicensingPreferencesPane(controller: licensingController)
+        #if DEBUG
         case .developer:
             DeveloperPreferencesPane(
                 settings: developerSettings,
                 licensingController: licensingController
             )
+        #endif
         case .system:
             startupSection
             permissionsSection
+            telemetrySection
         }
     }
 
@@ -397,6 +400,26 @@ struct PreferencesView: View {
         }
     }
 
+    private var telemetrySection: some View {
+        SettingsCard(title: "Privacy & Analytics", subtitle: "Help improve CmdTab with anonymous usage analytics.") {
+            VStack(alignment: .leading, spacing: 10) {
+                SettingsToggleRow(
+                    title: "Share Anonymous Usage Analytics",
+                    subtitle: "Sends lightweight, non-personal metrics (app activation, version) to improve performance. Disabled by default. No window titles, screenshots, or personal data are ever collected.",
+                    isOn: $preferences.isTelemetryOptedIn
+                )
+
+                Button("View Privacy Policy…") {
+                    if let url = URL(string: "https://cmdtab.net/privacy") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.link)
+                .font(.system(size: 11))
+            }
+        }
+    }
+
     private func openSystemSettingsPane(_ rawValue: String) {
         guard let url = URL(string: rawValue) else { return }
         NSWorkspace.shared.open(url)
@@ -436,7 +459,7 @@ private enum PreferencesAssets {
     }()
 }
 
-private struct SettingsCard<Content: View>: View {
+struct SettingsCard<Content: View>: View {
     let title: String
     let subtitle: String
     @ViewBuilder let content: Content
@@ -466,6 +489,45 @@ private struct SettingsCard<Content: View>: View {
                         .stroke(Color.white.opacity(0.09), lineWidth: 1)
                 )
         )
+    }
+}
+
+struct SettingsMenuPickerRow<Value: Hashable>: View {
+    let title: String
+    let subtitle: String
+    @Binding var selection: Value
+    let options: [(Value, String)]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            SettingsRowText(title: title, subtitle: subtitle)
+            Spacer()
+            Picker("", selection: $selection) {
+                ForEach(options, id: \.1) { option in
+                    Text(option.1).tag(option.0)
+                }
+            }
+            .pickerStyle(.menu)
+            .frame(width: 170)
+        }
+    }
+}
+
+struct SettingsToggleRow: View {
+    let title: String
+    let subtitle: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            SettingsRowText(title: title, subtitle: subtitle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(.blue)
+        }
     }
 }
 
@@ -502,27 +564,6 @@ private struct SettingsButtonRow: View {
             Button(buttonTitle, action: action)
                 .buttonStyle(.borderedProminent)
                 .tint(.blue)
-        }
-    }
-}
-
-private struct SettingsMenuPickerRow<Value: Hashable>: View {
-    let title: String
-    let subtitle: String
-    @Binding var selection: Value
-    let options: [(Value, String)]
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            SettingsRowText(title: title, subtitle: subtitle)
-            Spacer()
-            Picker("", selection: $selection) {
-                ForEach(options, id: \.1) { option in
-                    Text(option.1).tag(option.0)
-                }
-            }
-            .pickerStyle(.menu)
-            .frame(width: 170)
         }
     }
 }
@@ -596,24 +637,6 @@ private struct SettingsSelectableAppsRow: View {
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundColor(.white.opacity(0.40))
             }
-        }
-    }
-}
-
-private struct SettingsToggleRow: View {
-    let title: String
-    let subtitle: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            SettingsRowText(title: title, subtitle: subtitle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .tint(.blue)
         }
     }
 }
@@ -789,7 +812,7 @@ private struct StatusBadge: View {
     }
 }
 
-private struct SettingsRowText: View {
+struct SettingsRowText: View {
     let title: String
     let subtitle: String
 

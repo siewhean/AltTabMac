@@ -5,9 +5,10 @@ import { renderTrialStartedEmail } from "@/content/trial-email";
 import { createOrGetTrialClaim } from "@/lib/trial-claim-store";
 import { getServerEnv, getSiteUrl } from "@/lib/env";
 import { getResendClient } from "@/lib/resend";
+import { checkTrialRateLimit } from "@/lib/rate-limit";
 
 const payloadSchema = z.object({
-  email: z.string().trim().email().max(320),
+  email: z.string().trim().email().max(320).optional().default("anonymous@local"),
   installId: z.string().trim().min(8).max(120),
   appVersion: z.string().trim().max(80).optional(),
   osVersion: z.string().trim().max(80).optional(),
@@ -43,6 +44,20 @@ async function sendTrialStartedEmail(input: {
 export async function POST(request: Request) {
   try {
     const payload = payloadSchema.parse(await request.json());
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
+
+    const rateLimit = checkTrialRateLimit(payload.installId, clientIp);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "rate_limited",
+          message: "Too many trial requests from this Mac or connection. Please try again later.",
+        },
+        { status: 429 },
+      );
+    }
+
     const result = await createOrGetTrialClaim({
       email: payload.email,
       installId: payload.installId,
@@ -66,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     let notificationDelivered = false;
-    if (result.kind === "created") {
+    if (result.kind === "created" && result.claim.email !== "anonymous@local") {
       try {
         await sendTrialStartedEmail({
           email: result.claim.email,

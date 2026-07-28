@@ -7,7 +7,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 10.0),
-            equals: 10.0
+            equals: 10.25
         )
 
         XCTAssertEqual(
@@ -23,7 +23,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
         _ = state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 1.0)
 
         XCTAssertEqual(
-            state.handleRevealDeadline(now: 1.1, heldModifiers: [.command]),
+            state.handleRevealDeadline(now: 1.25, heldModifiers: [.command]),
             .showOverlay(reverse: false, modifier: .command)
         )
         XCTAssertTrue(state.hasPendingTrigger)
@@ -34,7 +34,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 2.0),
-            equals: 2.0
+            equals: 2.25
         )
         XCTAssertNil(
             state.registerHiddenTabTrigger(modifier: .command, reverse: true, startedAtUptime: 2.05)
@@ -44,7 +44,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
         XCTAssertEqual(state.pendingModifier, .command)
         XCTAssertEqual(pendingTrigger.reverse, false)
         XCTAssertEqual(pendingTrigger.startedAtUptime, 2.0, accuracy: 0.0001)
-        XCTAssertEqual(pendingTrigger.revealAtUptime, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(pendingTrigger.revealAtUptime, 2.25, accuracy: 0.0001)
     }
 
     func testReverseCommandTriggerPreservesReverseFlagForQuickSwitchAndReveal() {
@@ -58,7 +58,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
         var revealState = HotkeyTriggerState()
         _ = revealState.registerHiddenTabTrigger(modifier: .command, reverse: true, startedAtUptime: 4.0)
         XCTAssertEqual(
-            revealState.handleRevealDeadline(now: 4.1, heldModifiers: [.command]),
+            revealState.handleRevealDeadline(now: 4.25, heldModifiers: [.command]),
             .showOverlay(reverse: true, modifier: .command)
         )
     }
@@ -68,6 +68,9 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         _ = state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 5.0)
         _ = state.handleRevealDeadline(now: 5.1, heldModifiers: [.command])
+        XCTAssertTrue(state.hasPendingTrigger)
+
+        _ = state.handleRevealDeadline(now: 5.25, heldModifiers: [.command])
 
         XCTAssertEqual(
             state.handleModifierRelease(.command, switcherVisible: true),
@@ -91,11 +94,11 @@ final class HotkeyTriggerStateTests: XCTestCase {
 
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .option, reverse: false, startedAtUptime: 7.0),
-            equals: 7.0
+            equals: 7.25
         )
         assertScheduledReveal(
             state.registerHiddenTabTrigger(modifier: .option, reverse: true, startedAtUptime: 7.05),
-            equals: 7.05
+            equals: 7.30
         )
 
         let pendingTrigger = try XCTUnwrap(state.pendingTrigger)
@@ -110,7 +113,7 @@ final class HotkeyTriggerStateTests: XCTestCase {
         _ = state.registerHiddenTabTrigger(modifier: .command, reverse: false, startedAtUptime: 8.0)
 
         XCTAssertEqual(
-            state.handleRevealDeadline(now: 8.1, heldModifiers: []),
+            state.handleRevealDeadline(now: 8.25, heldModifiers: []),
             .quickSwitch(reverse: false)
         )
         XCTAssertFalse(state.hasPendingTrigger)

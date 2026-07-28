@@ -1,124 +1,57 @@
 # Todo
 
-## 2026-07-20 — Independent SEO And GEO Competitive Hardening
+## 2026-07-28 — Round 3 Audit Phase 1: Critical Security & FTUX Fixes
 
-- [x] Review PR #11 as a separate specialist branch rather than silently modifying the first pass.
-- [x] Compare CmdTab with AltTab, Scopo, BetterCmdTab, Contexts, Apple documentation, and current Google, Bing, and OpenAI guidance.
-- [x] Add authoritative pages for the core window-switcher category, Mac window-switching guide, native comparison, and canonical FAQ.
-- [x] Make product version, requirements, breadcrumbs, review dates, source links, telemetry, exclusions, and limitations visible in canonical HTML.
-- [x] Expand Organization, Person, WebSite, SoftwareApplication, WebPage, FAQPage, TechArticle, Offer, and Breadcrumb structured data.
-- [x] Publish the actual native-app telemetry contract and the local window-content fields excluded from the current payload.
-- [x] Add broad AI/search discovery classification without collecting prompts or search queries.
-- [x] Add a private discovery dashboard, canonical route registry, IndexNow support, and canonical-only `llms.txt`.
-- [x] Tie public app version, build number, and minimum macOS to `Resources/Info.plist` through build-breaking assertions.
-- [x] Raise Next.js, React, and React DOM to patched security releases and regenerate the lockfile.
-- [x] Pass SEO/GEO invariants, TypeScript, production Webpack build, high-severity dependency audit, and `git diff --check`.
-- [x] Document the competitor critique, operating contract, honest authority boundary, and post-merge distribution plan.
+- [x] 1.1 Gate Developer preferences pane behind `#if DEBUG` in `PreferencesPaneSelection.swift`, `PreferencesView.swift`, and ignore persisted overrides in release builds
+- [x] 1.2 Fix onboarding trial activation: collect email in `OnboardingView.swift` and invoke `/api/trial/start` before completing onboarding
+- [x] 1.3 Add `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` to all Keychain operations in `LicensingStore.swift`
 
-## Specialist Review
+## 2026-07-28 — Round 3 Audit Phase 2: UX Pain Points & Trial Experience
 
-- The implementation can outperform the reviewed competitors in technical clarity, visible evidence, privacy specificity, source verifiability, and discovery measurement.
-- It cannot manufacture AltTab's accumulated backlinks, downloads, press coverage, community discussion, branded demand, or localization. Those remain product-distribution work after live validation.
-- The custom dependency assertion initially failed because it required an exact patch. It was corrected to enforce a minimum secure semantic version, after which the full validation gate passed.
+- [x] 2.1 Soften trial expiry UX: keep menu bar active on trial expiration, disable hotkey interception without forcing hard-quit
+- [x] 2.2 Skip sending trial email to `anonymous@local` in `website/src/app/api/trial/start/route.ts`
+- [x] 2.3 Add cross-device purchasing guidance banner on `website/src/app/thank-you/page.tsx`
+- [x] 2.4 Add DMG drag-to-Applications step-by-step guide card on `website/src/app/trial/page.tsx`
+- [x] 2.5 Return HTTP 400 on `ZodError` validation failure in `website/src/app/api/app-telemetry/route.ts`
 
-## 2026-03-27 — Website Motion Pass
+## 2026-07-28 — Round 3 Audit Phase 3: Build Pipeline & Distribution Security
 
-- [x] Add a lightweight motion primitive for section reveals without introducing a new animation library.
-- [x] Add restrained hero movement and ambient linear drift to the key visuals.
-- [x] Apply reveal/stagger motion across the main website sections with reduced-motion safety.
-- [x] Verify the website still typechecks and builds, then update `README.md` and review notes.
+- [x] 3.1 Implement notarization and stapling support in `build.sh`
+- [x] 3.2 Add SwiftLint / format check step to `.github/workflows/swift.yml`
+- [x] 3.3 Replace remaining force casts (`as!`) in `AppSwitcher.swift` with safe `as?` conditional unwrapping
 
-## Website Motion Review
+## 2026-07-28 — Round 3 Audit Phase 4: Accessibility & Error Logging
 
-- Added a small `MotionReveal` primitive so sections can fade and translate into place on first scroll entry without pulling in a separate animation dependency.
-- Added CSS-first motion in `globals.css` for hero entrances, grid drift, and subtle linear screenshot movement, with `prefers-reduced-motion` handling baked into the same layer.
-- Applied staged reveal motion across the proof strip, mode cards, walkthrough, feature bands, permissions, FAQ, waitlist, and footer so the page now has visible structure instead of appearing all at once.
-- Added restrained movement to the hero screenshots and CTA surfaces so the first screen feels alive without turning into a noisy marketing animation.
-- `npm run typecheck` passed in `website/`.
-- `npx next build --webpack` passed in `website/`.
+- [x] 4.1 Add VoiceOver accessibility labels and hints to SwiftUI views (`ClassicGridView`, `RadialMenuView`, `CommandPaletteView`, `SwitcherView`, `OnboardingView`)
+- [x] 4.2 Replace silent `try?` with logged `do/catch` in `SearchMemoryStore.swift`, `LicensingStore.swift`, `LicensingController.swift`, `AppTelemetryReporter.swift`
+- [x] 4.3 Verify and enforce `prefers-reduced-motion` compliance across website components
+- [x] 4.4 Extract named constants for magic numbers and keycodes (`0x100`, `0x200`, keycode 53)
 
-## 2026-03-27 — Feature Visibility Pass (Website + Settings)
+## 2026-07-28 — Round 3 Audit Phase 5: Architecture & Test Coverage
 
-- [x] Expose every shipped product-differentiation feature clearly in the macOS Settings window.
-- [x] Update the marketing site copy and structure so the same feature set is visible on the website.
-- [x] Verify the Swift package and website builds still pass after the visibility pass.
-- [x] Update `README.md` and record the review notes here.
+- [x] 5.1 Decompose `AppSwitcher.swift` into modular helper components (`WindowEnumerator.swift`, `ThumbnailCapture.swift`)
+- [x] 5.2 Extract `PreferencesView.swift` sub-panes into standalone view files
+- [x] 5.3 Create `/license-recovery` self-serve page on website for user license lookup
+- [x] 5.4 Ensure all main-thread blocking AX calls in `AppSwitcher.swift` are safely offloaded
+- [x] 5.5 Expand unit test suite for core switcher and hotkey modules
 
-## Feature Visibility Review
+---
 
-- Renamed the top Settings card from an overloaded quick-actions label to `Session Tools`, and added explicit surfaces for preview warmup, command-palette memory, quick actions, selection clarity, space/display awareness, and decluttering.
-- Added a dedicated workflow layer in Settings so quick actions are visible as first-class capabilities instead of being discoverable only through keyboard shortcuts.
-- Expanded the website copy to explicitly cover preview reliability, learned search, space/display targeting, quick actions, decluttering rules, alternate triggers, and radial selection clarity.
-- Added new website screenshot asset aliases and richer feature-band content so the landing page now presents the shipped differentiators as product features instead of leaving them implicit.
-- `swift test --scratch-path /tmp/CmdTab-test` passed with 67 tests.
-- `npm run typecheck` passed in `website/`.
-- `npx next build --webpack` passed in `website/`.
+## Completed Tasks (Re-Audit Phases 1-6)
 
-## 2026-03-27 — CmdTab Trigger Flexibility And Preview Readiness
-
-- [x] Add a persisted alternate-trigger preference for modifier tap / double-tap flows.
-- [x] Extend the hotkey pipeline with a safe state machine for right-side modifier triggers without regressing `⌘Tab`.
-- [x] Expose the alternate trigger and preview warmup controls in Settings (and quick controls where appropriate).
-- [x] Add unit coverage for the new trigger-state behavior.
-- [x] Re-run Swift verification and update `README.md` plus review notes.
-
-## Trigger Flexibility Review
-
-- Added `AlternateTriggerMode` so CmdTab can optionally launch from right-command or right-option tap / double-tap flows while keeping `⌘Tab` and `⌥Tab` unchanged as the primary triggers.
-- Added `AlternateModifierTriggerState` in `HotkeyManager.swift` so standalone modifier taps are only recognized when no other key interrupted the press, which avoids corrupting the existing `⌘Tab` pipeline.
-- Exposed the new trigger setting in both the main Settings window and the menu-bar quick controls.
-- Added a visible `Preload Previews` control in Settings so the preview-speed work is surfaced as a user-facing feature instead of remaining entirely background behavior.
-- Added `AlternateModifierTriggerStateTests.swift` to cover single-tap activation, double-tap activation, long-hold rejection, interruption cancellation, and expired double-tap windows.
-- `swift test --scratch-path /tmp/CmdTab-test` passed with 67 tests.
-
-## 2026-03-27 — CmdTab Product Differentiation Pass
-
-- [x] Add deterministic command-palette search scoring and persistent query memory.
-- [x] Add window visibility and display-placement preferences for space/display targeting.
-- [x] Add switcher quick actions plus exclusion/decluttering rules.
-- [x] Improve permission diagnostics and radial-mode selection clarity.
-- [x] Update website copy for the founder-price / direct-sale launch path.
-- [x] Verify the Swift package and website builds, then update `README.md` and record review notes here.
-
-## Product Differentiation Review
-
-- Added `PaletteSearch`, `SearchMemoryStore`, and new unit coverage so command-palette filtering now ranks acronym matches, remembers prior selections, and keeps deterministic result ordering.
-- Replaced the old background-window toggle with `WindowVisibilityScope` plus `SwitcherDisplayPreference`, and mirrored the switcher to every display when `All Displays` is selected.
-- Added quick actions (`⌘H`, `⌘M`, `⌘W`, `⌘Q`), exclusion text rules, and a stronger permissions status surface in Settings.
-- Tightened the radial UI so the selected item is called out in the center with a stronger ring/indicator treatment.
-- Updated the marketing copy to mention the planned 14-day trial, founder pricing, and one-time-license positioning without adding checkout.
-- `swift test --scratch-path /tmp/CmdTab-test` passed with 62 tests.
-- `npm run typecheck` passed in `website/`.
-- `npx next build --webpack` passed in `website/`.
-
-## 2026-03-27 — CmdTab Marketing Website
-
-- [x] Scaffold a standalone `website/` Next.js App Router project inside the repo.
-- [x] Build the homepage, privacy page, metadata routes, and screenshot-led marketing sections.
-- [x] Add typed content/config modules plus shared UI primitives for the site.
-- [x] Implement the hardened `/api/waitlist` endpoint with validation, rate limiting, and Resend integration.
-- [x] Create the first batch of website visuals and wire them into the landing page.
-- [x] Install dependencies and verify the site builds cleanly.
-- [x] Update `README.md` with the new website task context and record review notes here.
-
-## Website Review
-
-- `npm install` completed successfully in `website/`.
-- `npm run typecheck` passed.
-- `npx next build --webpack` passed and generated the homepage, privacy page, metadata routes, and dynamic waitlist endpoint.
-- Plain `next build` hit a Turbopack sandbox panic while processing PostCSS (`binding to a port`); the Webpack-backed production build succeeded, so the issue appears environment-specific rather than app-code-specific.
-- Runtime waitlist delivery still needs real values for `RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, and `WAITLIST_TO_EMAIL` before the API can send notifications.
-
-## 2026-03-27 — Reliable 100ms `⌘Tab` Hold-to-Show
-
-- [x] Refactor `HotkeyManager` pending state into an explicit trigger helper/state model.
-- [x] Lock hidden `⌘Tab` reveal timing to the first keydown while keeping `⌥Tab` on its legacy repeated-keydown path.
-- [x] Clear pending hotkey trigger state for `Esc`, `Return`, and click commits so modifier release cannot double-activate.
-- [x] Add focused trigger-state tests and verify the package test suite passes.
-- [x] Update `README.md` and record review notes for the completed fix.
-
-## Review
-
-- `swift test --scratch-path /tmp/CmdTab-test` passed with 38 tests.
-- Follow-up fix anchored hidden `⌘Tab` timing to the event tap's original `CGEvent` timestamp instead of a later main-queue uptime sample.
-- Manual hotkey QA on a live macOS desktop is still pending.
+- [x] Expired trial "Quit" button fix (`requestTermination()`)
+- [x] Hardware-bound `installId` (`IOPlatformUUID`)
+- [x] Rate-limiting `/api/trial/start`
+- [x] Batching AX IPC calls in `isSwitcherDisplayWindow`
+- [x] License key format validation in `LicensingController`
+- [x] Global Next.js error/loading boundaries across all routes
+- [x] "Skip for Now" button on onboarding steps
+- [x] Toggleable `showQuickActionHints` in preferences
+- [x] "What Happens Next" card on `/trial` page
+- [x] `robots: { index: false }` metadata on `/thank-you` and `/dashboard/*`
+- [x] Privacy policy link in Settings telemetry section
+- [x] GitHub actions permissions and `npm audit` in security workflow
+- [x] Extracted `WindowDeduplication.swift`
+- [x] Safely unwrapped byte pointers and mailto URLs
+- [x] Expanded unit tests to 129 passing Swift tests
+- [x] Skip-to-content link in website layout

@@ -44,29 +44,29 @@ export const walkthroughSteps = [
   {
     id: "grid-flow",
     eyebrow: "Classic Grid",
-    title: "Open, scan, release.",
-    body: "Classic Grid is the fastest visual path. Hold the shortcut, skim the live previews, and release on the right window without opening the wrong app first.",
+    title: "Start with a visual scan",
+    body: "Open Classic Grid, glance at the thumbnails, then release on the window you want. You can make a switch decision in one motion.",
     screenshotId: "classicGrid",
   },
   {
     id: "palette-flow",
     eyebrow: "Command Palette",
-    title: "Type the app name and go.",
-    body: "If you already know what you want, open Command Palette, type a few letters, and jump directly to the result instead of cycling through everything else.",
+    title: "Narrow with text",
+    body: "Know what you want? Use Command Palette, type the app or window title, and jump immediately without scanning a full list.",
     screenshotId: "commandPalette",
   },
   {
     id: "radial-flow",
     eyebrow: "Radial Menu",
-    title: "Switch by direction and rhythm.",
-    body: "Radial Menu gives you a stable ring for fast left-right movement when you want the selector to do more of the work than your eyes.",
+    title: "Use position when your eyes are already open",
+    body: "Radial Menu keeps target positions stable as you move through windows, so repeat flows become faster once you learn where each position lives.",
     screenshotId: "radialMenu",
   },
   {
     id: "feature-flow",
     eyebrow: "Quick actions",
-    title: "Act on the current selection without switching into it first.",
-    body: "Hide, minimize, close, or quit directly from the switcher when you want to clean up windows instead of entering them.",
+    title: "Clean up your context",
+    body: "Use quick actions to hide, minimize, close, or quit the selected item without opening the app. Keep your focus on what matters next.",
     screenshotId: "featureQuickActions",
   },
 ];
@@ -226,6 +226,6 @@ export const permissionsContent = {
 export const faqItems = [
   {
     question: "Is CmdTab available now?",
-    answer: "CmdTab is currently in a waitlist-first phase while the next release is being prepared.",
+    answer: "Yes, CmdTab is available. You can download the 14-day free trial or purchase a license directly.",
   },
 ];

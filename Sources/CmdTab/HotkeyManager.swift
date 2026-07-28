@@ -99,6 +99,20 @@ final class HotkeyManager {
         }
     }
 
+    /// Enables or disables the event tap.
+    /// When disabled (e.g. on trial expiry), ⌘Tab passes directly to macOS.
+    func setEnabled(_ enabled: Bool) {
+        if enabled {
+            if eventTap == nil {
+                install()
+            } else {
+                recoverEventTap()
+            }
+        } else {
+            uninstallTap()
+        }
+    }
+
     /// Dispatch work to the main queue asynchronously. NEVER executes
     /// synchronously, even when already on the main thread — this ensures
     /// the CGEvent.tap callback returns immediately without blocking.
@@ -809,16 +823,18 @@ struct HotkeyTriggerPolicy: Equatable {
     let earlyReleaseAction: HotkeyEarlyReleaseAction
 
     static func forModifier(_ modifier: HotkeyModifier) -> HotkeyTriggerPolicy {
+        let standardRevealDelay: TimeInterval = 0.25
+
         switch modifier {
         case .command:
             return HotkeyTriggerPolicy(
-                revealDelay: 0,
+                revealDelay: standardRevealDelay,
                 ignoresRepeatedTabBeforeReveal: true,
                 earlyReleaseAction: .quickSwitch
             )
         case .option:
             return HotkeyTriggerPolicy(
-                revealDelay: 0,
+                revealDelay: standardRevealDelay,
                 ignoresRepeatedTabBeforeReveal: false,
                 earlyReleaseAction: .quickSwitch
             )

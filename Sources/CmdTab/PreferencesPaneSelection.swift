@@ -5,7 +5,9 @@ enum PreferencesPaneSelection: String, CaseIterable, Identifiable {
     case switcher
     case shortcuts
     case licensing
+    #if DEBUG
     case developer
+    #endif
     case system
 
     var id: String { rawValue }
@@ -20,8 +22,10 @@ enum PreferencesPaneSelection: String, CaseIterable, Identifiable {
             return "Shortcuts"
         case .licensing:
             return "Licensing"
+        #if DEBUG
         case .developer:
             return "Developer"
+        #endif
         case .system:
             return "System"
         }
@@ -37,8 +41,10 @@ enum PreferencesPaneSelection: String, CaseIterable, Identifiable {
             return "command"
         case .licensing:
             return "lock.open.display"
+        #if DEBUG
         case .developer:
             return "hammer"
+        #endif
         case .system:
             return "lock.shield"
         }

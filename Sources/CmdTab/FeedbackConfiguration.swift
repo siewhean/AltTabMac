@@ -41,6 +41,6 @@ enum FeedbackConfiguration {
             URLQueryItem(name: "subject", value: subject),
             URLQueryItem(name: "body", value: body)
         ]
-        return components.url!
+        return components.url ?? URL(string: "mailto:\(contactEmail)") ?? URL(fileURLWithPath: "/")
     }
 }

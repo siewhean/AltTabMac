@@ -140,3 +140,29 @@ export function checkRateLimit(input: RateLimitInput): RateLimitResult {
 
   return { allowed: true, fingerprint };
 }
+
+export function checkTrialRateLimit(installId: string, ip: string): RateLimitResult {
+  const now = Date.now();
+  maybeCleanup(now);
+
+  const installKey = `trial_install:${sha(installId)}:86400000`;
+  const ipKey = `trial_ip:${sha(ip)}:3600000`;
+
+  const installEntries = remember(installKey, now, { max: 3, windowMs: 24 * 60 * 60_000 });
+  if (installEntries.length > 3) {
+    return {
+      allowed: false,
+      retryAfterSeconds: secondsUntilReset(installEntries, now, 24 * 60 * 60_000),
+    };
+  }
+
+  const ipEntries = remember(ipKey, now, { max: 10, windowMs: 60 * 60_000 });
+  if (ipEntries.length > 10) {
+    return {
+      allowed: false,
+      retryAfterSeconds: secondsUntilReset(ipEntries, now, 60 * 60_000),
+    };
+  }
+
+  return { allowed: true, fingerprint: sha(`${installId}|${ip}`) };
+}

@@ -128,15 +128,14 @@ struct RadialMenuView: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.white.opacity(0.03))
+                .fill(Color.clear)
                 .background(
                     Group {
                         if preferences.enableVibrancy {
                             VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow)
                                 .clipShape(Circle())
                         } else {
-                            Circle()
-                                .fill(Color(red: 0.10, green: 0.10, blue: 0.12).opacity(0.90))
+                            Color.clear
                         }
                     }
                 )
@@ -258,8 +257,9 @@ private struct RadialItemView: View {
                 if let icon = item.icon {
                     Image(nsImage: icon)
                         .resizable()
-                        .interpolation(.high)
-                        .frame(width: 42, height: 42)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 38, height: 38)
+                        .clipped()
                 } else {
                     Image(systemName: "app.fill")
                         .font(.system(size: 26))
@@ -275,5 +275,8 @@ private struct RadialItemView: View {
                 .lineLimit(1)
                 .frame(width: 84, alignment: .center)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.title), \(item.subtitle)")
+        .accessibilityHint(isSelected ? "Currently selected window" : "Select to switch to window")
     }
 }

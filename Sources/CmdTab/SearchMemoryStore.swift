@@ -22,9 +22,13 @@ final class SearchMemoryStore {
         self.defaults = defaults
         self.defaultsKey = defaultsKey
 
-        if let data = defaults.data(forKey: defaultsKey),
-           let decoded = try? JSONDecoder().decode([String: RememberedSelection].self, from: data) {
-            self.entries = decoded
+        if let data = defaults.data(forKey: defaultsKey) {
+            do {
+                self.entries = try JSONDecoder().decode([String: RememberedSelection].self, from: data)
+            } catch {
+                NSLog("[CmdTab] SearchMemoryStore decode error: \(error)")
+                self.entries = [:]
+            }
         } else {
             self.entries = [:]
         }
@@ -75,8 +79,12 @@ final class SearchMemoryStore {
     }
 
     private func persistLocked() {
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        defaults.set(data, forKey: defaultsKey)
+        do {
+            let data = try JSONEncoder().encode(entries)
+            defaults.set(data, forKey: defaultsKey)
+        } catch {
+            NSLog("[CmdTab] SearchMemoryStore encode error: \(error)")
+        }
     }
 
     private func normalizedMemoryQuery(_ query: String) -> String {

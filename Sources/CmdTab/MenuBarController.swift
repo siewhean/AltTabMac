@@ -18,6 +18,12 @@ final class MenuBarController {
             name: SwitcherPreferences.didChangeNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePreferencesDidChange),
+            name: LicensingController.didChangeNotification,
+            object: nil
+        )
         build()
     }
 
@@ -39,8 +45,29 @@ final class MenuBarController {
         updateMenu()
     }
 
+    private func trialStatusMenuItem() -> NSMenuItem {
+        let status = MainActor.assumeIsolated { LicensingController.shared.status }
+        let title: String
+        switch status {
+        case let .activeTrial(_, _, daysRemaining):
+            title = daysRemaining == 1 ? "Trial: 1 day remaining" : "Trial: \(daysRemaining) days remaining"
+        case .expired:
+            title = "Trial Expired — Buy License to Activate"
+        case let .licensed(payload, _):
+            title = "CmdTab Licensed (\(payload.email))"
+        case .unregistered:
+            title = "Trial: Unregistered"
+        }
+        let item = NSMenuItem(title: title, action: #selector(openLicensing), keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
     func updateMenu() {
         let menu = NSMenu()
+
+        menu.addItem(trialStatusMenuItem())
+        menu.addItem(.separator())
 
         let visibilityMenuItem = NSMenuItem(title: "Window Visibility", action: nil, keyEquivalent: "")
         visibilityMenuItem.submenu = visibilitySubmenu()
@@ -76,6 +103,10 @@ final class MenuBarController {
         let buyItem = NSMenuItem(title: "Buy CmdTab", action: #selector(openBuyPage), keyEquivalent: "")
         buyItem.target = self
         menu.addItem(buyItem)
+
+        let feedbackItem = NSMenuItem(title: "Send Feedback…", action: #selector(sendFeedback), keyEquivalent: "")
+        feedbackItem.target = self
+        menu.addItem(feedbackItem)
 
         // ── About / help ─────────────────────────────────────────────────────
         let aboutItem = NSMenuItem(title: "About CmdTab", action: #selector(showAbout), keyEquivalent: "")
@@ -198,23 +229,38 @@ final class MenuBarController {
         }
     }
 
+    @objc private func sendFeedback() {
+        NSWorkspace.shared.open(FeedbackConfiguration.reportBugURL)
+    }
+
     @objc private func quitCmdTab() {
         (NSApp.delegate as? AppDelegate)?.requestTermination()
     }
 
     @objc private func handleStatusItemClick() {
         guard let event = NSApp.currentEvent else {
+            dismissContextMenuIfNeeded()
             preferencesWindowController.show()
             return
         }
 
         if event.type == .rightMouseUp {
+            dismissContextMenuIfNeeded()
             if let menu = contextMenu, let button = statusItem.button {
                 menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.maxY), in: button)
             }
         } else {
+            dismissContextMenuIfNeeded()
             preferencesWindowController.show()
         }
+    }
+
+    func dismissContextMenu() {
+        dismissContextMenuIfNeeded()
+    }
+
+    private func dismissContextMenuIfNeeded() {
+        contextMenu?.cancelTracking()
     }
 
     @objc private func handlePreferencesDidChange() {
