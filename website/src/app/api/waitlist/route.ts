@@ -293,13 +293,25 @@ export async function POST(request: Request) {
 
     const ip = getClientIp(request);
     const userAgent = getUserAgent(request);
-    const rateLimit = checkRateLimit({
+    const rateLimit = await checkRateLimit({
       email: payload.email,
       ip,
       userAgent,
     });
 
     if (!rateLimit.allowed) {
+      if ("unavailable" in rateLimit) {
+        return jsonResponse(
+          {
+            ok: false,
+            code: "service_unavailable",
+            message: "Abuse protection is temporarily unavailable. Please try again shortly.",
+            requestId,
+          },
+          503,
+          { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        );
+      }
       return jsonResponse(
         {
           ok: false,
@@ -309,6 +321,7 @@ export async function POST(request: Request) {
           requestId,
         },
         429,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) },
       );
     }
 
@@ -317,7 +330,10 @@ export async function POST(request: Request) {
       `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
     );
 
-    if (recentlySubmitted(emailFingerprint) || recentlySubmitted(requestFingerprint)) {
+    if (
+      (await recentlySubmitted(emailFingerprint)) ||
+      (await recentlySubmitted(requestFingerprint))
+    ) {
       return jsonResponse(
         {
           ok: true,
@@ -378,8 +394,8 @@ export async function POST(request: Request) {
           "failed",
           deliveryError.message,
         );
-        markSubmitted(emailFingerprint);
-        markSubmitted(requestFingerprint);
+        await markSubmitted(emailFingerprint);
+        await markSubmitted(requestFingerprint);
 
         return jsonResponse({
           ok: true,
@@ -408,8 +424,8 @@ export async function POST(request: Request) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
     }
 
-    markSubmitted(emailFingerprint);
-    markSubmitted(requestFingerprint);
+    await markSubmitted(emailFingerprint);
+    await markSubmitted(requestFingerprint);
 
     return jsonResponse({
       ok: true,
