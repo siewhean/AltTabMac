@@ -12,6 +12,7 @@ const showcase = read("src/content/showcase.ts");
 const player = read("src/components/showcase/showcase-video.tsx");
 
 assert.match(hero, /ShowcaseVideo/, "homepage hero must keep the autoplay product demonstration");
+assert.match(hero, /ShowcaseVideo[\s\S]*loopPlayback/, "homepage hero video must opt into looping playback");
 assert.match(showcasePage, /CmdTab in motion/, "showcase page must use the simplified visible heading");
 assert.doesNotMatch(
   homePage,
@@ -26,10 +27,17 @@ assert.doesNotMatch(
 assert.match(showcase, /deterministic HD product composite/i, "showcase contract must identify deterministic HD composites");
 assert.match(showcase, /not AI-generated/i, "showcase contract must preserve the non-AI boundary");
 assert.match(showcase, /controlled fixture windows/i, "showcase contract must preserve the fixture boundary");
-assert.match(showcase, /run once for no more than five seconds/i, "showcase contract must state the autoplay boundary");
+assert.match(showcase, /homepage hero overview loops while visible/i, "showcase contract must state the hero loop boundary");
+assert.match(showcase, /showcase-page autoplay clips run once for no more than five seconds/i, "showcase contract must state the one-shot showcase boundary");
 assert.match(showcase, /prefer reduced motion/i, "showcase contract must state the reduced-motion boundary");
-assert.match(player, /data-autoplay-mode="one-shot"/, "showcase player must identify one-shot autoplay");
-assert.doesNotMatch(player, /\bloop\b/, "showcase player must not loop autoplay video");
+assert.match(player, /loopPlayback = false/, "showcase player must default to one-shot playback");
+assert.match(player, /loop=\{loopPlayback\}/, "showcase player must apply the native loop attribute only when requested");
+assert.match(
+  player,
+  /data-autoplay-mode=\{loopPlayback \? "loop" : "one-shot"\}/,
+  "showcase player must expose its selected autoplay mode",
+);
+assert.match(player, /if \(!loopPlayback\) hasCompletedRef\.current = true/, "one-shot players must freeze after completion");
 assert.doesNotMatch(
   `${hero}\n${showcasePage}\n${showcase}`,
   /authentic production Radial Menu render|production-swiftui-render|rendered from CmdTab(?:’|')s actual SwiftUI\/AppKit switcher views/i,
@@ -41,4 +49,4 @@ assert.doesNotMatch(
   "showcase copy must not advertise obsolete low-resolution media",
 );
 
-console.log("Simplified one-shot autoplay showcase copy verification passed.");
+console.log("Hero-loop and one-shot showcase autoplay copy verification passed.");
