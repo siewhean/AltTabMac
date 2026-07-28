@@ -181,7 +181,7 @@ final class LicensingController: ObservableObject {
     var licenseSummaryDetail: String {
         switch status {
         case .unregistered:
-            return "Use your email to register this Mac and start the 14-day trial. This helps prevent repeated trial abuse."
+            return "Start the trial on this Mac. Email is optional and is used only for trial reminders."
         case let .licensed(payload, activatedAt):
             let issuedAt = payload.issuedDate.map { Self.displayFormatter.string(from: $0) } ?? payload.issuedAt
             let activatedCopy = activatedAt.map { "Activated \(Self.displayFormatter.string(from: $0))." } ?? "Activated on this Mac."
@@ -240,7 +240,7 @@ final class LicensingController: ObservableObject {
 
         if let paidEntitlement = deviceEntitlementStore.loadEntitlement(),
            let verifiedPayload = try? validatePaidDeviceEntitlement(
-               paidEntitlement
+            paidEntitlement
            ) {
             guard !isRevoked(
                 payload: verifiedPayload,
@@ -289,14 +289,14 @@ final class LicensingController: ObservableObject {
         if let claim = trialClaimStore.loadClaim(),
            let trialInstallBinding = try? deviceIdentifier(),
            trialClaimAuthenticator.validates(
-               claim,
-               installID: trialInstallBinding
+            claim,
+            installID: trialInstallBinding
            ),
            let startedAt = claim.startedDate,
            let claimedEndsAt = claim.endsDate {
             if let lastSeen = secureTrialClockStore.loadLastSeenDate(),
                now.addingTimeInterval(Self.clockRollbackTolerance) < lastSeen {
-                enteredTrialEmail = claim.email
+                enteredTrialEmail = Self.visibleTrialEmail(claim.email)
                 status = .unregistered
                 trialMessage = LicensingMessage(
                     tone: .warning,
@@ -312,7 +312,7 @@ final class LicensingController: ObservableObject {
                 status = .unregistered
                 return
             }
-            enteredTrialEmail = claim.email
+            enteredTrialEmail = Self.visibleTrialEmail(claim.email)
             secureTrialClockStore.saveLastSeenDate(now)
             if now < endsAt {
                 status = .activeTrial(
@@ -336,8 +336,12 @@ final class LicensingController: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
 
-        guard normalizedEmail.contains("@"), normalizedEmail.contains(".") else {
-            trialMessage = LicensingMessage(tone: .error, text: "Enter a valid email to start the trial.")
+        if !normalizedEmail.isEmpty,
+           (!normalizedEmail.contains("@") || !normalizedEmail.contains(".")) {
+            trialMessage = LicensingMessage(
+                tone: .error,
+                text: "Enter a valid email or leave the field blank."
+            )
             return false
         }
 
@@ -360,7 +364,7 @@ final class LicensingController: ObservableObject {
                     authoritativeDate
                 )
             )
-            enteredTrialEmail = claim.email
+            enteredTrialEmail = Self.visibleTrialEmail(claim.email)
             refreshStatus()
             guard case .activeTrial = status else {
                 trialMessage = LicensingMessage(
@@ -371,7 +375,9 @@ final class LicensingController: ObservableObject {
             }
             trialMessage = LicensingMessage(
                 tone: .success,
-                text: "Your 14-day trial is active on this Mac."
+                text: normalizedEmail.isEmpty
+                    ? "Your 14-day trial is active on this Mac. Email reminders are off."
+                    : "Your 14-day trial is active on this Mac."
             )
             telemetryReporter?.trackTrialStarted(licensingController: self)
             return true
@@ -627,7 +633,7 @@ final class LicensingController: ObservableObject {
             if status.requiresTrialRegistration {
                 trialMessage = LicensingMessage(
                     tone: .warning,
-                    text: "Start the trial with your email before using CmdTab on this Mac."
+                    text: "Start the trial before using CmdTab on this Mac. Email is optional."
                 )
             } else {
                 licenseMessage = LicensingMessage(
@@ -814,11 +820,16 @@ final class LicensingController: ObservableObject {
         }
     }
 
+    private static let anonymousTrialEmailSuffix = "@trial.cmdtab.invalid"
     private static let secondsPerDay: TimeInterval = 24 * 60 * 60
     private static let trialDuration =
         TimeInterval(LicensingConfiguration.trialLengthDays) * secondsPerDay
     private static let trialClaimSerializationTolerance: TimeInterval = 1
     private static let clockRollbackTolerance: TimeInterval = 5 * 60
+
+    private static func visibleTrialEmail(_ claimEmail: String) -> String {
+        claimEmail.hasSuffix(anonymousTrialEmailSuffix) ? "" : claimEmail
+    }
 
     private static func trialEndDate(startedAt: Date) -> Date {
         startedAt.addingTimeInterval(trialDuration)
