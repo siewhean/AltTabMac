@@ -173,6 +173,34 @@ class ReleaseManifestTests(unittest.TestCase):
         )
         self.assertIn("Developer ID bundle is missing Hardened Runtime", verifier)
 
+    def test_release_package_fails_closed_on_universal_architecture_policy(self) -> None:
+        config = json.loads(
+            (ROOT / "release" / "ReleaseConfig.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        packager = (
+            ROOT / "scripts" / "release" / "package-app.sh"
+        ).read_text(encoding="utf-8")
+        verifier = (
+            ROOT / "scripts" / "release" / "verify-bundle.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertEqual(
+            config["architecturePolicy"],
+            "universal-arm64-x86_64",
+        )
+        for required in [
+            "universal-arm64-x86_64",
+            'BUILD_ARCHITECTURES="arm64,x86_64"',
+            'EXPECTED_ARCHITECTURES="arm64,x86_64"',
+            'CMDTAB_BUILD_ARCHITECTURES="${BUILD_ARCHITECTURES}"',
+            'CMDTAB_EXPECTED_ARCHITECTURES="${EXPECTED_ARCHITECTURES}"',
+            "Release architecture policy requires arm64,x86_64",
+        ]:
+            self.assertIn(required, packager)
+        self.assertIn("Expected architectures", verifier)
+
     def test_valid_manifest_and_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             artifact = Path(directory) / "CmdTab.dmg"
