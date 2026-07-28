@@ -114,3 +114,25 @@ create table if not exists license_recovery_requests (
 
 create index if not exists license_recovery_requests_recent_idx
   on license_recovery_requests (email_lookup_hash, created_at desc);
+
+-- Persistent public-form and ingest throttling. These tables make abuse controls
+-- survive serverless cold starts and prevent production from silently falling
+-- back to process-local memory.
+create table if not exists ingest_rate_limits (
+  bucket_key text not null,
+  window_start bigint not null,
+  event_count integer not null check (event_count > 0),
+  expires_at timestamptz not null,
+  primary key (bucket_key, window_start)
+);
+
+create index if not exists ingest_rate_limits_expiry_idx
+  on ingest_rate_limits (expires_at);
+
+create table if not exists request_deduplication (
+  fingerprint text primary key,
+  expires_at timestamptz not null
+);
+
+create index if not exists request_deduplication_expiry_idx
+  on request_deduplication (expires_at);
