@@ -164,9 +164,7 @@ function quickScene(progress = 0) {
     const alpha = originalIndex === 1 && progress > .35 ? Math.max(0, 1 - (progress - .35) * 5) : 1;
     return windowPreview(app, startX + col * (w + gapX), startY + row * (h + gapY), w, h, originalIndex === 1 && !gone, alpha);
   }).join("");
-  const badgeOpacity = progress < .65 ? 1 : Math.max(0, 1 - (progress - .65) * 3);
   return `${desktopBackdrop()}${chrome("CmdTab Quick Actions", "Selected target mutation")}${cards}
-    <g opacity="${badgeOpacity}" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><rect x="760" y="512" width="400" height="112" rx="30" fill="#050A12" fill-opacity=".94" stroke="#69D6FF" stroke-opacity=".55" filter="url(#shadow)"/><text x="960" y="557" fill="#69D6FF" font-size="20" font-weight="750" text-anchor="middle" letter-spacing="3">QUICK ACTION</text><text x="960" y="598" fill="#F3F7FF" font-size="31" font-weight="650" text-anchor="middle">⌘ W · Close selected window</text></g>
     ${titleBand("Quick Actions", "Act without entering the window", "Hide, minimize, close, or quit from the current selection")}`;
 }
 
