@@ -10,7 +10,7 @@ const read = (path) => readFileSync(resolve(root, path), "utf8");
 const trial = read("src/app/api/trial/start/route.ts");
 assert.match(trial, /readBoundedJson\(request, MAX_REQUEST_BODY_BYTES\)/);
 assert.match(trial, /enforceIngestRateLimit\(request, "trial-start"\)/);
-assert.match(trial, /installId: z\.string\(\)\.trim\(\)\.regex\(\/\^\[a-f0-9\]\{64\}\\$\/\)/);
+assert.match(trial, /installId: z\.string\(\)\.trim\(\)\.regex\(\/\^\[a-f0-9\]\{64\}\$\/\)/);
 assert.match(trial, /code: "trial_unavailable"/);
 assert.doesNotMatch(trial, /code: result\.reason/);
 
