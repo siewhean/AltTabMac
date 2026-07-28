@@ -120,6 +120,40 @@ class ReleaseManifestTests(unittest.TestCase):
         ]:
             self.assertIn(required, verifier)
 
+    def test_branded_dmg_contract_has_drag_install_layout(self) -> None:
+        notarized_build = (
+            ROOT / "scripts" / "release" / "build-notarized-dmg.sh"
+        ).read_text(encoding="utf-8")
+        background_renderer = (
+            ROOT / "scripts" / "release" / "render-dmg-background.swift"
+        ).read_text(encoding="utf-8")
+
+        for required in [
+            "render-dmg-background.swift",
+            ".background/background.png",
+            "-format UDRW",
+            "set background picture of viewOptions",
+            'set position of item "CmdTab.app"',
+            'set position of item "Applications"',
+            "-format UDZO",
+        ]:
+            self.assertIn(required, notarized_build)
+        self.assertIn("Drag CmdTab into Applications", background_renderer)
+        self.assertIn("Window-level switching for macOS", background_renderer)
+
+    def test_packaged_launch_smoke_proves_exact_executable(self) -> None:
+        smoke = (
+            ROOT / "scripts" / "release" / "smoke-launch-app.sh"
+        ).read_text(encoding="utf-8")
+
+        for required in [
+            "codesign --verify --deep --strict",
+            'lsof -a -p "${PID}" -d txt',
+            'grep -Fx "${EXECUTABLE_PATH}"',
+            "Packaged launch smoke test passed",
+        ]:
+            self.assertIn(required, smoke)
+
     def test_ad_hoc_sparkle_packaging_omits_hardened_runtime(self) -> None:
         signer = (
             ROOT / "scripts" / "release" / "sign-app-bundle.sh"
