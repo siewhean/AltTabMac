@@ -10,10 +10,7 @@ export const metadata = createPageMetadata({
     "Your CmdTab purchase is confirmed. Open the activation email on your Mac to activate CmdTab in one click or use the manual code in Settings.",
   path: "/thank-you",
   imageAlt: "CmdTab purchase confirmation and activation steps",
-  robots: {
-    index: false,
-    follow: false,
-  },
+  noIndex: true,
 });
 
 const steps = [
