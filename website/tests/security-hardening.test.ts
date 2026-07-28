@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { constantTimeEqual } from "../src/lib/constant-time.js";
+import { contentSecurityPolicy } from "../src/lib/content-security-policy.js";
 import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
@@ -23,6 +24,29 @@ test("constant-time secret comparison handles unequal lengths without an early r
   assert.equal(constantTimeEqual("correct horse", "correct horse"), true);
   assert.equal(constantTimeEqual("short", "a considerably longer secret"), false);
   assert.equal(constantTimeEqual("same-length-a", "same-length-b"), false);
+});
+
+test("production CSP uses a nonce instead of unsafe-inline scripts", () => {
+  const policy = contentSecurityPolicy("testNonce123=", true);
+  assert.match(policy, /script-src 'self' 'nonce-testNonce123=' 'strict-dynamic'/);
+  assert.doesNotMatch(policy, /script-src[^;]*'unsafe-inline'/);
+  assert.doesNotMatch(policy, /script-src[^;]*'unsafe-eval'/);
+  assert.match(policy, /style-src-elem 'self' 'nonce-testNonce123='/);
+  assert.match(policy, /style-src-attr 'unsafe-inline'/);
+});
+
+test("development CSP allows eval only for the framework toolchain", () => {
+  const policy = contentSecurityPolicy("developmentNonce", false);
+  assert.match(policy, /script-src[^;]*'unsafe-eval'/);
+  assert.doesNotMatch(policy, /script-src[^;]*'unsafe-inline'/);
+  assert.match(policy, /connect-src 'self' ws: wss:/);
+});
+
+test("CSP rejects attacker-controlled nonce characters", () => {
+  assert.throws(
+    () => contentSecurityPolicy("nonce'; script-src *", true),
+    /unsupported characters/,
+  );
 });
 
 test("CSV export neutralizes spreadsheet formula prefixes", () => {
