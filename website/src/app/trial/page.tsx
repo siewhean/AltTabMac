@@ -1,6 +1,7 @@
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
+import { TrialWaitlistForm } from "@/components/sections/trial-waitlist-form";
 import { Button } from "@/components/ui/button";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
@@ -15,9 +16,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "Download the CmdTab 14-day Mac trial";
+const title = "CmdTab 14-Day Trial — Join the Mac Waitlist";
 const description =
-  "Start the CmdTab 14-day macOS trial, confirm the current download and system requirements, enable Accessibility and Screen Recording, and test individual-window switching in your own workflow.";
+  "Sign up for the CmdTab 14-day macOS trial waitlist. Enter your email to receive early access and be notified when the trial download is available for your Mac.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Trial", path: "/trial" as const },
@@ -27,7 +28,7 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/trial",
-  imageAlt: "Download the CmdTab 14-day macOS trial",
+  imageAlt: "Join the CmdTab 14-day macOS trial waitlist",
 });
 
 export default function TrialPage() {
@@ -49,8 +50,8 @@ export default function TrialPage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow={commercePageContent.trial.eyebrow}
-        title={commercePageContent.trial.title}
-        description={commercePageContent.trial.description}
+        title="Get early trial access for your Mac"
+        description="CmdTab is currently in private preview. Sign up for the waitlist below to receive an email notification as soon as the trial download is ready."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -59,9 +60,9 @@ export default function TrialPage() {
             Version {productFacts.currentVersion} · {productFacts.minimumMacOS}
           </p>
         </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <MotionReveal direction="left" className="surface-panel p-6">
-            <p className="type-eyebrow text-cyan">Trial checklist</p>
+            <p className="type-eyebrow text-cyan">Trial checklist &amp; features</p>
             <div className="mt-5 space-y-4">
               {commercePageContent.trial.checklist.map((item) => (
                 <div key={item} className="flex items-start gap-3 text-sm leading-7 text-muted">
@@ -71,44 +72,43 @@ export default function TrialPage() {
               ))}
             </div>
             <p className="mt-5 border-t border-white/8 pt-5 text-sm leading-7 text-subdued">
-              The app requires Accessibility for switching and exact focus. Screen Recording enables live previews; eligible windows remain represented with an icon or placeholder if capture is unavailable.
+              The app requires Accessibility for window-level switching and exact focus. Screen Recording enables live previews.
             </p>
-          </MotionReveal>
 
-          <MotionReveal direction="right" delay={120} className="surface-panel p-6">
-            <p className="type-eyebrow text-cyan">Download</p>
-            <div className="mt-4 space-y-4 text-sm leading-7 text-muted">
-              <p>{commercePageContent.trial.note}</p>
+            <div className="mt-6 pt-4 border-t border-white/8 flex items-center justify-between">
+              <span className="text-xs text-muted">Have a license key already?</span>
+              <Button href="/buy" variant="secondary" className="text-xs" {...analyticsAttributes("trial_page_buy_click", "trial_page")}>
+                Review pricing
+              </Button>
             </div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              {release ? (
+
+            {release ? (
+              <div className="mt-4 pt-3 border-t border-white/8">
                 <Button
                   href={release.dmgURL}
                   target="_blank"
                   rel="noreferrer"
+                  className="w-full text-xs"
                   {...analyticsAttributes("trial_page_download_click", "trial_page")}
                 >
-                  Download CmdTab {release.version}
+                  Download CmdTab {release.version} (.dmg)
                 </Button>
-              ) : (
-                <Button href="/help" variant="secondary" {...analyticsAttributes("trial_page_support_click", "trial_page")}>
-                  Ask for access
-                </Button>
-              )}
-              <Button href="/buy" variant="secondary" {...analyticsAttributes("trial_page_buy_click", "trial_page")}>
-                Review pricing
-              </Button>
+                <p className="mt-2 text-xs leading-5 text-subdued">
+                  Build {release.build} · {release.bytes.toLocaleString("en-US")} bytes
+                </p>
+              </div>
+            ) : null}
+          </MotionReveal>
+
+          <MotionReveal direction="right" delay={120} className="surface-panel p-6">
+            <p className="type-eyebrow text-cyan">Join the Trial Waitlist</p>
+            <div className="mt-3 mb-5 space-y-2 text-sm leading-6 text-muted">
+              <p>
+                Sign up with your email to receive early access. We will notify you directly as soon as your trial download is ready.
+              </p>
             </div>
-            {release ? (
-              <p className="mt-4 text-xs leading-6 text-subdued">
-                Build {release.build} · {release.bytes.toLocaleString("en-US")} bytes · SHA-256{" "}
-                <code className="break-all">{release.sha256}</code>
-              </p>
-            ) : (
-              <p className="mt-4 text-xs leading-6 text-subdued">
-                Download remains unavailable until a signed, notarized DMG is bound to the stable release manifest.
-              </p>
-            )}
+
+            <TrialWaitlistForm />
           </MotionReveal>
         </div>
       </SectionShell>
