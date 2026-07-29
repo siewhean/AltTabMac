@@ -46,7 +46,7 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
               </Button>
             ) : (
               <Button href="/trial" variant="secondary" className="w-full" {...analyticsAttributes("commerce_trial_page_click", context)}>
-                Trial details
+                Join trial waitlist
               </Button>
             )}
           </div>
@@ -78,8 +78,8 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
                 {commerceContent.license.cta}
               </Button>
             ) : (
-              <Button href="/help" variant="secondary" className="w-full" {...analyticsAttributes("commerce_license_fallback_click", context)}>
-                Ask about purchase access
+              <Button href="/trial" variant="secondary" className="w-full" {...analyticsAttributes("commerce_license_fallback_click", context)}>
+                Join the waitlist
               </Button>
             )}
           </div>

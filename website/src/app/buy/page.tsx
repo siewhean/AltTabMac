@@ -2,6 +2,7 @@ import { CommerceOfferGrid } from "@/components/commerce/commerce-offer-grid";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
+import { TrialWaitlistForm } from "@/components/sections/trial-waitlist-form";
 import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
@@ -58,6 +59,18 @@ export default function BuyPage() {
           and all CmdTab 1.x updates. It is not a recurring subscription. A full refund can be
           requested within 14 days of purchase.
         </p>
+      </SectionShell>
+
+      <SectionShell
+        id="waitlist"
+        eyebrow="Early access"
+        title="Join the CmdTab waitlist"
+        description="Sign up below to receive early preview access and an email notification as soon as the trial download or direct purchase opens for your Mac."
+        className="pt-0"
+      >
+        <MotionReveal className="surface-panel p-6 max-w-2xl">
+          <TrialWaitlistForm />
+        </MotionReveal>
       </SectionShell>
 
       <SectionShell
