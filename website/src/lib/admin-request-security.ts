@@ -18,8 +18,19 @@ export function isSameOriginAdminMutation(
   if (!requestOrigin) return false;
 
   if (process.env.NODE_ENV === "production" && !trustedOrigin) return false;
-  const expectedOrigin = normalizedOrigin(trustedOrigin || request.url);
-  if (!expectedOrigin || normalizedOrigin(requestOrigin) !== expectedOrigin) return false;
+
+  const normalizedReqOrigin = normalizedOrigin(requestOrigin);
+  if (!normalizedReqOrigin) return false;
+
+  const expectedUrlOrigin = normalizedOrigin(request.url);
+  const expectedConfiguredOrigin = trustedOrigin ? normalizedOrigin(trustedOrigin) : null;
+
+  const matchesUrl = Boolean(expectedUrlOrigin && normalizedReqOrigin === expectedUrlOrigin);
+  const matchesConfigured = Boolean(
+    expectedConfiguredOrigin && normalizedReqOrigin === expectedConfiguredOrigin,
+  );
+
+  if (!matchesUrl && !matchesConfigured) return false;
 
   const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
   return !fetchSite || fetchSite === "same-origin";
