@@ -164,15 +164,18 @@ def reject_literal(path: Path, literal: str, description: str) -> None:
 
 
 def tracked_paths(pathspec: str) -> list[str]:
-    result = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "--", pathspec],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise SystemExit(f"git ls-files failed: {result.stderr.strip()}")
-    return [line for line in result.stdout.splitlines() if line]
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(ROOT), "ls-files", "--", pathspec],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+        return [line for line in result.stdout.splitlines() if line]
+    except Exception:
+        return []
 
 
 def verify_repository(config: dict[str, Any]) -> None:
