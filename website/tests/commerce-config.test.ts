@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { getCommerceConfig } from "../src/lib/commerce.js";
+import { isCommerceLaunchEnabled } from "../src/lib/env.js";
 
 test("commerce configuration accepts explicit HTTPS checkout and portal URLs", () => {
   assert.deepEqual(
@@ -45,4 +46,12 @@ test("commerce configuration normalizes provider casing and URL serialization", 
 
   assert.equal(config.checkoutProvider, "lemonsqueezy");
   assert.equal(config.checkoutUrl, "https://store.example.com/checkout");
+});
+
+test("commerce workers run only behind the explicit launch switch", () => {
+  assert.equal(isCommerceLaunchEnabled({ CMDTAB_REQUIRE_COMMERCE_READY: "1" }), true);
+  assert.equal(isCommerceLaunchEnabled({ CMDTAB_REQUIRE_COMMERCE_READY: " 1 " }), true);
+  assert.equal(isCommerceLaunchEnabled({ CMDTAB_REQUIRE_COMMERCE_READY: "true" }), false);
+  assert.equal(isCommerceLaunchEnabled({ CMDTAB_REQUIRE_COMMERCE_READY: "0" }), false);
+  assert.equal(isCommerceLaunchEnabled({}), false);
 });
