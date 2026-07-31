@@ -23,6 +23,11 @@ const activation = read("src/app/api/license/activate/route.ts");
 assert.match(activation, /"license-activation"/);
 
 const webhook = read("src/app/api/lemonsqueezy/webhook/route.ts");
+assert.match(
+  webhook,
+  /export async function POST\(request: Request\) \{[\s\S]*?if \(!isCommerceLaunchEnabled\(\)\) \{\s*return json\(\s*\{[\s\S]*?code: "commerce_disabled"[\s\S]*?\},\s*503,\s*\);\s*\}\s*const env = getServerEnv\(\);/,
+  "webhook must return before configuration or database access while commerce is disabled",
+);
 assert.match(webhook, /readBoundedText\(request, MAX_WEBHOOK_BODY_BYTES\)/);
 assert.doesNotMatch(webhook, /await request\.text\(\)/);
 assert.match(webhook, /fulfillPaidPurchase\(/);

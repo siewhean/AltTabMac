@@ -55,6 +55,12 @@ must already be present and the worker resumes normal retry processing. This
 keeps waitlist-mode deployments from querying tables that are intentionally not
 yet provisioned.
 
+The signed Lemon Squeezy webhook uses the same boundary. While commerce is
+disabled it returns `503 commerce_disabled` before loading commerce
+configuration, reading the webhook body, or touching lifecycle tables. The
+non-success response preserves the event for provider retry after the launch
+switch and infrastructure are ready instead of acknowledging and losing it.
+
 ## PR #35 five-feature QA
 
 The feature branch is being tested through `scripts/release/run-five-feature-qa.sh`. Its source, tests, package, and reproducibility phases are bound to one clean Git commit with hash-sealed evidence. The focused feature gate must execute exactly **61 tests** with no failures or unexpected results.
