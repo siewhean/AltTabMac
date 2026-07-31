@@ -15,10 +15,9 @@ is authorized from this baseline.
 ## Repository truth at the candidate baseline
 
 - The app identity is `net.cmdtab.CmdTab`; the declared minimum macOS version
-  is 13.0. At the candidate baseline, the release configuration is
-  `universal-arm64-x86_64` with a stable update channel/feed. Gate 1 must
-  change and verify the target `arm64` beta configuration without presenting
-  the uncommitted work as baseline evidence.
+  is 13.0. This release branch has a verified `arm64-only` packaging policy
+  and two byte-identical unsigned packages from distinct scratch directories.
+  Intel remains unsupported and must not be claimed.
 - The accepted Phase 1 record is historical evidence for
   `516a9476...`/PR #31: host-architecture local ad-hoc packaging and
   byte-repeatability on one Mac. It does not prove the current candidate,

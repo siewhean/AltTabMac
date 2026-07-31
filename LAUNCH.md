@@ -86,10 +86,10 @@ Follow `docs/release/signed-update-runbook.md`.
 
 ## Hardware and performance acceptance
 
-- Run clean-install and N-to-N+1 update tests on current Apple Silicon and
-  Intel hardware for the supported macOS range.
+- Run clean-install and N-to-N+1 update tests on Apple Silicon hardware for
+  the supported macOS range. Intel is not supported for this beta.
 - Run `scripts/performance/run-performance-evidence.sh --mode acceptance` on
-  each accepted hardware class.
+  the accepted Apple Silicon hardware class.
 - Retain exact-SHA evidence for 10/25/50-window runs and the 1,000-session soak.
 - Mark unavailable hardware, permissions, credentials, or service evidence
   `NOT TESTED`; never infer it from unit tests or source inspection.

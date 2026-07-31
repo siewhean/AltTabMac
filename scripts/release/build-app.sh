@@ -36,8 +36,8 @@ if [[ -n "${BUILD_JOBS}" ]]; then
 fi
 
 if [[ -n "${BUILD_ARCHITECTURES}" ]]; then
-  [[ "${BUILD_ARCHITECTURES}" == "arm64,x86_64" ]] || {
-    echo "CMDTAB_BUILD_ARCHITECTURES must be arm64,x86_64 when set." >&2
+  [[ "${BUILD_ARCHITECTURES}" == "arm64" ]] || {
+    echo "CMDTAB_BUILD_ARCHITECTURES must be arm64 when set." >&2
     exit 2
   }
 fi
@@ -73,6 +73,10 @@ build_product() {
   build_arguments+=(
     -Xlinker -rpath
     -Xlinker "@executable_path/../Frameworks"
+    # SwiftPM release builds otherwise embed absolute scratch paths in DWARF.
+    # Distribution artifacts keep external dSYMs private; omit inline debug data
+    # so clean scratch directories yield the same customer artifact.
+    -Xswiftc -gnone
   )
   if [[ "${LINKER_REPRODUCIBILITY}" == "1" ]]; then
     # SwiftPM CLI builds do not reliably inherit Xcode's
@@ -98,24 +102,8 @@ printf 'Building %s in %s (deterministic-linker=%s jobs=%s architectures=%s)\n' 
   "${LINKER_REPRODUCIBILITY}" \
   "${BUILD_JOBS:-default}" \
   "${BUILD_ARCHITECTURES:-host}" >&2
-if [[ "${BUILD_ARCHITECTURES}" == "arm64,x86_64" ]]; then
-  ARM64_BINARY="$(build_product "${SCRATCH_PATH}/arm64" "arm64-apple-macosx13.0")"
-  X86_64_BINARY="$(build_product "${SCRATCH_PATH}/x86_64" "x86_64-apple-macosx13.0")"
-  UNIVERSAL_DIRECTORY="${SCRATCH_PATH}/universal"
-  mkdir -p "${UNIVERSAL_DIRECTORY}"
-  lipo -create \
-    "${ARM64_BINARY}" \
-    "${X86_64_BINARY}" \
-    -output "${UNIVERSAL_DIRECTORY}/${APP_NAME}"
-  chmod 0755 "${UNIVERSAL_DIRECTORY}/${APP_NAME}"
-
-  ARM64_FRAMEWORK="$(dirname "${ARM64_BINARY}")/Sparkle.framework"
-  [[ -d "${ARM64_FRAMEWORK}" ]] || {
-    echo "Arm64 build is missing Sparkle.framework." >&2
-    exit 1
-  }
-  ditto "${ARM64_FRAMEWORK}" "${UNIVERSAL_DIRECTORY}/Sparkle.framework"
-  BINARY_PATH="${UNIVERSAL_DIRECTORY}/${APP_NAME}"
+if [[ "${BUILD_ARCHITECTURES}" == "arm64" ]]; then
+  BINARY_PATH="$(build_product "${SCRATCH_PATH}/arm64" "arm64-apple-macosx13.0")"
 else
   BINARY_PATH="$(build_product "${SCRATCH_PATH}")"
 fi

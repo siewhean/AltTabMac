@@ -53,23 +53,19 @@ REQUESTED_BUILD_ARCHITECTURES="${CMDTAB_BUILD_ARCHITECTURES:-}"
 REQUESTED_EXPECTED_ARCHITECTURES="${CMDTAB_EXPECTED_ARCHITECTURES:-}"
 
 case "${ARCHITECTURE_POLICY}" in
-  universal-arm64-x86_64)
+  arm64-only)
     if [[ -n "${REQUESTED_BUILD_ARCHITECTURES}" &&
-          "${REQUESTED_BUILD_ARCHITECTURES}" != "arm64,x86_64" ]]; then
-      echo "Release architecture policy requires arm64,x86_64 builds." >&2
+          "${REQUESTED_BUILD_ARCHITECTURES}" != "arm64" ]]; then
+      echo "Release architecture policy requires arm64 builds." >&2
       exit 2
     fi
     if [[ -n "${REQUESTED_EXPECTED_ARCHITECTURES}" &&
-          "${REQUESTED_EXPECTED_ARCHITECTURES}" != "arm64,x86_64" ]]; then
-      echo "Release architecture policy requires arm64,x86_64 verification." >&2
+          "${REQUESTED_EXPECTED_ARCHITECTURES}" != "arm64" ]]; then
+      echo "Release architecture policy requires arm64 verification." >&2
       exit 2
     fi
-    BUILD_ARCHITECTURES="arm64,x86_64"
-    EXPECTED_ARCHITECTURES="arm64,x86_64"
-    ;;
-  native-host-only-until-universal-build-is-verified)
-    BUILD_ARCHITECTURES="${REQUESTED_BUILD_ARCHITECTURES}"
-    EXPECTED_ARCHITECTURES="${REQUESTED_EXPECTED_ARCHITECTURES}"
+    BUILD_ARCHITECTURES="arm64"
+    EXPECTED_ARCHITECTURES="arm64"
     ;;
   *)
     echo "Unsupported release architecture policy: ${ARCHITECTURE_POLICY}" >&2
@@ -114,13 +110,37 @@ if [[ -n "$(find "${STAGE_APP}" -type l ! -path "${STAGE_APP}/Contents/Framework
   exit 1
 fi
 
+thin_executables_to_arm64() {
+  local executable_path
+  while IFS= read -r executable_path; do
+    local architectures
+    architectures="$(lipo -archs "${executable_path}")"
+    if [[ " ${architectures} " != *" arm64 "* ]]; then
+      echo "Packaged executable is missing an arm64 slice: ${executable_path}" >&2
+      exit 1
+    fi
+    if [[ " ${architectures} " == *" x86_64 "* ]]; then
+      local thinned_path
+      thinned_path="$(mktemp "${executable_path}.arm64.XXXXXX")"
+      lipo -thin arm64 "${executable_path}" -output "${thinned_path}"
+      chmod "$(stat -f '%Lp' "${executable_path}")" "${thinned_path}"
+      mv "${thinned_path}" "${executable_path}"
+    fi
+  done < <(find "${STAGE_APP}/Contents" -type f -perm -111 | LC_ALL=C sort)
+}
+
+thin_executables_to_arm64
+
 if [[ "${SKIP_SIGN}" == "1" ]]; then
-  # Apple Silicon linkers may add an ad-hoc signature to a Mach-O executable even
-  # when the bundle itself has not been signed. Strip that generated signature
-  # from the staged copy so the reproducibility path is genuinely unsigned.
-  if codesign -d "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}" >/dev/null 2>&1; then
-    codesign --remove-signature "${STAGE_APP}/Contents/MacOS/${EXECUTABLE_NAME}"
-  fi
+  # Re-sign the thinned nested framework with a deterministic ad-hoc signature,
+  # then remove only the outer bundle signature so the reproducibility artifact
+  # remains unsigned while its embedded framework stays structurally verifiable.
+  "${ROOT_DIR}/scripts/release/sign-app-bundle.sh" \
+    "${STAGE_APP}" \
+    - \
+    "${ROOT_DIR}/Resources/CmdTab.entitlements" \
+    none
+  codesign --remove-signature "${STAGE_APP}"
   EXPECTED_SIGNING="unsigned"
 elif [[ -n "${SIGNING_IDENTITY}" ]]; then
   plutil -lint "${ROOT_DIR}/Resources/CmdTab.entitlements" >/dev/null

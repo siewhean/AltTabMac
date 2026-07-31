@@ -54,6 +54,8 @@ def load_config(path: Path) -> dict[str, Any]:
         raise SystemExit("minimumSystemVersion is invalid")
     if data["packageType"] != "APPL":
         raise SystemExit("packageType must remain APPL")
+    if data["architecturePolicy"] != "arm64-only":
+        raise SystemExit("Only the arm64-only architecture policy is supported for this beta")
     if data["updateChannel"] != "stable":
         raise SystemExit("Only the stable update channel is supported for v1")
     if data["sparkleVersion"] != "2.9.2":
@@ -274,6 +276,11 @@ def verify_repository(config: dict[str, Any]) -> None:
         "build_arguments+=( -Xlinker -reproducible )",
         "deterministic linker mode",
     )
+    require_literal(
+        build_tool,
+        "-Xswiftc -gnone",
+        "release debug-data exclusion",
+    )
     reject_literal(
         build_tool,
         "-no_uuid",
@@ -282,12 +289,12 @@ def verify_repository(config: dict[str, Any]) -> None:
     require_literal(
         build_tool,
         'BUILD_ARCHITECTURES="${CMDTAB_BUILD_ARCHITECTURES:-}"',
-        "credential-gated Universal Binary build control",
+        "architecture build control",
     )
     require_literal(
         build_tool,
-        "lipo -create",
-        "Universal Binary merge",
+        '"arm64-apple-macosx13.0"',
+        "Apple Silicon deployment target",
     )
     require_literal(
         build_tool,

@@ -28,9 +28,9 @@ export CMDTAB_SPARKLE_PUBLIC_ED_KEY='<base64-public-key>'
 The script signs Sparkle's nested services leaf-first, signs the app with
 Hardened Runtime and a secure timestamp, notarizes and staples the app and DMG,
 then records Gatekeeper output. The credential-gated release path requests
-`arm64,x86_64` and rejects the artifact if the app or any Sparkle helper is
-missing either slice. An accepted local ad-hoc build is not equivalent evidence,
-and a Universal Binary check does not replace clean Intel execution.
+`arm64` and rejects the artifact if the app or any Sparkle helper is missing its
+Apple Silicon slice. An accepted local ad-hoc build is not equivalent evidence,
+and this beta does not support Intel execution.
 
 ## Prepare update metadata
 
@@ -67,5 +67,5 @@ signed, notarized release with a strictly higher `CFBundleVersion`.
 
 Before public promotion, retain the accepted notarization JSON, stapler
 validation, Gatekeeper output, manifest, DMG checksum, and successful
-N-to-N+1 installations on clean Apple Silicon and Intel Macs. Repository tests
-cannot substitute for those credentials, machines, or live update endpoints.
+N-to-N+1 installations on clean Apple Silicon Macs. Repository tests cannot
+substitute for those credentials, machines, or live update endpoints.

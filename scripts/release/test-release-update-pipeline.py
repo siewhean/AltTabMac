@@ -43,6 +43,23 @@ def manifest(build: int = 2) -> dict[str, object]:
     }
 
 
+def beta_manifest(build: int = 2) -> dict[str, object]:
+    source_sha = "b" * 40
+    return {
+        "schemaVersion": 1,
+        "channel": "beta",
+        "version": "1.0.0-beta.1",
+        "build": build,
+        "minimumMacOS": "13.0",
+        "dmgURL": f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.1-{build}.dmg",
+        "bytes": 4,
+        "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        "releaseDate": "2026-07-27",
+        "sourceSHA": source_sha,
+        "appcastURL": "https://cmdtab.net/releases/beta/appcast.xml",
+    }
+
+
 class ReleaseManifestTests(unittest.TestCase):
     def test_workflow_pin_parser_covers_step_shorthand_and_containers(self) -> None:
         pattern = verify_workflow_actions.USE_PATTERN
@@ -173,7 +190,7 @@ class ReleaseManifestTests(unittest.TestCase):
         )
         self.assertIn("Developer ID bundle is missing Hardened Runtime", verifier)
 
-    def test_release_package_fails_closed_on_universal_architecture_policy(self) -> None:
+    def test_release_package_fails_closed_on_arm64_architecture_policy(self) -> None:
         config = json.loads(
             (ROOT / "release" / "ReleaseConfig.json").read_text(
                 encoding="utf-8"
@@ -188,15 +205,17 @@ class ReleaseManifestTests(unittest.TestCase):
 
         self.assertEqual(
             config["architecturePolicy"],
-            "universal-arm64-x86_64",
+            "arm64-only",
         )
         for required in [
-            "universal-arm64-x86_64",
-            'BUILD_ARCHITECTURES="arm64,x86_64"',
-            'EXPECTED_ARCHITECTURES="arm64,x86_64"',
+            "arm64-only",
+            'BUILD_ARCHITECTURES="arm64"',
+            'EXPECTED_ARCHITECTURES="arm64"',
             'CMDTAB_BUILD_ARCHITECTURES="${BUILD_ARCHITECTURES}"',
             'CMDTAB_EXPECTED_ARCHITECTURES="${EXPECTED_ARCHITECTURES}"',
-            "Release architecture policy requires arm64,x86_64",
+            "Release architecture policy requires arm64",
+            "thin_executables_to_arm64",
+            "lipo -thin arm64",
         ]:
             self.assertIn(required, packager)
         self.assertIn("Expected architectures", verifier)
@@ -222,6 +241,19 @@ class ReleaseManifestTests(unittest.TestCase):
             release_manifest.validate_manifest(manifest(build=1), previous=previous)
         release_manifest.validate_manifest(manifest(build=3), previous=previous)
 
+    def test_beta_contract_requires_an_isolated_prerelease_and_feed(self) -> None:
+        release_manifest.validate_manifest(beta_manifest())
+        invalid_version = beta_manifest()
+        invalid_version["version"] = "1.0.0"
+        with self.assertRaisesRegex(ValueError, "beta version"):
+            release_manifest.validate_manifest(invalid_version)
+        invalid_feed = beta_manifest()
+        invalid_feed["appcastURL"] = "https://cmdtab.net/releases/appcast.xml"
+        with self.assertRaisesRegex(ValueError, "beta appcast"):
+            release_manifest.validate_manifest(invalid_feed)
+        with self.assertRaisesRegex(ValueError, "same release channel"):
+            release_manifest.validate_manifest(beta_manifest(), previous=manifest())
+
     def test_mutable_or_credentialed_urls_are_rejected(self) -> None:
         mutable = manifest()
         mutable["dmgURL"] = "https://releases.cmdtab.net/latest/CmdTab.dmg"
@@ -246,7 +278,7 @@ class ReleaseManifestTests(unittest.TestCase):
     <sparkle:version>2</sparkle:version>
     <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
     <enclosure url="{manifest()['dmgURL']}" length="4"
-      sparkle:edSignature="{'A' * 88}" type="application/octet-stream"/>
+      sparkle:sha256="{manifest()['sha256']}" sparkle:edSignature="{'A' * 88}" type="application/octet-stream"/>
   </item></channel>
 </rss>
 """,
@@ -271,6 +303,42 @@ class ReleaseManifestTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("equal or lower", rejected.stderr)
+
+    def test_beta_appcast_requires_sparkle_beta_channel(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            release = beta_manifest()
+            manifest_path = root / "beta.json"
+            manifest_path.write_text(json.dumps(release), encoding="utf-8")
+            appcast_path = root / "beta.xml"
+            appcast_path.write_text(
+                f'''<?xml version="1.0"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel><item>
+    <sparkle:version>2</sparkle:version>
+    <sparkle:channel>beta</sparkle:channel>
+    <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+    <enclosure url="{release['dmgURL']}" length="4"
+      sparkle:sha256="{release['sha256']}" sparkle:edSignature="{'A' * 88}" type="application/octet-stream"/>
+  </item></channel>
+</rss>
+''',
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"), str(appcast_path), str(manifest_path)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            appcast_path.write_text(appcast_path.read_text(encoding="utf-8").replace("<sparkle:channel>beta</sparkle:channel>", ""), encoding="utf-8")
+            rejected = subprocess.run(
+                ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"), str(appcast_path), str(manifest_path)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("beta channel", rejected.stderr)
 
 
 if __name__ == "__main__":

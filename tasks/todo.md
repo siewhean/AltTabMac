@@ -3,7 +3,7 @@
 ## 2026-08-01 — Signed public beta release readiness
 
 - [x] Gate 0: reconcile canonical release/security status, risk register, operational runbooks, and evidence index from `origin/main@dcd02fa`.
-- [ ] Gate 1: make the public beta arm64-only and prove clean native build, package, and distinct-directory reproducibility.
+- [x] Gate 1: make the public beta arm64-only and prove clean native build, package, and distinct-directory reproducibility.
 - [ ] Gate 2: record the candidate security/privacy/capability audit and permission acceptance boundary.
 - [ ] Gate 3: validate signing/notarisation preparation; record missing Apple credentials as an external blocker.
 - [ ] Gate 4: record the signed-artifact clean-machine and performance matrix as pending external evidence.

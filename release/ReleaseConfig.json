@@ -10,7 +10,7 @@
   "packageType": "APPL",
   "agentApplication": true,
   "highResolutionCapable": true,
-  "architecturePolicy": "universal-arm64-x86_64",
+  "architecturePolicy": "arm64-only",
   "distributionChannel": "developer-id-direct",
   "updateChannel": "stable",
   "sparkleVersion": "2.9.2",
