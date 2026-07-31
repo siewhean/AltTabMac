@@ -1,5 +1,24 @@
 # Todo
 
+## 2026-08-01 — Signed public beta release readiness
+
+- [x] Gate 0: reconcile canonical release/security status, risk register, operational runbooks, and evidence index from `origin/main@dcd02fa`.
+- [ ] Gate 1: make the public beta arm64-only and prove clean native build, package, and distinct-directory reproducibility.
+- [ ] Gate 2: record the candidate security/privacy/capability audit and permission acceptance boundary.
+- [ ] Gate 3: validate signing/notarisation preparation; record missing Apple credentials as an external blocker.
+- [ ] Gate 4: record the signed-artifact clean-machine and performance matrix as pending external evidence.
+- [ ] Gate 5: add a fail-closed beta update manifest/appcast path and rollback contract while preserving unavailable stable release endpoints.
+- [ ] Gate 6/7: keep commerce disabled; make beta pricing, support, download, legal, and release claims truthful.
+- [ ] Gate 8: record the zero-step GitHub Actions/branch-protection blocker and required remediation.
+- [ ] Gate 9/10: add immutable beta-candidate evidence and post-launch/rollback procedures; require explicit go-live approval.
+- [ ] Run independent QA/QC after repository-owned changes and before any pass claim.
+
+### Review criteria
+
+- One logical commit and pushed evidence record per completed gate.
+- `PASS` requires automated evidence plus the required manual/external proof; otherwise use `BLOCKED` or `NOT TESTED`.
+- Never enable `CMDTAB_REQUIRE_COMMERCE_READY=1` for this beta.
+
 ## 2026-08-01 — Fail-closed commerce worker stabilization
 
 - [x] Reproduce the production `/api/internal/license-outbox` database error from Vercel runtime evidence.

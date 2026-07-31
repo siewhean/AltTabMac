@@ -1,77 +1,81 @@
-# CmdTab Native Release — Current Implementation Status
+# CmdTab Public-Beta Release Status
 
-**Updated:** 2026-07-27
-**Canonical long-form plan:** `docs/release/native-production-readiness-plan.md`  
-**Implementation branch:** `codex/implementation-plan-phase1`
-**Base:** `origin/main@5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`
+**Updated:** 2026-08-01
+**Candidate baseline:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
+**Canonical gate ledger:** [`public-beta-readiness.md`](public-beta-readiness.md)
 
-## Accepted baseline
+## Release decision
 
-Phase 1 remains the accepted local ad-hoc packaging baseline through PR #31.
-It proved deterministic application assembly, permanent bundle identity,
-rollback-safe beta migration, bundle verification, and local packaged behavior.
-It did not prove Developer ID distribution, notarization, clean hardware,
-production commerce, or updates.
+**Public beta: BLOCKED.** The repository has a deterministic local packaging
+baseline and a fail-closed commerce boundary, but it has not produced a
+Developer-ID-signed, notarized, stapled, clean-machine-tested beta artifact.
+No public download, beta appcast, checkout, fulfillment, or outbox processing
+is authorized from this baseline.
 
-## Repository-owned implementation
+## Repository truth at the candidate baseline
 
-The current candidate adds:
+- The app identity is `net.cmdtab.CmdTab`; the declared minimum macOS version
+  is 13.0. At the candidate baseline, the release configuration is
+  `universal-arm64-x86_64` with a stable update channel/feed. Gate 1 must
+  change and verify the target `arm64` beta configuration without presenting
+  the uncommitted work as baseline evidence.
+- The accepted Phase 1 record is historical evidence for
+  `516a9476...`/PR #31: host-architecture local ad-hoc packaging and
+  byte-repeatability on one Mac. It does not prove the current candidate,
+  Developer ID distribution, notarization, beta updates, or Intel support.
+- Commerce source implements licensing, refund/revocation, webhooks, and an
+  outbox, but current launch control is fail-closed: when
+  `CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1`, checkout is
+  hidden, webhooks return `503 commerce_disabled`, and workers no-op before
+  opening commerce infrastructure.
+- The committed website and release surfaces still describe stable commerce
+  and stable updates in places. They require a beta-specific copy/configuration
+  pass before public-beta publication; no current source claim is beta-launch
+  evidence.
+- Dynamic SkyLight/SLS/CGS and `_AXUIElementGetWindow` calls remain in the
+  native code. Some capability-status/fallback paths exist, but a fresh
+  candidate-SHA audit must establish every private capability's need, failure
+  signal, public fallback, truthful UI, and regression coverage.
 
-- versioned, reopenable onboarding with contextual permission requests,
-  first-switch practice, safe resume, and proactive trial warnings;
-- default-off native telemetry and website analytics with withdrawal;
-- signed install-bound trial tokens, secure trial clock state, opaque purchase
-  credentials, device-bound paid tokens, grandfathered v1 verification, and
-  offline-indefinite paid authorization;
-- atomic three-device activation, deactivation, enumeration-safe recovery,
-  delivery retry/outbox, and distinct partial/full refund and revocation state;
-- Auth0-compatible owner-only MFA dashboard sessions with idle/absolute limits,
-  generation invalidation, CSRF checks, and audited actions;
-- Sparkle 2.9.2, a stable daily update controller, immutable release manifest,
-  signed appcast tooling, and Sparkle-aware nested packaging verification;
-- a single US$12 offer, terms/refund/device/update/recovery policies, immutable
-  download gating, and deterministic showcase clips no longer than five
-  seconds;
-- hash-bound 10/25/50-window performance tooling and a 1,000-session soak
-  contract that refuses to fabricate unavailable measurements;
-- immutable GitHub Action pins and release-readiness coverage for every PR and
-  `main` push.
+## Current P1 security blockers
 
-Local automated evidence currently includes 233 passing Swift tests plus two
-updater-configuration tests, 28 passing website security/unit tests,
-TypeScript/build/browser verification, zero
-moderate dependency vulnerabilities, and release/update/performance harness
-tests. Final package/reproducibility and independent integration/security
-results are recorded in `tasks/todo.md` before push.
+The candidate-SHA static audit found no P0, but the following P1 items block
+beta publication until remediated and independently rechecked:
 
-## Release truth
+- Screen Recording revocation can retain cached previews of other apps instead
+  of clearing them after sustained denial.
+- The public trial-reminder cron authorizes execution when `CRON_SECRET` is
+  missing, enabling unauthenticated bulk reminder attempts.
+- Normal preview, exact-ID, and focus paths still invoke undocumented native
+  APIs directly without the required observable provider/degraded boundary.
+- Active website copy/navigation still presents a current trial/purchase offer
+  and personal-Gmail support contact, contrary to the beta commerce/support
+  boundary.
 
-The repository is configured to fail closed when production release material is
-absent:
+## Evidence boundaries
 
-- without the production KMS keyrings, production trial/license issuance is
-  unavailable;
-- without `SUPublicEDKey`, local QA builds do not enable the production updater;
-- without `release/stable.json`, `/releases/stable.json` returns 503/no-store
-  and the website exposes no DMG;
-- without complete Auth0 production configuration, the dashboard denies access.
+The following records are historical and must not be promoted to current-beta
+acceptance without an exact-candidate rerun:
 
-## External public-launch blockers
+- `docs/release/evidence/phase-0/` and `phase-1/`;
+- website or Vercel results from earlier branches;
+- test totals recorded in old task ledgers or status documents.
 
-The following cannot be accepted from repository automation alone:
+The latest candidate GitHub runs for Release Readiness, Security, and SEO/GEO
+were created but had zero job steps. They are **BLOCKED**, not passing CI.
+Issue #30 remains open, and `main` has no branch-protection configuration.
 
-- production Vercel/Postgres/rate-limit storage/Resend/KMS/Auth0/WAF
-  configuration, operational mailboxes, and backup/restore evidence;
-- a real Lemon Squeezy test-mode purchase-to-update lifecycle with no manual
-  database intervention;
-- the intended Developer ID identity, Team ID reconciliation, Hardened Runtime
-  signing, notarization, stapling, and Gatekeeper acceptance;
-- clean Apple Silicon and Intel installation and N-to-N+1 update evidence;
-- real 10/25/50-window and 1,000-session performance acceptance on the final
-  signed candidate;
-- restored GitHub-hosted runner/account capacity. Current required workflows
-  fail before their first step and therefore provide no source-quality signal.
+## External blockers
 
-No release branch or public download may be promoted until every applicable
-external item is evidenced. Unsupported hardware or unavailable credentials
-remain `NOT TESTED`, never inferred.
+- Developer ID identity/team reconciliation, notarization profile, and Sparkle
+  public update key;
+- verified `support@cmdtab.net` mailbox and operational owners;
+- clean Apple-silicon Ventura and current-stable macOS accounts; real beta
+  testers for soak/update/rollback proof;
+- restored GitHub Actions capacity with executed logs and protected release
+  controls;
+- explicit beta go-live approval.
+
+See the gate checklist, risk register, evidence contract, and runbooks in
+[`public-beta-readiness.md`](public-beta-readiness.md) and
+[`public-beta-runbooks.md`](public-beta-runbooks.md).

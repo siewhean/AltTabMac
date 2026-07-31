@@ -1,46 +1,79 @@
-# CmdTab Security Checklist Review
+# CmdTab Security Checklist
 
-Last reviewed: 2026-03-28
-Source checklist: `05_Security_Checklist.docx`
+**Reviewed against:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
+**Release status:** **BLOCKED** - this is a scope and evidence ledger, not a
+security certification. The canonical beta gate is
+[`docs/release/public-beta-readiness.md`](docs/release/public-beta-readiness.md).
 
-## Scope
+## In-scope surfaces
 
-- Website: Next.js marketing site and `POST /api/waitlist`
-- Native app: private beta macOS switcher app
+- Native macOS app: Accessibility, Screen Recording, hotkey/event-tap paths,
+  window capture, activation, updater, licensing, telemetry, and settings.
+- Dynamic native capabilities: SkyLight/SLS/CGS, `_AXUIElementGetWindow`,
+  secure-input probing, and their public/degraded alternatives.
+- Website, middleware/CSP/security headers, public waitlist/trial/license/help
+  endpoints, Auth0 owner dashboard, analytics, and disclosure surfaces.
+- Commerce code: checkout gating, Lemon Squeezy webhook, lifecycle database,
+  outbox, fulfillment email, refunds/revocation, recovery, AWS KMS signing,
+  and Vercel/runtime secrets.
+- Release chain: source SHA, signing/notarization, Sparkle appcast, immutable
+  manifest/DMG, Vercel deployment, GitHub Actions, and rollback controls.
 
-## Passes Now
+## Repository observations - not a pass
 
-- Strict server-side validation with `.strict()` payload parsing and capped field sizes
-- Same-origin enforcement for waitlist submissions
-- Honeypot response and duplicate-submission suppression
-- Per-email / IP / user-agent throttling for the waitlist route
-- No-store responses on the waitlist API
-- Production HSTS plus CSP / frame protections / content-type protections
-- No hard-coded API secrets found in the macOS app or repo source
-- Dependency audit clean for current production website dependencies
-- Private disclosure channel documented through `SECURITY.md`, `/security`, and `/.well-known/security.txt`
-- Recurring dependency/security verification wired into repo automation through `.github/workflows/security.yml`, `npm run security:check`, and Dependabot
+- Source checks document strict request parsing, waitlist throttling,
+  no-store responses, security headers, release configuration checks, and a
+  commerce-disabled boundary. Re-run them on the exact beta candidate.
+- `CMDTAB_REQUIRE_COMMERCE_READY != 1` is mandatory for this beta. It must
+  keep checkout hidden, return `503 commerce_disabled` from the webhook, and
+  make outbox workers no-op before configuration/database access.
+- Existing `SECURITY.md` legitimately retains the personal disclosure channel
+  until a domain mailbox is verified. `support@cmdtab.net` is required before a
+  public beta can be published; do not claim it is live before send-and-reply
+  evidence exists.
+- The old checklist's statements that authentication, sessions, webhooks, and
+  database controls were out of scope are stale. Their implementation and
+  deployment contracts are in scope even when production is deliberately
+  disabled.
 
-## Explicitly Out Of Scope / Not Yet Applicable
+## Candidate P1 findings requiring remediation
 
-- User authentication, password storage, MFA, sessions, JWT rotation
-- File uploads and object-storage scanning
-- Database encryption at rest and row-level access control
-- OAuth / SSO / API keys issued to end users
-- Webhooks beyond outbound email delivery
+- Screen Recording revocation can continue to expose retained previews of
+  other apps; denial must clear continuity/cache and prevent all capture
+  providers until a confirmed re-grant.
+- `POST /api/trial/reminder` currently treats a missing `CRON_SECRET` as
+  authorized despite public cron reachability. Missing, weak, wrong, and valid
+  bearer secret cases need a fail-closed implementation and tests.
+- Normal preview, exact-window identity, and focus paths retain direct
+  undocumented SkyLight/AX/front-process calls. They need injectable providers,
+  observable status, public fallback, and regression proof for missing symbols
+  and runtime failures.
+- Current public buy/trial/refund copy, Buy navigation, and personal-Gmail
+  support contact violate the beta commerce/support boundary even though
+  checkout execution is hidden while commerce is disabled.
 
-## Partially Covered, Requires Owner-Side Production Setup
+## Mandatory candidate evidence
 
-- Vercel WAF / bot defense / IP throttling must be enabled in production
-- Resend sender-domain verification must be completed before launch
-- Security mailbox monitoring and incident response ownership must be active
-- Native app signing, notarization, and distribution validation must be completed before public release
-- Analytics/privacy requirements should be reviewed for the final launch jurisdiction and cookie/consent stance
+| Area | Required evidence | Status |
+| --- | --- | --- |
+| Fresh security review | Candidate SHA, P0/P1 triage, disposition, and independent review | BLOCKED - four P1 findings; no P0 found |
+| Web hardening | State-changing route origin/fetch-site review, CSP decision, headers, dependency/secret scans | BLOCKED |
+| Native privacy | Entitlements, Hardened Runtime, logging/telemetry data-flow review, privacy-manifest/required-reason applicability | BLOCKED |
+| Private capabilities | Need, detection, public fallback, degraded UI, tests, and clean-machine observation for each capability | BLOCKED |
+| Permissions | Unrequested, denied, granted, revoked, Settings change, TCC reset, and post-update behavior | NOT TESTED |
+| Auth0/dashboard | Production configuration, MFA, session invalidation, CSRF, authorization, and audit-log proof | BLOCKED |
+| Commerce boundary | Disabled checkout/webhook/outbox paths plus proof no customer can pay | BLOCKED |
+| KMS/lifecycle | Least-privilege keys, rotation/compromise rehearsal, sandbox lifecycle, refund/revocation and recovery proof | BLOCKED |
+| Release/update | Signed appcast/manifest, tamper rejection, rollback rehearsal, and delivery integrity | BLOCKED |
+| Operations | Mailbox, monitoring, incident response, backup/restore, contacts, and audit retention | BLOCKED |
 
-## Implemented Hardening In This Pass
+## Severity and exit rule
 
-- Request body size enforcement before waitlist payload processing
-- Explicit `HEAD` / `OPTIONS` / unsupported-method handling for the waitlist route
-- Cross-origin opener/resource policy headers and origin-agent clustering
-- Documented security disclosure and checklist coverage
-- Added repeatable security CI commands plus recurring workflow automation via GitHub Actions and Dependabot
+- **P0:** compromise, unauthorized payment/access, unrecoverable loss, unsafe
+  distribution/update, or switching to a wrong user target.
+- **P1:** material reliability, privacy, accessibility, support, or update
+  safety defect.
+
+Open P0/P1 items block beta publication. A passing source test, build, Vercel
+deployment, or zero-step workflow failure cannot close an item requiring a
+signed artifact, production service, or real machine.

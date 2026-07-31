@@ -1,10 +1,13 @@
 # CmdTab
 
 Last updated: 2026-08-01
-Active task: preserve the accepted native switcher and current frontend while
-closing production-runtime blockers. The public website remains waitlist-first
+Active task: prepare the repository-owned portion of an Apple-silicon signed
+public beta from `origin/main@dcd02fa`. The public website remains waitlist-first
 and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
-with the complete database, Lemon Squeezy, email, and KMS configuration.
+with the complete database, Lemon Squeezy, email, and KMS configuration. This
+branch may not publish a download, enable checkout, or claim a completed public
+release without the required signing, clean-machine, CI, support, and explicit
+go-live evidence.
 
 ## Product
 
