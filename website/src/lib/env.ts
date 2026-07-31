@@ -16,6 +16,8 @@ type ServerEnv = {
   lemonsqueezyExpectedTestMode?: boolean;
 };
 
+type EnvironmentMap = Readonly<Record<string, string | undefined>>;
+
 function optionalPositiveInteger(value: string | undefined) {
   const parsed = Number(value?.trim());
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -28,7 +30,7 @@ function optionalBoolean(value: string | undefined) {
 }
 
 export function isCommerceLaunchEnabled(
-  environment: NodeJS.ProcessEnv = process.env,
+  environment: EnvironmentMap = process.env,
 ) {
   return environment.CMDTAB_REQUIRE_COMMERCE_READY?.trim() === "1";
 }
