@@ -48,7 +48,13 @@ assert.match(outboxRoute, /process\.env\.CRON_SECRET/);
 assert.match(outboxRoute, /export async function POST\(request: Request\)/);
 assert.match(outboxRoute, /getLicenseLifecycleEnv\(\)\.outboxSecret/);
 assert.match(outboxRoute, /isAuthorizedInternalWorker\(request, secret\)/);
-assert.match(outboxRoute, /processLicenseOutbox\(25\)/);
+assert.match(outboxRoute, /isCommerceLaunchEnabled\(\)/);
+assert.match(outboxRoute, /reason: "commerce_disabled"/);
+assert.match(
+  outboxRoute,
+  /if \(!isCommerceLaunchEnabled\(\)\)[\s\S]*processLicenseOutbox\(25\)/,
+  "outbox worker must return before database access while commerce is disabled",
+);
 
 const workerAuth = read("src/lib/internal-worker-auth.ts");
 assert.match(workerAuth, /constantTimeEqual\(bearerToken\(request\), expectedSecret\)/);
@@ -92,6 +98,8 @@ assert.doesNotMatch(auth0, /acr.*includes\(/);
 const env = read("src/lib/env.ts");
 assert.match(env, /optionalStrongInternalSecret/);
 assert.match(env, /candidate\.length < 32/);
+assert.match(env, /isCommerceLaunchEnabled/);
+assert.match(env, /CMDTAB_REQUIRE_COMMERCE_READY\?\.trim\(\) === "1"/);
 
 const lifecycle = read("src/lib/license-lifecycle-store.ts");
 assert.match(lifecycle, /lifecycle_backfilled_at is null/);
