@@ -1,11 +1,10 @@
 # CmdTab
 
-Last updated: 2026-07-27
-Active task: complete the remaining repository-owned production-readiness
-stages on `codex/implementation-plan-phase1`. The native lifecycle now includes
-versioned, reopenable onboarding with contextual permission requests, safe
-resume, first-switch practice, and exact trial warnings. Protected hotkey, MRU,
-activation, and removal-animation behavior remains unchanged.
+Last updated: 2026-08-01
+Active task: preserve the accepted native switcher and current frontend while
+closing production-runtime blockers. The public website remains waitlist-first
+and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
+with the complete database, Lemon Squeezy, email, and KMS configuration.
 
 ## Product
 
@@ -46,6 +45,28 @@ tombstones. The migration is idempotent and local real-PostgreSQL concurrency
 evidence covers three successful devices, fourth-device rejection, immediate
 deactivation, and subsequent activation. Live Lemon Squeezy, email-provider,
 KMS, and production-database execution remain external release gates.
+
+Commerce launch is one explicit boundary. Scheduled and manually invoked
+license-outbox workers always require their bearer secret, but while
+`CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1` they return a
+successful `commerce_disabled` no-op before opening the commerce database.
+Once the switch is enabled, the production migration and all commerce secrets
+must already be present and the worker resumes normal retry processing. This
+keeps waitlist-mode deployments from querying tables that are intentionally not
+yet provisioned.
+
+The signed Lemon Squeezy webhook uses the same boundary. While commerce is
+disabled it returns `503 commerce_disabled` before loading commerce
+configuration, reading the webhook body, or touching lifecycle tables. The
+non-success response preserves the event for provider retry after the launch
+switch and infrastructure are ready instead of acknowledging and losing it.
+
+The public checkout surface follows the same switch. A staged checkout provider
+or URL is not exposed to purchase buttons or structured offers until the launch
+switch is exactly `1`, preventing a customer from being charged while webhook
+fulfillment is disabled. Existing license-portal and support links remain
+available because they serve already-issued customers and do not create a new
+purchase.
 
 ## PR #35 five-feature QA
 
@@ -111,7 +132,8 @@ The canonical website showcase is `/showcase`.
 - All media uses controlled fixture windows, is not AI-generated, and is not a private desktop capture.
 - Poster-only entries render an image fallback; no missing MP4 may produce a black panel.
 - VideoObject data is emitted only for actual MP4 assets.
-- Autoplay clips run once for no more than five seconds, do not loop, and remain static when Reduce Motion is enabled.
+- The homepage Overview clip loops only while visible; showcase-page autoplay clips run once for no more than five seconds. All media remains static when Reduce Motion is enabled.
+- The homepage hero hides its asset-title overlay, and generated Quick Actions frames contain no central Command-W annotation.
 
 The showcase demonstrates presentation. It does not prove signed-app permissions, exact focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, signing, notarization, performance, memory use, processor support, or architecture coverage.
 
@@ -141,6 +163,8 @@ npm run build
 ```
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
+
+Hosted GitHub Actions currently may be rejected before a runner executes because the account has no available Actions capacity. A rejected job has no steps or logs and is not a source failure, but it is also not a CI pass. Any temporary waiver must identify that limitation explicitly and retain executable Vercel or local evidence for the affected commands.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

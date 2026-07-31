@@ -1,4 +1,8 @@
-import { optionalStrongInternalSecret, getLicenseLifecycleEnv } from "@/lib/env";
+import {
+  getLicenseLifecycleEnv,
+  isCommerceLaunchEnabled,
+  optionalStrongInternalSecret,
+} from "@/lib/env";
 import { isAuthorizedInternalWorker } from "@/lib/internal-worker-auth";
 import { licenseJson } from "@/lib/license-api";
 import { processLicenseOutbox } from "@/lib/license-outbox";
@@ -12,6 +16,17 @@ async function runOutbox(request: Request, secret: string | null | undefined) {
       { ok: false, code: "unauthorized", message: "Unauthorized." },
       401,
     );
+  }
+
+  if (!isCommerceLaunchEnabled()) {
+    return licenseJson({
+      ok: true,
+      skipped: true,
+      reason: "commerce_disabled",
+      claimed: 0,
+      delivered: 0,
+      failed: 0,
+    });
   }
 
   const result = await processLicenseOutbox(25);

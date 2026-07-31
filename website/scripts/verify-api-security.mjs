@@ -23,6 +23,11 @@ const activation = read("src/app/api/license/activate/route.ts");
 assert.match(activation, /"license-activation"/);
 
 const webhook = read("src/app/api/lemonsqueezy/webhook/route.ts");
+assert.match(
+  webhook,
+  /export async function POST\(request: Request\) \{[\s\S]*?if \(!isCommerceLaunchEnabled\(\)\) \{\s*return json\(\s*\{[\s\S]*?code: "commerce_disabled"[\s\S]*?\},\s*503,\s*\);\s*\}\s*const env = getServerEnv\(\);/,
+  "webhook must return before configuration or database access while commerce is disabled",
+);
 assert.match(webhook, /readBoundedText\(request, MAX_WEBHOOK_BODY_BYTES\)/);
 assert.doesNotMatch(webhook, /await request\.text\(\)/);
 assert.match(webhook, /fulfillPaidPurchase\(/);
@@ -48,7 +53,22 @@ assert.match(outboxRoute, /process\.env\.CRON_SECRET/);
 assert.match(outboxRoute, /export async function POST\(request: Request\)/);
 assert.match(outboxRoute, /getLicenseLifecycleEnv\(\)\.outboxSecret/);
 assert.match(outboxRoute, /isAuthorizedInternalWorker\(request, secret\)/);
-assert.match(outboxRoute, /processLicenseOutbox\(25\)/);
+assert.match(outboxRoute, /isCommerceLaunchEnabled\(\)/);
+assert.match(outboxRoute, /reason: "commerce_disabled"/);
+assert.match(
+  outboxRoute,
+  /if \(!isCommerceLaunchEnabled\(\)\) \{\s*return licenseJson\(\{[\s\S]*?reason: "commerce_disabled"[\s\S]*?\}\);\s*\}\s*const result = await processLicenseOutbox\(25\);/,
+  "outbox worker must return before database access while commerce is disabled",
+);
+
+const commerce = read("src/lib/commerce.ts");
+assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "\.\/env(?:\.js)?"/);
+assert.match(commerce, /const launchEnabled = isCommerceLaunchEnabled\(env\)/);
+assert.match(
+  commerce,
+  /checkoutProvider: launchEnabled[\s\S]*?checkoutUrl: launchEnabled[\s\S]*?NEXT_PUBLIC_CHECKOUT_URL/,
+  "public checkout provider and URL must remain hidden while commerce is disabled",
+);
 
 const workerAuth = read("src/lib/internal-worker-auth.ts");
 assert.match(workerAuth, /constantTimeEqual\(bearerToken\(request\), expectedSecret\)/);
@@ -92,6 +112,8 @@ assert.doesNotMatch(auth0, /acr.*includes\(/);
 const env = read("src/lib/env.ts");
 assert.match(env, /optionalStrongInternalSecret/);
 assert.match(env, /candidate\.length < 32/);
+assert.match(env, /isCommerceLaunchEnabled/);
+assert.match(env, /CMDTAB_REQUIRE_COMMERCE_READY\?\.trim\(\) === "1"/);
 
 const lifecycle = read("src/lib/license-lifecycle-store.ts");
 assert.match(lifecycle, /lifecycle_backfilled_at is null/);
