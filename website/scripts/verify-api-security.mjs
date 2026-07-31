@@ -62,7 +62,7 @@ assert.match(
 );
 
 const commerce = read("src/lib/commerce.ts");
-assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "\.\/env\.js"/);
+assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "\.\/env(?:\.js)?"/);
 assert.match(commerce, /const launchEnabled = isCommerceLaunchEnabled\(env\)/);
 assert.match(
   commerce,
