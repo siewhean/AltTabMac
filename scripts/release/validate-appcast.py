@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate one stable signed Sparkle appcast against a release manifest."""
+"""Validate one isolated stable or beta signed Sparkle appcast against a release manifest."""
 
 from __future__ import annotations
 
@@ -20,6 +20,9 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    channel = manifest.get("channel")
+    if channel not in {"stable", "beta"}:
+        raise SystemExit("release manifest channel must be stable or beta")
     root = ET.parse(args.appcast).getroot()
     items = root.findall("./channel/item")
     matching = [
@@ -29,8 +32,11 @@ def main() -> None:
     if len(matching) != 1:
         raise SystemExit("appcast must contain exactly one item for the manifest build")
     item = matching[0]
-    if item.find(f"{{{SPARKLE}}}channel") is not None:
+    item_channel = item.findtext(f"{{{SPARKLE}}}channel")
+    if channel == "stable" and item_channel is not None:
         raise SystemExit("stable update item must use Sparkle's default channel")
+    if channel == "beta" and item_channel != "beta":
+        raise SystemExit("beta update item must use Sparkle's beta channel")
     enclosure = item.find("enclosure")
     if enclosure is None:
         raise SystemExit("stable update item is missing an enclosure")
@@ -41,13 +47,15 @@ def main() -> None:
     signature = enclosure.get(f"{{{SPARKLE}}}edSignature", "")
     if len(signature) < 80:
         raise SystemExit("appcast enclosure is missing an EdDSA signature")
+    if enclosure.get(f"{{{SPARKLE}}}sha256") != manifest["sha256"]:
+        raise SystemExit("appcast enclosure SHA-256 does not match the release manifest")
     if item.findtext(f"{{{SPARKLE}}}minimumSystemVersion") != manifest["minimumMacOS"]:
         raise SystemExit("appcast minimum macOS does not match the release manifest")
     if args.current_build is not None and int(manifest["build"]) <= args.current_build:
         raise SystemExit("equal or lower update builds are not eligible")
     if urlparse(manifest["dmgURL"]).scheme != "https":
         raise SystemExit("appcast enclosure URL must use HTTPS")
-    print("Signed stable appcast validation passed")
+    print(f"Signed {channel} appcast validation passed")
 
 
 if __name__ == "__main__":

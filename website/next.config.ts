@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: resolve(websiteRoot, ".."),
   outputFileTracingIncludes: {
     "/releases/stable.json": ["../release/stable.json"],
+    "/releases/beta.json": ["../release/beta.json"],
+    "/releases/beta/appcast.xml": ["../release/beta.json", "../release/beta-appcast.xml"],
   },
   async headers() {
     return [

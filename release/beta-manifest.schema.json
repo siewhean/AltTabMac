@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cmdtab.net/schemas/beta-release-manifest-v1.json",
+  "title": "CmdTab beta release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "channel", "version", "build", "minimumMacOS", "dmgURL", "bytes", "sha256", "releaseDate", "sourceSHA", "appcastURL"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "channel": { "const": "beta" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+-beta\\.[0-9]+$" },
+    "build": { "type": "integer", "minimum": 1 },
+    "minimumMacOS": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$" },
+    "dmgURL": { "type": "string", "pattern": "^https://" },
+    "bytes": { "type": "integer", "minimum": 1 },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "releaseDate": { "type": "string", "format": "date" },
+    "sourceSHA": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "appcastURL": { "const": "https://cmdtab.net/releases/beta/appcast.xml" }
+  }
+}

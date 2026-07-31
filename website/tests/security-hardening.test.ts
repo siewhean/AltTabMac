@@ -7,7 +7,7 @@ import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
 import { isAuthorizedInternalWorker } from "../src/lib/internal-worker-auth.js";
-import { parseStableReleaseManifest } from "../src/lib/stable-release.js";
+import { parseBetaReleaseManifest, parseStableReleaseManifest, validateBetaAppcast } from "../src/lib/stable-release.js";
 
 test("Tab and Shift-Tab escape the switcher demo", () => {
   assert.equal(demoNavigationDirection({ key: "Tab", shiftKey: false }), null);
@@ -63,6 +63,25 @@ test("internal workers require an exact Bearer secret", () => {
     ),
     false,
   );
+});
+
+test("trial reminder authorization fails closed for missing, weak, and wrong CRON_SECRET values", () => {
+  const secret = "a-secure-random-cron-secret-value-1234";
+  const correctRequest = new Request("https://cmdtab.net/api/trial/reminder", {
+    headers: { authorization: `Bearer ${secret}` },
+  });
+  assert.equal(isAuthorizedInternalWorker(correctRequest, optionalStrongInternalSecret(undefined)), false);
+  assert.equal(isAuthorizedInternalWorker(correctRequest, optionalStrongInternalSecret("short")), false);
+  assert.equal(
+    isAuthorizedInternalWorker(
+      new Request("https://cmdtab.net/api/trial/reminder", {
+        headers: { authorization: "Bearer wrong" },
+      }),
+      optionalStrongInternalSecret(secret),
+    ),
+    false,
+  );
+  assert.equal(isAuthorizedInternalWorker(correctRequest, optionalStrongInternalSecret(secret)), true);
 });
 
 test("production CSP uses a nonce instead of unsafe-inline scripts", () => {
@@ -144,4 +163,36 @@ test("stable release parser rejects mutable or mismatched downloads", () => {
     ...stableRelease,
     releaseDate: "2026-02-31",
   }));
+});
+
+const betaRelease = {
+  ...stableRelease,
+  channel: "beta",
+  version: "1.0.0-beta.1",
+  dmgURL: "https://cdn.cmdtab.net/releases/0123456789abcdef0123456789abcdef01234567/CmdTab-1.0.0-beta.1-2.dmg",
+  appcastURL: "https://cmdtab.net/releases/beta/appcast.xml",
+} as const;
+
+test("beta release parser accepts only the isolated immutable beta contract", () => {
+  assert.deepEqual(parseBetaReleaseManifest(betaRelease), betaRelease);
+  assert.throws(() => parseBetaReleaseManifest({ ...betaRelease, version: "1.0.0" }));
+  assert.throws(() => parseBetaReleaseManifest({ ...betaRelease, appcastURL: "https://cmdtab.net/releases/appcast.xml" }));
+  assert.throws(() => parseBetaReleaseManifest({ ...betaRelease, channel: "stable" }));
+});
+
+function betaAppcast(manifest = betaRelease) {
+  return `<?xml version="1.0"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><item>
+<sparkle:version>${manifest.build}</sparkle:version><sparkle:channel>beta</sparkle:channel>
+<sparkle:minimumSystemVersion>${manifest.minimumMacOS}</sparkle:minimumSystemVersion>
+<enclosure url="${manifest.dmgURL}" length="${manifest.bytes}" sparkle:sha256="${manifest.sha256}" sparkle:edSignature="${"A".repeat(88)}" />
+</item></channel></rss>`;
+}
+
+test("beta appcast is bound to the exact manifest artifact before serving", () => {
+  validateBetaAppcast(betaAppcast(), betaRelease);
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace("<sparkle:channel>beta</sparkle:channel>", ""), betaRelease));
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace(betaRelease.dmgURL, "https://cdn.cmdtab.net/other.dmg"), betaRelease));
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace(betaRelease.sha256, "b".repeat(64)), betaRelease));
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace("A".repeat(88), "short"), betaRelease));
 });

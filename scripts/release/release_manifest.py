@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create and validate the canonical stable release-manifest contract."""
+"""Create and validate isolated stable and beta release-manifest contracts."""
 
 from __future__ import annotations
 
@@ -15,7 +15,14 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / "release" / "ReleaseConfig.json"
 SHA_PATTERN = re.compile(r"^[a-f0-9]{40}$")
 HASH_PATTERN = re.compile(r"^[a-f0-9]{64}$")
-VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
+VERSION_PATTERNS = {
+    "stable": re.compile(r"^\d+\.\d+\.\d+$"),
+    "beta": re.compile(r"^\d+\.\d+\.\d+-beta\.\d+$"),
+}
+APPCAST_URLS = {
+    "stable": "https://cmdtab.net/releases/appcast.xml",
+    "beta": "https://cmdtab.net/releases/beta/appcast.xml",
+}
 
 
 def file_sha256(path: Path) -> str:
@@ -46,17 +53,21 @@ def validate_manifest(
         "dmgURL", "bytes", "sha256", "releaseDate", "sourceSHA", "appcastURL",
     }
     if set(manifest) != expected_keys:
-        raise ValueError("manifest keys do not match the stable v1 contract")
-    if manifest["schemaVersion"] != 1 or manifest["channel"] != "stable":
-        raise ValueError("only stable manifest schemaVersion 1 is supported")
-    if not isinstance(manifest["version"], str) or not VERSION_PATTERN.fullmatch(manifest["version"]):
-        raise ValueError("version must be x.y.z")
+        raise ValueError("manifest keys do not match the release v1 contract")
+    channel = manifest.get("channel")
+    if manifest["schemaVersion"] != 1 or channel not in VERSION_PATTERNS:
+        raise ValueError("only stable or beta manifest schemaVersion 1 is supported")
+    if not isinstance(manifest["version"], str) or not VERSION_PATTERNS[channel].fullmatch(manifest["version"]):
+        expected_version = "x.y.z" if channel == "stable" else "x.y.z-beta.N"
+        raise ValueError(f"{channel} version must be {expected_version}")
     if not isinstance(manifest["build"], int) or isinstance(manifest["build"], bool) or manifest["build"] < 1:
         raise ValueError("build must be a positive integer")
     if not isinstance(manifest["minimumMacOS"], str) or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?", manifest["minimumMacOS"]):
         raise ValueError("minimumMacOS is invalid")
     dmg_url = https_url(str(manifest["dmgURL"]), "dmgURL")
-    https_url(str(manifest["appcastURL"]), "appcastURL")
+    appcast_url = https_url(str(manifest["appcastURL"]), "appcastURL")
+    if appcast_url != APPCAST_URLS[channel]:
+        raise ValueError(f"{channel} appcast URL must be {APPCAST_URLS[channel]}")
     if not isinstance(manifest["bytes"], int) or isinstance(manifest["bytes"], bool) or manifest["bytes"] < 1:
         raise ValueError("bytes must be a positive integer")
     if not isinstance(manifest["sha256"], str) or not HASH_PATTERN.fullmatch(manifest["sha256"]):
@@ -83,8 +94,10 @@ def validate_manifest(
 
     if previous is not None:
         validate_manifest(previous)
+        if previous["channel"] != channel:
+            raise ValueError("previous manifest must use the same release channel")
         if int(manifest["build"]) <= int(previous["build"]):
-            raise ValueError("new stable build must be strictly greater than the published build")
+            raise ValueError(f"new {channel} build must be strictly greater than the published build")
 
 
 def create_manifest(args: argparse.Namespace) -> dict[str, object]:
@@ -95,10 +108,12 @@ def create_manifest(args: argparse.Namespace) -> dict[str, object]:
     artifact = args.dmg.resolve()
     if not artifact.is_file() or artifact.stat().st_size < 1:
         raise ValueError("DMG artifact is missing or empty")
+    if args.channel == "beta" and not args.version:
+        raise ValueError("beta manifest creation requires --version x.y.z-beta.N")
     manifest: dict[str, object] = {
         "schemaVersion": 1,
-        "channel": "stable",
-        "version": config["marketingVersion"],
+        "channel": args.channel,
+        "version": args.version or config["marketingVersion"],
         "build": int(config["buildNumber"]),
         "minimumMacOS": config["minimumSystemVersion"],
         "dmgURL": args.dmg_url,
@@ -106,7 +121,7 @@ def create_manifest(args: argparse.Namespace) -> dict[str, object]:
         "sha256": file_sha256(artifact),
         "releaseDate": args.release_date,
         "sourceSHA": source_sha,
-        "appcastURL": config["updateFeedURL"],
+        "appcastURL": APPCAST_URLS[args.channel],
     }
     previous = load_json(args.previous) if args.previous else None
     validate_manifest(manifest, artifact=artifact, previous=previous)
@@ -125,6 +140,8 @@ def main() -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
     create = subparsers.add_parser("create")
     create.add_argument("--dmg", required=True, type=Path)
+    create.add_argument("--channel", choices=("stable", "beta"), default="stable")
+    create.add_argument("--version")
     create.add_argument("--dmg-url", required=True)
     create.add_argument("--source-sha", required=True)
     create.add_argument("--release-date", default=dt.date.today().isoformat())
@@ -146,7 +163,7 @@ def main() -> None:
             manifest = load_json(args.manifest)
             previous = load_json(args.previous) if args.previous else None
             validate_manifest(manifest, artifact=args.artifact, previous=previous)
-            print("Stable release manifest validation passed")
+            print("Release manifest validation passed")
     except (OSError, ValueError, json.JSONDecodeError) as error:
         raise SystemExit(str(error)) from error
 
