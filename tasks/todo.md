@@ -1,5 +1,25 @@
 # Todo
 
+## 2026-08-01 — Fail-closed commerce worker stabilization
+
+- [x] Reproduce the production `/api/internal/license-outbox` database error from Vercel runtime evidence.
+- [x] Add one canonical launch-switch helper for `CMDTAB_REQUIRE_COMMERCE_READY=1`.
+- [x] Keep worker authentication mandatory and return `commerce_disabled` before commerce database access while launch is disabled.
+- [x] Add unit coverage for exact launch-switch values.
+- [x] Add a source contract proving the disabled branch contains the return before `processLicenseOutbox(25)`.
+- [x] Run the Vercel website, security, commerce, SEO/GEO, dependency, TypeScript, and Next.js production gates.
+- [x] Trigger and rerun GitHub Security, SEO/GEO, and Release Readiness workflows; record that the account rejected them before any runner step.
+- [x] Preserve the existing frontend UI, copy, media, layout, native Swift, and packaging source.
+
+### Review
+
+- Exact preview head: `9153040097d0491040a23b4e6a2d3c9f13fa1a21`.
+- Vercel preview: READY; 45 unit tests and 6 commerce-readiness tests passed with no failures; dependency audit reported zero vulnerabilities; TypeScript and the production Next.js build passed.
+- GitHub Actions were rerun but every job returned `steps: null` and no log because hosted Actions capacity was unavailable. This is recorded as an infrastructure waiver, not as a CI pass.
+- Production runtime revalidation remains required after the merge deployment.
+
+---
+
 ## 2026-07-29 — Buy Page Waitlist Integration & 404 Prevention
 
 - [x] 1. Update `CommerceOfferGrid` fallback CTA to point directly to `/trial` (or waitlist signup) with "Join the waitlist" text when checkout URL is not configured

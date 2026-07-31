@@ -52,7 +52,7 @@ assert.match(outboxRoute, /isCommerceLaunchEnabled\(\)/);
 assert.match(outboxRoute, /reason: "commerce_disabled"/);
 assert.match(
   outboxRoute,
-  /if \(!isCommerceLaunchEnabled\(\)\)[\s\S]*processLicenseOutbox\(25\)/,
+  /if \(!isCommerceLaunchEnabled\(\)\) \{\s*return licenseJson\(\{[\s\S]*?reason: "commerce_disabled"[\s\S]*?\}\);\s*\}\s*const result = await processLicenseOutbox\(25\);/,
   "outbox worker must return before database access while commerce is disabled",
 );
 
