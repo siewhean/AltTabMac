@@ -27,6 +27,12 @@ function optionalBoolean(value: string | undefined) {
   return undefined;
 }
 
+export function isCommerceLaunchEnabled(
+  environment: NodeJS.ProcessEnv = process.env,
+) {
+  return environment.CMDTAB_REQUIRE_COMMERCE_READY?.trim() === "1";
+}
+
 const KNOWN_SECRET_PLACEHOLDERS = new Set([
   "replace_with_a_random_internal_worker_secret",
 ]);
