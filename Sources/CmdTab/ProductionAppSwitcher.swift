@@ -744,34 +744,58 @@ final class ProductionAppSwitcher {
         app.unhide()
         _ = app.activate(options: [.activateIgnoringOtherApps])
         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
-        _ = AXUIElementSetAttributeValue(
+        logAXFocusOperationFailure(
+            AXUIElementSetAttributeValue(
             axApp,
             kAXFrontmostAttribute as CFString,
             kCFBooleanTrue
+            ),
+            operation: "set frontmost",
+            metadata: metadata
         )
-        _ = AXUIElementSetAttributeValue(
+        logAXFocusOperationFailure(
+            AXUIElementSetAttributeValue(
             axApp,
             kAXMainWindowAttribute as CFString,
             window
+            ),
+            operation: "set main window",
+            metadata: metadata
         )
-        _ = AXUIElementSetAttributeValue(
+        logAXFocusOperationFailure(
+            AXUIElementSetAttributeValue(
             axApp,
             kAXFocusedWindowAttribute as CFString,
             window
+            ),
+            operation: "set focused window",
+            metadata: metadata
         )
-        _ = AXUIElementSetAttributeValue(
+        logAXFocusOperationFailure(
+            AXUIElementSetAttributeValue(
             window,
             kAXMainAttribute as CFString,
             kCFBooleanTrue
+            ),
+            operation: "set main attribute",
+            metadata: metadata
         )
-        _ = AXUIElementSetAttributeValue(
+        logAXFocusOperationFailure(
+            AXUIElementSetAttributeValue(
             window,
             kAXFocusedAttribute as CFString,
             kCFBooleanTrue
+            ),
+            operation: "set focused attribute",
+            metadata: metadata
         )
-        _ = AXUIElementPerformAction(
+        logAXFocusOperationFailure(
+            AXUIElementPerformAction(
             window,
             kAXRaiseAction as CFString
+            ),
+            operation: "raise window",
+            metadata: metadata
         )
 
         if isExactWindowFrontmost(metadata) {
@@ -839,6 +863,18 @@ final class ProductionAppSwitcher {
             metadata.ownerPID,
             metadata.windowID,
             reason
+        )
+    }
+
+    private func logAXFocusOperationFailure(
+        _ result: AXError,
+        operation: String,
+        metadata: AXWindowMetadata
+    ) {
+        guard result != .success else { return }
+        logActivationFailure(
+            metadata,
+            reason: "\(operation) failed with AX error \(result.rawValue)"
         )
     }
 

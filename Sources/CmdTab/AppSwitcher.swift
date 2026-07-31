@@ -5,7 +5,7 @@ import os.log
 
 // MARK: - SkyLight private API (window capture for minimized / off-screen windows)
 
-private enum SkyLightCapture {
+enum SkyLightCapture {
     private struct WindowCaptureOptions: OptionSet {
         let rawValue: UInt32
 
@@ -33,17 +33,41 @@ private enum SkyLightCapture {
         )
     }()
 
+    private static let capabilityStatus = NativeCapabilityStatus(
+        initial: NativeCapabilityStatusEvaluator.operationStatus(
+            symbolAvailable: resolved != nil,
+            resultCode: nil,
+            capability: "SkyLight hardware preview capture"
+        )
+    )
+
+    static var status: CapabilityStatus { capabilityStatus.status }
+
     static func captureWindow(_ windowID: CGWindowID) -> NSImage? {
         guard let fns = resolved else { return nil }
         let cid = fns.mainConn()
+        guard cid != 0 else {
+            capabilityStatus.record(.failed("SkyLight hardware preview capture returned an invalid connection."))
+            return nil
+        }
         var wid = windowID
         let options: WindowCaptureOptions = [.ignoreGlobalClipShape, .bestResolution, .fullSize]
-        guard let cfArrayRef = fns.hwCapture(cid, &wid, 1, options.rawValue) else { return nil }
+        guard let cfArrayRef = fns.hwCapture(cid, &wid, 1, options.rawValue) else {
+            capabilityStatus.record(.degraded("SkyLight hardware preview capture failed; public Core Graphics fallback is in use."))
+            return nil
+        }
         let cfArray = cfArrayRef.takeRetainedValue()
         guard CFArrayGetCount(cfArray) > 0,
-              let rawPtr = CFArrayGetValueAtIndex(cfArray, 0) else { return nil }
+              let rawPtr = CFArrayGetValueAtIndex(cfArray, 0) else {
+            capabilityStatus.record(.degraded("SkyLight hardware preview capture returned no image; public Core Graphics fallback is in use."))
+            return nil
+        }
         let cgImage = Unmanaged<CGImage>.fromOpaque(rawPtr).takeUnretainedValue()
-        guard cgImage.width >= 40, cgImage.height >= 30 else { return nil }
+        guard cgImage.width >= 40, cgImage.height >= 30 else {
+            capabilityStatus.record(.degraded("SkyLight hardware preview capture returned an invalid image; public Core Graphics fallback is in use."))
+            return nil
+        }
+        capabilityStatus.record(.available)
         return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
     }
 }
@@ -72,7 +96,7 @@ private enum AXWindowIDLookup {
     }
 }
 
-private enum WindowServerFocus {
+enum WindowServerFocus {
     private enum Mode: UInt32 {
         case allWindows = 0x100
         case userGenerated = 0x200
@@ -112,20 +136,51 @@ private enum WindowServerFocus {
         )
     }()
 
-    static func focusWindow(ownerPID: pid_t, windowID: CGWindowID) {
-        guard windowID != 0 else { return }
-        guard let fns = resolved else { return }
+    private static let capabilityStatus = NativeCapabilityStatus(
+        initial: NativeCapabilityStatusEvaluator.operationStatus(
+            symbolAvailable: resolved != nil,
+            resultCode: nil,
+            capability: "SkyLight exact-window focus"
+        )
+    )
+
+    static var status: CapabilityStatus { capabilityStatus.status }
+
+    @discardableResult
+    static func focusWindow(ownerPID: pid_t, windowID: CGWindowID) -> CapabilityStatus {
+        guard windowID != 0 else {
+            return capabilityStatus.record(.failed("SkyLight exact-window focus was requested without a window ID."))
+        }
+        guard let fns = resolved else { return capabilityStatus.status }
         var psn = ProcessSerialNumber()
-        guard fns.getProcessForPID(ownerPID, &psn) == 0 else { return }
-        _ = fns.setFrontProcessWithOptions(&psn, windowID, Mode.userGenerated.rawValue)
-        makeKeyWindow(&psn, windowID: windowID, postEventRecordTo: fns.postEventRecordTo)
+        let processResult = fns.getProcessForPID(ownerPID, &psn)
+        guard processResult == 0 else {
+            return capabilityStatus.record(
+                NativeCapabilityStatusEvaluator.operationStatus(
+                    symbolAvailable: true,
+                    resultCode: processResult,
+                    capability: "SkyLight exact-window focus process lookup"
+                )
+            )
+        }
+        let frontResult = fns.setFrontProcessWithOptions(
+            &psn,
+            windowID,
+            Mode.userGenerated.rawValue
+        )
+        guard frontResult == .success else {
+            return capabilityStatus.record(.failed("SkyLight exact-window focus request failed with result \(frontResult.rawValue)."))
+        }
+        return capabilityStatus.record(
+            makeKeyWindow(&psn, windowID: windowID, postEventRecordTo: fns.postEventRecordTo)
+        )
     }
 
     private static func makeKeyWindow(
         _ psn: inout ProcessSerialNumber,
         windowID: CGWindowID,
         postEventRecordTo: PostEventRecordToFn
-    ) {
+    ) -> CapabilityStatus {
         var bytes = [UInt8](repeating: 0, count: 0xf8)
         bytes[0x04] = 0xf8
         bytes[0x3a] = 0x10
@@ -133,9 +188,16 @@ private enum WindowServerFocus {
         memcpy(&bytes[0x3c], &mutableWindowID, MemoryLayout<UInt32>.size)
         memset(&bytes[0x20], 0xff, 0x10)
         bytes[0x08] = 0x01
-        _ = postEventRecordTo(&psn, &bytes)
+        let mouseDownResult = postEventRecordTo(&psn, &bytes)
+        guard mouseDownResult == .success else {
+            return .failed("SkyLight exact-window focus mouse-down event failed with result \(mouseDownResult.rawValue).")
+        }
         bytes[0x08] = 0x02
-        _ = postEventRecordTo(&psn, &bytes)
+        let mouseUpResult = postEventRecordTo(&psn, &bytes)
+        guard mouseUpResult == .success else {
+            return .failed("SkyLight exact-window focus mouse-up event failed with result \(mouseUpResult.rawValue).")
+        }
+        return .available
     }
 }
 
@@ -163,6 +225,9 @@ final class AppSwitcher: NSObject {
     private var _cachedItems: [SwitcherItem] = []
     private var previewCache: [String: PreviewCacheEntry] = [:]
     private let cacheLock = NSLock()
+    private var previewPermissionMonitor: Timer?
+    private let previewPermissionStateLock = NSLock()
+    private var screenRecordingDenialIsConfirmed = false
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
     private let refreshInterval: TimeInterval = 0.8
@@ -197,11 +262,23 @@ final class AppSwitcher: NSObject {
             self, selector: #selector(preferencesChanged),
             name: SwitcherPreferences.didChangeNotification, object: nil
         )
+        previewPermissionMonitor = Timer.scheduledTimer(
+            withTimeInterval: 0.5,
+            repeats: true
+        ) { [weak self] _ in
+            self?.clearProtectedPreviewCachesIfPermissionWasRevoked()
+        }
 
         // Warm cache asynchronously. Do NOT wait — getItems() will return whatever
         // is currently cached (empty on first call, but refreshCacheIfNeeded will
         // populate it from onItemsChanged callbacks).
         warmCache(force: true)
+    }
+
+    deinit {
+        previewPermissionMonitor?.invalidate()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+        NotificationCenter.default.removeObserver(self)
     }
 
     @objc private func appActivated(_ notification: Notification) {
@@ -356,6 +433,81 @@ final class AppSwitcher: NSObject {
         return snapshot
     }
 
+    /// A confirmed TCC denial invalidates both the AppSwitcher phase-one cache
+    /// and the process/window-scoped continuity store. Rebuild items without
+    /// images so eligible membership, selection, and activation closures remain
+    /// unchanged while the UI switches to its safe icon/placeholder state.
+    private func clearProtectedPreviewCaches() {
+        // Clear continuity before rebuilding items. Otherwise a permission regrant
+        // racing this transition could let the initializer borrow an old image
+        // into the new visible snapshot just before the store is emptied.
+        SwitcherPreviewContinuityStore.clearProtectedContent()
+
+        cacheLock.lock()
+        previewCache.removeAll()
+        _cachedItems = _cachedItems.map { item in
+            SwitcherItem(
+                title: item.title,
+                subtitle: item.subtitle,
+                icon: item.icon,
+                previewImage: nil,
+                backdropImage: nil,
+                backdropFrame: item.backdropFrame,
+                backdropSourceScreenFrame: item.backdropSourceScreenFrame,
+                previewCacheKey: item.previewCacheKey,
+                historyIdentity: item.historyIdentity,
+                sourceAppIdentifier: item.sourceAppIdentifier,
+                kind: item.kind,
+                dedupeKey: item.dedupeKey,
+                isMinimized: item.isMinimized,
+                isFullscreen: item.isFullscreen,
+                workspaceSnapshot: item.workspaceSnapshot,
+                historyDescriptor: item.historyDescriptor,
+                activate: item.activate
+            )
+        }
+        let items = _cachedItems
+        cacheLock.unlock()
+
+        DispatchQueue.main.async { [weak self] in
+            self?.onItemsChanged?(items)
+        }
+    }
+
+    private func clearProtectedPreviewCachesIfPermissionWasRevoked() {
+        guard recordScreenRecordingDenialState(
+            hasConfirmedScreenRecordingDenial()
+        ) else { return }
+        clearProtectedPreviewCaches()
+    }
+
+    /// Records transitions only: a persistent denial should clear protected
+    /// content once, not rebuild and re-notify the visible switcher every poll.
+    @discardableResult
+    private func recordScreenRecordingDenialState(_ isConfirmed: Bool) -> Bool {
+        previewPermissionStateLock.lock()
+        defer { previewPermissionStateLock.unlock() }
+        let newlyConfirmed = isConfirmed && !screenRecordingDenialIsConfirmed
+        screenRecordingDenialIsConfirmed = isConfirmed
+        return newlyConfirmed
+    }
+
+    /// Returns `true` only after the sustained-denial confirmation interval has
+    /// elapsed. New capture is gated separately and immediately by preflight.
+    private func hasConfirmedScreenRecordingDenial(now: Date = Date()) -> Bool {
+        let preflightGranted: Bool
+        if #available(macOS 10.15, *) {
+            preflightGranted = CGPreflightScreenCaptureAccess()
+        } else {
+            preflightGranted = true
+        }
+        return !SwitcherPreviewPermissionState.effectiveAccess(
+            hasCurrentCapture: false,
+            preflightGranted: preflightGranted,
+            now: now
+        )
+    }
+
     func currentFrontmostIdentity() -> SwitcherHistoryIdentity? {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.activationPolicy == .regular,
@@ -384,9 +536,14 @@ final class AppSwitcher: NSObject {
         guard !isRefreshing else { return }
         isRefreshing = true
 
+        let hasConfirmedDenial = hasConfirmedScreenRecordingDenial()
+        if recordScreenRecordingDenialState(hasConfirmedDenial) {
+            clearProtectedPreviewCaches()
+        }
+
         // ── Phase 1: Reuse cached previews immediately ──────────────────────
         let context = enumerateWindows()
-        let preservedPreviews = cachedPreviewSnapshot()
+        let preservedPreviews = hasConfirmedDenial ? [:] : cachedPreviewSnapshot()
         let shouldAllowPreviewlessItems = cachedItemsSnapshot().isEmpty
         let provisionalItems = assembleItems(
             from: context,
@@ -413,25 +570,47 @@ final class AppSwitcher: NSObject {
         buildQueue.async { [weak self] in
             guard let self else { return }
 
+            let preflightGranted: Bool
             if #available(macOS 10.15, *) {
-                if !CGPreflightScreenCaptureAccess() {
+                preflightGranted = CGPreflightScreenCaptureAccess()
+                if !preflightGranted {
                     os_log(.error, log: appSwitcherLog,
                            "Screen Recording permission not granted — thumbnails will be unavailable. Grant access in System Settings > Privacy & Security > Screen Recording.")
                 }
+            } else {
+                preflightGranted = true
             }
 
             let fullItems = self.assembleItems(
                 from: context,
-                capturePreviews: true,
+                capturePreviews: SwitcherPreviewPermissionState.allowsNewCapture(
+                    preflightGranted: preflightGranted
+                ),
                 previewFallbacks: preservedPreviews
             )
 
+            let hasConfirmedDenialAfterCapture = self.hasConfirmedScreenRecordingDenial()
+            let newlyConfirmedDenialAfterCapture = self.recordScreenRecordingDenialState(
+                hasConfirmedDenialAfterCapture
+            )
             self.cacheLock.lock()
             self._cachedItems = fullItems
-            self.updatePreviewCacheLocked(with: fullItems)
+            if !hasConfirmedDenialAfterCapture {
+                self.updatePreviewCacheLocked(with: fullItems)
+            } else {
+                self.previewCache.removeAll()
+            }
             self.cacheLock.unlock()
             self.lastRefresh = Date()
             self.isRefreshing = false
+
+            if newlyConfirmedDenialAfterCapture {
+                // The confirmation may occur between item assembly and cache
+                // publication. Replace that just-assembled snapshot before any
+                // UI callback can expose its provisional cached images.
+                self.clearProtectedPreviewCaches()
+                return
+            }
 
             // Notify UI again — thumbnails now available.
             DispatchQueue.main.async { [weak self] in
@@ -814,7 +993,20 @@ final class AppSwitcher: NSObject {
         markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID)
 
-        WindowServerFocus.focusWindow(ownerPID: candidate.ownerPID, windowID: candidate.id)
+        let focusStatus = WindowServerFocus.focusWindow(
+            ownerPID: candidate.ownerPID,
+            windowID: candidate.id
+        )
+        if focusStatus.level != .available {
+            os_log(
+                .error,
+                log: appSwitcherLog,
+                "Exact-window focus request degraded (pid=%{public}d, window=%{public}u, reason=%{public}@)",
+                candidate.ownerPID,
+                candidate.id,
+                focusStatus.reason ?? "unknown"
+            )
+        }
         activateApplication(app, activateAllWindows: true)
         DispatchQueue.main.asyncAfter(deadline: .now() + initialWindowFocusDelay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: 0)
@@ -870,7 +1062,20 @@ final class AppSwitcher: NSObject {
         let t = kCFBooleanTrue!
         let axApp = AXUIElementCreateApplication(ownerPID)
         if let axWindowID = AXWindowIDLookup.windowID(for: axWindow) {
-            WindowServerFocus.focusWindow(ownerPID: ownerPID, windowID: axWindowID)
+            let focusStatus = WindowServerFocus.focusWindow(
+                ownerPID: ownerPID,
+                windowID: axWindowID
+            )
+            if focusStatus.level != .available {
+                os_log(
+                    .error,
+                    log: appSwitcherLog,
+                    "Exact-window focus retry degraded (pid=%{public}d, window=%{public}u, reason=%{public}@)",
+                    ownerPID,
+                    axWindowID,
+                    focusStatus.reason ?? "unknown"
+                )
+            }
         }
         AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, t)
         AXUIElementSetAttributeValue(axApp, kAXMainWindowAttribute as CFString, axWindow)

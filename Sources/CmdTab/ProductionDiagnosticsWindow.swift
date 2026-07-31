@@ -35,6 +35,8 @@ struct ProductionDiagnosticsSnapshot: Equatable {
     let screenRecordingReady: Bool
     let secureInputActive: Bool
     let exactIdentity: CapabilityStatus
+    let hardwarePreview: CapabilityStatus
+    let exactFocus: CapabilityStatus
     let workspace: CapabilityStatus
     let enabledProfileCount: Int
     let profileValidationIssues: [String]
@@ -48,6 +50,8 @@ struct ProductionDiagnosticsSnapshot: Equatable {
             screenRecordingReady: CGPreflightScreenCaptureAccess(),
             secureInputActive: SecureInputMonitor.isEnabled,
             exactIdentity: AXWindowIdentityLookup.status,
+            hardwarePreview: SkyLightCapture.status,
+            exactFocus: WindowServerFocus.status,
             workspace: StageManagerCapabilityPolicy.truthfulStatus(
                 WindowWorkspaceProvider.shared.status
             ),
@@ -75,6 +79,8 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         screenRecording=\(screenRecordingReady ? "ready" : "required")
         secureInput=\(secureInputActive ? "active" : "inactive")
         exactWindowIdentity=\(exactIdentity.level.rawValue):\(exactIdentity.reason ?? "ok")
+        hardwarePreview=\(hardwarePreview.level.rawValue):\(hardwarePreview.reason ?? "ok")
+        exactWindowFocus=\(exactFocus.level.rawValue):\(exactFocus.reason ?? "ok")
         workspace=\(workspace.level.rawValue):\(workspace.reason ?? "ok")
         enabledProfiles=\(enabledProfileCount)
         profileValidation=\(profileIssues)
@@ -123,6 +129,16 @@ struct ProductionDiagnosticsView: View {
                         title: "Exact Window Identity",
                         value: statusText(snapshot.exactIdentity),
                         level: snapshot.exactIdentity.level
+                    )
+                    diagnosticRow(
+                        title: "Hardware Preview Capture",
+                        value: statusText(snapshot.hardwarePreview),
+                        level: snapshot.hardwarePreview.level
+                    )
+                    diagnosticRow(
+                        title: "Exact Window Focus",
+                        value: statusText(snapshot.exactFocus),
+                        level: snapshot.exactFocus.level
                     )
                     diagnosticRow(
                         title: "Workspace Provider / Stage Manager",

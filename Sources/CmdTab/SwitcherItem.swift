@@ -24,8 +24,11 @@ enum SwitcherItemKind: String {
 ///
 /// TCC state can briefly lag a successful or recently revoked capture. A single
 /// false sample must not erase every last-known-good Arc or Telegram thumbnail,
-/// but a sustained denial must clear previews promptly. Successful captures reset
-/// the denial window immediately.
+/// but a sustained denial must clear previews promptly. A cached preview is never
+/// evidence that TCC remains granted: it may be the very content that must be
+/// removed after revocation. Only a current preflight grant resets the denial
+/// window. New capture work is blocked as soon as preflight denies access; the
+/// one-second window applies solely to rendering already-cached continuity.
 enum SwitcherPreviewPermissionState {
     private static let lock = NSLock()
     private static var denialBeganAt: Date?
@@ -36,10 +39,11 @@ enum SwitcherPreviewPermissionState {
         preflightGranted: Bool,
         now: Date = Date()
     ) -> Bool {
+        _ = hasCurrentCapture
         lock.lock()
         defer { lock.unlock() }
 
-        if hasCurrentCapture || preflightGranted {
+        if preflightGranted {
             denialBeganAt = nil
             return true
         }
@@ -49,6 +53,13 @@ enum SwitcherPreviewPermissionState {
             return true
         }
         return now.timeIntervalSince(denialBeganAt) < denialConfirmationInterval
+    }
+
+    /// Current TCC denial must stop fresh capture immediately. This intentionally
+    /// differs from `effectiveAccess`, which allows a short continuity-only grace
+    /// period for a single stale preflight sample.
+    static func allowsNewCapture(preflightGranted: Bool) -> Bool {
+        preflightGranted
     }
 
     static func noteSuccessfulCapture() {
@@ -147,12 +158,19 @@ enum SwitcherPreviewContinuityStore {
     }
 
     static func resetForTesting() {
+        clearProtectedContent()
+        SwitcherPreviewPermissionState.resetForTesting()
+    }
+
+    /// Removes every protected image, including entries for windows that are not
+    /// in the current switcher snapshot. A confirmed Screen Recording revocation
+    /// must not leave a title/frame variant or deferred recovery result visible.
+    static func clearProtectedContent() {
         lock.lock()
         entriesByExactKey.removeAll()
         entriesByIdentity.removeAll()
         lock.unlock()
-        SwitcherPreviewPermissionState.resetForTesting()
-        ReliableWindowPreviewRecovery.resetForTesting()
+        ReliableWindowPreviewRecovery.cancelAll()
     }
 
     private static func scopedExactKey(
@@ -245,9 +263,7 @@ struct SwitcherItem: Identifiable {
         if previewCacheKey != nil, kind == .appWindow {
             let hasCurrentCapture = previewImage != nil || backdropImage != nil
             let preflightGranted: Bool
-            if hasCurrentCapture {
-                preflightGranted = true
-            } else if #available(macOS 10.15, *) {
+            if #available(macOS 10.15, *) {
                 preflightGranted = CGPreflightScreenCaptureAccess()
             } else {
                 preflightGranted = true

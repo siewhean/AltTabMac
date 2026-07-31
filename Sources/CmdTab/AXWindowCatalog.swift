@@ -59,18 +59,37 @@ enum AXWindowIdentityLookup {
         return unsafeBitCast(symbol, to: GetWindowFn.self)
     }()
 
+    private static let capabilityStatus = NativeCapabilityStatus(
+        initial: NativeCapabilityStatusEvaluator.operationStatus(
+            symbolAvailable: resolved != nil,
+            resultCode: nil,
+            capability: "Exact AX window identity"
+        )
+    )
+
     static var status: CapabilityStatus {
-        resolved == nil
-            ? .unavailable("_AXUIElementGetWindow is unavailable; exact AX-window identity cannot be resolved.")
-            : .available
+        capabilityStatus.status
     }
 
     static func windowID(for element: AXUIElement) -> CGWindowID? {
         guard let resolved else { return nil }
         var windowID: CGWindowID = 0
-        guard resolved(element, &windowID) == 0, windowID != 0 else {
+        let result = resolved(element, &windowID)
+        guard result == 0 else {
+            capabilityStatus.record(
+                NativeCapabilityStatusEvaluator.operationStatus(
+                    symbolAvailable: true,
+                    resultCode: result,
+                    capability: "Exact AX window identity"
+                )
+            )
             return nil
         }
+        guard windowID != 0 else {
+            capabilityStatus.record(.failed("Exact AX window identity returned a zero window ID."))
+            return nil
+        }
+        capabilityStatus.record(.available)
         return windowID
     }
 

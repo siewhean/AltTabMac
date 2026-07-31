@@ -23,6 +23,7 @@ enum ReliableWindowPreviewRecovery {
     private static let stateLock = NSLock()
     private static var inFlightIdentityKeys = Set<String>()
     private static var retryAfterByIdentityKey: [String: Date] = [:]
+    private static var generation: UInt = 0
     private static let failureBackoff: TimeInterval = 2.0
     private static let maximumDimension = 1_800
 
@@ -33,6 +34,15 @@ enum ReliableWindowPreviewRecovery {
         now: Date = Date()
     ) {
         guard windowID != 0 else { return }
+        let preflightGranted: Bool
+        if #available(macOS 10.15, *) {
+            preflightGranted = CGPreflightScreenCaptureAccess()
+        } else {
+            preflightGranted = true
+        }
+        guard SwitcherPreviewPermissionState.allowsNewCapture(
+            preflightGranted: preflightGranted
+        ) else { return }
 
         stateLock.lock()
         if inFlightIdentityKeys.contains(identityKey) {
@@ -44,6 +54,7 @@ enum ReliableWindowPreviewRecovery {
             return
         }
         inFlightIdentityKeys.insert(identityKey)
+        let scheduledGeneration = generation
         stateLock.unlock()
 
         guard #available(macOS 14.0, *) else {
@@ -51,7 +62,8 @@ enum ReliableWindowPreviewRecovery {
                 image: nil,
                 exactKey: exactKey,
                 identityKey: identityKey,
-                windowID: windowID
+                windowID: windowID,
+                scheduledGeneration: scheduledGeneration
             )
             return
         }
@@ -67,7 +79,8 @@ enum ReliableWindowPreviewRecovery {
                     image: nil,
                     exactKey: exactKey,
                     identityKey: identityKey,
-                    windowID: windowID
+                    windowID: windowID,
+                    scheduledGeneration: scheduledGeneration
                 )
                 return
             }
@@ -99,16 +112,25 @@ enum ReliableWindowPreviewRecovery {
                     image: image.flatMap { usableImage($0) },
                     exactKey: exactKey,
                     identityKey: identityKey,
-                    windowID: windowID
+                    windowID: windowID,
+                    scheduledGeneration: scheduledGeneration
                 )
             }
         }
     }
 
     static func resetForTesting() {
+        cancelAll()
+    }
+
+    /// Invalidates deferred captures that were requested before TCC revocation.
+    /// ScreenCaptureKit callbacks cannot be synchronously cancelled, so generation
+    /// fencing prevents a late callback from repopulating cleared continuity.
+    static func cancelAll() {
         stateLock.lock()
         inFlightIdentityKeys.removeAll()
         retryAfterByIdentityKey.removeAll()
+        generation &+= 1
         stateLock.unlock()
     }
 
@@ -116,8 +138,27 @@ enum ReliableWindowPreviewRecovery {
         image: CGImage?,
         exactKey: String,
         identityKey: String,
-        windowID: CGWindowID
+        windowID: CGWindowID,
+        scheduledGeneration: UInt
     ) {
+        let preflightGranted: Bool
+        if #available(macOS 10.15, *) {
+            preflightGranted = CGPreflightScreenCaptureAccess()
+        } else {
+            preflightGranted = true
+        }
+        stateLock.lock()
+        let isCurrentGeneration = scheduledGeneration == generation
+        inFlightIdentityKeys.remove(identityKey)
+        stateLock.unlock()
+
+        guard isCurrentGeneration,
+              SwitcherPreviewPermissionState.allowsNewCapture(
+                preflightGranted: preflightGranted
+              ) else {
+            return
+        }
+
         if let image {
             SwitcherPreviewPermissionState.noteSuccessfulCapture()
             let preview = NSImage(
@@ -137,7 +178,6 @@ enum ReliableWindowPreviewRecovery {
         }
 
         stateLock.lock()
-        inFlightIdentityKeys.remove(identityKey)
         if image == nil {
             retryAfterByIdentityKey[identityKey] = Date().addingTimeInterval(
                 failureBackoff
