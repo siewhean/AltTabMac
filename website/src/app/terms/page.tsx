@@ -12,9 +12,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab license terms, refunds, devices, and updates";
+const title = "CmdTab public beta terms and support boundaries";
 const description =
-  "Review the CmdTab personal-license terms, three-Mac device policy, 14-day refund policy, recovery, 1.x updates, support, and retention disclosures.";
+  "Review CmdTab public-beta access, Apple-silicon compatibility, beta updates, privacy, security reporting, support, and existing licence-recovery boundaries.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Terms", path: "/terms" as const },
@@ -24,7 +24,7 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/terms",
-  imageAlt: "CmdTab license and refund terms",
+  imageAlt: "CmdTab public beta terms and support boundaries",
 });
 
 export default function TermsPage() {
@@ -44,14 +44,14 @@ export default function TermsPage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow="Terms"
-        title="Clear terms for buying and using CmdTab"
-        description="One personal license, one public price, and explicit rules for devices, refunds, recovery, updates, and retention."
+        title="Clear terms for the CmdTab public beta"
+        description="The public beta is non-transactional: no checkout, payment, fulfilment, refund, or licence-sale action is available."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={termsReviewedAt} label="Terms reviewed" />
           <p className="text-sm text-subdued">
-            {productFacts.licensePrice} once · {productFacts.licensedMacs} personal Macs
+            {productFacts.licensePrice} · Apple silicon beta only
           </p>
         </div>
         <div className="space-y-10">
@@ -70,9 +70,9 @@ export default function TermsPage() {
             </section>
           ))}
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="/buy">Review the offer</Button>
+            <Button href="/trial">Join beta waitlist</Button>
             <Button href="/privacy" variant="secondary">Privacy policy</Button>
-            <Button href="/help" variant="secondary">Purchase or recovery help</Button>
+            <Button href="/help" variant="secondary">Support or recovery help</Button>
           </div>
         </div>
       </SectionShell>

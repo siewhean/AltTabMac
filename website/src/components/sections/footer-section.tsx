@@ -12,7 +12,7 @@ const productLinks = [
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },
   { href: "/faq", label: "FAQ" },
-  { href: "/buy", label: "Buy" },
+  { href: "/buy", label: "Pricing plan" },
 ] as const;
 
 const companyLinks = [

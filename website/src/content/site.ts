@@ -10,10 +10,10 @@ export const siteConfig = {
     { label: "Modes", href: "#modes" },
     { label: "Showcase", href: "/showcase" },
     { label: "Features", href: "#details" },
-    { label: "Buy", href: "/buy" },
+    { label: "Beta", href: "/trial" },
   ],
   ctas: {
-    primary: "Start the trial",
+    primary: "Join beta waitlist",
     secondary: "Watch the app",
     tertiary: "Read the privacy policy",
   },
@@ -34,5 +34,5 @@ export const siteConfig = {
     "one-time license for Mac utility",
     "Mac utility free trial",
   ],
-  contactEmail: "tohsh17@gmail.com",
+  contactEmail: "support@cmdtab.net",
 } as const;

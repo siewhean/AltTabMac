@@ -26,7 +26,7 @@ no stable-appcast route evidence yet.
 | --- | --- | --- |
 | G0 Governance | Candidate ancestry, evidence index, risk register, matrices, runbooks, and truthful source-status reconciliation | PASS (repository governance only); external release rows remain independently blocked or not tested |
 | G1 Artifact integrity | `arm64` beta configuration; current full/focused tests; clean unsigned builds; bundle/entitlement/resource/secret/dSYM review | PASS (repository build integrity); signed distribution remains blocked at G3 |
-| G2 Security/privacy/permissions | Candidate-SHA security audit; P0/P1 triage; private capability/fallback review; privacy and real permission-state evidence | BLOCKED - four P1 findings; permission matrix NOT TESTED |
+| G2 Security/privacy/permissions | Candidate-SHA security audit; P0/P1 triage; private capability/fallback review; privacy and real permission-state evidence | BLOCKED - repository P1 fixes are committed; signed-artifact permission/privacy evidence remains NOT TESTED |
 | G3 Developer ID artifact | Team-ID-confirmed Developer ID signature, Hardened Runtime, timestamp, notarization, staple, Gatekeeper, checksum | BLOCKED - credentials absent |
 | G4 Functional acceptance | Exact quarantined signed DMG on clean arm64 Ventura/current macOS accounts; protected-window matrix and performance/soak | NOT TESTED |
 | G5 Beta update/rollback | Isolated beta feed/manifest; signed N-to-N+1, tamper/interruption/cache failure, withdrawal, rollback rehearsal | BLOCKED / NOT TESTED |

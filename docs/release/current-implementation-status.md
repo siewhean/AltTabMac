@@ -36,20 +36,17 @@ is authorized from this baseline.
   candidate-SHA audit must establish every private capability's need, failure
   signal, public fallback, truthful UI, and regression coverage.
 
-## Current P1 security blockers
+## Security remediation and remaining acceptance boundary
 
-The candidate-SHA static audit found no P0, but the following P1 items block
-beta publication until remediated and independently rechecked:
+The candidate-SHA static audit found no P0. Its four repository-owned P1
+findings are remediated: confirmed Screen Recording denial clears every preview
+cache; the reminder worker requires a strong bearer secret before lookup; native
+private-capability failures are exposed through diagnostics and truthful
+fallback status; and beta copy has no payment offer or personal-Gmail contact.
 
-- Screen Recording revocation can retain cached previews of other apps instead
-  of clearing them after sustained denial.
-- The public trial-reminder cron authorizes execution when `CRON_SECRET` is
-  missing, enabling unauthenticated bulk reminder attempts.
-- Normal preview, exact-ID, and focus paths still invoke undocumented native
-  APIs directly without the required observable provider/degraded boundary.
-- Active website copy/navigation still presents a current trial/purchase offer
-  and personal-Gmail support contact, contrary to the beta commerce/support
-  boundary.
+Gate 2 remains blocked on real signed-artifact permission transitions, current
+Apple privacy-manifest applicability evidence, and independent candidate-SHA
+review. Source tests do not substitute for those observations.
 
 ## Evidence boundaries
 

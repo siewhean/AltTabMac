@@ -2,79 +2,79 @@ import { commerceContent } from "@/content/commerce";
 
 export const commercePageContent = {
   buy: {
-    eyebrow: "Buy CmdTab",
-    title: "Trial first, then buy once.",
+    eyebrow: "General availability pricing",
+    title: "Planned US$12 at general availability.",
     description:
-      "A short trial, a one-time purchase, and a clear help path after checkout.",
+      "The public beta is non-transactional. CmdTab does not publish checkout, payment, fulfilment, or refund actions during beta.",
     process: [
       {
-        title: "Start the trial",
-        body: "Download the current build, enable the required permissions, and use it in real work.",
+        title: "Join the beta",
+        body: "Use the signed Apple-silicon beta when it is published and report issues through the documented support path.",
       },
       {
-        title: "Buy through hosted checkout",
-        body: "When you are ready, complete the one-time purchase through the hosted checkout.",
+        title: "Watch for GA details",
+        body: "A US$12 personal licence is planned for general availability, not the beta period.",
       },
       {
-        title: "Use Help if needed",
-        body: "If you lose the receipt or need activation help later, use the Help page.",
+        title: "Use support if needed",
+        body: "For beta installation, permissions, security, or recovery guidance, email support@cmdtab.net.",
       },
     ],
     notes: [
-      "No subscription",
-      "Hosted checkout",
-      "Help requests land in the dashboard",
+      "No payment during beta",
+      "Planned US$12 at GA",
+      "Support is available by email",
     ],
   },
   trial: {
-    eyebrow: "Free trial",
-    title: `${commerceContent.trialLength} before you decide.`,
+    eyebrow: "Public beta",
+    title: "Join the CmdTab beta waitlist.",
     description:
-      "Download the current build, enable the required permissions, and try CmdTab in real work.",
+      "Get notified when a signed Apple-silicon beta download is available, then enable the required permissions and try CmdTab in real work.",
     checklist: [
-      "Download the current trial build.",
+      "Download the signed beta build when it is published.",
       "Enable Accessibility and Screen Recording in macOS.",
       "Use CmdTab in your normal app-switching workflow.",
     ],
     note:
-      "If the build is not live yet, this page should point people to Help for access.",
+      "If the beta build is not live yet, join the waitlist or email support@cmdtab.net for help.",
   },
   help: {
     eyebrow: "Help",
-    title: "Purchase, activation, and recovery help.",
+    title: "Beta support and recovery guidance.",
     description:
-      "Use this page if you started the trial, bought CmdTab, or need help finding a purchase later.",
+      "Use this page for beta installation, permissions, security reporting, or existing licence recovery guidance. The beta has no payment path.",
     journey: [
       {
-        title: "Start with the trial",
-        body: "Use CmdTab in real work first. The trial exists to prove the app before you pay.",
+        title: "Use the public beta",
+        body: "Use the signed beta in real work and report issues with your macOS version and CmdTab build.",
       },
       {
-        title: "Buy through checkout",
-        body: "When it earns a place in your setup, complete the one-time purchase through the hosted checkout.",
+        title: "No payment during beta",
+        body: "The planned US$12 personal licence belongs to general availability, not the beta release.",
       },
       {
-        title: "Use Help if needed",
-        body: "If you lose the receipt, need activation help, or have a billing issue, send one request here.",
+        title: "Email support",
+        body: "For existing licence recovery or beta help, send one concise request to support@cmdtab.net.",
       },
     ],
     supportPoints: [
-      "Find a lost receipt or purchase email.",
-      "Ask about activation or moving Macs.",
-      "Get billing or refund help.",
+      "Get beta installation or permission help.",
+      "Report a security issue privately.",
+      "Ask for existing licence recovery guidance.",
     ],
     terms: [
       {
-        title: "One-time purchase",
-        body: "CmdTab is sold once, not as a subscription.",
+        title: "Planned pricing",
+        body: "US$12 is planned for general availability; there is no payment path during beta.",
       },
       {
-        title: "Trial first, then decide",
-        body: "The trial exists so people can prove the app in real use before paying.",
+        title: "Beta before GA",
+        body: "The beta exists for tested feedback and does not include checkout or an offer.",
       },
       {
-        title: "Hosted checkout, direct help",
-        body: "Checkout runs through the provider, but purchase questions still come back here.",
+        title: "Direct support",
+        body: "Support, recovery, and security reports go to support@cmdtab.net without a promised response time.",
       },
     ],
   },

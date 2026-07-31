@@ -17,9 +17,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab help: installation, activation, and purchase recovery";
+const title = "CmdTab help: beta installation, security, and recovery";
 const description =
-  "Get CmdTab help with trial access, installation, macOS permissions, activation, purchase recovery, billing, refunds, and moving a license to another Mac.";
+  "Get CmdTab help with beta installation, macOS permissions, updates, security reporting, and existing licence recovery. The public beta has no purchase path.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Help", path: "/help" as const },
@@ -29,7 +29,7 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/help",
-  imageAlt: "CmdTab installation, activation, and purchase help",
+  imageAlt: "CmdTab beta installation, security, and recovery help",
 });
 
 export default function HelpPage() {
@@ -106,9 +106,9 @@ export default function HelpPage() {
       </SectionShell>
 
       <SectionShell
-        eyebrow="How the buy path works"
-        title="Simple terms, clear support"
-        description="This is the practical explanation of how the one-time buy flow is presented today."
+        eyebrow="Beta support boundary"
+        title="Clear limits, direct support"
+        description="This is the practical beta support path. No checkout, payment, or fulfilment action is available."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

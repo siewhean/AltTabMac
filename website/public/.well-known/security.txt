@@ -1,6 +1,6 @@
-Contact: mailto:security@cmdtab.app
-Contact: https://cmdtab.app/security
+Contact: mailto:support@cmdtab.net
+Contact: https://cmdtab.net/beta/security
 Expires: 2027-03-28T23:59:59Z
 Preferred-Languages: en
-Policy: https://cmdtab.app/security
-Canonical: https://cmdtab.app/.well-known/security.txt
+Policy: https://cmdtab.net/beta/security
+Canonical: https://cmdtab.net/.well-known/security.txt

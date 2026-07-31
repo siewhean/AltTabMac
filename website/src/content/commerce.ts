@@ -1,31 +1,31 @@
 export const commerceContent = {
-  eyebrow: "Launch path",
-  title: "Try CmdTab for 14 days. Buy once if it sticks.",
+  eyebrow: "Public beta",
+  title: "CmdTab public beta is preparing for launch.",
   summary:
-    "CmdTab is US$12 once for one person, up to three personally owned Macs, and every 1.x update.",
-  trialLength: "14-day trial",
+    "The beta is a direct Apple-silicon download with no payment path. A US$12 personal licence is planned for general availability.",
+  trialLength: "Public beta",
   license: {
-    title: "Personal license",
-    price: "US$12",
-    note: "One perpetual personal license. No subscription.",
+    title: "General availability pricing",
+    price: "Planned US$12",
+    note: "Planned for general availability; no purchase is available during beta.",
     points: [
       "Use on up to three personally owned Macs",
       "All CmdTab 1.x updates",
       "Self-service device deactivation",
       "14-day full-refund policy",
     ],
-    cta: "Buy CmdTab",
+    cta: "Planned for GA",
   },
   trial: {
-    title: "Free trial",
-    note: "Use the full app for 14 days, then decide.",
+    title: "Beta access",
+    note: "The signed beta download appears only after the beta release is published.",
     points: [
-      "14-day free trial",
-      "No payment method required by CmdTab",
-      "No recurring subscription",
+      "Apple silicon (arm64) only",
+      "No checkout or payment during beta",
+      "Stable release and appcast remain unavailable",
     ],
-    cta: "Download free trial",
+    cta: "Download beta",
   },
   fallback:
-    "The trial and buy links appear here after you add the hosted URLs.",
+    "Join the beta waitlist for a release notification. No payment CTA is published during beta.",
 } as const;

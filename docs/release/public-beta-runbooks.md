@@ -80,6 +80,17 @@ tests, backup/restore, fraud/chargeback handling, legal copy, and explicit
 commerce go-live approval. Re-run the disabled-path test after any change so
 the beta cannot accidentally take payment.
 
+## Privacy manifest decision
+
+The 2026-08-01 review of Apple's privacy-manifest guidance records that
+collected-data declarations span Apple platforms, while required-reason API
+declarations identify iOS-family platforms. CmdTab is direct Developer-ID
+distribution, not an App Store Connect submission; no manifest is currently
+packaged. Before Gate 3, recheck the current Apple guidance against the chosen
+SDK and every bundled dependency. If a manifest becomes applicable, package it
+under `Contents/Resources`, declare only verified collection/use, and bind it
+to the signed artifact evidence.
+
 ## Known beta limitations
 
 - `arm64` only; Intel and macOS below 13 are unsupported.

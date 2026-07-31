@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { renderTrialReminderEmail } from "@/content/trial-email";
-import { getServerEnv, getSiteUrl } from "@/lib/env";
+import { getServerEnv, getSiteUrl, optionalStrongInternalSecret } from "@/lib/env";
+import { isAuthorizedInternalWorker } from "@/lib/internal-worker-auth";
 import {
   listTrialClaimsDueForReminder,
   markTrialReminderSent,
@@ -12,11 +13,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return true;
-
-  const header = request.headers.get("authorization");
-  return header === `Bearer ${secret}`;
+  return isAuthorizedInternalWorker(
+    request,
+    optionalStrongInternalSecret(process.env.CRON_SECRET),
+  );
 }
 
 export async function GET(request: Request) {
@@ -54,8 +54,8 @@ export async function GET(request: Request) {
       } catch (error) {
         failed += 1;
         console.error("[CmdTab Website] trial reminder email failed", {
-          email: claim.email,
-          error,
+          claimId: claim.id,
+          errorType: error instanceof Error ? error.name : "unknown",
         });
       }
     }
@@ -67,7 +67,9 @@ export async function GET(request: Request) {
       failed,
     });
   } catch (error) {
-    console.error("[CmdTab Website] trial reminder run failed", error);
+    console.error("[CmdTab Website] trial reminder run failed", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
     return NextResponse.json(
       { ok: false, message: "Reminder run failed" },
       { status: 500 },

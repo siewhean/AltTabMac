@@ -14,19 +14,19 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "Buy CmdTab: 14-day trial and one-time Mac license";
+const title = "CmdTab pricing plan for general availability";
 const description =
-  "Try CmdTab for 14 days, then buy one US$12 perpetual personal license for up to three personally owned Macs, with all 1.x updates and no subscription.";
+  "CmdTab plans a US$12 personal licence for general availability. The public beta has no checkout, purchase, or payment CTA.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
-  { name: "Buy", path: "/buy" as const },
+  { name: "Pricing plan", path: "/buy" as const },
 ];
 
 export const metadata = createPageMetadata({
   title,
   description,
   path: "/buy",
-  imageAlt: "CmdTab trial and one-time macOS license",
+  imageAlt: "CmdTab general-availability pricing plan",
 });
 
 export default function BuyPage() {
@@ -55,17 +55,17 @@ export default function BuyPage() {
         </div>
         <CommerceOfferGrid context="buy_page" />
         <p className="mt-6 max-w-3xl text-sm leading-7 text-subdued">
-          US$12 is a one-time perpetual personal license for up to three personally owned Macs
-          and all CmdTab 1.x updates. It is not a recurring subscription. A full refund can be
-          requested within 14 days of purchase.
+          A US$12 personal licence is planned for general availability. The public beta is
+          non-transactional: CmdTab does not publish checkout, payment, fulfilment, or refund
+          actions during this phase.
         </p>
       </SectionShell>
 
       <SectionShell
         id="waitlist"
-        eyebrow="Early access"
-        title="Join the CmdTab waitlist"
-        description="Sign up below to receive early preview access and an email notification as soon as the trial download or direct purchase opens for your Mac."
+        eyebrow="Public beta"
+        title="Join the CmdTab beta waitlist"
+        description="Sign up below to receive an email notification when a signed beta download is available for your Mac."
         className="pt-0"
       >
         <MotionReveal className="surface-panel p-6 max-w-2xl">
@@ -75,8 +75,8 @@ export default function BuyPage() {
 
       <SectionShell
         eyebrow="How it works"
-        title="Three clear steps"
-        description="Start the trial, buy if it earns a place in your workflow, and use Help if you need support later."
+        title="Beta, then general availability"
+        description="Use the beta, report issues through the documented support paths, and watch for general-availability details later."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

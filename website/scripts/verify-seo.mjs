@@ -117,11 +117,11 @@ for (const required of [
 }
 assert.match(structuredData, /standalone macOS window-switcher application/, "software schema must disambiguate the CmdTab entity");
 assert.doesNotMatch(structuredData, /memoryRequirements|processorRequirements/, "unmeasured memory or processor claims must not enter schema");
-assert.match(structuredData, /getCommerceConfig/, "software offers must use the visible commerce configuration");
-assert.match(structuredData, /getStableReleaseManifest/, "trial structured data must require the canonical stable release manifest");
-assert.match(structuredData, /commerce\.checkoutUrl/, "license offer structured data must require a configured checkout URL");
+assert.doesNotMatch(structuredData, /getCommerceConfig/, "beta structured data must not expose commerce configuration");
+assert.doesNotMatch(structuredData, /getStableReleaseManifest/, "beta structured data must not expose a stable release offer");
+assert.doesNotMatch(structuredData, /"@type": "Offer"/, "beta structured data must not emit an Offer");
+assert.doesNotMatch(structuredData, /offers/, "beta structured data must not emit offer data");
 assert.doesNotMatch(structuredData, /standardCheckoutUrl/, "the retired standard checkout must not be emitted");
-assert.match(structuredData, /offers\.length > 0/, "empty or unavailable offers must not be emitted as InStock");
 
 const homePage = read("src/app/page.tsx");
 for (const requiredSection of ["HeroSection", "StylesSection", "FeatureBandsSection", "FooterSection"]) {

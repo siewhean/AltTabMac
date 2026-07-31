@@ -109,7 +109,7 @@ export default function ShowcasePage() {
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <Button href="/trial" className="w-full sm:w-auto">
-              Start the trial
+              Join beta waitlist
             </Button>
             <Button href="/evidence" variant="secondary" className="w-full sm:w-auto">
               Review evidence

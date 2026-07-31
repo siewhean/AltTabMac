@@ -61,6 +61,27 @@ assert.match(
   "outbox worker must return before database access while commerce is disabled",
 );
 
+const trialReminderRoute = read("src/app/api/trial/reminder/route.ts");
+assert.doesNotMatch(
+  trialReminderRoute,
+  /console\.error\(\s*"\[CmdTab Website\] trial reminder email failed"[\s\S]*?email:\s*claim\.email/,
+  "trial reminder failure logs must not retain recipient email addresses",
+);
+assert.match(
+  trialReminderRoute,
+  /isAuthorizedInternalWorker\([\s\S]*?optionalStrongInternalSecret\(process\.env\.CRON_SECRET\)/,
+  "trial reminder must require a strong CRON_SECRET before it can enumerate recipients",
+);
+
+const betaAppcastRoute = read("src/app/releases/beta/appcast.xml/route.ts");
+assert.match(betaAppcastRoute, /validateBetaAppcast\(appcast, manifest\)/, "beta appcast must be validated against its manifest before serving");
+assert.match(betaAppcastRoute, /return unavailable\(\)/, "invalid beta appcasts must fail closed");
+assert.match(
+  trialReminderRoute,
+  /if \(!isAuthorized\(request\)\) \{[\s\S]*?return NextResponse\.json\([\s\S]*?401[\s\S]*?\);[\s\S]*?\}[\s\S]*?const env = getServerEnv\(\);/,
+  "trial reminder must return before loading mail configuration or recipients",
+);
+
 const commerce = read("src/lib/commerce.ts");
 assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "\.\/env(?:\.js)?"/);
 assert.match(commerce, /const launchEnabled = isCommerceLaunchEnabled\(env\)/);

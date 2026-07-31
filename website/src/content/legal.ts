@@ -45,7 +45,7 @@ export const privacyContent = {
       body: [
         "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
         "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes or until the associated record is deleted. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
-        "For access, correction, or deletion requests concerning CmdTab-held data, contact tohsh17@gmail.com and include enough information to locate the relevant trial, purchase, support request, or install record.",
+        "For access, correction, or deletion requests concerning CmdTab-held data, contact support@cmdtab.net and include enough information to locate the relevant beta, support request, or install record.",
       ],
     },
     {
@@ -58,7 +58,7 @@ export const privacyContent = {
     {
       title: "Security contact",
       body: [
-        "Report a suspected security issue in the website or app privately to tohsh17@gmail.com.",
+        "Report a suspected security issue in the website or app privately to support@cmdtab.net.",
         "CmdTab also publishes its disclosure policy at /.well-known/security.txt and on the Security page.",
       ],
     },

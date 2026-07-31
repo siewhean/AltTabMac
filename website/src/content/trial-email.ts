@@ -35,7 +35,7 @@ export function renderTrialStartedEmail(input: TrialEmailInput) {
     `Ends: ${formatDate(input.endsAt)}`,
     "",
     "You can keep using CmdTab on this Mac right away.",
-    `Buy CmdTab: ${input.siteUrl}/buy`,
+    `Beta information: ${input.siteUrl}/trial`,
     `Help: ${input.siteUrl}/help`,
   ].join("\n");
 
@@ -60,7 +60,7 @@ export function renderTrialStartedEmail(input: TrialEmailInput) {
             </div>
           </div>
           <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="${escapeHtml(input.siteUrl)}/buy" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">Buy CmdTab</a>
+            <a href="${escapeHtml(input.siteUrl)}/trial" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">Beta information</a>
             <a href="${escapeHtml(input.siteUrl)}/help" style="display:inline-block;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);color:#E8EEF9;text-decoration:none;font-weight:600;font-size:14px;background:rgba(255,255,255,0.04);">Open Help</a>
           </div>
         </div>
@@ -78,8 +78,8 @@ export function renderTrialReminderEmail(input: TrialEmailInput) {
     "",
     `Ends: ${formatDate(input.endsAt)}`,
     "",
-    "If you want to keep using CmdTab after the trial, you can buy the one-time license now.",
-    `Buy CmdTab: ${input.siteUrl}/buy`,
+    "CmdTab does not publish a payment path during beta. Check the beta page for current availability.",
+    `Beta information: ${input.siteUrl}/trial`,
     `Help: ${input.siteUrl}/help`,
   ].join("\n");
 
@@ -92,13 +92,13 @@ export function renderTrialReminderEmail(input: TrialEmailInput) {
             <span style="font-size:13px;font-weight:600;color:#E8EEF9;">CmdTab</span>
           </div>
           <h1 style="margin:0 0 12px;font-size:34px;line-height:1.04;letter-spacing:-0.05em;color:#F7FAFF;">Your trial ends tomorrow</h1>
-          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">If you want to keep using CmdTab after the 14-day trial, you can buy the one-time license now.</p>
+          <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#B7C3D9;">CmdTab does not publish a payment path during beta. Check the beta page for current availability.</p>
           <div style="padding:14px 16px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
             <p style="margin:0;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#9CC6FF;">Trial ends</p>
             <p style="margin:8px 0 0;font-size:15px;line-height:1.7;color:#E8EEF9;">${escapeHtml(formatDate(input.endsAt))}</p>
           </div>
           <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="${escapeHtml(input.siteUrl)}/buy" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">Buy CmdTab</a>
+            <a href="${escapeHtml(input.siteUrl)}/trial" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">Beta information</a>
             <a href="${escapeHtml(input.siteUrl)}/help" style="display:inline-block;padding:14px 20px;border-radius:999px;border:1px solid rgba(255,255,255,0.12);color:#E8EEF9;text-decoration:none;font-weight:600;font-size:14px;background:rgba(255,255,255,0.04);">Open Help</a>
           </div>
         </div>

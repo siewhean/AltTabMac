@@ -6,7 +6,6 @@ import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
-import { getStableReleaseManifest } from "@/lib/stable-release";
 import {
   createBreadcrumbStructuredData,
   createWebPageStructuredData,
@@ -34,7 +33,7 @@ const updates = [
     title: "Search, GEO, privacy, and evidence architecture",
     points: [
       "Added dedicated window-switcher, Mac guide, native comparison, FAQ, compatibility, permissions, privacy, About, and changelog resources with visible review dates and source links.",
-      "Expanded the CmdTab entity graph and software structured data with current version, requirements, features, screenshots, offers, publisher, source repository, and release-note relationships.",
+      "Expanded the CmdTab entity graph and software structured data with current version, requirements, features, screenshots, publisher, source repository, and release-note relationships.",
       "Published the exact native-app telemetry fields and explicit exclusions instead of relying on a vague analytics statement.",
       "Added first-party AI-referral classification, a private discovery dashboard, a canonical route registry, IndexNow support, and deterministic SEO verification.",
     ],
@@ -73,8 +72,6 @@ const updates = [
 ] as const;
 
 export default function ChangelogPage() {
-  const release = getStableReleaseManifest();
-
   return (
     <main>
       <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
@@ -100,32 +97,15 @@ export default function ChangelogPage() {
             Review commit history
           </Button>
         </div>
-        <section className="surface-panel mb-6 p-7" aria-labelledby="stable-release-heading">
-          <p className="type-eyebrow text-cyan">Stable release</p>
-          <h2 id="stable-release-heading" className="mt-4 text-2xl font-medium tracking-[-0.04em] text-text">
-            {release ? `CmdTab ${release.version} (build ${release.build})` : "No distributable build published"}
+        <section className="surface-panel mb-6 p-7" aria-labelledby="release-status-heading">
+          <p className="type-eyebrow text-cyan">Release status</p>
+          <h2 id="release-status-heading" className="mt-4 text-2xl font-medium tracking-[-0.04em] text-text">
+            Stable releases are not published during public beta
           </h2>
-          {release ? (
-            <>
-              <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
-                Published {release.releaseDate} for macOS {release.minimumMacOS} or later. The DMG,
-                checksum, source commit, and update feed are bound by the stable release manifest.
-              </p>
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <Button href={release.dmgURL} target="_blank" rel="noreferrer">
-                  Download this release
-                </Button>
-                <Button href="/releases/stable.json" variant="secondary">
-                  Review release manifest
-                </Button>
-              </div>
-            </>
-          ) : (
-            <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
-              Development notes do not constitute a signed public release. Download links remain
-              unavailable until a notarized immutable DMG passes the release gate.
-            </p>
-          )}
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
+            Development notes do not constitute a signed public release. The beta channel is published only
+            with its signed, immutable manifest; stable downloads and stable updates remain unavailable.
+          </p>
         </section>
         <div className="space-y-6">
           {updates.map((update) => (

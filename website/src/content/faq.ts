@@ -77,26 +77,26 @@ export const faqItems = [
   {
     question: "Is there a free trial?",
     answer:
-      "Yes. The current commercial path offers a 14-day trial so users can test CmdTab in their normal workflow before purchasing.",
+      "CmdTab is preparing a signed public beta for Apple-silicon Macs. The beta has no checkout or payment path; join the waitlist to be notified when it is published.",
   },
   {
     question: "Is CmdTab a subscription?",
     answer:
-      "No. CmdTab is US$12 once for one perpetual personal license covering up to three personally owned Macs and all CmdTab 1.x updates.",
+      "No subscription is offered during beta because no purchase is offered. A US$12 personal licence is planned for general availability.",
   },
   {
     question: "What is the refund policy?",
     answer:
-      "You may request a full refund within 14 days of purchase through the Help page. Partial refunds preserve access; a full refund, chargeback, payment dispute, fraud determination, or manual revocation ends the license.",
+      "There is no refund path during beta because CmdTab does not take payment. General-availability terms will be published before any checkout opens.",
   },
   {
     question: "How do I move CmdTab to another Mac?",
     answer:
-      "Deactivate an old Mac in the license portal to free its slot immediately, then activate the replacement. One personal license supports up to three active personally owned Macs; use Help if self-service recovery is unavailable.",
+      "The public beta does not issue paid licences. For an existing licence recovery question, email support@cmdtab.net from the purchase address; CmdTab will never ask for your password.",
   },
   {
     question: "Where can I get support?",
     answer:
-      "Use the Help page for trial access, installation, activation, purchase recovery, billing, refunds, or moving a license to another Mac.",
+      "Use the Help page or email support@cmdtab.net for beta installation, permissions, update, security-reporting, or existing licence-recovery guidance. No response time is guaranteed.",
   },
 ] as const;

@@ -36,27 +36,24 @@ security certification. The canonical beta gate is
   deployment contracts are in scope even when production is deliberately
   disabled.
 
-## Candidate P1 findings requiring remediation
+## Candidate P1 findings remediated in this branch
 
-- Screen Recording revocation can continue to expose retained previews of
-  other apps; denial must clear continuity/cache and prevent all capture
-  providers until a confirmed re-grant.
-- `POST /api/trial/reminder` currently treats a missing `CRON_SECRET` as
-  authorized despite public cron reachability. Missing, weak, wrong, and valid
-  bearer secret cases need a fail-closed implementation and tests.
-- Normal preview, exact-window identity, and focus paths retain direct
-  undocumented SkyLight/AX/front-process calls. They need injectable providers,
-  observable status, public fallback, and regression proof for missing symbols
-  and runtime failures.
-- Current public buy/trial/refund copy, Buy navigation, and personal-Gmail
-  support contact violate the beta commerce/support boundary even though
-  checkout execution is hidden while commerce is disabled.
+- Confirmed Screen Recording denial clears retained previews, fences deferred
+  capture, and preserves tile identity through a safe placeholder.
+- `POST /api/trial/reminder` requires a strong bearer secret before reading
+  mail configuration or recipients; missing, weak, wrong, and valid states are
+  covered.
+- Dynamic SkyLight/AX/front-process outcomes now report observable capability
+  state and explicit degraded/failure diagnostics without changing protected
+  routing or activation verification.
+- Public beta copy has no checkout/offer schema or current purchase promise and
+  uses `support@cmdtab.net`; mailbox verification is still external.
 
 ## Mandatory candidate evidence
 
 | Area | Required evidence | Status |
 | --- | --- | --- |
-| Fresh security review | Candidate SHA, P0/P1 triage, disposition, and independent review | BLOCKED - four P1 findings; no P0 found |
+| Fresh security review | Candidate SHA, P0/P1 triage, disposition, and independent review | BLOCKED - no P0; repository P1 remediations need signed-artifact review |
 | Web hardening | State-changing route origin/fetch-site review, CSP decision, headers, dependency/secret scans | BLOCKED |
 | Native privacy | Entitlements, Hardened Runtime, logging/telemetry data-flow review, privacy-manifest/required-reason applicability | BLOCKED |
 | Private capabilities | Need, detection, public fallback, degraded UI, tests, and clean-machine observation for each capability | BLOCKED |

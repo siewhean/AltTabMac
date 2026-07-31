@@ -37,7 +37,7 @@ export function FeatureBandsSection() {
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Button href="/trial" className="w-full sm:w-auto">
-            Start the trial
+            Join beta waitlist
           </Button>
           <Button href="/features/window-switcher" variant="secondary" className="w-full sm:w-auto">
             See all features

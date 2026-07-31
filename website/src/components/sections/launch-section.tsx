@@ -3,34 +3,14 @@ import { MotionReveal } from "@/components/ui/motion-reveal";
 import { SectionShell } from "@/components/ui/section-shell";
 import { commerceContent } from "@/content/commerce";
 import { analyticsAttributes } from "@/lib/analytics";
-import { getCommerceConfig } from "@/lib/commerce";
-import { getStableReleaseManifest } from "@/lib/stable-release";
-
-function providerLabel(provider?: string) {
-  if (!provider) return null;
-  switch (provider) {
-    case "lemonsqueezy":
-      return "Hosted checkout via Lemon Squeezy";
-    case "paddle":
-      return "Hosted checkout via Paddle";
-    case "stripe":
-      return "Hosted checkout via Stripe";
-    default:
-      return "Hosted checkout configured";
-  }
-}
+import { getBetaReleaseManifest } from "@/lib/stable-release";
 
 export function LaunchSection() {
-  const commerce = getCommerceConfig();
-  const release = getStableReleaseManifest();
-  const providerNote = providerLabel(commerce.checkoutProvider);
-  const checkoutReady = Boolean(commerce.checkoutUrl);
+  const release = getBetaReleaseManifest();
   const trialReady = Boolean(release);
-  const statusNote = checkoutReady && !trialReady
-    ? "Checkout is live. The trial button will switch on after the notarized trial build is published."
-    : checkoutReady || trialReady
-      ? "The launch section is live-configured from environment variables, so the site reflects your current hosted checkout and trial links."
-      : commerceContent.fallback;
+  const statusNote = trialReady
+    ? "A signed CmdTab public beta is available. Stable releases and all payment paths remain unavailable."
+    : commerceContent.fallback;
 
   return (
     <SectionShell
@@ -58,9 +38,7 @@ export function LaunchSection() {
               ))}
             </div>
             <div className="mt-8">
-              <Button href="/buy" {...analyticsAttributes("launch_buy_page_click", "launch")}>
-                {commerceContent.license.cta}
-              </Button>
+              <Button href="/buy" variant="secondary">Pricing plan</Button>
             </div>
           </article>
 
@@ -89,7 +67,7 @@ export function LaunchSection() {
                   rel="noreferrer"
                   {...analyticsAttributes("launch_trial_click", "launch")}
                 >
-                  {commerceContent.trial.cta}
+                  Download beta
                 </Button>
               ) : (
                 <Button
@@ -107,14 +85,14 @@ export function LaunchSection() {
         <MotionReveal direction="right" delay={120} className="space-y-5 rounded-[28px] border border-white/10 bg-white/[0.03] p-6 shadow-panel backdrop-blur-xl">
           <div className="space-y-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-              Checkout integration
+              Beta release boundary
             </p>
             <h3 className="text-2xl font-medium tracking-[-0.04em] text-text">
-              One offer, one checkout, and one trial download.
+              No purchase during public beta.
             </h3>
             <p className="text-base leading-7 text-muted">
-              CmdTab has one US$12 personal license. The checkout and trial download remain
-              separate so the site can avoid publishing an unavailable build.
+              CmdTab’s US$12 personal licence is planned for general availability. The public beta
+              has no checkout, payment CTA, or structured offer.
             </p>
           </div>
 
@@ -122,20 +100,19 @@ export function LaunchSection() {
             <div className="flex items-start gap-3 text-sm leading-6 text-subdued">
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
-                {providerNote ??
-                  "Choose Lemon Squeezy, Paddle, Stripe, or another hosted provider and set the public checkout URL."}
+                The beta is distributed only through a signed, immutable beta release manifest.
               </span>
             </div>
             <div className="flex items-start gap-3 text-sm leading-6 text-subdued">
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
-                Set a separate trial download URL so visitors can start the app before they buy.
+                The stable download and stable appcast return unavailable until general availability.
               </span>
             </div>
             <div className="flex items-start gap-3 text-sm leading-6 text-subdued">
               <span className="mt-2 h-2 w-2 rounded-full bg-cyan" />
               <span>
-                If one of the URLs is missing, the section shows a neutral fallback instead of a dead button.
+                Payment, fulfilment, and outbox processing remain disabled while commerce is not ready.
               </span>
             </div>
           </div>
