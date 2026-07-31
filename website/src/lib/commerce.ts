@@ -1,4 +1,4 @@
-import { isCommerceLaunchEnabled } from "@/lib/env";
+import { isCommerceLaunchEnabled } from "./env.js";
 
 const CHECKOUT_PROVIDERS = new Set([
   "lemonsqueezy",
