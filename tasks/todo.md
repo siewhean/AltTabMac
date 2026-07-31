@@ -6,8 +6,9 @@
 - [x] Add one canonical launch-switch helper for `CMDTAB_REQUIRE_COMMERCE_READY=1`.
 - [x] Keep worker authentication mandatory and return `commerce_disabled` before commerce database access while launch is disabled.
 - [x] Gate the Lemon Squeezy webhook before configuration, body processing, fulfillment, refund handling, or lifecycle database access; return a retryable 503 while commerce is disabled.
-- [x] Add unit coverage for exact launch-switch values.
-- [x] Add source contracts proving both disabled branches contain their returns before any commerce sink.
+- [x] Hide staged checkout providers, URLs, purchase buttons, and structured offers while fulfillment is disabled; retain support and existing-customer portal links.
+- [x] Add unit coverage for exact launch-switch values and staged-checkout suppression.
+- [x] Add source contracts proving disabled branches contain their returns before commerce sinks and that public checkout is launch-gated.
 - [x] Run the Vercel website, security, commerce, SEO/GEO, dependency, TypeScript, and Next.js production gates.
 - [x] Trigger and rerun GitHub Security, SEO/GEO, and Release Readiness workflows; record that the account rejected them before any runner step.
 - [x] Preserve the existing frontend UI, copy, media, layout, native Swift, and packaging source.
@@ -15,7 +16,7 @@
 ### Review
 
 - The exact final head and preview deployment are recorded in PR #40 after all review corrections.
-- Vercel preview gates require 45 unit tests and 6 commerce-readiness tests with no failures, zero dependency vulnerabilities, API-security and SEO/GEO verification, TypeScript, and the production Next.js build.
+- Vercel preview gates require the complete website unit and commerce-readiness inventories with no failures, zero dependency vulnerabilities, API-security and SEO/GEO verification, TypeScript, and the production Next.js build.
 - GitHub Actions were rerun but every job returned `steps: null` and no log because hosted Actions capacity was unavailable. This is recorded as an infrastructure waiver, not as a CI pass.
 - Production runtime revalidation remains required after the merge deployment.
 

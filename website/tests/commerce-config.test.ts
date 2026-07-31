@@ -4,9 +4,10 @@ import test from "node:test";
 import { getCommerceConfig } from "../src/lib/commerce.js";
 import { isCommerceLaunchEnabled } from "../src/lib/env.js";
 
-test("commerce configuration accepts explicit HTTPS checkout and portal URLs", () => {
+test("commerce configuration accepts explicit HTTPS checkout and portal URLs only when launch is enabled", () => {
   assert.deepEqual(
     getCommerceConfig({
+      CMDTAB_REQUIRE_COMMERCE_READY: "1",
       NEXT_PUBLIC_CHECKOUT_PROVIDER: "lemonsqueezy",
       NEXT_PUBLIC_CHECKOUT_URL: "https://store.example.com/checkout/buy/abc",
       NEXT_PUBLIC_LICENSE_PORTAL_URL: "https://store.example.com/orders",
@@ -21,9 +22,28 @@ test("commerce configuration accepts explicit HTTPS checkout and portal URLs", (
   );
 });
 
+test("staged checkout remains hidden while commerce launch is disabled", () => {
+  assert.deepEqual(
+    getCommerceConfig({
+      CMDTAB_REQUIRE_COMMERCE_READY: "0",
+      NEXT_PUBLIC_CHECKOUT_PROVIDER: "lemonsqueezy",
+      NEXT_PUBLIC_CHECKOUT_URL: "https://store.example.com/checkout/buy/abc",
+      NEXT_PUBLIC_LICENSE_PORTAL_URL: "https://store.example.com/orders",
+      NEXT_PUBLIC_SUPPORT_EMAIL: "support@example.com",
+    }),
+    {
+      checkoutProvider: undefined,
+      checkoutUrl: undefined,
+      licensePortalUrl: "https://store.example.com/orders",
+      supportEmail: "support@example.com",
+    },
+  );
+});
+
 test("commerce configuration rejects unsafe, credentialed, or unsupported values", () => {
   assert.deepEqual(
     getCommerceConfig({
+      CMDTAB_REQUIRE_COMMERCE_READY: "1",
       NEXT_PUBLIC_CHECKOUT_PROVIDER: "unknown-provider",
       NEXT_PUBLIC_CHECKOUT_URL: "javascript:alert(1)",
       NEXT_PUBLIC_LICENSE_PORTAL_URL: "https://user:pass@example.com/orders",
@@ -40,6 +60,7 @@ test("commerce configuration rejects unsafe, credentialed, or unsupported values
 
 test("commerce configuration normalizes provider casing and URL serialization", () => {
   const config = getCommerceConfig({
+    CMDTAB_REQUIRE_COMMERCE_READY: "1",
     NEXT_PUBLIC_CHECKOUT_PROVIDER: " LemonSqueezy ",
     NEXT_PUBLIC_CHECKOUT_URL: " https://store.example.com/checkout ",
   });

@@ -61,6 +61,15 @@ assert.match(
   "outbox worker must return before database access while commerce is disabled",
 );
 
+const commerce = read("src/lib/commerce.ts");
+assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "@\/lib\/env"/);
+assert.match(commerce, /const launchEnabled = isCommerceLaunchEnabled\(env\)/);
+assert.match(
+  commerce,
+  /checkoutProvider: launchEnabled[\s\S]*?checkoutUrl: launchEnabled[\s\S]*?NEXT_PUBLIC_CHECKOUT_URL/,
+  "public checkout provider and URL must remain hidden while commerce is disabled",
+);
+
 const workerAuth = read("src/lib/internal-worker-auth.ts");
 assert.match(workerAuth, /constantTimeEqual\(bearerToken\(request\), expectedSecret\)/);
 assert.match(workerAuth, /\^Bearer\\s\+\(\.\+\)\$\/i/);

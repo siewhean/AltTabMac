@@ -1,3 +1,5 @@
+import { isCommerceLaunchEnabled } from "@/lib/env";
+
 const CHECKOUT_PROVIDERS = new Set([
   "lemonsqueezy",
   "paddle",
@@ -52,9 +54,15 @@ function optionalHttpsUrl(value: string | undefined) {
 export function getCommerceConfig(
   env: CommerceEnvironment = process.env,
 ): CommerceConfig {
+  const launchEnabled = isCommerceLaunchEnabled(env);
+
   return {
-    checkoutProvider: optionalProvider(env.NEXT_PUBLIC_CHECKOUT_PROVIDER),
-    checkoutUrl: optionalHttpsUrl(env.NEXT_PUBLIC_CHECKOUT_URL),
+    checkoutProvider: launchEnabled
+      ? optionalProvider(env.NEXT_PUBLIC_CHECKOUT_PROVIDER)
+      : undefined,
+    checkoutUrl: launchEnabled
+      ? optionalHttpsUrl(env.NEXT_PUBLIC_CHECKOUT_URL)
+      : undefined,
     licensePortalUrl: optionalHttpsUrl(env.NEXT_PUBLIC_LICENSE_PORTAL_URL),
     supportEmail: optionalValue(env.NEXT_PUBLIC_SUPPORT_EMAIL),
   };
