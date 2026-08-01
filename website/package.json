@@ -35,7 +35,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "next": "16.2.11",
     "postgres": "^3.4.8",
-    "react": "19.2.7",
+    "react": "19.2.8",
     "react-dom": "19.2.7",
     "resend": "6.18.0",
     "sharp": "0.35.3",
@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.6.0",
-    "@types/react": "^19.2.2",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.2",
     "autoprefixer": "^10.4.21",
     "axe-core": "4.12.1",
