@@ -99,7 +99,6 @@ export function HeroSection() {
               priority
               showCaption={false}
               showOverlay={false}
-              loopPlayback
             />
           </div>
         </div>

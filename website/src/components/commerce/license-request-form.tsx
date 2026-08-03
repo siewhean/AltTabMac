@@ -186,6 +186,7 @@ export function LicenseRequestForm() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button
               type="submit"
+              variant="secondary"
               disabled={isSubmitting}
               className="w-full sm:w-auto"
               {...analyticsAttributes("license_request_submit", "license")}

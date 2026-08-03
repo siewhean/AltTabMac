@@ -23,7 +23,7 @@ export const showcaseUploadDate = "2026-07-22T00:00:00+08:00";
 export const showcaseDisclosure =
   "Every showcase asset is a deterministic HD product composite generated at 1920 × 1200 from vector source based on CmdTab’s current production geometry, styling, item model, and documented behavior contract. All media uses controlled fixture windows, is not AI-generated, and does not record a private desktop.";
 export const showcaseBoundary =
-  "The HD showcase demonstrates presentation and controlled interaction concepts. The homepage hero overview loops while visible, while showcase-page autoplay clips run once for no more than five seconds. All autoplay remains static for people who prefer reduced motion. The media is not a literal desktop recording and does not prove signed-app Accessibility, Screen Recording, Space, display, fullscreen, signing, notarization, latency, memory, processor, architecture, or exact focused-window acceptance; those remain separately documented on the Evidence page.";
+  "The HD showcase demonstrates presentation and controlled interaction concepts. Homepage and showcase-page autoplay clips run once for no more than five seconds. All autoplay remains static for people who prefer reduced motion. The media is not a literal desktop recording and does not prove signed-app Accessibility, Screen Recording, Space, display, fullscreen, signing, notarization, latency, memory, processor, architecture, or exact focused-window acceptance; those remain separately documented on the Evidence page.";
 
 const HD_WIDTH = 1920;
 const HD_HEIGHT = 1200;

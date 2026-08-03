@@ -68,9 +68,9 @@ overview.durationSeconds = targetDurationSeconds;
 overview.videoBytes = overviewStat.size;
 overview.videoSha256 = overviewSha256;
 manifest.motionPolicy =
-  "The homepage hero overview loops while visible. Showcase-page autoplay clips run once, last no more than five seconds, and remain static when reduced motion is requested.";
+  "Homepage and showcase-page autoplay clips run once, last no more than five seconds, and remain static when reduced motion is requested.";
 
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(
-  `Normalized overview autoplay to ${targetDurationSeconds} seconds and recorded exact bytes, checksum, and scoped hero-loop motion policy.`,
+  `Normalized overview autoplay to ${targetDurationSeconds} seconds and recorded exact bytes, checksum, and one-shot motion policy.`,
 );

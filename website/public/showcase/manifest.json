@@ -91,5 +91,5 @@
       "videoSha256": "26c5d4f4fd1992fb7efdeac170d26584d4d6ec1b138da36b15e04cadddc9ff8c"
     }
   ],
-  "motionPolicy": "The homepage hero overview loops while visible. Showcase-page autoplay clips run once, last no more than five seconds, and remain static when reduced motion is requested."
+  "motionPolicy": "Homepage and showcase-page autoplay clips run once, last no more than five seconds, and remain static when reduced motion is requested."
 }

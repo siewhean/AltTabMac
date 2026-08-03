@@ -122,6 +122,11 @@ assert.match(rateLimit, /ingest_rate_limits/);
 assert.match(rateLimit, /request_deduplication/);
 assert.match(rateLimit, /databaseUnavailableResult/);
 assert.match(rateLimit, /process\.env\.NODE_ENV !== "production"/);
+assert.match(
+  rateLimit,
+  /process\.env\.CI === "true"[\s\S]*CMDTAB_TEST_LOCAL_INGEST_RATE_LIMIT === "1"/,
+  "the CI-only local ingest limiter must require both an explicit test flag and CI",
+);
 
 const migration = read("db/migrations/001_commerce_lifecycle.sql");
 assert.match(migration, /create table if not exists ingest_rate_limits/);

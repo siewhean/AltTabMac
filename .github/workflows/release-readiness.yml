@@ -47,6 +47,9 @@ jobs:
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+      # Exercises rate limiting against the production bundle without making
+      # the deployed service fall back to process-local request controls.
+      CMDTAB_TEST_LOCAL_INGEST_RATE_LIMIT: "1"
     defaults:
       run:
         working-directory: website

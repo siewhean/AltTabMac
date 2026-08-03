@@ -69,8 +69,7 @@ assert.match(manifest.fixturePolicy, /no AI-generated product screenshots/i, "AI
 assert.match(manifest.qualityPolicy, /1920x1200/i, "HD dimensions are missing from the quality policy");
 assert.match(manifest.qualityPolicy, /30 fps/i, "30 fps is missing from the quality policy");
 assert.match(manifest.disclosure, /Every showcase asset is a deterministic HD product composite/i, "HD composite disclosure is missing");
-assert.match(manifest.motionPolicy, /homepage hero overview loops while visible/i, "hero-loop autoplay policy is missing");
-assert.match(manifest.motionPolicy, /showcase-page autoplay clips run once/i, "one-shot showcase autoplay policy is missing");
+assert.match(manifest.motionPolicy, /homepage and showcase-page autoplay clips run once/i, "one-shot autoplay policy is missing");
 assert.match(manifest.motionPolicy, /no more than five seconds/i, "autoplay duration boundary is missing");
 assert.match(manifest.motionPolicy, /reduced motion/i, "reduced-motion policy is missing");
 assert.deepEqual(new Set(manifest.assets.map((asset) => asset.id)), new Set(expected.keys()), "showcase asset IDs changed");
@@ -139,14 +138,13 @@ assert.doesNotMatch(showcaseContent, /production-swiftui-render|authentic produc
 assert.match(showcaseContent, /1920 × 1200/i, "visible HD dimensions are missing");
 assert.match(showcaseContent, /not AI-generated/i, "visible showcase disclosure must reject AI-generated media");
 assert.match(showcaseContent, /controlled fixture windows/i, "visible fixture disclosure is missing");
-assert.match(showcaseContent, /homepage hero overview loops while visible/i, "hero-loop boundary is missing");
-assert.match(showcaseContent, /showcase-page autoplay clips run once for no more than five seconds/i, "one-shot showcase boundary is missing");
+assert.match(showcaseContent, /homepage and showcase-page autoplay clips run once for no more than five seconds/i, "one-shot autoplay boundary is missing");
 assert.match(showcasePage, /createVideoStructuredData/, "showcase page is missing VideoObject markup");
 assert.match(showcasePage, /headingAs="h1"/, "showcase page is missing its page-level H1");
 assert.match(showcasePage, /breadcrumbs=\{breadcrumbs\}/, "showcase page is missing visible breadcrumbs");
 assert.doesNotMatch(showcasePage, /<dl|<dt|<dd/, "mode media must not render metadata tables");
 assert.doesNotMatch(showcasePage, /Item \{String|Resolution|Silent H\.264 MP4 \+ WebP/, "mode media still contains verbose item metadata");
-assert.match(hero, /ShowcaseVideo[\s\S]*loopPlayback/, "homepage hero must opt into looping playback");
+assert.doesNotMatch(hero, /loopPlayback/, "homepage hero must use the one-shot autoplay default");
 assert.match(player, /asset\.video \?/, "showcase player must distinguish video and poster-only assets");
 assert.match(player, /<video/, "showcase player must render native video elements when a clip exists");
 assert.match(player, /<img/, "showcase player must render a poster fallback when a clip does not exist");
@@ -176,4 +174,4 @@ for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Univers
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
 }
 
-console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets with a looping homepage overview, one-shot showcase playback, and ${manifest.assets.filter((asset) => asset.video).length} silent H.264 videos at 30 fps.`);
+console.log(`Showcase media verification passed for ${manifest.assets.length} sharp 1920x1200 assets with one-shot autoplay and ${manifest.assets.filter((asset) => asset.video).length} silent H.264 videos at 30 fps.`);

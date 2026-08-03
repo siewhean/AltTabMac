@@ -13,7 +13,7 @@ const player = read("src/components/showcase/showcase-video.tsx");
 const generator = read("scripts/generate-hd-showcase-media.mjs");
 
 assert.match(hero, /ShowcaseVideo/, "homepage hero must keep the autoplay product demonstration");
-assert.match(hero, /ShowcaseVideo[\s\S]*loopPlayback/, "homepage hero video must opt into looping playback");
+assert.doesNotMatch(hero, /loopPlayback/, "homepage hero video must use the one-shot autoplay default");
 assert.match(hero, /showOverlay=\{false\}/, "homepage hero must hide the overview text overlay");
 assert.match(showcasePage, /CmdTab in motion/, "showcase page must use the simplified visible heading");
 assert.doesNotMatch(
@@ -29,8 +29,7 @@ assert.doesNotMatch(
 assert.match(showcase, /deterministic HD product composite/i, "showcase contract must identify deterministic HD composites");
 assert.match(showcase, /not AI-generated/i, "showcase contract must preserve the non-AI boundary");
 assert.match(showcase, /controlled fixture windows/i, "showcase contract must preserve the fixture boundary");
-assert.match(showcase, /homepage hero overview loops while visible/i, "showcase contract must state the hero loop boundary");
-assert.match(showcase, /showcase-page autoplay clips run once for no more than five seconds/i, "showcase contract must state the one-shot showcase boundary");
+assert.match(showcase, /homepage and showcase-page autoplay clips run once for no more than five seconds/i, "showcase contract must state the one-shot autoplay boundary");
 assert.match(showcase, /prefer reduced motion/i, "showcase contract must state the reduced-motion boundary");
 assert.match(player, /loopPlayback = false/, "showcase player must default to one-shot playback");
 assert.match(player, /showOverlay = true/, "showcase player must keep overlays by default outside the hero");
@@ -65,4 +64,4 @@ assert.doesNotMatch(
   "showcase copy must not advertise obsolete low-resolution media",
 );
 
-console.log("Clean hero overlay, hero loop, and one-shot showcase autoplay verification passed.");
+console.log("Clean hero overlay and one-shot autoplay verification passed.");

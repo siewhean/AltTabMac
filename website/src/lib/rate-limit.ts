@@ -233,7 +233,16 @@ function databaseUnavailableResult(): RateLimitResult {
 }
 
 function mayUseLocalFallback() {
-  return process.env.NODE_ENV !== "production";
+  if (process.env.NODE_ENV !== "production") return true;
+
+  // Production never falls back to process-local state: it must use the
+  // shared database-backed limiter or fail closed. The browser contract runs
+  // the production bundle without a database, so the two repository-owned
+  // CI workflows opt into this bounded, explicit test-only fallback.
+  return (
+    process.env.CI === "true" &&
+    process.env.CMDTAB_TEST_LOCAL_INGEST_RATE_LIMIT === "1"
+  );
 }
 
 export async function checkRateLimit(
