@@ -1,0 +1,37 @@
+name: Audit Source Export
+
+on:
+  push:
+    branches:
+      - release/public-release-readiness
+    paths:
+      - .github/workflows/audit-source-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+
+      - name: Create tracked-source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=zip --output="/tmp/AltTabMac-source-${GITHUB_SHA}.zip" HEAD
+          shasum -a 256 "/tmp/AltTabMac-source-${GITHUB_SHA}.zip"
+
+      - name: Upload private audit source archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cmdtab-private-audit-source
+          path: /tmp/AltTabMac-source-*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
