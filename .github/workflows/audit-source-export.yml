@@ -6,6 +6,11 @@ on:
       - release/public-release-readiness
     paths:
       - .github/workflows/audit-source-export.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/audit-source-export.yml
 
 permissions:
   contents: read
@@ -15,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Check out exact branch head
+      - name: Check out exact candidate
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
