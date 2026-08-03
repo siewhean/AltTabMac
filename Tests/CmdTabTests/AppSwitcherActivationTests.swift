@@ -304,6 +304,20 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertTrue(AppSwitcher.isPresentationUsefulWindowCapture(image))
     }
 
+    func testPresentationUsefulWindowCaptureKeepsSparseVisibleContentAcrossNormalizedGrid() {
+        let image = makeCGImage(width: 160, height: 160) { x, y in
+            if (10..<20).contains(x), (10..<20).contains(y) {
+                return (255, 255, 255, 255)
+            }
+            return (5, 5, 5, 255)
+        }
+
+        XCTAssertTrue(
+            AppSwitcher.isPresentationUsefulWindowCapture(image),
+            "A dark capture with sparse visible content must not be rejected by coarse sampling."
+        )
+    }
+
     func testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID() {
         let duplicateOffscreen = WindowCandidateDeduplicationProbe(
             ownerPID: 101,
@@ -527,6 +541,21 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, allowedWindowIDs: [77, 88]))
     }
 
+    func testForcedRefreshIsQueuedOnlyWhilePhaseTwoIsRunning() {
+        XCTAssertTrue(AppSwitcher.shouldReplayForcedRefresh(force: true, isRefreshing: true))
+        XCTAssertFalse(AppSwitcher.shouldReplayForcedRefresh(force: false, isRefreshing: true))
+        XCTAssertFalse(AppSwitcher.shouldReplayForcedRefresh(force: true, isRefreshing: false))
+    }
+
+    func testNonShareableWindowSkipsCaptureWithoutChangingMembershipPolicy() {
+        XCTAssertFalse(AppSwitcher.shouldCapturePreview(sharingState: 0))
+        XCTAssertTrue(AppSwitcher.shouldCapturePreview(sharingState: 1))
+        XCTAssertTrue(
+            AppSwitcher.shouldDisplayWindowItem(previewImage: nil, capturePreviews: true),
+            "A no-sharing window remains an eligible icon-only switcher item."
+        )
+    }
+
     func testResolvedAllowedWindowIDsPreservesDisplayWindowsAndIncludesPreferredWindow() {
         let resolved = AppSwitcher.resolvedAllowedWindowIDs(
             displayWindowIDs: [11, 22],
@@ -551,6 +580,17 @@ final class AppSwitcherActivationTests: XCTestCase {
                 displayWindowIDs: [],
                 preferredWindowIDs: []
             )
+        )
+    }
+
+    func testResolvedAllowedWindowIDsFailsOpenWhenAXIDLookupIsUncertain() {
+        XCTAssertNil(
+            AppSwitcher.resolvedAllowedWindowIDs(
+                displayWindowIDs: [77],
+                preferredWindowIDs: [77],
+                hasUnresolvedAXWindowID: true
+            ),
+            "A partial AX-to-CG mapping must not remove otherwise eligible CG windows."
         )
     }
 

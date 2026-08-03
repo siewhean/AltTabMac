@@ -230,9 +230,12 @@ final class AppSwitcher: NSObject {
     private var screenRecordingDenialIsConfirmed = false
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
+    // Build work is serialized. A forced request that arrives during Phase 2
+    // must therefore be replayed after capture instead of being dropped.
+    private var needsForcedRefreshReplay = false
     private let refreshInterval: TimeInterval = 0.8
     private let maxPreviewCacheEntries = 512
-    private let maximumPhaseTwoFallbackAge: TimeInterval = 2.0
+    private let maximumPhaseTwoFallbackAge: TimeInterval = 120.0
     private let activationRetryLimit = 8
     private let pendingActivationTimeout: TimeInterval = 4.0
     private let initialWindowFocusDelay: TimeInterval = 0.08
@@ -533,7 +536,13 @@ final class AppSwitcher: NSObject {
 
     private func refreshCacheIfNeeded(force: Bool) {
         guard force || Date().timeIntervalSince(lastRefresh) > refreshInterval else { return }
-        guard !isRefreshing else { return }
+        guard !isRefreshing else {
+            if Self.shouldReplayForcedRefresh(force: force, isRefreshing: isRefreshing) {
+                needsForcedRefreshReplay = true
+                RuntimeDiagnostics.shared.increment(.forcedRefreshReplay)
+            }
+            return
+        }
         isRefreshing = true
 
         let hasConfirmedDenial = hasConfirmedScreenRecordingDenial()
@@ -603,18 +612,27 @@ final class AppSwitcher: NSObject {
             self.cacheLock.unlock()
             self.lastRefresh = Date()
             self.isRefreshing = false
+            let shouldReplayForcedRefresh = self.needsForcedRefreshReplay
+            self.needsForcedRefreshReplay = false
 
             if newlyConfirmedDenialAfterCapture {
                 // The confirmation may occur between item assembly and cache
                 // publication. Replace that just-assembled snapshot before any
                 // UI callback can expose its provisional cached images.
                 self.clearProtectedPreviewCaches()
+                if shouldReplayForcedRefresh {
+                    self.refreshCacheIfNeeded(force: true)
+                }
                 return
             }
 
             // Notify UI again — thumbnails now available.
             DispatchQueue.main.async { [weak self] in
                 self?.onItemsChanged?(fullItems)
+            }
+
+            if shouldReplayForcedRefresh {
+                self.refreshCacheIfNeeded(force: true)
             }
         }
     }
@@ -672,10 +690,23 @@ final class AppSwitcher: NSObject {
             let previewKey = candidate.previewCacheKey
             let preview: NSImage?
             let backdrop: NSImage?
-            if capturePreviews {
+            if capturePreviews, candidate.allowsPreviewCapture {
                 let assets = capturePreviewAssets(for: candidate)
-                preview = assets?.thumbnail ?? reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
+                let fallback = reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
+                if assets == nil {
+                    RuntimeDiagnostics.shared.increment(.previewCaptureFailure)
+                }
+                if fallback != nil {
+                    RuntimeDiagnostics.shared.increment(.previewFallbackPresentation)
+                }
+                preview = assets?.thumbnail ?? fallback
                 backdrop = assets?.backdrop ?? previewFallbacks[previewKey]?.backdropImage ?? preview
+            } else if !candidate.allowsPreviewCapture {
+                // Window sharing controls capture permission only. It must not
+                // remove a valid CG window from switcher membership or borrow
+                // a stale image for content the WindowServer will not share.
+                preview = nil
+                backdrop = nil
             } else {
                 preview = previewFallbacks[previewKey]?.image
                 backdrop = previewFallbacks[previewKey]?.backdropImage ?? preview
@@ -1361,7 +1392,6 @@ final class AppSwitcher: NSObject {
         if !allowBackground && !isOnScreen { return nil }
 
         let sharingState = (windowInfo[kCGWindowSharingState as String] as? NSNumber)?.intValue ?? 1
-        guard sharingState != 0 else { return nil }
 
         let area = bounds.width * bounds.height
         let appName = app.localizedName ?? (windowInfo[kCGWindowOwnerName as String] as? String) ?? "Application"
@@ -1386,7 +1416,8 @@ final class AppSwitcher: NSObject {
             screenFrame: screenFrame(containing: bounds),
             orderIndex: orderIndex,
             sortScore: sortScore,
-            isOnScreen: isOnScreen
+            isOnScreen: isOnScreen,
+            allowsPreviewCapture: Self.shouldCapturePreview(sharingState: sharingState)
         )
     }
 
@@ -1432,20 +1463,30 @@ final class AppSwitcher: NSObject {
             windows = []
         }
 
-        let displayIDs = windows
-            .filter { isSwitcherDisplayWindow($0) }
-            .compactMap { AXWindowIDLookup.windowID(for: $0) }
+        let displayWindows = windows.filter { isSwitcherDisplayWindow($0) }
+        let displayIDs = displayWindows.compactMap { AXWindowIDLookup.windowID(for: $0) }
 
-        let preferredIDs = [
+        // AX enumeration and the private ID bridge can be temporarily
+        // incomplete. Never turn that uncertainty into a membership denylist:
+        // CG candidates remain eligible until AX can identify every displayed
+        // window used to build the filter.
+        let preferredWindows = [
             preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString),
             preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
         ]
         .compactMap { $0 }
-        .compactMap { AXWindowIDLookup.windowID(for: $0) }
+        let preferredIDs = preferredWindows.compactMap { AXWindowIDLookup.windowID(for: $0) }
+
+        let hasUnresolvedAXWindowID = displayIDs.count != displayWindows.count ||
+            preferredIDs.count != preferredWindows.count
+        if hasUnresolvedAXWindowID {
+            RuntimeDiagnostics.shared.increment(.accessibilityIdentityLookupFailure)
+        }
 
         return Self.resolvedAllowedWindowIDs(
             displayWindowIDs: Set(displayIDs),
-            preferredWindowIDs: preferredIDs
+            preferredWindowIDs: preferredIDs,
+            hasUnresolvedAXWindowID: hasUnresolvedAXWindowID
         )
     }
 
@@ -1463,10 +1504,20 @@ final class AppSwitcher: NSObject {
         return allowedWindowIDs.contains(windowID)
     }
 
+    static func shouldReplayForcedRefresh(force: Bool, isRefreshing: Bool) -> Bool {
+        force && isRefreshing
+    }
+
+    static func shouldCapturePreview(sharingState: Int) -> Bool {
+        sharingState != 0
+    }
+
     static func resolvedAllowedWindowIDs(
         displayWindowIDs: Set<CGWindowID>,
-        preferredWindowIDs: [CGWindowID]
+        preferredWindowIDs: [CGWindowID],
+        hasUnresolvedAXWindowID: Bool = false
     ) -> Set<CGWindowID>? {
+        guard !hasUnresolvedAXWindowID else { return nil }
         let preferredSet = Set(preferredWindowIDs)
         if !displayWindowIDs.isEmpty {
             return displayWindowIDs.union(preferredSet)
@@ -1703,81 +1754,77 @@ final class AppSwitcher: NSObject {
         !isImageEffectivelyBlank(cgImage) && !isImageEffectivelyBlack(cgImage)
     }
 
-    private static func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
-        let len = CFDataGetLength(data)
-        let bpp = cgImage.bitsPerPixel / 8
-        guard bpp >= 4 else { return false }
+    private struct NormalizedRGBASample {
+        let red: UInt8
+        let green: UInt8
+        let blue: UInt8
+        let alpha: UInt8
+    }
 
-        let bpr = cgImage.bytesPerRow
-        let w = cgImage.width, h = cgImage.height
-        var opaque = 0
-        for r in 0..<3 {
-            for c in 0..<3 {
-                let x = (c + 1) * w / 4, y = (r + 1) * h / 4
-                let off = y * bpr + x * bpp
-                let alpha: Int
-                switch cgImage.alphaInfo {
-                case .premultipliedFirst, .first, .noneSkipFirst: alpha = off
-                default: alpha = off + bpp - 1
+    /// Normalizes capture validation to a 16×16 grid. This avoids deciding
+    /// that a legitimate dark window is blank from a few unlucky pixels while
+    /// keeping the validation work bounded independently of Retina size.
+    private static func normalizedRGBASamples(from cgImage: CGImage) -> [NormalizedRGBASample]? {
+        guard let provider = cgImage.dataProvider, let data = provider.data,
+              let pointer = CFDataGetBytePtr(data) else { return nil }
+        let bytesPerPixel = cgImage.bitsPerPixel / 8
+        let width = cgImage.width
+        let height = cgImage.height
+        guard bytesPerPixel >= 4, width > 0, height > 0 else { return [] }
+
+        let length = CFDataGetLength(data)
+        let bytesPerRow = cgImage.bytesPerRow
+        let alphaFirst: Bool
+        let hasAlpha: Bool
+        switch cgImage.alphaInfo {
+        case .premultipliedFirst, .first, .noneSkipFirst:
+            alphaFirst = true
+            hasAlpha = cgImage.alphaInfo != .noneSkipFirst
+        case .none:
+            alphaFirst = false
+            hasAlpha = false
+        default:
+            alphaFirst = false
+            hasAlpha = true
+        }
+
+        var samples: [NormalizedRGBASample] = []
+        samples.reserveCapacity(16 * 16)
+        for row in 0..<16 {
+            for column in 0..<16 {
+                let x = min(width - 1, (column * 2 + 1) * width / 32)
+                let y = min(height - 1, (row * 2 + 1) * height / 32)
+                let base = y * bytesPerRow + x * bytesPerPixel
+                guard base >= 0, base + 3 < length else { continue }
+                if alphaFirst {
+                    samples.append(.init(
+                        red: pointer[base + 1], green: pointer[base + 2], blue: pointer[base + 3],
+                        alpha: hasAlpha ? pointer[base] : 255
+                    ))
+                } else {
+                    samples.append(.init(
+                        red: pointer[base], green: pointer[base + 1], blue: pointer[base + 2],
+                        alpha: hasAlpha ? pointer[base + bytesPerPixel - 1] : 255
+                    ))
                 }
-                if alpha >= 0, alpha < len, ptr[alpha] > 10 { opaque += 1 }
             }
         }
-        return opaque < 2
+        return samples
+    }
+
+    private static func isImageEffectivelyBlank(_ cgImage: CGImage) -> Bool {
+        guard let samples = normalizedRGBASamples(from: cgImage) else { return true }
+        return samples.filter { $0.alpha > 10 }.count < 2
     }
 
     private static func isImageEffectivelyBlack(_ cgImage: CGImage) -> Bool {
-        guard let dp = cgImage.dataProvider, let data = dp.data else { return true }
-        let ptr = CFDataGetBytePtr(data)!
-        let len = CFDataGetLength(data)
-        let bpp = cgImage.bitsPerPixel / 8
-        guard bpp >= 4 else { return false }
-
-        let bpr = cgImage.bytesPerRow
-        let w = cgImage.width
-        let h = cgImage.height
-        guard w > 0, h > 0 else { return true }
-
-        var luminances: [Double] = []
-        luminances.reserveCapacity(16)
-
-        func alphaIndex(for base: Int) -> Int {
-            switch cgImage.alphaInfo {
-            case .premultipliedFirst, .first, .noneSkipFirst:
-                return base
-            default:
-                return base + bpp - 1
-            }
-        }
-
-        func colorIndices(for base: Int) -> (Int, Int, Int) {
-            switch cgImage.alphaInfo {
-            case .premultipliedFirst, .first, .noneSkipFirst:
-                return (base + 1, base + 2, base + 3)
-            default:
-                return (base, base + 1, base + 2)
-            }
-        }
-
-        for r in 0..<4 {
-            for c in 0..<4 {
-                let x = max(0, min(w - 1, (c + 1) * w / 5))
-                let y = max(0, min(h - 1, (r + 1) * h / 5))
-                let base = y * bpr + x * bpp
-                let alpha = alphaIndex(for: base)
-                guard alpha >= 0, alpha < len, ptr[alpha] > 10 else { continue }
-
-                let (rIndex, gIndex, bIndex) = colorIndices(for: base)
-                guard rIndex < len, gIndex < len, bIndex < len else { continue }
-
-                let red = Double(ptr[rIndex]) / 255.0
-                let green = Double(ptr[gIndex]) / 255.0
-                let blue = Double(ptr[bIndex]) / 255.0
-                let luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
-                luminances.append(luminance)
-            }
+        guard let samples = normalizedRGBASamples(from: cgImage) else { return true }
+        let luminances = samples.compactMap { sample -> Double? in
+            guard sample.alpha > 10 else { return nil }
+            let red = Double(sample.red) / 255.0
+            let green = Double(sample.green) / 255.0
+            let blue = Double(sample.blue) / 255.0
+            return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
         }
 
         guard !luminances.isEmpty else { return true }
@@ -1953,6 +2000,7 @@ private struct WindowCandidate {
     let orderIndex: Int
     let sortScore: CGFloat
     let isOnScreen: Bool
+    let allowsPreviewCapture: Bool
 
     var historyIdentity: SwitcherHistoryIdentity { .appWindow(pid: ownerPID, windowID: id) }
     var sourceAppIdentifier: String { bundleIdentifier ?? "app-\(ownerPID)" }

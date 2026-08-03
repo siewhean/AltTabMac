@@ -142,6 +142,56 @@ enum ProvisionalSwitcherPolicy {
     }
 }
 
+/// Combines the last complete AX-enriched publication with the latest safe base
+/// snapshot. The base switcher reports regular applications synchronously before
+/// the next whole-desktop enrichment pass has finished, so a nonempty enriched
+/// cache must not hide a newly launched app or window while that pass is pending.
+enum ProductionEnrichmentPublication {
+    static func coveringLatestBaseSnapshot(
+        baseItems: [SwitcherItem],
+        cachedEnrichedItems: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration,
+        globalVisibility: WindowVisibilityScope,
+        globalIncludesMinimized: Bool
+    ) -> [SwitcherItem] {
+        let safeBaseItems = ProvisionalSwitcherPolicy.filteredItems(
+            baseItems,
+            configuration: configuration,
+            globalVisibility: globalVisibility,
+            globalIncludesMinimized: globalIncludesMinimized
+        )
+        guard !cachedEnrichedItems.isEmpty else { return safeBaseItems }
+        guard !safeBaseItems.isEmpty else { return cachedEnrichedItems }
+
+        let cachedByIdentity = Dictionary(
+            cachedEnrichedItems.map { ($0.historyIdentity, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var represented = Set<SwitcherHistoryIdentity>()
+        var publication: [SwitcherItem] = []
+        publication.reserveCapacity(baseItems.count + cachedEnrichedItems.count)
+
+        // Keep the base ordering, which is the current exact-window MRU order,
+        // while retaining enriched presentation and activation for identities
+        // already present in the completed cache.
+        for item in safeBaseItems {
+            guard represented.insert(item.historyIdentity).inserted else { continue }
+            publication.append(cachedByIdentity[item.historyIdentity] ?? item)
+        }
+
+        // AX may have synthesized minimized or off-space windows absent from the
+        // public base list. Retain those completed results after current base
+        // coverage rather than dropping them during the next enrichment pass.
+        for item in cachedEnrichedItems {
+            guard represented.insert(item.historyIdentity).inserted else { continue }
+            publication.append(item)
+        }
+
+        return SwitcherMembershipPolicy
+            .deduplicatedWithoutRepresentedFallbacks(publication)
+    }
+}
+
 /// Profile-aware facade over the proven Phase 1 `AppSwitcher`.
 ///
 /// The base switcher remains responsible for fast CG enumeration, previews, and
@@ -280,9 +330,11 @@ final class ProductionAppSwitcher {
         let cached = cachedEnrichedItems
         let configuration = activeConfiguration
         stateLock.unlock()
-        return cached.isEmpty
-            ? provisionalItems(from: baseItems, configuration: configuration)
-            : cached
+        return publishedItems(
+            baseItems: baseItems,
+            cachedEnrichedItems: cached,
+            configuration: configuration
+        )
     }
 
     @discardableResult
@@ -294,9 +346,11 @@ final class ProductionAppSwitcher {
         let cached = cachedEnrichedItems
         let configuration = activeConfiguration
         stateLock.unlock()
-        return cached.isEmpty
-            ? provisionalItems(from: baseItems, configuration: configuration)
-            : cached
+        return publishedItems(
+            baseItems: baseItems,
+            cachedEnrichedItems: cached,
+            configuration: configuration
+        )
     }
 
     func warmCache(force: Bool = false) {
@@ -571,6 +625,20 @@ final class ProductionAppSwitcher {
     ) -> [SwitcherItem] {
         ProvisionalSwitcherPolicy.filteredItems(
             baseItems,
+            configuration: configuration,
+            globalVisibility: preferences.windowVisibilityScope,
+            globalIncludesMinimized: preferences.includeMinimizedWindows
+        )
+    }
+
+    private func publishedItems(
+        baseItems: [SwitcherItem],
+        cachedEnrichedItems: [SwitcherItem],
+        configuration: SwitcherSessionConfiguration
+    ) -> [SwitcherItem] {
+        ProductionEnrichmentPublication.coveringLatestBaseSnapshot(
+            baseItems: baseItems,
+            cachedEnrichedItems: cachedEnrichedItems,
             configuration: configuration,
             globalVisibility: preferences.windowVisibilityScope,
             globalIncludesMinimized: preferences.includeMinimizedWindows

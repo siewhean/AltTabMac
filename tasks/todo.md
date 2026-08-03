@@ -1,5 +1,23 @@
 # Todo
 
+## 2026-08-03 — Native membership and preview reliability audit
+
+- [x] Preserve newly discovered base membership while enriched snapshots update.
+- [x] Replay forced membership refreshes that arrive during capture.
+- [x] Treat AX and sharing-state uncertainty as preview degradation, not membership exclusion.
+- [x] Stabilize preview-continuity identity and improve dark-frame/recovery behavior.
+- [x] Replace permanent preview skeletons with truthful icon fallback and add privacy-safe diagnostics.
+- [x] Add focused regressions, run the full Swift suite, and complete independent QA/QC.
+- [x] Preserve the approved temporary private audit-source export workflow.
+
+### Review
+
+- Combined Swift suite completed without an error exit; focused membership,
+  AppSwitcher, preview-continuity, and runtime-diagnostics regressions passed.
+- QA verified retry execution and known-launch PID reuse. An initially unknown
+  launch token remains sticky by design; lifecycle eviction needs real-machine
+  process-reuse evidence before any release acceptance claim.
+
 ## 2026-08-03 — PR #49 executed-CI remediation
 
 - [x] Fix the macOS 14 Swift concurrency error in the menu-bar licence refresh timer.

@@ -24,7 +24,10 @@ enum ReliableWindowPreviewRecovery {
     private static var inFlightIdentityKeys = Set<String>()
     private static var retryAfterByIdentityKey: [String: Date] = [:]
     private static var generation: UInt = 0
+    private static var preflightGrantedOverrideForTesting: Bool?
+    private static var captureResultForTesting: (@Sendable (Int) -> CGImage?)?
     private static let failureBackoff: TimeInterval = 2.0
+    private static let immediateRetryDelays: [TimeInterval] = [0.12, 0.45]
     private static let maximumDimension = 1_800
 
     static func schedule(
@@ -34,12 +37,7 @@ enum ReliableWindowPreviewRecovery {
         now: Date = Date()
     ) {
         guard windowID != 0 else { return }
-        let preflightGranted: Bool
-        if #available(macOS 10.15, *) {
-            preflightGranted = CGPreflightScreenCaptureAccess()
-        } else {
-            preflightGranted = true
-        }
+        let preflightGranted = currentPreflightGranted()
         guard SwitcherPreviewPermissionState.allowsNewCapture(
             preflightGranted: preflightGranted
         ) else { return }
@@ -56,6 +54,62 @@ enum ReliableWindowPreviewRecovery {
         inFlightIdentityKeys.insert(identityKey)
         let scheduledGeneration = generation
         stateLock.unlock()
+        RuntimeDiagnostics.shared.increment(.previewRecoveryScheduled)
+
+        capture(
+            windowID: windowID,
+            exactKey: exactKey,
+            identityKey: identityKey,
+            scheduledGeneration: scheduledGeneration,
+            attempt: 0
+        )
+    }
+
+    static func immediateRetryDelay(afterFailedAttempt attempt: Int) -> TimeInterval? {
+        guard immediateRetryDelays.indices.contains(attempt) else { return nil }
+        return immediateRetryDelays[attempt]
+    }
+
+    private static func capture(
+        windowID: CGWindowID,
+        exactKey: String,
+        identityKey: String,
+        scheduledGeneration: UInt,
+        attempt: Int
+    ) {
+        stateLock.lock()
+        let isCurrentRequest = scheduledGeneration == generation
+            && inFlightIdentityKeys.contains(identityKey)
+        let testCaptureResult = captureResultForTesting
+        stateLock.unlock()
+        guard isCurrentRequest else { return }
+
+        let preflightGranted = currentPreflightGranted()
+        guard SwitcherPreviewPermissionState.allowsNewCapture(
+            preflightGranted: preflightGranted
+        ) else {
+            finish(
+                image: nil,
+                exactKey: exactKey,
+                identityKey: identityKey,
+                windowID: windowID,
+                scheduledGeneration: scheduledGeneration,
+                attempt: attempt
+            )
+            return
+        }
+
+        if let testCaptureResult {
+            finish(
+                image: testCaptureResult(attempt),
+                exactKey: exactKey,
+                identityKey: identityKey,
+                windowID: windowID,
+                scheduledGeneration: scheduledGeneration,
+                attempt: attempt
+            )
+            return
+        }
 
         guard #available(macOS 14.0, *) else {
             finish(
@@ -63,7 +117,8 @@ enum ReliableWindowPreviewRecovery {
                 exactKey: exactKey,
                 identityKey: identityKey,
                 windowID: windowID,
-                scheduledGeneration: scheduledGeneration
+                scheduledGeneration: scheduledGeneration,
+                attempt: attempt
             )
             return
         }
@@ -80,7 +135,8 @@ enum ReliableWindowPreviewRecovery {
                     exactKey: exactKey,
                     identityKey: identityKey,
                     windowID: windowID,
-                    scheduledGeneration: scheduledGeneration
+                    scheduledGeneration: scheduledGeneration,
+                    attempt: attempt
                 )
                 return
             }
@@ -113,7 +169,8 @@ enum ReliableWindowPreviewRecovery {
                     exactKey: exactKey,
                     identityKey: identityKey,
                     windowID: windowID,
-                    scheduledGeneration: scheduledGeneration
+                    scheduledGeneration: scheduledGeneration,
+                    attempt: attempt
                 )
             }
         }
@@ -121,6 +178,20 @@ enum ReliableWindowPreviewRecovery {
 
     static func resetForTesting() {
         cancelAll()
+        stateLock.lock()
+        preflightGrantedOverrideForTesting = nil
+        captureResultForTesting = nil
+        stateLock.unlock()
+    }
+
+    static func configureForTesting(
+        preflightGranted: Bool,
+        captureResult: @escaping @Sendable (Int) -> CGImage?
+    ) {
+        stateLock.lock()
+        preflightGrantedOverrideForTesting = preflightGranted
+        captureResultForTesting = captureResult
+        stateLock.unlock()
     }
 
     /// Invalidates deferred captures that were requested before TCC revocation.
@@ -139,17 +210,18 @@ enum ReliableWindowPreviewRecovery {
         exactKey: String,
         identityKey: String,
         windowID: CGWindowID,
-        scheduledGeneration: UInt
+        scheduledGeneration: UInt,
+        attempt: Int
     ) {
-        let preflightGranted: Bool
-        if #available(macOS 10.15, *) {
-            preflightGranted = CGPreflightScreenCaptureAccess()
-        } else {
-            preflightGranted = true
-        }
+        let preflightGranted = currentPreflightGranted()
         stateLock.lock()
         let isCurrentGeneration = scheduledGeneration == generation
-        inFlightIdentityKeys.remove(identityKey)
+        let retryDelay = image == nil && preflightGranted && isCurrentGeneration
+            ? immediateRetryDelay(afterFailedAttempt: attempt)
+            : nil
+        if retryDelay == nil {
+            inFlightIdentityKeys.remove(identityKey)
+        }
         stateLock.unlock()
 
         guard isCurrentGeneration,
@@ -159,7 +231,22 @@ enum ReliableWindowPreviewRecovery {
             return
         }
 
+        if let retryDelay {
+            RuntimeDiagnostics.shared.increment(.previewRecoveryRetry)
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + retryDelay) {
+                capture(
+                    windowID: windowID,
+                    exactKey: exactKey,
+                    identityKey: identityKey,
+                    scheduledGeneration: scheduledGeneration,
+                    attempt: attempt + 1
+                )
+            }
+            return
+        }
+
         if let image {
+            RuntimeDiagnostics.shared.increment(.previewRecoverySuccess)
             SwitcherPreviewPermissionState.noteSuccessfulCapture()
             let preview = NSImage(
                 cgImage: image,
@@ -188,6 +275,7 @@ enum ReliableWindowPreviewRecovery {
         stateLock.unlock()
 
         guard image != nil else {
+            RuntimeDiagnostics.shared.increment(.previewCaptureFailure)
             os_log(
                 .debug,
                 log: previewRecoveryLog,
@@ -219,5 +307,16 @@ enum ReliableWindowPreviewRecovery {
             return nil
         }
         return prepared
+    }
+
+    private static func currentPreflightGranted() -> Bool {
+        stateLock.lock()
+        let override = preflightGrantedOverrideForTesting
+        stateLock.unlock()
+        if let override { return override }
+        if #available(macOS 10.15, *) {
+            return CGPreflightScreenCaptureAccess()
+        }
+        return true
     }
 }

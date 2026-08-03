@@ -3,9 +3,95 @@ import XCTest
 @testable import CmdTab
 
 final class PreviewContinuitySafetyTests: XCTestCase {
+    private final class AttemptRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var recordedAttempts: [Int] = []
+
+        func record(_ attempt: Int) {
+            lock.lock()
+            recordedAttempts.append(attempt)
+            lock.unlock()
+        }
+
+        var attempts: [Int] {
+            lock.lock()
+            defer { lock.unlock() }
+            return recordedAttempts
+        }
+    }
+
     override func tearDown() {
         SwitcherPreviewContinuityStore.resetForTesting()
+        SwitcherItem.resetPreviewContinuityIdentityForTesting()
         super.tearDown()
+    }
+
+    func testPreviewRecoveryExecutesBothImmediateRetriesBeforeTerminalFailure() {
+        let recorder = AttemptRecorder()
+        ReliableWindowPreviewRecovery.configureForTesting(preflightGranted: true) { attempt in
+            recorder.record(attempt)
+            return nil
+        }
+        let completed = expectation(description: "all immediate retries executed")
+
+        ReliableWindowPreviewRecovery.schedule(
+            windowID: 700,
+            exactKey: "exact-window",
+            identityKey: "process-window"
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            completed.fulfill()
+        }
+
+        wait(for: [completed], timeout: 1.5)
+        XCTAssertEqual(recorder.attempts, [0, 1, 2])
+    }
+
+    func testProcessGenerationTokenDoesNotFlipWhenLaunchDateAppearsLater() {
+        let identity = SwitcherHistoryIdentity.appWindow(pid: 777, windowID: 700)
+
+        let beforeLaunchServicesIsReady = SwitcherItem.previewContinuityIdentityKey(
+            historyIdentity: identity,
+            sourceAppIdentifier: "com.example.gpu",
+            processLaunchDate: nil
+        )
+        let afterLaunchServicesIsReady = SwitcherItem.previewContinuityIdentityKey(
+            historyIdentity: identity,
+            sourceAppIdentifier: "com.example.gpu",
+            processLaunchDate: Date(timeIntervalSince1970: 2_000)
+        )
+
+        XCTAssertEqual(afterLaunchServicesIsReady, beforeLaunchServicesIsReady)
+        XCTAssertTrue(afterLaunchServicesIsReady.hasSuffix("|unknown-launch"))
+    }
+
+    func testProcessGenerationTokenChangesWhenPIDIsReusedAfterKnownLaunch() {
+        let identity = SwitcherHistoryIdentity.appWindow(pid: 777, windowID: 700)
+        let firstGeneration = SwitcherItem.previewContinuityIdentityKey(
+            historyIdentity: identity,
+            sourceAppIdentifier: "com.example.gpu",
+            processLaunchDate: Date(timeIntervalSince1970: 2_000)
+        )
+        let reusedPID = SwitcherItem.previewContinuityIdentityKey(
+            historyIdentity: identity,
+            sourceAppIdentifier: "com.example.gpu",
+            processLaunchDate: Date(timeIntervalSince1970: 3_000)
+        )
+
+        XCTAssertNotEqual(reusedPID, firstGeneration)
+        XCTAssertTrue(reusedPID.hasSuffix("|3000000"))
+    }
+
+    func testPreviewRecoveryUsesTwoBoundedImmediateRetriesBeforeBackoff() {
+        XCTAssertEqual(
+            ReliableWindowPreviewRecovery.immediateRetryDelay(afterFailedAttempt: 0),
+            0.12
+        )
+        XCTAssertEqual(
+            ReliableWindowPreviewRecovery.immediateRetryDelay(afterFailedAttempt: 1),
+            0.45
+        )
+        XCTAssertNil(ReliableWindowPreviewRecovery.immediateRetryDelay(afterFailedAttempt: 2))
     }
 
     func testIdentityContinuityIsLongLivedButNeverCrossesWindowOrProcessGeneration() {

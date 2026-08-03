@@ -42,6 +42,7 @@ struct ProductionDiagnosticsSnapshot: Equatable {
     let profileValidationIssues: [String]
     let durableRecordCount: Int
     let durableHistoryLocation: String
+    let runtimeCounters: RuntimeDiagnosticsSnapshot
 
     static func capture() -> ProductionDiagnosticsSnapshot {
         let profileStore = SwitcherProfileStore.shared
@@ -60,7 +61,8 @@ struct ProductionDiagnosticsSnapshot: Equatable {
             durableRecordCount: DurableSwitcherHistoryStore.shared.snapshot().count,
             // Do not copy the user's account name or absolute home-directory
             // path into support reports.
-            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json"
+            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json",
+            runtimeCounters: RuntimeDiagnostics.shared.snapshot()
         )
     }
 
@@ -86,6 +88,7 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         profileValidation=\(profileIssues)
         durableRecords=\(durableRecordCount)
         durableHistoryLocation=\(durableHistoryLocation)
+        \(runtimeCounters.sanitizedReport)
         """
     }
 }
@@ -161,6 +164,13 @@ struct ProductionDiagnosticsView: View {
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
+                    ForEach(RuntimeDiagnosticsCounter.allCases, id: \.self) { counter in
+                        diagnosticRow(
+                            title: counter.displayName,
+                            value: "\(snapshot.runtimeCounters.count(for: counter)) since launch",
+                            level: .available
+                        )
+                    }
                 }
             }
 

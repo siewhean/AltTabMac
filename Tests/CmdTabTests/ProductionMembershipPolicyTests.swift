@@ -265,6 +265,86 @@ final class ProductionMembershipPolicyTests: XCTestCase {
         SwitcherPreviewContinuityStore.resetForTesting()
     }
 
+    func testEnrichedPublicationCoversNewRegularAppBeforeBackgroundRefresh() {
+        let existingIdentity = SwitcherHistoryIdentity.appWindow(
+            pid: 10,
+            windowID: 1
+        )
+        let cachedEnriched = item(
+            identity: existingIdentity,
+            bundle: "com.example.Editor",
+            title: "Enriched document"
+        )
+        let currentBaseItem = item(
+            identity: existingIdentity,
+            bundle: "com.example.Editor",
+            title: "Base document"
+        )
+        let newlyLaunchedRegularApp = item(
+            identity: .appFallback(
+                bundleID: "com.example.NewApp",
+                pid: 20
+            ),
+            bundle: "com.example.NewApp",
+            title: "New App",
+            kind: .appFallback
+        )
+
+        let published = ProductionEnrichmentPublication
+            .coveringLatestBaseSnapshot(
+                baseItems: [currentBaseItem, newlyLaunchedRegularApp],
+                cachedEnrichedItems: [cachedEnriched],
+                configuration: configuration(
+                    visibility: .allSpaces,
+                    includeMinimized: true
+                ),
+                globalVisibility: .allSpaces,
+                globalIncludesMinimized: true
+            )
+
+        XCTAssertEqual(
+            published.map(\.historyIdentity),
+            [existingIdentity, newlyLaunchedRegularApp.historyIdentity],
+            "A completed enriched cache must not hide a regular app discovered by the latest base snapshot."
+        )
+        XCTAssertEqual(
+            published.first?.title,
+            "Enriched document",
+            "Existing identities retain their completed enrichment while new base coverage is published."
+        )
+    }
+
+    func testEnrichedPublicationPreservesCurrentBaseMRUOrder() {
+        let mostRecent = item(
+            identity: .appWindow(pid: 10, windowID: 1),
+            bundle: "com.example.Editor",
+            title: "Most recent"
+        )
+        let older = item(
+            identity: .appWindow(pid: 10, windowID: 2),
+            bundle: "com.example.Editor",
+            title: "Older"
+        )
+
+        let published = ProductionEnrichmentPublication
+            .coveringLatestBaseSnapshot(
+                baseItems: [mostRecent, older],
+                cachedEnrichedItems: [older, mostRecent],
+                configuration: configuration(
+                    visibility: .allSpaces,
+                    includeMinimized: true
+                ),
+                globalVisibility: .allSpaces,
+                globalIncludesMinimized: true
+            )
+
+        XCTAssertEqual(
+            published.map(\.historyIdentity),
+            [mostRecent.historyIdentity, older.historyIdentity],
+            "Publishing enrichment must retain the latest base exact-window MRU order."
+        )
+    }
+
     private func configuration(
         visibility: WindowVisibilityScope,
         includeMinimized: Bool

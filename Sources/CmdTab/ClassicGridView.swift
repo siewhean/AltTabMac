@@ -184,45 +184,36 @@ struct ClassicItemCardView: View {
             LinearGradient(
                 colors: [
                     Color.white.opacity(0.06),
-                    Color.white.opacity(0.025),
                     Color.black.opacity(0.18)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(width: 46, height: 10)
-                    Capsule()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 84, height: 10)
-                    Spacer(minLength: 0)
+            VStack(spacing: 8) {
+                if let icon = item.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                        .frame(width: 44, height: 44)
+                } else {
+                    Image(systemName: "app.dashed")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.62))
                 }
 
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
-                    .frame(height: max(48, layout.thumbnailHeight * 0.42))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                    )
-
-                HStack(spacing: 8) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        Capsule()
-                            .fill(Color.white.opacity(0.14))
-                            .frame(height: 8)
-                    }
-                }
+                Text("Preview unavailable")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.72))
             }
-            .padding(14)
+            .padding(12)
         }
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Preview unavailable for \(item.title)")
     }
 }

@@ -213,6 +213,11 @@ enum SwitcherPreviewContinuityStore {
 // MARK: - Item
 
 struct SwitcherItem: Identifiable {
+    private static let previewIdentityLock = NSLock()
+    // A first lookup can occur while LaunchServices has not yet supplied a launch
+    // date. Keep that process-generation token sticky: changing it later would
+    // turn one window into a different continuity identity and discard its cache.
+    private static var previewProcessGenerationTokens: [pid_t: String] = [:]
     let id: String
     let title: String
     let subtitle: String
@@ -310,6 +315,12 @@ struct SwitcherItem: Identifiable {
         self.historyDescriptor = historyDescriptor
         self.activate = activate
 
+        if previewImage == nil,
+           backdropImage == nil,
+           resolvedImages.preview != nil || resolvedImages.backdrop != nil {
+            RuntimeDiagnostics.shared.increment(.previewFallbackPresentation)
+        }
+
         if resolvedImages.preview == nil,
            resolvedImages.backdrop == nil,
            effectiveCaptureAccess,
@@ -323,25 +334,59 @@ struct SwitcherItem: Identifiable {
         }
     }
 
-    private static func previewContinuityIdentityKey(
+    static func previewContinuityIdentityKey(
         historyIdentity: SwitcherHistoryIdentity,
-        sourceAppIdentifier: String?
+        sourceAppIdentifier: String?,
+        processLaunchDate: Date? = nil
     ) -> String {
-        let launchToken: String
-        if let pid = historyIdentity.ownerPID,
-           let launchDate = NSRunningApplication(
-            processIdentifier: pid
-           )?.launchDate {
-            launchToken = String(
-                Int64((launchDate.timeIntervalSince1970 * 1_000).rounded())
-            )
-        } else {
-            launchToken = "unknown-launch"
+        let resolvedLaunchDate = processLaunchDate ?? historyIdentity.ownerPID.flatMap {
+            NSRunningApplication(processIdentifier: $0)?.launchDate
         }
+        let launchToken = processGenerationToken(
+            ownerPID: historyIdentity.ownerPID,
+            launchDate: resolvedLaunchDate
+        )
         return [
             historyIdentity.stableKey,
             sourceAppIdentifier?.lowercased() ?? "",
             launchToken,
         ].joined(separator: "|")
+    }
+
+    static func resetPreviewContinuityIdentityForTesting() {
+        previewIdentityLock.lock()
+        previewProcessGenerationTokens.removeAll()
+        previewIdentityLock.unlock()
+    }
+
+    private static func processGenerationToken(
+        ownerPID: pid_t?,
+        launchDate: Date?
+    ) -> String {
+        guard let ownerPID else { return "unknown-launch" }
+
+        previewIdentityLock.lock()
+        defer { previewIdentityLock.unlock() }
+        if let existing = previewProcessGenerationTokens[ownerPID] {
+            if existing != "unknown-launch",
+               let launchDate {
+                let currentToken = String(
+                    Int64((launchDate.timeIntervalSince1970 * 1_000).rounded())
+                )
+                if currentToken != existing {
+                    previewProcessGenerationTokens[ownerPID] = currentToken
+                    return currentToken
+                }
+            }
+            return existing
+        }
+        let token: String
+        if let launchDate {
+            token = String(Int64((launchDate.timeIntervalSince1970 * 1_000).rounded()))
+        } else {
+            token = "unknown-launch"
+        }
+        previewProcessGenerationTokens[ownerPID] = token
+        return token
     }
 }

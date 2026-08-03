@@ -9,6 +9,11 @@ branch may not publish a download, enable checkout, or claim a completed public
 release without the required signing, clean-machine, CI, support, and explicit
 go-live evidence.
 
+The current draft candidate also hardens membership and preview reliability:
+fresh base windows cannot be hidden by enrichment, capture uncertainty degrades
+to an icon fallback, and diagnostics are local aggregate counters only. These
+source changes still require fresh hosted and real-machine evidence.
+
 ## Product
 
 CmdTab is a native macOS window switcher built with Swift, AppKit, and SwiftUI. Eligible top-level windows are separate exact `(PID, CGWindowID)` targets in one global recent-use sequence. Multiple windows from one app remain separate, preview failure changes presentation rather than membership, and permanent history updates only after activation is confirmed.
