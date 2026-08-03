@@ -49,8 +49,12 @@ final class MenuBarController {
             withTimeInterval: 6 * 60 * 60,
             repeats: true
         ) { [weak self] _ in
-            Task { @MainActor in
-                await self?.refreshLicenseAuthorization()
+            guard let controller = self else {
+                return
+            }
+
+            Task { @MainActor [controller] in
+                await controller.refreshLicenseAuthorization()
             }
         }
         Task {
