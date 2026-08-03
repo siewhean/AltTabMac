@@ -1,6 +1,6 @@
 # CmdTab
 
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 Active task: prepare the repository-owned portion of an Apple-silicon signed
 public beta from `origin/main@dcd02fa`. The public website remains waitlist-first
 and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
@@ -167,7 +167,10 @@ npm run build
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
-Hosted GitHub Actions currently may be rejected before a runner executes because the account has no available Actions capacity. A rejected job has no steps or logs and is not a source failure, but it is also not a CI pass. Any temporary waiver must identify that limitation explicitly and retain executable Vercel or local evidence for the affected commands.
+Hosted GitHub Actions capacity is restored for PR #49. The first executed candidate
+runs exposed a macOS 14 concurrency compile failure, a stale rendered-retrieval
+assertion, and tracked Finder metadata; their repository corrections are pending
+fresh hosted evidence. Executed CI is required and no failed check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

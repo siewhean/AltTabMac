@@ -15,7 +15,7 @@ async function fetchResource(path) {
 
 const { response: homeResponse, body: home } = await fetchResource("/");
 assert.equal(homeResponse.status, 200, `homepage returned HTTP ${homeResponse.status}`);
-assert.match(home, /standalone native macOS window-switcher app/i, "homepage must identify CmdTab as a standalone macOS application");
+assert.match(home, /standalone (?:native )?macOS window-switcher app/i, "homepage must identify CmdTab as a standalone macOS application");
 assert.match(home, /separate from Apple(?:’|&rsquo;|&#x27;|')s built-in Command-Tab shortcut/i, "homepage must disambiguate CmdTab from Apple’s built-in shortcut");
 assert.match(home, /"disambiguatingDescription":"CmdTab is a standalone macOS window-switcher application, not Apple/i, "rendered SoftwareApplication schema is missing the disambiguating description");
 assert.match(home, /"permissions":\[/, "rendered SoftwareApplication schema is missing permission text");
@@ -23,7 +23,7 @@ assert.match(home, /\/showcase\/overview-poster\.webp/, "rendered SoftwareApplic
 assert.doesNotMatch(home, /"(?:memoryRequirements|processorRequirements)":/, "rendered schema contains unproved memory or processor requirements");
 
 const expectedRoutes = new Map([
-  ["/showcase", /See CmdTab move, search, and reflow/i],
+  ["/showcase", /(?:See CmdTab move, search, and reflow|CmdTab in motion\.)/i],
   ["/features/classic-grid", /A visual Mac window switcher for choosing one exact window/i],
   ["/features/command-palette", /Search open Mac windows by app name or window text/i],
   ["/features/radial-menu", /A circular Mac window switcher for directional selection/i],
@@ -63,8 +63,8 @@ for (const expected of [
 }
 assert.ok(!llms.includes("/showcase/classic-grid.mp4"), "/llms.txt advertises a nonexistent Classic Grid MP4");
 assert.ok(!llms.includes("/showcase/command-palette.mp4"), "/llms.txt advertises a nonexistent Command Palette MP4");
-assert.match(llms, /authentic production SwiftUI\/AppKit Radial Menu render/i, "/llms.txt must identify the authentic production render");
-assert.match(llms, /deterministic product composites/i, "/llms.txt must identify composite media");
+assert.match(llms, /Radial Menu.*deterministic product composite/i, "/llms.txt must identify the published Radial Menu media provenance");
+assert.match(llms, /deterministic (?:HD )?product composite/i, "/llms.txt must identify composite media");
 assert.match(llms, /not AI-generated/i, "/llms.txt must preserve the AI-generation boundary");
 assert.match(llms, /not claimed as an AI-search requirement/i, "/llms.txt must state the consolidated helper limitation");
 
@@ -75,10 +75,10 @@ assert.match(fullResponse.headers.get("x-robots-tag") || "", /noindex/i, "/llms-
 for (const expected of [
   "non-standard convenience export",
   "canonical HTML as authoritative",
-  "Real product images and short videos",
+  "HD product images and short videos",
   "Are the showcase screenshots and videos AI-generated?",
   "controlled fixture windows",
-  "deterministic product composites",
+  "deterministic HD product composite",
   "No processor architecture, Universal Binary status, memory footprint",
   "Does CmdTab use ScreenCaptureKit?",
   "should not be described that way",

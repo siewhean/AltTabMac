@@ -32,6 +32,10 @@ release-artifacts/
 .AppleDouble
 .LSOverride
 
+# Python-generated cache
+__pycache__/
+*.py[cod]
+
 # Editor and temporary files
 *.swp
 *.swo

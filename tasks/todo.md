@@ -1,5 +1,20 @@
 # Todo
 
+## 2026-08-03 — PR #49 executed-CI remediation
+
+- [x] Fix the macOS 14 Swift concurrency error in the menu-bar licence refresh timer.
+- [x] Update only the rendered retrieval verifier for the canonical homepage and showcase wording.
+- [x] Remove tracked Finder metadata and ignore Python-generated cache files.
+- [x] Run native, website, and labelled repository-health checks locally.
+- [ ] Push correction commits and require fresh hosted workflow evidence while PR #49 remains a draft.
+- [ ] Complete independent QA/QC of the correction diff and CI logs.
+
+### Review
+
+- Local evidence is bound to the correction commits, not the superseded
+  `c8c6fbf` candidate. Fresh hosted macOS 14/macOS 15, website, security, and
+  release-readiness execution is required before PR #49 can leave draft.
+
 ## 2026-08-01 — Signed public beta release readiness
 
 - [x] Gate 0: reconcile canonical release/security status, risk register, operational runbooks, and evidence index from `origin/main@dcd02fa`.
