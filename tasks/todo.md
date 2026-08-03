@@ -1,5 +1,24 @@
 # Todo
 
+## 2026-08-03 — PR #49 browser-gate remediation
+
+- [x] Restore the homepage's verified one-shot inline autoplay contract without changing showcase-page behavior.
+- [x] Correct the Help licence-recovery submit control's WCAG contrast failure.
+- [x] Provide the browser QA server a deterministic, rate-limited analytics ingest backing while retaining production fail-closed behavior when no backing is configured.
+- [x] Run the local source/security, production-build, repository-health, in-app-browser, and full Swift gates on `d7c3ffe`.
+- [ ] Push `d7c3ffe` and require fresh hosted macOS, SEO/GEO, Security, Workflow Health, Release Readiness, Audit Source Export, and Vercel evidence while PR #49 remains a draft.
+- [ ] Complete independent QA/QC of the fresh hosted logs.
+
+### Review
+
+- Candidate source commit: `d7c3ffe` (`fix: clear PR49 browser readiness failures`).
+  The full Swift suite passed 273/273; the production build, API-security,
+  workflow-action, media-integrity, and source checks passed. The in-app browser
+  confirmed the homepage one-shot video and Help submit control without console
+  warnings. The standalone local browser harness remains `NOT TESTED` because no
+  Chrome/Chromium executable is installed; its fresh hosted execution is still
+  required. The temporary one-day private audit-source export is retained unchanged.
+
 ## 2026-08-03 — Native membership and preview reliability audit
 
 - [x] Preserve newly discovered base membership while enriched snapshots update.

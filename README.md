@@ -140,7 +140,7 @@ The canonical website showcase is `/showcase`.
 - All media uses controlled fixture windows, is not AI-generated, and is not a private desktop capture.
 - Poster-only entries render an image fallback; no missing MP4 may produce a black panel.
 - VideoObject data is emitted only for actual MP4 assets.
-- The homepage Overview clip loops only while visible; showcase-page autoplay clips run once for no more than five seconds. All media remains static when Reduce Motion is enabled.
+- Homepage and showcase autoplay clips run once for no more than five seconds. All media remains static when Reduce Motion is enabled.
 - The homepage hero hides its asset-title overlay, and generated Quick Actions frames contain no central Command-W annotation.
 
 The showcase demonstrates presentation. It does not prove signed-app permissions, exact focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, signing, notarization, performance, memory use, processor support, or architecture coverage.
@@ -175,10 +175,11 @@ The permanent SEO workflow also starts the compiled server and runs rendered, we
 Hosted GitHub Actions capacity is restored for PR #49. The first executed candidate
 runs exposed a macOS 14 concurrency compile failure, updater-test framework
 incompatibility, stale rendered-retrieval assertions, and tracked Finder metadata.
-The repository corrections need fresh hosted evidence. Browser QA additionally
-found homepage autoplay, help-page contrast, and analytics-response defects that
-are outside this correction scope. Executed CI is required and no failed check is
-waived.
+The repository corrections need fresh hosted evidence. The homepage autoplay,
+Help-page contrast, and analytics-response defects are corrected in
+`d7c3ffe`, which passed local Swift, source-security, production-build, and
+in-app-browser checks. Fresh executed CI on the resulting PR head is still
+required and no failed check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 
