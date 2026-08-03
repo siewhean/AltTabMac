@@ -3,6 +3,7 @@
 ## 2026-08-03 — PR #49 executed-CI remediation
 
 - [x] Fix the macOS 14 Swift concurrency error in the menu-bar licence refresh timer.
+- [x] Port updater configuration assertions to XCTest so macOS 14 executes their coverage.
 - [x] Update only the rendered retrieval verifier for the canonical homepage and showcase wording.
 - [x] Remove tracked Finder metadata and ignore Python-generated cache files.
 - [x] Run native, website, and labelled repository-health checks locally.

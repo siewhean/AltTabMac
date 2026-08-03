@@ -114,7 +114,7 @@ Changes to hotkey routing, exact-window MRU, frontmost resolution, activation co
 
 ## Automated app evidence
 
-Phase 1 local evidence proves the current deterministic host-architecture package on the tested Mac. GitHub-hosted macOS 14 and macOS 15 execution remains deferred under issue #30 and must pass before Phase 2 can be accepted.
+Phase 1 local evidence proves the current deterministic host-architecture package on the tested Mac. GitHub-hosted macOS 14 and macOS 15 execution is restored and both lanes must pass before Phase 2 can be accepted.
 
 Automated SwiftPM evidence does not replace packaged-app testing for permissions, focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, Secure Input, signing, notarization, installation, updates, or rollback.
 
@@ -168,9 +168,12 @@ npm run build
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
 Hosted GitHub Actions capacity is restored for PR #49. The first executed candidate
-runs exposed a macOS 14 concurrency compile failure, a stale rendered-retrieval
-assertion, and tracked Finder metadata; their repository corrections are pending
-fresh hosted evidence. Executed CI is required and no failed check is waived.
+runs exposed a macOS 14 concurrency compile failure, updater-test framework
+incompatibility, stale rendered-retrieval assertions, and tracked Finder metadata.
+The repository corrections need fresh hosted evidence. Browser QA additionally
+found homepage autoplay, help-page contrast, and analytics-response defects that
+are outside this correction scope. Executed CI is required and no failed check is
+waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 
