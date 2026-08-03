@@ -1,5 +1,43 @@
 # Todo
 
+## 2026-08-04 — Sitemap freshness correction
+
+- [x] Reconcile the canonical `/buy` and `/trial` sitemap dates with their
+  2026-08-01 fail-closed public-beta content changes.
+- [x] Add focused SEO-verifier coverage for both conversion-page modification
+  dates.
+- [x] Run the supported Node 24 SEO, production-build, rendered, and retrieval
+  checks before the correction is committed and fresh hosted evidence is
+  collected.
+
+### Review
+
+- Node 24.18.1 passed the source SEO verifier, full prebuild, production build,
+  compiled-server retrieval check, and rendered-site check. Generated showcase
+  media was restored after verification because it is outside this correction.
+  This does not deploy or change the commerce boundary; fresh hosted evidence
+  remains required after the logical commit.
+
+## 2026-08-04 — Optional analytics measurement boundary
+
+- [x] Preserve explicit analytics consent and add a pure production-start
+  boundary for dashboard comparability.
+- [x] Label dashboard pageview, visitor, and event counts as consented and
+  suppress seven-day comparisons that overlap the transition.
+- [x] Extend the analytics privacy verifier to reject collection in the
+  measurement-boundary helper.
+- [x] Run focused privacy and SEO verification, then the complete production
+  build before committing the combined operational correction.
+
+### Review
+
+- Historical total traffic remains unavailable by design. Any anonymous
+  all-visitor measurement requires a separate privacy/legal decision and cannot
+  reconstruct the pre-consent period.
+- Node 24.18.0 passed the privacy and SEO source checks, typecheck, full
+  prebuild (including security/dependency and commerce-boundary checks), and
+  production build. Generated showcase media was restored after verification.
+
 ## 2026-08-03 — PR #49 browser-gate remediation
 
 - [x] Restore the homepage's verified one-shot inline autoplay contract without changing showcase-page behavior.

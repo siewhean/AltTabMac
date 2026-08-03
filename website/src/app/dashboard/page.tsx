@@ -3,6 +3,10 @@ import type { Metadata } from "next";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { dashboardContent } from "@/content/dashboard";
 import { getDashboardAuthSummary } from "@/lib/admin-store";
+import {
+  isComparableOptionalAnalyticsWindow,
+  OPTIONAL_ANALYTICS_PRODUCTION_STARTED_AT,
+} from "@/lib/analytics-measurement";
 import { requireAdminSession } from "@/lib/admin-auth";
 import { formatSingaporeDateTime } from "@/lib/date";
 import {
@@ -135,6 +139,7 @@ export default async function DashboardPage() {
   const latestSignup = submissions[0]?.updatedAt;
   const topSources = getTopSources(submissions);
   const peakPageviews = Math.max(...analyticsSeries.map((point) => point.pageviews), 1);
+  const analyticsSevenDayWindowComparable = isComparableOptionalAnalyticsWindow(7);
 
   return (
     <DashboardShell
@@ -193,7 +198,7 @@ export default async function DashboardPage() {
                 Website analytics
               </p>
               <h2 className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
-                First-party mirror of pageviews and tracked events
+                First-party mirror of consented pageviews and tracked events
               </h2>
             </div>
             <p className="text-sm leading-6 text-muted">
@@ -206,12 +211,23 @@ export default async function DashboardPage() {
             </p>
           </div>
 
+          <p className="mt-4 text-sm leading-6 text-muted">
+            Only visitors who accept optional analytics appear here. Production consented
+            measurement began {formatSingaporeDateTime(OPTIONAL_ANALYTICS_PRODUCTION_STARTED_AT)}.
+            {analyticsSevenDayWindowComparable
+              ? " The current seven-day window is fully post-consent."
+              : " Seven-day pageview and visitor comparisons are unavailable until the full window is post-consent."}
+          </p>
+
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: "Pageviews 24h", value: String(analyticsOverview.pageviews24h) },
-              { label: "Visitors 24h", value: String(analyticsOverview.visitors24h) },
-              { label: "Pageviews 7d", value: String(analyticsOverview.pageviews7d) },
-              { label: "Tracked events 7d", value: String(analyticsOverview.totalEvents7d) },
+              { label: "Consented pageviews 24h", value: String(analyticsOverview.pageviews24h) },
+              { label: "Consented visitors 24h", value: String(analyticsOverview.visitors24h) },
+              {
+                label: "Consented pageviews 7d",
+                value: analyticsSevenDayWindowComparable ? String(analyticsOverview.pageviews7d) : "Not comparable",
+              },
+              { label: "Consented tracked events 7d", value: String(analyticsOverview.totalEvents7d) },
             ].map((item) => (
               <div key={item.label} className="surface-muted p-4">
                 <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">{item.label}</p>
@@ -225,7 +241,7 @@ export default async function DashboardPage() {
           <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
             <div className="space-y-3">
               <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">
-                Daily pageviews
+                Daily consented pageviews
               </p>
               {analyticsSeries.length > 0 ? (
                 analyticsSeries.map((point) => (
@@ -283,12 +299,12 @@ export default async function DashboardPage() {
               </div>
 
               <div className="surface-muted p-4">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Visitors 7d</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-subdued">Consented visitors 7d</p>
                 <p className="mt-3 text-2xl font-medium tracking-[-0.04em] text-text">
-                  {analyticsOverview.visitors7d}
+                  {analyticsSevenDayWindowComparable ? analyticsOverview.visitors7d : "Not comparable"}
                 </p>
                 <p className="mt-3 text-sm leading-6 text-muted">
-                  Website traffic and click events are mirrored here so you do not need to keep opening Vercel for routine checks.
+                  Consent-respecting website activity and click events are mirrored here for routine checks.
                 </p>
               </div>
             </div>

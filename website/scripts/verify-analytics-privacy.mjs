@@ -29,6 +29,21 @@ assert.match(pageTracker, /addEventListener\("storage", handleConsentStorage\)/)
 assert.match(pageTracker, /lastTrackedPath\.current = null/);
 assert.match(pageTracker, /getAnalyticsConsent\(\) !== "accepted"/);
 
+const measurement = read("src/lib/analytics-measurement.ts");
+assert.match(measurement, /OPTIONAL_ANALYTICS_PRODUCTION_STARTED_AT = "2026-07-28T23:41:27\.543\+08:00"/);
+assert.match(measurement, /isComparableOptionalAnalyticsWindow/);
+assert.doesNotMatch(
+  measurement,
+  /(?:localStorage|visitor|session|fetch\()/,
+  "measurement boundaries must not collect consent, identifiers, or events",
+);
+
+const dashboard = read("src/app/dashboard/page.tsx");
+assert.match(dashboard, /isComparableOptionalAnalyticsWindow\(7\)/);
+assert.match(dashboard, /First-party mirror of consented pageviews and tracked events/);
+assert.match(dashboard, /Seven-day pageview and visitor comparisons are unavailable/);
+assert.match(dashboard, /Consented visitors 7d/);
+
 const appUsageStore = read("src/lib/app-usage-store.ts");
 assert.doesNotMatch(
   appUsageStore,

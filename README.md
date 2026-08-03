@@ -149,6 +149,15 @@ The showcase demonstrates presentation. It does not prove signed-app permissions
 
 The website uses one canonical route registry for metadata, sitemap, IndexNow, and verification. The 23 public routes cover product behavior, four feature modes/actions, evidence, guides, comparisons, compatibility, permissions, privacy, terms, commerce, support, and the showcase.
 
+The `/buy` and `/trial` sitemap entries record their 2026-08-01 fail-closed
+public-beta content update; the SEO verifier protects those dates from becoming
+stale again.
+
+Website activity is optional and consent-gated. The internal dashboard labels
+these metrics as consented and suppresses seven-day comparisons that overlap the
+2026-07-28 production measurement start; it never records a consent decision or
+an unconsented visitor merely to estimate traffic.
+
 The private dashboard is production-fail-closed behind Auth0 Universal Login,
 exact owner-subject authorization, required MFA evidence, 15-minute idle and
 two-hour absolute application sessions, session-generation invalidation, and

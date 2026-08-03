@@ -28,6 +28,17 @@ assert.ok(publicRoutes.length >= 21, "expected the evidence-led feature and comp
 
 const routePaths = publicRoutes.map((route) => route.path);
 assert.equal(new Set(routePaths).size, routePaths.length, "public route paths must be unique");
+const routeByPath = new Map(publicRoutes.map((route) => [route.path, route]));
+for (const [path, lastModified] of Object.entries({
+  "/buy": "2026-08-01",
+  "/trial": "2026-08-01",
+})) {
+  assert.equal(
+    routeByPath.get(path)?.lastModified,
+    lastModified,
+    `${path} must publish the date its public-beta content was last materially updated`,
+  );
+}
 for (const requiredPath of [
   "/features/window-switcher",
   "/features/classic-grid",
