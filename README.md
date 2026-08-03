@@ -178,8 +178,10 @@ incompatibility, stale rendered-retrieval assertions, and tracked Finder metadat
 The repository corrections need fresh hosted evidence. The homepage autoplay,
 Help-page contrast, and analytics-response defects are corrected in
 `d7c3ffe`, which passed local Swift, source-security, production-build, and
-in-app-browser checks. Fresh executed CI on the resulting PR head is still
-required and no failed check is waived.
+in-app-browser checks. The subsequent `e1bc01d` candidate passed executed
+macOS 14/15, Security, Workflow Health, Repository Health, SEO/GEO, Release
+Readiness browser QA, Audit Source Export, and Vercel checks; PR #49 remains a
+clean draft. No failed check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

@@ -6,8 +6,8 @@
 - [x] Correct the Help licence-recovery submit control's WCAG contrast failure.
 - [x] Provide the browser QA server a deterministic, rate-limited analytics ingest backing while retaining production fail-closed behavior when no backing is configured.
 - [x] Run the local source/security, production-build, repository-health, in-app-browser, and full Swift gates on `d7c3ffe`.
-- [ ] Push `d7c3ffe` and require fresh hosted macOS, SEO/GEO, Security, Workflow Health, Release Readiness, Audit Source Export, and Vercel evidence while PR #49 remains a draft.
-- [ ] Complete independent QA/QC of the fresh hosted logs.
+- [x] Push `d7c3ffe` and require fresh hosted macOS, SEO/GEO, Security, Workflow Health, Release Readiness, Audit Source Export, and Vercel evidence while PR #49 remains a draft.
+- [x] Complete independent QA/QC of the remediation diff and fresh hosted logs.
 
 ### Review
 
@@ -16,8 +16,13 @@
   workflow-action, media-integrity, and source checks passed. The in-app browser
   confirmed the homepage one-shot video and Help submit control without console
   warnings. The standalone local browser harness remains `NOT TESTED` because no
-  Chrome/Chromium executable is installed; its fresh hosted execution is still
-  required. The temporary one-day private audit-source export is retained unchanged.
+  Chrome/Chromium executable is installed; hosted browser execution is the
+  authoritative matrix evidence. On `e1bc01d`, macOS 14/15, Security, Workflow
+  Health, Repository Health, SEO/GEO (including the one-shot/autoplay, Axe, and
+  analytics-rate-limit browser contract), Release Readiness, Audit Source Export,
+  and Vercel all passed. The duplicate SEO/GEO context was rerun successfully so
+  the draft PR reports `CLEAN`. The temporary one-day private audit-source export
+  is retained unchanged.
 
 ## 2026-08-03 — Native membership and preview reliability audit
 
@@ -44,14 +49,15 @@
 - [x] Update only the rendered retrieval verifier for the canonical homepage and showcase wording.
 - [x] Remove tracked Finder metadata and ignore Python-generated cache files.
 - [x] Run native, website, and labelled repository-health checks locally.
-- [ ] Push correction commits and require fresh hosted workflow evidence while PR #49 remains a draft.
-- [ ] Complete independent QA/QC of the correction diff and CI logs.
+- [x] Push correction commits and require fresh hosted workflow evidence while PR #49 remains a draft.
+- [x] Complete independent QA/QC of the correction diff and CI logs.
 
 ### Review
 
 - Local evidence is bound to the correction commits, not the superseded
   `c8c6fbf` candidate. Fresh hosted macOS 14/macOS 15, website, security, and
-  release-readiness execution is required before PR #49 can leave draft.
+  release-readiness execution passed on `e1bc01d`; PR #49 remains a draft for
+  the separate signing, clean-machine, update, support, soak, and approval gates.
 
 ## 2026-08-01 — Signed public beta release readiness
 
