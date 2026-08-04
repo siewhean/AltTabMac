@@ -41,7 +41,12 @@ signed-artifact evidence remains required.
 The current draft also prevents an older AX-enriched publication from masking
 a fresh Phase-2 window thumbnail for the same exact identity. Live previews
 remain intentionally dependent on the user's Screen Recording permission; the
-global CmdTab shortcut also requires Accessibility permission.
+global CmdTab shortcut also requires Accessibility permission. A scoped
+profile shortcut now retains one swallowed selector request while its exact
+asynchronous snapshot is enriched, then shows or quick-switches when that
+snapshot arrives. This prevents normal foreground applications from losing the
+Cmd-Tab selector during enrichment without blocking the event tap. Secure Input
+contexts deliberately continue to pass the shortcut through to macOS.
 
 The final documentation head
 `f258eb6c4cdce3fa6c0a87211d78b37bd0145d0d` repeats that hosted check set and

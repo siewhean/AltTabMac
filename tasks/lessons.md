@@ -1,5 +1,11 @@
 # Lessons
 
+- 2026-08-04: A scoped selector cannot discard a shortcut merely because its
+  exact asynchronous snapshot is not ready at the event-tap deadline. Retain
+  one pending show or quick-switch intent on the main actor, fulfil it on the
+  next snapshot publication, and keep Secure Input pass-through and the event
+  tap's non-blocking contract intact.
+
 - 2026-08-04: When an AX-enriched snapshot is reused to cover the latest base
   snapshot, preserve its exact activation and workspace data but overlay any
   fresh base thumbnail and frame. Otherwise an earlier previewless enrichment

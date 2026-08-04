@@ -1,5 +1,30 @@
 # Todo
 
+## 2026-08-04 — Restore Cmd-Tab selector routing
+
+- [x] Reproduce and classify selector bypass by foreground application.
+- [x] Trace Accessibility/TCC, Secure Input, profile matching, and event-tap
+  suppression without changing protected shortcut semantics unnecessarily.
+- [x] Apply the smallest routing fix with focused regression coverage.
+- [x] Run focused hotkey/switcher tests, the full Swift suite, package and
+  launch the exact app, then obtain independent QA/QC. Keep PR #49 draft.
+
+### Review
+
+- Root cause: a scoped profile can return an intentionally empty provisional
+  snapshot while exact AX/workspace enrichment runs. The hotkey manager had
+  already swallowed Cmd-Tab, and the controller discarded that request instead
+  of fulfilling it on the next exact snapshot publication.
+- The controller now holds one deferred show while the primary modifier remains
+  down, or one deferred quick-switch after release. It never blocks the event
+  tap; cancellation, panel hide, and a profile replacement cancel stale work.
+- Focused state-machine, hotkey, and profile-timing suites passed 22/22 and
+  the full Swift suite passed 289/289. The arm64 package was rebuilt and the
+  exact app relaunched locally. Independent QA/QC found no lifecycle or Secure
+  Input regression in the source change (`PASS`). Physical Cmd-Tab with
+  Accessibility granted and delayed enrichment is `NOT TESTED`; Secure Input
+  remains an intentional native macOS pass-through rather than a defect.
+
 ## 2026-08-04 — Restore switcher thumbnail rendering
 
 - [x] Reproduce the all-skeleton thumbnail state with the current draft beta build.

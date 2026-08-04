@@ -77,6 +77,7 @@ final class ProductionSwitcherWindowController: NSObject {
     private var paletteFullItemCount = 0
     private var mirroredPanels: [ObjectIdentifier: ProductionSwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
+    private var deferredPresentation = DeferredSwitcherPresentation()
     private var activeFrontmostPID: pid_t = 0
     private var frontmostOverride: FrontmostOverrideState?
 
@@ -111,7 +112,11 @@ final class ProductionSwitcherWindowController: NSObject {
 
         if !viewModel.isVisible || activeProfileID != resolvedID {
             if viewModel.isVisible { hidePanel() }
-            guard startSession(reverse: reverse, profileID: resolvedID) else { return }
+            guard startSession(reverse: reverse, profileID: resolvedID) else {
+                deferSelectorPresentation(profileID: resolvedID, reverse: reverse)
+                return
+            }
+            deferredPresentation.cancel()
             showPanel()
             return
         }
@@ -125,10 +130,14 @@ final class ProductionSwitcherWindowController: NSObject {
     }
 
     func commitTriggerSession(reverse: Bool = false, profileID: UUID? = nil) {
-        guard let profileID = profileID ?? defaultProfileID(),
-              startSession(reverse: reverse, profileID: profileID) else {
+        guard let profileID = profileID ?? defaultProfileID() else { return }
+        guard startSession(reverse: reverse, profileID: profileID) else {
+            // A release before scoped enrichment finishes still owns one quick
+            // switch. Complete it only after the exact snapshot is available.
+            deferredPresentation.deferCommit(profileID: profileID, reverse: reverse)
             return
         }
+        deferredPresentation.cancel()
         commitCurrentSelection()
     }
 
@@ -193,6 +202,7 @@ final class ProductionSwitcherWindowController: NSObject {
     }
 
     func cancelAndHide() {
+        deferredPresentation.cancel()
         hidePanel()
     }
 
@@ -405,7 +415,10 @@ final class ProductionSwitcherWindowController: NSObject {
 
     private func wireDataSources() {
         appSwitcher.onItemsChanged = { [weak self] _ in
-            DispatchQueue.main.async { self?.refreshVisibleItemsIfNeeded() }
+            DispatchQueue.main.async {
+                self?.fulfillDeferredPresentationIfPossible()
+                self?.refreshVisibleItemsIfNeeded()
+            }
         }
         appSwitcher.onActivationConfirmed = { [weak self] identity, pid in
             guard let self else { return }
@@ -489,6 +502,55 @@ final class ProductionSwitcherWindowController: NSObject {
             syncViewModelFromSession(animated: previousIDs != session.items.map(\.id))
         }
         updateVisibleLayout()
+    }
+
+    private func deferSelectorPresentation(profileID: UUID, reverse: Bool) {
+        guard let profile = profileStore.profile(id: profileID) else { return }
+        let shortcut = reverse ? (profile.reverseShortcut ?? profile.forwardShortcut) : profile.forwardShortcut
+        let requiredModifier = profile.releaseBehavior == .holdPrimaryModifier
+            ? shortcut.modifiers.primaryReleaseModifier
+            : nil
+        deferredPresentation.deferShow(
+            profileID: profileID,
+            reverse: reverse,
+            requireHeldModifier: requiredModifier
+        )
+    }
+
+    private func fulfillDeferredPresentationIfPossible() {
+        guard !viewModel.isVisible,
+              let action = deferredPresentation.takeReadyAction(
+                isModifierHeld: isModifierHeld
+              ) else {
+            return
+        }
+
+        switch action {
+        case let .show(profileID, reverse, _):
+            guard startSession(reverse: reverse, profileID: profileID) else {
+                // Enrichment can publish an intermediate empty snapshot. Keep
+                // the request until an exact scoped result is available.
+                deferSelectorPresentation(profileID: profileID, reverse: reverse)
+                return
+            }
+            showPanel()
+
+        case let .commit(profileID, reverse):
+            guard startSession(reverse: reverse, profileID: profileID) else {
+                deferredPresentation.deferCommit(profileID: profileID, reverse: reverse)
+                return
+            }
+            commitCurrentSelection()
+        }
+    }
+
+    private func isModifierHeld(_ modifier: HotkeyModifier) -> Bool {
+        switch modifier {
+        case .command:
+            return NSEvent.modifierFlags.contains(.command)
+        case .option:
+            return NSEvent.modifierFlags.contains(.option)
+        }
     }
 
     private func syncViewModelFromSession(animated: Bool = false) {
@@ -834,6 +896,7 @@ final class ProductionSwitcherWindowController: NSObject {
     }
 
     private func hidePanel() {
+        deferredPresentation.cancel()
         viewModel.isVisible = false
         panel.alphaValue = 0
         panel.orderOut(nil)
