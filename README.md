@@ -1,6 +1,6 @@
 # CmdTab
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 Active task: prepare the repository-owned portion of an Apple-silicon signed
 public beta from `origin/main@dcd02fa`. The public website remains waitlist-first
 and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
@@ -11,8 +11,9 @@ go-live evidence.
 
 The current draft candidate also hardens membership and preview reliability:
 fresh base windows cannot be hidden by enrichment, capture uncertainty degrades
-to an icon fallback, and diagnostics are local aggregate counters only. These
-source changes still require fresh hosted and real-machine evidence.
+to an icon fallback, stale cancellation callbacks cannot clear a newer capture
+request, and diagnostics are local aggregate counters only. These source
+changes still require fresh hosted and real-machine evidence.
 
 ## Product
 

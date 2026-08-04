@@ -1,5 +1,10 @@
 # Lessons
 
+- 2026-08-04: A cancellation callback for an identity-keyed preview request
+  must clear the in-flight marker only when it still owns the current
+  generation; otherwise an older callback can permit a duplicate capture while
+  a newer request is active.
+
 - 2026-08-04: When optional analytics changes in production, label every
   dashboard metric as consented and suppress windows crossing the transition;
   do not estimate consent or restore comparability by collecting unconsented

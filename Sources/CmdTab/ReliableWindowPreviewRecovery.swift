@@ -219,7 +219,11 @@ enum ReliableWindowPreviewRecovery {
         let retryDelay = image == nil && preflightGranted && isCurrentGeneration
             ? immediateRetryDelay(afterFailedAttempt: attempt)
             : nil
-        if retryDelay == nil {
+        // A callback from a request cancelled by a newer generation must never
+        // clear that newer request's in-flight marker for the same identity.
+        // Otherwise the next snapshot can start a duplicate ScreenCaptureKit
+        // capture while the newer request is still active.
+        if retryDelay == nil, isCurrentGeneration {
             inFlightIdentityKeys.remove(identityKey)
         }
         stateLock.unlock()

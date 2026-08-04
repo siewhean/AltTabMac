@@ -18,12 +18,84 @@ final class PreviewContinuitySafetyTests: XCTestCase {
             defer { lock.unlock() }
             return recordedAttempts
         }
+
+        func recordAndReturnIndex(_ attempt: Int) -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            let index = recordedAttempts.count
+            recordedAttempts.append(attempt)
+            return index
+        }
     }
 
     override func tearDown() {
+        ReliableWindowPreviewRecovery.resetForTesting()
         SwitcherPreviewContinuityStore.resetForTesting()
         SwitcherItem.resetPreviewContinuityIdentityForTesting()
         super.tearDown()
+    }
+
+    func testCancelledGenerationCannotClearNewerRequestInFlightMarker() {
+        let recorder = AttemptRecorder()
+        let firstCaptureStarted = DispatchSemaphore(value: 0)
+        let secondCaptureStarted = DispatchSemaphore(value: 0)
+        let releaseFirstCapture = DispatchSemaphore(value: 0)
+        let releaseSecondCapture = DispatchSemaphore(value: 0)
+        let firstScheduleFinished = DispatchSemaphore(value: 0)
+        let secondScheduleFinished = DispatchSemaphore(value: 0)
+
+        ReliableWindowPreviewRecovery.configureForTesting(preflightGranted: true) { attempt in
+            switch recorder.recordAndReturnIndex(attempt) {
+            case 0:
+                firstCaptureStarted.signal()
+                _ = releaseFirstCapture.wait(timeout: .now() + 2)
+            case 1:
+                secondCaptureStarted.signal()
+                _ = releaseSecondCapture.wait(timeout: .now() + 2)
+            default:
+                break
+            }
+            return nil
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            ReliableWindowPreviewRecovery.schedule(
+                windowID: 700,
+                exactKey: "exact-window",
+                identityKey: "process-window"
+            )
+            firstScheduleFinished.signal()
+        }
+        XCTAssertEqual(firstCaptureStarted.wait(timeout: .now() + 1), .success)
+
+        ReliableWindowPreviewRecovery.cancelAll()
+        DispatchQueue.global(qos: .utility).async {
+            ReliableWindowPreviewRecovery.schedule(
+                windowID: 700,
+                exactKey: "exact-window",
+                identityKey: "process-window"
+            )
+            secondScheduleFinished.signal()
+        }
+        XCTAssertEqual(secondCaptureStarted.wait(timeout: .now() + 1), .success)
+
+        releaseFirstCapture.signal()
+        XCTAssertEqual(firstScheduleFinished.wait(timeout: .now() + 1), .success)
+
+        ReliableWindowPreviewRecovery.schedule(
+            windowID: 700,
+            exactKey: "exact-window",
+            identityKey: "process-window"
+        )
+        XCTAssertEqual(
+            recorder.attempts,
+            [0, 0],
+            "A stale callback must not permit a duplicate capture while the newer request is in flight."
+        )
+
+        ReliableWindowPreviewRecovery.cancelAll()
+        releaseSecondCapture.signal()
+        XCTAssertEqual(secondScheduleFinished.wait(timeout: .now() + 1), .success)
     }
 
     func testPreviewRecoveryExecutesBothImmediateRetriesBeforeTerminalFailure() {

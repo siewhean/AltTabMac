@@ -1,5 +1,32 @@
 # Todo
 
+## 2026-08-04 — Preview-recovery cancellation ownership
+
+- [x] Prevent a callback cancelled by a newer preview generation from clearing
+  that newer request's in-flight marker for the same window identity.
+- [x] Add a deterministic concurrency regression that holds the two capture
+  requests at the ownership boundary and rejects duplicate capture.
+- [x] Extract the shared preview-unavailable icon/text contract and cover both
+  application-icon and system-symbol fallback states without a brittle SwiftUI
+  hierarchy assertion.
+- [x] Run the focused preview-continuity coverage and a source-built complete
+  Swift suite before creating a new draft candidate.
+- [x] Obtain independent QA/QC of the complete native correction.
+- [ ] Push the exact candidate and collect fresh hosted CI evidence while PR
+  #49 remains a draft.
+
+### Review
+
+- The recovery-focused test passed 9/9 and the fallback contract test passed
+  2/2. The final source-built command,
+  `swift test --scratch-path /tmp/CmdTab-native-reliability-final`, passed 276
+  tests with 0 failures. The workflow-action verifier and repository-hygiene
+  assertions also passed. Clean-machine, permission, signing, update, soak,
+  and explicit go-live evidence remain `NOT TESTED`; this correction does not
+  alter those release boundaries.
+- Independent QA/QC passed the cancellation-generation ownership fencing,
+  fallback wiring/coverage, workflow-action validation, and repository hygiene.
+
 ## 2026-08-04 — Sitemap freshness correction
 
 - [x] Reconcile the canonical `/buy` and `/trial` sitemap dates with their

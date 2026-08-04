@@ -191,19 +191,22 @@ struct ClassicItemCardView: View {
             )
 
             VStack(spacing: 8) {
-                if let icon = item.icon {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .interpolation(.high)
-                        .scaledToFit()
-                        .frame(width: 44, height: 44)
-                } else {
-                    Image(systemName: "app.dashed")
+                switch ClassicPreviewFallback.iconKind(hasApplicationIcon: item.icon != nil) {
+                case .applicationIcon:
+                    if let icon = item.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .scaledToFit()
+                            .frame(width: 44, height: 44)
+                    }
+                case .systemSymbol:
+                    Image(systemName: ClassicPreviewFallback.systemSymbolName)
                         .font(.system(size: 34, weight: .medium))
                         .foregroundStyle(.white.opacity(0.62))
                 }
 
-                Text("Preview unavailable")
+                Text(ClassicPreviewFallback.label)
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.72))
             }
@@ -214,6 +217,6 @@ struct ClassicItemCardView: View {
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Preview unavailable for \(item.title)")
+        .accessibilityLabel(ClassicPreviewFallback.accessibilityLabel(for: item.title))
     }
 }
