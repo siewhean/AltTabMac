@@ -31,6 +31,17 @@ because it needs owner review and its acceptance text has not been reconciled.
 The branch-protection endpoint returned `404 Branch not protected`; trusted
 release-environment controls are likewise not configured.
 
+## Operational-controls evidence refresh
+
+The source commit `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` and its
+documentation/evidence head `db78652ee357352b1ad77959e37a00625f912f84` passed
+the following executed checks: Swift macOS 14/15, Security, SEO and GEO,
+Release Readiness (including website/browser QA), Workflow Health, Audit Source
+Export, and Vercel. The PR remained a clean draft. Independent QA/QC reviewed
+the combined `5c6bf28` + `db78652` diff and the hosted logs; no repository-owned
+release boundary breach was found. These runs do not make the later documentation
+commit an artifact or signed-app candidate.
+
 ## Status and next action
 
 **PASS for executed CI capacity at this exact SHA; G8 remains BLOCKED.**

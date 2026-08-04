@@ -77,8 +77,10 @@ unprotected and release-environment controls remain unconfigured. The
 documentation-only follow-up `2bcb2275b41cc6712dec8abcb2a4b62f3569143c`
 repeated the same hosted source-CI set. Neither record transfers to a later
 source candidate. The operational-controls candidate
-`5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` is local-verified only pending its
-replacement QA/QC and hosted workflows.
+`5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` and its documentation/evidence head
+`db78652ee357352b1ad77959e37a00625f912f84` passed replacement QA/QC and the
+executed hosted workflow set. A later source candidate still requires its own
+evidence.
 
 ## External blockers
 

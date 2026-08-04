@@ -24,9 +24,11 @@ source-CI evidence at `081ec04199885dffb5c7dddd30b6dcd23279bd55` and a
 documentation-only refresh at `2bcb2275b41cc6712dec8abcb2a4b62f3569143c`;
 the newer operational-controls source candidate
 `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` has passed local release,
-security-scanner, Swift, and website checks but still needs its own executed
-hosted evidence and independent combined QA/QC. Real-machine and signed-artifact
-evidence remains required.
+security-scanner, Swift, and website checks. Its documentation/evidence head
+`db78652ee357352b1ad77959e37a00625f912f84` also passed executed macOS 14/15,
+Security, SEO/GEO/browser, Release Readiness, Workflow Health, Audit Source
+Export, and Vercel checks, plus independent combined QA/QC. Real-machine and
+signed-artifact evidence remains required.
 
 The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
 the update resolves the current moderate PostCSS advisory while retaining the

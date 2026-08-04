@@ -76,9 +76,10 @@ receive replacement-candidate review and executed evidence.
 The operational-controls source candidate
 `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` adds an index-backed tracked-secret
 scanner, beta-DMG preflight/name binding, and an unavailable purchase-confirmation
-surface. Its local checks passed; its independent combined source review and
-executed hosted checks are pending. It must not inherit the `081ec041` P0/P1
-source disposition.
+surface. Its local checks, independent combined source review, and the executed
+hosted check set passed on documentation/evidence head
+`db78652ee357352b1ad77959e37a00625f912f84`; run links are retained in the G8
+record. It must not inherit the `081ec041` P0/P1 source disposition.
 
 ## Mandatory candidate evidence
 

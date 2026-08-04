@@ -53,8 +53,10 @@
   `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d`: index-backed credential-content
   scanning, beta-DMG preflight/name binding, isolated Sparkle resolution, and
   unavailable purchase-confirmation copy.
-- [ ] Obtain independent combined QA/QC and fresh executed hosted checks for
-  `5c6bf288`; keep PR #49 draft until they pass.
+- [x] Obtain independent combined QA/QC and fresh executed hosted checks for
+  `5c6bf288` / `db78652`; PR #49 remains draft with macOS 14/15, Security,
+  SEO/GEO, Release Readiness, Workflow Health, Audit Source Export, and Vercel
+  passing.
 
 ### Review
 
