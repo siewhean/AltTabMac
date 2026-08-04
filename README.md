@@ -9,6 +9,14 @@ branch may not publish a download, enable checkout, or claim a completed public
 release without the required signing, clean-machine, CI, support, and explicit
 go-live evidence.
 
+On 2026-08-04, every local CmdTab branch was reviewed against this draft beta
+branch. No branch supplied a safe merge: each was either already ancestral or
+would restore obsolete paid-commerce, stable-update, or unverified protected
+switcher behavior. The reviewed worktrees were therefore discarded under the
+explicit cleanup authorization. The primary checkout and the local acceptance
+and security-report evidence directories are retained; this remains a draft
+branch and no release action is authorized by that cleanup.
+
 The current draft candidate also hardens membership and preview reliability:
 fresh base windows cannot be hidden by enrichment, capture uncertainty degrades
 to an icon fallback, stale cancellation callbacks cannot clear a newer capture

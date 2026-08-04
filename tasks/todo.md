@@ -1,5 +1,33 @@
 # Todo
 
+## 2026-08-04 — Consolidate local CmdTab branches into draft beta
+
+- [x] Review every local CmdTab branch/worktree for unique commits, merge-base,
+  conflict risk, and beta-boundary compatibility.
+- [x] Merge compatible committed work into `release/public-release-readiness`
+  with one logical integration commit or recorded already-contained ancestry.
+- [x] Preserve integrated dirty work where practical; discard only dirty changes
+  that cannot be integrated, as explicitly authorized by the owner.
+- [x] Remove only the reviewed worktrees and stale local branches after their
+  commits are retained by the draft beta branch; preserve acceptance and
+  security-report evidence.
+- [ ] Run independent QA/QC of the consolidation commit and the remaining
+  repository state. Keep PR #49 draft.
+
+### Review
+
+- Merge target: `release/public-release-readiness`; no candidate change was
+  merged. The commerce, stable updater, paid lifecycle, production-readiness,
+  legacy release, CSP, and accessibility branches would regress the beta's
+  fail-closed scope or were superseded. The phase-one and radial branch tips
+  were already ancestral; the radial worktree's uncommitted protected switcher
+  changes had no candidate-bound verification and were discarded rather than
+  integrated.
+- Retained: the primary `CmdTab` checkout, this beta worktree, and
+  `Documents/CmdTab-acceptance` plus `Documents/CmdTab-security-reports` as
+  audit evidence. No production merge, signing, notarization, publication,
+  commerce enablement, or evidence-retention change is authorized.
+
 ## 2026-08-04 — Gate 3/5 credential-free release preparation
 
 - [x] Add a no-mutation notarized-DMG preflight that validates the clean
