@@ -55,8 +55,8 @@ export default function HelpPage() {
           <LastReviewed date={productFacts.reviewedAt} />
           <p className="text-sm text-subdued">Current documented version: {productFacts.currentVersion}</p>
         </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <MotionReveal direction="left" className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <MotionReveal direction="left" className="min-w-0 space-y-6">
             <HelpJourney />
 
             <div className="surface-panel p-6">
@@ -71,16 +71,21 @@ export default function HelpPage() {
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
-                  <Button href="/permissions" variant="secondary">
+                  <Button href="/permissions" variant="secondary" className="whitespace-normal text-center">
                     Review permission requirements
                   </Button>
-                  <Button href="/faq" variant="secondary">
+                  <Button href="/faq" variant="secondary" className="whitespace-normal text-center">
                     Read common answers
                   </Button>
-                  <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
+                  <Button
+                    href="/buy"
+                    variant="secondary"
+                    className="whitespace-normal text-center"
+                    {...analyticsAttributes("help_page_buy_click", "help_page")}
+                  >
                     Review pricing
                   </Button>
-                  <Button href="/privacy" variant="secondary">
+                  <Button href="/privacy" variant="secondary" className="whitespace-normal text-center">
                     Read privacy policy
                   </Button>
                 </div>
@@ -88,7 +93,7 @@ export default function HelpPage() {
             </div>
           </MotionReveal>
 
-          <MotionReveal direction="right" delay={120} className="surface-panel p-6">
+          <MotionReveal direction="right" delay={120} className="min-w-0 surface-panel p-6">
             <p className="type-eyebrow text-cyan">Contact boundary</p>
             <h2 className="mt-4 text-2xl font-medium tracking-[-0.04em] text-text">
               Privacy and security reports only
@@ -99,7 +104,9 @@ export default function HelpPage() {
               recovery, or general-support operations.
             </p>
             <div className="mt-6">
-              <Button href="/security" variant="secondary">Read security reporting guidance</Button>
+              <Button href="/security" variant="secondary" className="whitespace-normal text-center">
+                Read security reporting guidance
+              </Button>
             </div>
           </MotionReveal>
         </div>
