@@ -30,6 +30,14 @@ Security, SEO/GEO/browser, Release Readiness, Workflow Health, Audit Source
 Export, and Vercel checks, plus independent combined QA/QC. Real-machine and
 signed-artifact evidence remains required.
 
+The final documentation head
+`f258eb6c4cdce3fa6c0a87211d78b37bd0145d0d` repeats that hosted check set and
+is the exact unsigned Gate 1 artifact source: two independent arm64 clean
+builds were byte-for-byte reproducible and passed bundle, Sparkle, entitlement,
+resource, dSYM, and sensitive-content review. The documentation record remains
+pending independent QA/QC. This is not Developer ID, notarization, Gatekeeper,
+or clean-machine evidence.
+
 The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
 the update resolves the current moderate PostCSS advisory while retaining the
 mandatory audit gate. Its candidate-bound source CI passed at `081ec041`; it

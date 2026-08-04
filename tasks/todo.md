@@ -47,8 +47,10 @@
 - [x] Reconcile G0/G2/G8 candidate records with exact SHA, P0/P1 disposition,
   independent QA/QC scope, executed run identifiers, and the remaining
   branch-protection/release-environment control gap.
-- [ ] Reproduce the G1 unsigned-artifact/reproducibility record after the next
-  source candidate is frozen; do not inherit `081ec041` evidence.
+- [x] Reproduce the G1 unsigned-artifact/reproducibility record for
+  `f258eb6`: two isolated arm64 builds are byte-for-byte reproducible; bundle,
+  Sparkle, empty entitlement, dSYM, local-path, and credential-marker checks
+  pass. This is unsigned-only evidence.
 - [x] Commit the repository-owned operational controls as
   `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d`: index-backed credential-content
   scanning, beta-DMG preflight/name binding, isolated Sparkle resolution, and
