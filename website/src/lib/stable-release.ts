@@ -138,6 +138,10 @@ export function validateBetaAppcast(appcast: string, manifest: BetaReleaseManife
   if (appcastText(item, "sparkle:version") !== String(manifest.build)) {
     throw new Error("beta appcast build does not match the manifest");
   }
+  const bundledMarketingVersion = manifest.version.replace(/-beta\.\d+$/, "");
+  if (appcastText(item, "sparkle:shortVersionString") !== bundledMarketingVersion) {
+    throw new Error("beta appcast short version does not match the bundled marketing version");
+  }
   if (appcastText(item, "sparkle:minimumSystemVersion") !== manifest.minimumMacOS) {
     throw new Error("beta appcast minimum macOS does not match the manifest");
   }
@@ -169,11 +173,21 @@ export function getStableReleaseManifest(): StableReleaseManifest | null {
 }
 
 export function getBetaReleaseManifest(): BetaReleaseManifest | null {
+  return readBetaReleaseManifest();
+}
+
+/**
+ * A beta feed is unpublished unless its manifest is complete and valid. This
+ * treats missing and malformed repository artifacts alike, so callers cannot
+ * expose parse details or turn release-preparation mistakes into a 500.
+ */
+export function readBetaReleaseManifest(
+  readManifest: (path: string, encoding: BufferEncoding) => string = readFileSync,
+): BetaReleaseManifest | null {
   const manifestPath = resolve(process.cwd(), "..", "release", "beta.json");
   try {
-    return parseBetaReleaseManifest(JSON.parse(readFileSync(manifestPath, "utf8")));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw error;
+    return parseBetaReleaseManifest(JSON.parse(readManifest(manifestPath, "utf8")));
+  } catch {
+    return null;
   }
 }

@@ -70,7 +70,8 @@ export function AnalyticsConsentBanner() {
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted">
         CmdTab keeps website analytics and Vercel performance measurement off until you accept.
-        Trial, purchase, download, licensing, and support features work either way.
+        Your choice cannot enable the beta&apos;s fail-closed trial, purchase, download, licensing,
+        fulfilment, or support operations.
       </p>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button
@@ -141,8 +142,8 @@ export function AnalyticsPrivacyControls() {
       </div>
       <p className="mt-4 text-sm leading-6 text-subdued">
         Declining or withdrawing deletes CmdTab&apos;s stored website visitor and session
-        identifiers from this browser. Essential commerce and trial records are not analytics and
-        are retained under their separate operational terms.
+        identifiers from this browser. The beta does not collect commerce or trial records because
+        those operations are fail-closed.
       </p>
     </section>
   );

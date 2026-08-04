@@ -57,12 +57,12 @@ export const faqItems = [
   {
     question: "What app telemetry does CmdTab send?",
     answer:
-      "Optional native-app telemetry is off by default. If enabled in Settings, the app sends event name and timestamp, license state without a license identifier, app version, and macOS version. It reports app activation, an hourly heartbeat while running, trial start, and license activation events without a stable identifier.",
+      "Optional native-app telemetry is off by default. If enabled in Settings, the app sends event name and timestamp, license state without a license identifier, app version, and macOS version. It sends an app-activation event and an hourly heartbeat while running. Its fixed schema reserves state labels for a future licensing implementation; those labels do not make a beta trial, license activation, or purchase service available.",
   },
   {
     question: "Does the website use analytics by default?",
     answer:
-      "No. CmdTab's first-party website analytics, Vercel Web Analytics, and Speed Insights stay off until you accept. You can decline or withdraw on the Privacy page; doing so deletes the website visitor and session identifiers stored by CmdTab in that browser. Trial, purchase, download, licensing, and support features continue to work.",
+      "No. CmdTab's first-party website analytics, Vercel Web Analytics, and Speed Insights stay off until you accept. You can decline or withdraw on the Privacy page; doing so deletes the website visitor and session identifiers stored by CmdTab in that browser. Consent cannot enable the beta's fail-closed trial, purchase, download, licensing, fulfilment, or support operations.",
   },
   {
     question: "What macOS version does CmdTab require?",
@@ -77,7 +77,7 @@ export const faqItems = [
   {
     question: "Is there a free trial?",
     answer:
-      "CmdTab is preparing a signed public beta for Apple-silicon Macs. The beta has no checkout or payment path; join the waitlist to be notified when it is published.",
+      "No beta trial is available. CmdTab is preparing a signed public beta for Apple-silicon Macs, with no checkout or payment path; join the waitlist to be notified if it is published after its release gates are complete.",
   },
   {
     question: "Is CmdTab a subscription?",
@@ -92,11 +92,11 @@ export const faqItems = [
   {
     question: "How do I move CmdTab to another Mac?",
     answer:
-      "The public beta does not issue paid licences. For an existing licence recovery question, email support@cmdtab.net from the purchase address; CmdTab will never ask for your password.",
+      "The beta does not issue licences or provide a device-transfer or licence-recovery service. Do not send purchase credentials or passwords. A future general-availability process will be documented only after it is operating and verified.",
   },
   {
     question: "Where can I get support?",
     answer:
-      "Use the Help page or email support@cmdtab.net for beta installation, permissions, update, security-reporting, or existing licence-recovery guidance. No response time is guaranteed.",
+      "support@cmdtab.net is the published contact path for privacy and security reports. It does not promise a response time or indicate that beta installation, update, licensing, recovery, or other support operations are currently available.",
   },
 ] as const;

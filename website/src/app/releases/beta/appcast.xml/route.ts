@@ -33,8 +33,7 @@ export function GET() {
         "X-Robots-Tag": "noindex, nofollow, noarchive",
       },
     });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") return unavailable();
+  } catch {
     return unavailable();
   }
 }

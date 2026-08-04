@@ -8,11 +8,23 @@ import {
   listLicensedDevices,
 } from "@/lib/license-lifecycle-store";
 import { lookupHash } from "@/lib/license-lifecycle-contract";
+import { isCommerceLaunchEnabled } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return licenseJson(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "License device status is unavailable during this beta.",
+      },
+      503,
+    );
+  }
+
   try {
     const { verified, pepper } = await getBearerLicense(request);
     if (

@@ -14,7 +14,7 @@ export const productFacts = {
   licenseModel: "Planned general-availability licence",
   licensePrice: "Planned US$12 at general availability",
   licensedMacs: 3,
-  updateEntitlement: "Beta updates use the isolated beta channel",
+  updateEntitlement: "Planned beta updates use the isolated beta channel",
   refundPolicy: "No payment or refund path during beta",
   reviewedAt: "2026-07-22",
   sourceRepository: "https://github.com/siewhean/AltTabMac",
@@ -38,7 +38,7 @@ export const productFacts = {
   appTelemetry: {
     cadence:
       "Optional app telemetry is off by default. If enabled, an activation event is sent when the app starts, followed by an hourly heartbeat while it remains running.",
-    events: ["App activation", "Hourly heartbeat", "Trial started", "License activated"],
+    events: ["App activation", "Hourly heartbeat"],
     fields: [
       "Event name and timestamp",
       "License state without a license identifier",
@@ -55,7 +55,7 @@ export const publicProductFactRows = [
   { label: "Product", value: "Native macOS window switcher" },
   { label: "Current app version", value: `${productFacts.currentVersion} (build ${productFacts.buildNumber})` },
   { label: "Minimum system", value: productFacts.minimumMacOS },
-  { label: "Trial", value: productFacts.trialLength },
+  { label: "Beta availability", value: productFacts.trialLength },
   { label: "License", value: productFacts.licenseModel },
   { label: "Switcher modes", value: productFacts.modes.join(", ") },
   { label: "Window scope", value: productFacts.windowScopes.join(", ") },

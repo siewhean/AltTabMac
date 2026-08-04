@@ -11,11 +11,23 @@ import {
   deactivateDevice,
   listLicensedDevices,
 } from "@/lib/license-lifecycle-store";
+import { isCommerceLaunchEnabled } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return licenseJson(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "License deactivation is unavailable during this beta.",
+      },
+      503,
+    );
+  }
+
   try {
     const payload = deactivateLicenseSchema.parse(await readBoundedJson(request));
     const { verified, pepper } = await getVerifiedLicense(payload.licenseKey);

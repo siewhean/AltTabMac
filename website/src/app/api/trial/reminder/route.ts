@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 
 import { renderTrialReminderEmail } from "@/content/trial-email";
-import { getServerEnv, getSiteUrl, optionalStrongInternalSecret } from "@/lib/env";
+import {
+  getServerEnv,
+  getSiteUrl,
+  isCommerceLaunchEnabled,
+  optionalStrongInternalSecret,
+} from "@/lib/env";
 import { isAuthorizedInternalWorker } from "@/lib/internal-worker-auth";
 import {
   listTrialClaimsDueForReminder,
@@ -20,6 +25,13 @@ function isAuthorized(request: Request) {
 }
 
 export async function GET(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return NextResponse.json(
+      { ok: false, code: "commerce_disabled", message: "Trial reminders are disabled." },
+      { status: 503 },
+    );
+  }
+
   if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
   }

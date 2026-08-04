@@ -7,6 +7,51 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
+function assertCommerceDisabledBeforeSinks({
+  path,
+  handler,
+  sinks,
+}) {
+  const source = read(path);
+  const handlerStart = source.indexOf(`export async function ${handler}`);
+  assert.ok(handlerStart >= 0, `${path} must export ${handler}`);
+
+  const gateStart = source.indexOf(
+    "if (!isCommerceLaunchEnabled())",
+    handlerStart,
+  );
+  assert.ok(
+    gateStart >= handlerStart,
+    `${path} must check the commerce boundary inside ${handler}`,
+  );
+
+  const firstSink = Math.min(
+    ...sinks.map((sink) => {
+      const sinkIndex = source.indexOf(sink, handlerStart);
+      assert.ok(sinkIndex >= 0, `${path} must retain checked sink ${sink}`);
+      return sinkIndex;
+    }),
+  );
+  assert.ok(
+    gateStart < firstSink,
+    `${path} must return before commerce configuration, database, KMS, or email work`,
+  );
+
+  const disabledBranch = source.slice(gateStart, firstSink);
+  assert.match(
+    disabledBranch,
+    /return\s+(?:licenseJson|jsonResponse|ingestJsonResponse|NextResponse\.json)\(/,
+    `${path} must return from the disabled branch before a protected sink`,
+  );
+  assert.match(disabledBranch, /code: "commerce_disabled"/);
+  assert.match(disabledBranch, /503/);
+  assert.doesNotMatch(
+    disabledBranch,
+    /licenseKey|devices:|entitlementToken|requestFingerprint|recipientEmail/,
+    `${path} must not disclose customer state while commerce is disabled`,
+  );
+}
+
 const trial = read("src/app/api/trial/start/route.ts");
 assert.match(trial, /readBoundedJson\(request, MAX_REQUEST_BODY_BYTES\)/);
 assert.match(trial, /enforceIngestRateLimit\(request, "trial-start"\)/);
@@ -21,6 +66,72 @@ assert.doesNotMatch(recovery, /request\.headers\.get\("x-real-ip"\)/);
 
 const activation = read("src/app/api/license/activate/route.ts");
 assert.match(activation, /"license-activation"/);
+
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/license/activate/route.ts",
+  handler: "POST",
+  sinks: [
+    "enforceIngestRateLimit(",
+    "getVerifiedLicense(",
+    "ensureEntitlementForVerifiedLicense(",
+    "getLicenseTokenSigner(",
+    "activateDevice(",
+  ],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/license/deactivate/route.ts",
+  handler: "POST",
+  sinks: ["readBoundedJson(", "getVerifiedLicense(", "deactivateDevice("],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/license/devices/route.ts",
+  handler: "GET",
+  sinks: ["getBearerLicense(", "ensureEntitlementForVerifiedLicense(", "listLicensedDevices("],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/license/recover/route.ts",
+  handler: "POST",
+  sinks: [
+    "enforceIngestRateLimit(",
+    "readBoundedJson(",
+    "checkRateLimit(",
+    "getLicenseLifecycleEnv(",
+    "findRecoverableLicenses(",
+    "enqueueLicenseEmail(",
+  ],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/license-help/route.ts",
+  handler: "POST",
+  sinks: [
+    "checkRateLimit(",
+    "recentlySubmitted(",
+    "isLicenseRequestStoreConfigured(",
+    "createLicenseRequest(",
+    "submitOwnerNotification(",
+    "sendApplicantConfirmationEmail(",
+  ],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/trial/start/route.ts",
+  handler: "POST",
+  sinks: [
+    "enforceIngestRateLimit(",
+    "createOrGetTrialClaim(",
+    "getTrialTokenSigner(",
+    "sendTrialStartedEmail(",
+  ],
+});
+assertCommerceDisabledBeforeSinks({
+  path: "src/app/api/trial/reminder/route.ts",
+  handler: "GET",
+  sinks: [
+    "getServerEnv(",
+    "getResendClient(",
+    "listTrialClaimsDueForReminder(",
+    "markTrialReminderSent(",
+  ],
+});
 
 const webhook = read("src/app/api/lemonsqueezy/webhook/route.ts");
 assert.match(
@@ -74,8 +185,12 @@ assert.match(
 );
 
 const betaAppcastRoute = read("src/app/releases/beta/appcast.xml/route.ts");
+const betaManifestRoute = read("src/app/releases/beta.json/route.ts");
+const betaManifestLoader = read("src/lib/stable-release.ts");
 assert.match(betaAppcastRoute, /validateBetaAppcast\(appcast, manifest\)/, "beta appcast must be validated against its manifest before serving");
 assert.match(betaAppcastRoute, /return unavailable\(\)/, "invalid beta appcasts must fail closed");
+assert.match(betaManifestRoute, /if \(!manifest\) \{\s*return unavailable\(\);\s*\}/, "missing or malformed beta manifests must fail closed");
+assert.match(betaManifestLoader, /export function readBetaReleaseManifest\([\s\S]*?\} catch \{\s*return null;\s*\}/, "malformed beta manifests must remain unpublished without parser details");
 assert.match(
   trialReminderRoute,
   /if \(!isAuthorized\(request\)\) \{[\s\S]*?return NextResponse\.json\([\s\S]*?401[\s\S]*?\);[\s\S]*?\}[\s\S]*?const env = getServerEnv\(\);/,

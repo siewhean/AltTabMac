@@ -1,5 +1,4 @@
 import { HelpJourney } from "@/components/commerce/help-journey";
-import { LicenseRequestForm } from "@/components/commerce/license-request-form";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
@@ -10,16 +9,15 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { commercePageContent } from "@/content/commerce-pages";
 import { productFacts } from "@/content/product-facts";
 import { analyticsAttributes } from "@/lib/analytics";
-import { getCommerceConfig } from "@/lib/commerce";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createBreadcrumbStructuredData,
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab help: beta installation, security, and recovery";
+const title = "CmdTab beta availability, privacy, and security";
 const description =
-  "Get CmdTab help with beta installation, macOS permissions, updates, security reporting, and existing licence recovery. The public beta has no purchase path.";
+  "Review CmdTab's unpublished beta boundary, permission requirements, privacy path, and private security-reporting contact. No beta installation, update, licensing, recovery, or operational-support service is available.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Help", path: "/help" as const },
@@ -29,12 +27,10 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/help",
-  imageAlt: "CmdTab beta installation, security, and recovery help",
+  imageAlt: "CmdTab beta availability, privacy, and security information",
 });
 
 export default function HelpPage() {
-  const commerce = getCommerceConfig();
-
   return (
     <main>
       <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
@@ -76,7 +72,7 @@ export default function HelpPage() {
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
                   <Button href="/permissions" variant="secondary">
-                    Diagnose permissions
+                    Review permission requirements
                   </Button>
                   <Button href="/faq" variant="secondary">
                     Read common answers
@@ -84,31 +80,35 @@ export default function HelpPage() {
                   <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
                     Review pricing
                   </Button>
-                  {commerce.licensePortalUrl ? (
-                    <Button
-                      href={commerce.licensePortalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      {...analyticsAttributes("help_page_portal_click", "help_page")}
-                    >
-                      Open license portal
-                    </Button>
-                  ) : null}
+                  <Button href="/privacy" variant="secondary">
+                    Read privacy policy
+                  </Button>
                 </div>
               </div>
             </div>
           </MotionReveal>
 
-          <MotionReveal direction="right" delay={120}>
-            <LicenseRequestForm />
+          <MotionReveal direction="right" delay={120} className="surface-panel p-6">
+            <p className="type-eyebrow text-cyan">Contact boundary</p>
+            <h2 className="mt-4 text-2xl font-medium tracking-[-0.04em] text-text">
+              Privacy and security reports only
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-muted">
+              Email support@cmdtab.net for privacy or security reports. CmdTab does not promise a
+              response time and does not currently provide beta installation, update, licence,
+              recovery, or general-support operations.
+            </p>
+            <div className="mt-6">
+              <Button href="/security" variant="secondary">Read security reporting guidance</Button>
+            </div>
           </MotionReveal>
         </div>
       </SectionShell>
 
       <SectionShell
-        eyebrow="Beta support boundary"
-        title="Clear limits, direct support"
-        description="This is the practical beta support path. No checkout, payment, or fulfilment action is available."
+        eyebrow="Beta boundary"
+        title="Clear limits before publication"
+        description="No beta download, trial, checkout, payment, fulfilment, licensing, recovery, or operational-support action is currently available."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

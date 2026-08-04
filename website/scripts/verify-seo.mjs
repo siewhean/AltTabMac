@@ -186,8 +186,122 @@ assert.match(
 );
 assert.match(privacy, /does not contain window titles/, "privacy disclosure must identify excluded local window content");
 assert.match(privacy, /visitor identifier/, "privacy disclosure must describe first-party website analytics IDs");
+assert.match(
+  privacy,
+  /does not provide checkout, payment, receipts, billing, trial registration, license activation or recovery, fulfilment, refunds, or purchase processing/,
+  "privacy disclosure must state the beta's fail-closed commerce boundary",
+);
+assert.match(
+  privacy,
+  /do not start a beta trial, activate a beta license, fulfil an order, or make a beta purchase service available/,
+  "privacy disclosure must not present telemetry labels as beta commerce operations",
+);
+assert.doesNotMatch(
+  privacy,
+  /Starting a trial sends|Hosted checkout|license-management links may point|operational records required to fulfil licenses/,
+  "privacy disclosure must not make unsupported beta commerce claims",
+);
 
+const analyticsControls = read("src/components/analytics-consent-controls.tsx");
+assert.match(
+  analyticsControls,
+  /cannot enable the beta&apos;s fail-closed trial, purchase, download, licensing,[\s\S]*fulfilment, or support operations/,
+  "analytics controls must not imply disabled beta operations are available",
+);
+assert.doesNotMatch(
+  analyticsControls,
+  /Trial, purchase, download, licensing, and support features work either way|Essential commerce and trial records are not analytics/,
+  "analytics controls must not disclose nonexistent beta commerce or trial records",
+);
+
+assert.match(
+  faq,
+  /No beta trial is available/,
+  "FAQ must not present beta trial registration as available",
+);
+assert.match(
+  faq,
+  /does not issue licences or provide a device-transfer or licence-recovery service/,
+  "FAQ must keep beta licensing and recovery fail-closed",
+);
+assert.doesNotMatch(
+  faq,
+  /Trial, purchase, download, licensing, and support features continue to work/,
+  "FAQ must not imply disabled beta operations remain available",
+);
+
+const terms = read("src/content/terms.ts");
+assert.match(
+  terms,
+  /No beta download is currently published/,
+  "terms must not present the unpublished beta as a direct download",
+);
+assert.match(
+  terms,
+  /does not promise a response time or indicate that installation, update, licensing, recovery, or other support operations are currently available/,
+  "terms must not imply unverified beta support operations are available",
+);
+
+const helpPage = read("src/app/help/page.tsx");
+const commercePages = read("src/content/commerce-pages.ts");
+assert.doesNotMatch(
+  helpPage,
+  /LicenseRequestForm|getCommerceConfig|licensePortalUrl/,
+  "the public help route must not render a dormant licence-support operation",
+);
+assert.match(
+  helpPage,
+  /does not currently provide beta installation, update, licence,[\s\S]*recovery, or general-support operations/,
+  "the public help route must state its operational support boundary",
+);
+assert.match(
+  commercePages,
+  /No beta download, installation, or operational support service is currently published/,
+  "public commerce content must keep the beta unpublished",
+);
+assert.doesNotMatch(
+  commercePages,
+  /For beta installation, permissions, security, or recovery guidance|For existing licence recovery or beta help/,
+  "public commerce content must not advertise unavailable beta help or recovery",
+);
+
+const home = read("src/content/home.ts");
+const featureWindowSwitcher = read("src/app/features/window-switcher/page.tsx");
+const openGraphImage = read("src/app/opengraph-image.tsx");
 const productFacts = read("src/content/product-facts.ts");
+const commerce = read("src/content/commerce.ts");
+assert.doesNotMatch(home, /Start with the trial|start the 14-day trial/i, "homepage copy must not advertise an unavailable trial");
+assert.doesNotMatch(featureWindowSwitcher, /Start the 14-day trial/, "feature CTA must lead to the waitlist, not an unavailable trial");
+assert.match(featureWindowSwitcher, /Join beta waitlist/, "feature CTA must retain the waitlist path");
+assert.doesNotMatch(openGraphImage, /14-day free trial|One-time purchase/, "social image must not advertise unavailable commerce");
+assert.match(openGraphImage, /Beta waitlist/, "social image must identify the waitlist state");
+
+assert.match(
+  commerce,
+  /trialLength:\s*"Beta waitlist"/,
+  "public product facts must not label the waitlist as an available trial",
+);
+assert.match(productFacts, /events:\s*\["App activation", "Hourly heartbeat"\]/, "public telemetry facts must list only emitted events");
+assert.doesNotMatch(productFacts, /"Trial started"|"License activated"/, "public telemetry facts must not imply disabled beta commerce events");
+
+const securityPage = read("src/app/security/page.tsx");
+assert.match(securityPage, /inactive trial, checkout, webhook, and licensing boundaries/, "security scope must distinguish inactive commerce boundaries");
+assert.match(securityPage, /does not currently publish those commerce operations/, "security scope must not present inactive commerce as live");
+
+const waitlistForm = read("src/components/sections/trial-waitlist-form.tsx");
+const waitlistEmail = read("src/content/waitlist-email.ts");
+const offerGrid = read("src/components/commerce/commerce-offer-grid.tsx");
+const altTabPage = read("src/app/compare/cmdtab-vs-alttab/page.tsx");
+const betaReleasePage = read("src/components/release/beta-release-page.tsx");
+assert.doesNotMatch(waitlistForm, /trial download|Request Trial Access|trial build/i, "the public waitlist form must not advertise unavailable trial access");
+assert.match(waitlistForm, /signed beta build becomes available/, "waitlist form must describe conditional beta availability");
+assert.doesNotMatch(waitlistEmail, /trial access|access to the trial|Founder launch pricing/i, "waitlist email must not promise unavailable trial or pricing access");
+assert.match(waitlistEmail, /signed beta is approved for publication/, "waitlist email must describe conditional beta availability");
+assert.match(offerGrid, /unavailable until its signed beta release is published/, "commerce grid must not describe an unpublished beta as a current download");
+assert.doesNotMatch(altTabPage, /CmdTab is an active beta/, "comparison metadata must not describe the unpublished beta as active");
+assert.match(betaReleasePage, /no purchase, licence, or recovery service/, "future beta recovery page must remain fail-closed");
+assert.match(betaReleasePage, /does not promise beta installation, update, licensing, recovery, or general-support operations/, "future beta support page must retain its support boundary");
+
 const infoPlist = read("../Resources/Info.plist");
 const appVersion = infoPlist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/)?.[1];
 const appBuild = infoPlist.match(/<key>CFBundleVersion<\/key>\s*<string>([^<]+)<\/string>/)?.[1];
@@ -236,8 +350,7 @@ assert.match(landscapePage, /createArticleStructuredData/, "market comparison mu
 assert.match(landscapePage, /Contexts/, "Contexts must be visible in the landscape article context");
 
 const altTabComparison = read("src/content/alttab-comparison.ts");
-const altTabPage = read("src/app/compare/cmdtab-vs-alttab/page.tsx");
-for (const required of ["alt-tab.app/pricing", "alt-tab.app/terms", "8.2 million downloads", "16,000 GitHub stars", "active beta"]) {
+for (const required of ["alt-tab.app/pricing", "alt-tab.app/terms", "8.2 million downloads", "16,000 GitHub stars", "release preparation"]) {
   assert.ok(altTabComparison.includes(required), `AltTab comparison is missing ${required}`);
 }
 assert.match(altTabComparison, /not a controlled reliability benchmark/, "AltTab adoption must not be misrepresented as reliability");

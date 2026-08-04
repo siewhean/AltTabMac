@@ -7,7 +7,12 @@ import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
 import { isAuthorizedInternalWorker } from "../src/lib/internal-worker-auth.js";
-import { parseBetaReleaseManifest, parseStableReleaseManifest, validateBetaAppcast } from "../src/lib/stable-release.js";
+import {
+  parseBetaReleaseManifest,
+  parseStableReleaseManifest,
+  readBetaReleaseManifest,
+  validateBetaAppcast,
+} from "../src/lib/stable-release.js";
 
 test("Tab and Shift-Tab escape the switcher demo", () => {
   assert.equal(demoNavigationDirection({ key: "Tab", shiftKey: false }), null);
@@ -180,10 +185,27 @@ test("beta release parser accepts only the isolated immutable beta contract", ()
   assert.throws(() => parseBetaReleaseManifest({ ...betaRelease, channel: "stable" }));
 });
 
+test("missing or malformed beta manifests remain unpublished", () => {
+  assert.equal(
+    readBetaReleaseManifest(() => {
+      const error = new Error("not found") as NodeJS.ErrnoException;
+      error.code = "ENOENT";
+      throw error;
+    }),
+    null,
+  );
+  assert.equal(readBetaReleaseManifest(() => "{not JSON"), null);
+  assert.equal(
+    readBetaReleaseManifest(() => JSON.stringify({ ...betaRelease, channel: "stable" })),
+    null,
+  );
+});
+
 function betaAppcast(manifest = betaRelease) {
   return `<?xml version="1.0"?>
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><item>
 <sparkle:version>${manifest.build}</sparkle:version><sparkle:channel>beta</sparkle:channel>
+<sparkle:shortVersionString>${manifest.version.replace(/-beta\.\d+$/, "")}</sparkle:shortVersionString>
 <sparkle:minimumSystemVersion>${manifest.minimumMacOS}</sparkle:minimumSystemVersion>
 <enclosure url="${manifest.dmgURL}" length="${manifest.bytes}" sparkle:sha256="${manifest.sha256}" sparkle:edSignature="${"A".repeat(88)}" />
 </item></channel></rss>`;
@@ -192,6 +214,8 @@ function betaAppcast(manifest = betaRelease) {
 test("beta appcast is bound to the exact manifest artifact before serving", () => {
   validateBetaAppcast(betaAppcast(), betaRelease);
   assert.throws(() => validateBetaAppcast(betaAppcast().replace("<sparkle:channel>beta</sparkle:channel>", ""), betaRelease));
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace("<sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>", ""), betaRelease));
+  assert.throws(() => validateBetaAppcast(betaAppcast().replace("<sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>", "<sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>"), betaRelease));
   assert.throws(() => validateBetaAppcast(betaAppcast().replace(betaRelease.dmgURL, "https://cdn.cmdtab.net/other.dmg"), betaRelease));
   assert.throws(() => validateBetaAppcast(betaAppcast().replace(betaRelease.sha256, "b".repeat(64)), betaRelease));
   assert.throws(() => validateBetaAppcast(betaAppcast().replace("A".repeat(88), "short"), betaRelease));

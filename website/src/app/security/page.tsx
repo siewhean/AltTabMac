@@ -13,7 +13,7 @@ import {
 
 const title = "CmdTab security disclosure policy";
 const description =
-  "Review how to report security issues affecting the CmdTab website, analytics, trial delivery, purchase and licensing flow, or native macOS app, including current scope and safe-testing boundaries.";
+  "Review how to report security issues affecting the CmdTab website, analytics, inactive commerce boundaries, native macOS app, or release packaging, including current scope and safe-testing boundaries.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Security", path: "/security" as const },
@@ -37,7 +37,7 @@ const disclosureSections = [
   {
     title: "Current scope",
     body: [
-      "In scope: the cmdtab.net website and APIs, dashboard authentication, analytics ingestion, trial registration, checkout and webhook handling, license generation and delivery, the native CmdTab app, update and release packaging, and the public repository configuration.",
+      "In scope: the cmdtab.net website and APIs, dashboard authentication, analytics ingestion, inactive trial, checkout, webhook, and licensing boundaries, the native CmdTab app, update and release packaging, and the public repository configuration. The beta does not currently publish those commerce operations.",
       "Third-party platforms such as Vercel, Resend, GitHub, and the configured commerce provider are governed by their own disclosure programs unless the issue is caused by CmdTab's integration or configuration.",
     ],
   },

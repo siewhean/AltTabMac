@@ -20,7 +20,7 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
             {commerceContent.trialLength}
           </p>
           <p className="mt-3 text-sm leading-6 text-muted">
-            A direct Apple-silicon download with no payment path.
+            A planned Apple-silicon download that is unavailable until its signed beta release is published; no payment path is available.
           </p>
           <ul className="mt-6 grow space-y-3">
             {commerceContent.trial.points.map((point) => (

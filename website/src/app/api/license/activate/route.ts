@@ -12,6 +12,7 @@ import {
   ensureEntitlementForVerifiedLicense,
 } from "@/lib/license-lifecycle-store";
 import { getLicenseTokenSigner } from "@/lib/aws-kms-p256";
+import { isCommerceLaunchEnabled } from "@/lib/env";
 import { issueCmdTabTokenV2 } from "@/lib/license-signing";
 import { enforceIngestRateLimit } from "@/lib/ingest-request";
 
@@ -19,6 +20,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return licenseJson(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "License activation is unavailable during this beta.",
+      },
+      503,
+    );
+  }
+
   const rateLimit = await enforceIngestRateLimit(
     request,
     "license-activation",

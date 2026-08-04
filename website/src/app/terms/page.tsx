@@ -12,9 +12,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab public beta terms and support boundaries";
+const title = "CmdTab planned public beta terms and support boundaries";
 const description =
-  "Review CmdTab public-beta access, Apple-silicon compatibility, beta updates, privacy, security reporting, support, and existing licence-recovery boundaries.";
+  "Review CmdTab's planned public-beta access, Apple-silicon compatibility, unavailable beta operations, privacy, security reporting, and support boundaries.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Terms", path: "/terms" as const },
@@ -44,8 +44,8 @@ export default function TermsPage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow="Terms"
-        title="Clear terms for the CmdTab public beta"
-        description="The public beta is non-transactional: no checkout, payment, fulfilment, refund, or licence-sale action is available."
+        title="Clear terms for the planned CmdTab public beta"
+        description="The planned beta is non-transactional and unpublished: no download, checkout, payment, fulfilment, refund, or licence-sale action is available."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

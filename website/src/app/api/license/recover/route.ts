@@ -15,7 +15,7 @@ import {
   findRecoverableLicenses,
   isLicenseLifecycleStoreConfigured,
 } from "@/lib/license-lifecycle-store";
-import { getLicenseLifecycleEnv } from "@/lib/env";
+import { getLicenseLifecycleEnv, isCommerceLaunchEnabled } from "@/lib/env";
 import { checkRateLimit, createFingerprint } from "@/lib/rate-limit";
 import {
   enforceIngestRateLimit,
@@ -26,6 +26,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return licenseJson(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "License recovery is unavailable during this beta.",
+      },
+      503,
+    );
+  }
+
   const sharedRateLimit = await enforceIngestRateLimit(
     request,
     "license-recovery",

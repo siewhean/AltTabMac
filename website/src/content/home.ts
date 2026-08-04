@@ -3,7 +3,7 @@ export const heroContent = {
   title: "Find the right Mac window in one move.",
   summary:
     "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open. Start with the trial, then buy once if it earns a place in your workflow.",
+  status: "Built for people who keep too many apps and windows open. Join the beta waitlist for a future signed-release notification.",
 };
 
 export const proofPoints = [
@@ -13,7 +13,7 @@ export const proofPoints = [
   "Hide, minimize, close, or quit the selected item without leaving the switcher.",
   "Alternate right-side modifier triggers for one-handed sessions.",
   "Exclusions and ignored-title rules to keep noisy windows out of the way.",
-  "Start with the trial and buy once if CmdTab proves itself in real work.",
+  "Join the beta waitlist for a future signed-release notification.",
 ];
 
 export const styleVariants = [
@@ -227,6 +227,6 @@ export const faqItems = [
   {
     question: "Is CmdTab available now?",
     answer:
-      "CmdTab is in active release preparation. You can start the 14-day trial from the Trial page; the public download appears only when the signed and notarized release manifest is published.",
+      "CmdTab is in active release preparation. No beta trial or public download is currently available; join the waitlist for notification after the signed and notarized release gates are complete.",
   },
 ];

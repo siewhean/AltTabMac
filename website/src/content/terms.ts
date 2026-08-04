@@ -6,29 +6,29 @@ export const termsSections = [
   {
     title: "Public beta access",
     body: [
-      "CmdTab’s public beta is a direct, Apple-silicon-only download. It is provided for testing and feedback, not as a paid offer.",
-      "The beta has no checkout, payment, fulfilment, subscription, refund, or licence-sale path. A US$12 personal licence is planned for general availability only.",
-      "Do not redistribute the beta or use it to access data that is not yours. Keep backups of important work and report reproducible issues through the documented support path.",
+      "CmdTab is preparing a direct, Apple-silicon-only public beta. No beta download is currently published; if approved for publication, it will be provided for testing and feedback, not as a paid offer.",
+      "The beta configuration has no checkout, payment, fulfilment, subscription, refund, or licence-sale path. A US$12 personal licence is planned for general availability only.",
+      "If a beta is published, do not redistribute it or use it to access data that is not yours. Keep backups of important work and use the published privacy or security contact path for relevant reports.",
     ],
   },
   {
     title: "Permissions and limitations",
     body: [
-      `CmdTab requires ${productFacts.minimumMacOS}. The public beta claims Apple-silicon support only; Intel Macs and configurations without clean-machine acceptance are not covered.`,
+      `The planned beta target requires ${productFacts.minimumMacOS} and claims Apple-silicon support only. Intel Macs and configurations without clean-machine acceptance are not covered.`,
       "Accessibility is required for exact-window switching. Screen Recording enables previews; if preview capture is unavailable, eligible windows use an icon or placeholder presentation.",
     ],
   },
   {
     title: "Updates, support, and recovery",
     body: [
-      "Beta updates use the isolated beta channel. Stable downloads and stable update feeds are unavailable until general availability.",
-      "Email support@cmdtab.net for installation, update, security, or existing licence-recovery guidance. CmdTab will never ask for your password and does not promise a particular response time.",
+      "If approved for publication, beta updates will use the isolated beta channel. No beta download or beta update feed is currently published; stable downloads and stable update feeds remain unavailable until general availability.",
+      "support@cmdtab.net is the published privacy and security contact path. It does not promise a response time or indicate that installation, update, licensing, recovery, or other support operations are currently available. CmdTab will never ask for your password.",
     ],
   },
   {
     title: "Security reporting",
     body: [
-      "Report suspected vulnerabilities privately to support@cmdtab.net with the affected beta build, macOS version, reproduction steps, and impact.",
+      "You may report a suspected vulnerability privately to support@cmdtab.net with the affected build, macOS version, reproduction steps, and impact.",
       "Do not access other people’s data, publish unpatched details, alter production data, use social engineering, or conduct sustained denial-of-service testing.",
     ],
   },
@@ -42,9 +42,9 @@ export const termsSections = [
   {
     title: "Privacy, retention, and changes",
     body: [
-      "The Privacy page describes optional analytics, app telemetry, product operations, third parties, and the available access or deletion request path.",
-      "CmdTab’s beta operations collect only the data documented in the Privacy page. No beta payment or fulfilment data is collected because no beta purchase path exists.",
-      "Material changes to these beta terms apply prospectively and will be shown with a new review date. Existing paid licences remain subject to the terms that applied at purchase and applicable law.",
+      "The Privacy page describes optional analytics, aggregate app telemetry, the fail-closed beta commerce boundary, third parties, and the privacy-request path.",
+      "The beta configuration collects only the data documented in the Privacy page. No beta payment, purchase, receipt, licence, activation, fulfilment, or support-operation data is collected because those operations are unavailable.",
+      "Material changes to these planned beta terms apply prospectively and will be shown with a new review date. Future paid licences will be subject to terms published with an operating general-availability purchase service and applicable law.",
     ],
   },
 ] as const;

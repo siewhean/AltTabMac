@@ -5,7 +5,7 @@ import { z, ZodError } from "zod";
 
 import { renderTrialStartedEmail } from "@/content/trial-email";
 import { createOrGetTrialClaim } from "@/lib/trial-claim-store";
-import { getServerEnv, getSiteUrl } from "@/lib/env";
+import { getServerEnv, getSiteUrl, isCommerceLaunchEnabled } from "@/lib/env";
 import { getResendClient } from "@/lib/resend";
 import { getTrialTokenSigner } from "@/lib/aws-kms-p256";
 import {
@@ -64,6 +64,17 @@ async function sendTrialStartedEmail(input: {
 }
 
 export async function POST(request: Request) {
+  if (!isCommerceLaunchEnabled()) {
+    return ingestJsonResponse(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "Trials are unavailable during this beta.",
+      },
+      503,
+    );
+  }
+
   const rateLimit = await enforceIngestRateLimit(request, "trial-start");
   if (!rateLimit.allowed) {
     if ("unavailable" in rateLimit) {

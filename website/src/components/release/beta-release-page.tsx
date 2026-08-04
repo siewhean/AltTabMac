@@ -57,11 +57,11 @@ const content: Record<BetaPageKind, { title: string; description: string; body: 
     ],
   },
   support: {
-    title: "CmdTab beta support",
-    description: "Contact CmdTab support for installation, permission, beta-update, or recovery guidance.",
+    title: "CmdTab beta privacy and security contact",
+    description: "Use CmdTab's published privacy and security contact path. It does not promise beta installation, update, licensing, recovery, or general-support operations.",
     body: [
-      `Email ${siteConfig.contactEmail} with your CmdTab version, macOS version, Mac type, and a concise description of the issue. Do not include credentials or private window content.`,
-      "Support is provided without a guaranteed response time. Use the security path for a suspected vulnerability.",
+      `Email ${siteConfig.contactEmail} with a privacy request or suspected vulnerability. Do not include credentials or private window content.`,
+      "This contact path does not promise a response time or provide beta installation, update, licence, recovery, or general-support operations.",
     ],
   },
   security: {
@@ -73,11 +73,11 @@ const content: Record<BetaPageKind, { title: string; description: string; body: 
     ],
   },
   "license-recovery": {
-    title: "CmdTab beta licence recovery",
-    description: "The public beta has no purchase or payment path. Existing licence holders can ask for recovery guidance without disclosing account credentials.",
+    title: "CmdTab beta licence-recovery boundary",
+    description: "The public beta has no purchase, licence, or recovery service.",
     body: [
-      `For an existing licence recovery issue, email ${siteConfig.contactEmail} from the address associated with the purchase and include only the information needed to locate the record. CmdTab will never ask for your password.`,
-      "No beta user can buy, renew, or otherwise pay for CmdTab from this site. The planned US$12 personal licence is for general availability only.",
+      "Do not send purchase credentials or passwords. A future general-availability recovery process will be documented only after it is operating and verified.",
+      "No beta user can buy, renew, recover, or otherwise pay for CmdTab from this site. The planned US$12 personal licence is for general availability only.",
     ],
   },
 };

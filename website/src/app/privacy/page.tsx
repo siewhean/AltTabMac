@@ -15,7 +15,7 @@ import {
 
 const title = "CmdTab website and native app privacy";
 const description =
-  "Review the exact website analytics, native app telemetry, trial, licensing, permissions, excluded window-content fields, third parties, and privacy-request path used by CmdTab.";
+  "Review the exact website analytics, native app telemetry, beta commerce boundary, permissions, excluded window-content fields, third parties, and privacy-request path used by CmdTab.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Privacy", path: "/privacy" as const },

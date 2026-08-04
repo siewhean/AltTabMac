@@ -15,7 +15,7 @@ import {
 
 const title = "CmdTab frequently asked questions";
 const description =
-  "Factual answers about CmdTab window ordering, multiple windows per app, previews, Spaces, displays, permissions, telemetry, compatibility, trial terms, and support.";
+  "Factual answers about CmdTab window ordering, multiple windows per app, previews, Spaces, displays, permissions, telemetry, compatibility, and beta availability boundaries.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "FAQ", path: "/faq" as const },
@@ -46,7 +46,7 @@ export default function FaqPage() {
         breadcrumbs={breadcrumbs}
         eyebrow="FAQ"
         title="Direct answers about CmdTab"
-        description="This page is the canonical factual reference for how CmdTab behaves, what permissions and telemetry it uses, and how the trial and license work."
+        description="This page is the canonical factual reference for how CmdTab behaves, what permissions and telemetry it uses, and which beta operations remain unavailable."
         className="pt-14"
       >
         <div className="mb-8">

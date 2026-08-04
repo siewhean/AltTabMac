@@ -55,7 +55,7 @@ export function TrialWaitlistForm() {
 
       setState({
         kind: "success",
-        message: data.message ?? "You're on the list! We'll email you as soon as your trial download is ready.",
+        message: data.message ?? "You're on the list! We'll email you if a signed beta download becomes available.",
       });
       setEmail("");
       setName("");
@@ -107,7 +107,7 @@ export function TrialWaitlistForm() {
 
           <FormField
             id="trial-email"
-            label="Email address for trial download link"
+            label="Email address for beta availability updates"
             type="email"
             name="email"
             autoComplete="email"
@@ -143,11 +143,11 @@ export function TrialWaitlistForm() {
                   Joining Waitlist...
                 </>
               ) : (
-                "Request Trial Access"
+                "Join beta waitlist"
               )}
             </Button>
             <p className="text-xs text-subdued">
-              We'll send you an email link the moment the trial build is ready for your Mac.
+              We’ll email you if a signed beta build becomes available for your Mac.
             </p>
           </div>
 

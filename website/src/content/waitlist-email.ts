@@ -28,9 +28,9 @@ export const waitlistEmailContent = {
   },
   applicant: {
     onPageMessage: {
-      new: "You’re on the list. We’ll email you when the next beta opens and when trial access is ready.",
+      new: "You’re on the list. We’ll email you if the next signed beta becomes available.",
       existing:
-        "You were already on the list. We kept your place and will still email you about beta access and trial updates.",
+        "You were already on the list. We kept your place and will still email you about beta availability updates.",
     },
     subject(input: ApplicantEmailInput) {
       return input.variant === "new"
@@ -50,18 +50,18 @@ export const waitlistEmailContent = {
     body(input: ApplicantEmailInput) {
       return input.variant === "new"
         ? [
-            "We’ll use this email to share beta access updates, launch news, and first access to the trial when it’s ready.",
+            "We’ll use this email to share beta availability updates and launch news if a signed beta is approved for publication.",
             "You do not need to sign up again. When a build is ready for you, this is the address we’ll contact.",
           ]
         : [
-            "We kept your existing spot and will continue using this address for beta access updates, launch news, and first access to the trial.",
+            "We kept your existing spot and will continue using this address for beta availability updates and launch news.",
             "You do not need to sign up again unless you want to change the email address on your spot.",
           ];
     },
     bullets: [
       "Private beta updates only",
-      "First access to the trial when it is ready",
-      "Founder launch pricing access before the public release",
+      "Beta availability updates if a signed build is published",
+      "No beta trial, purchase, or support operation is enabled by this signup",
     ],
     ctaLabel: "Visit CmdTab",
     footer:

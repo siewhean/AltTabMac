@@ -1,6 +1,6 @@
 export const privacyContent = {
   intro:
-    "This page explains what the CmdTab website and native app currently collect, which fields are transmitted, and how that information is used while you browse, start a trial, activate a license, or run the app.",
+    "This page describes the information CmdTab currently collects while you browse the website and the telemetry contract that would apply if an approved beta build is later made available. It describes the beta's fail-closed configuration; it does not announce or provide beta checkout, payment, trial registration, licensing, fulfilment, or customer-support operations.",
   sections: [
     {
       title: "Website analytics",
@@ -13,39 +13,39 @@ export const privacyContent = {
     {
       title: "Native app telemetry",
       body: [
-        "Optional native-app telemetry is off by default and can be enabled or disabled in CmdTab Settings. When enabled, the app sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",
+        "Optional native-app telemetry is off by default and can be enabled or disabled in CmdTab Settings. When enabled, the app sends an app-activation event and then an hourly heartbeat while it remains running.",
         "When enabled, the payload contains event name, license state without a license identifier, app version, macOS version, and event timestamp. It does not contain an install, device, account, or license identifier.",
+        "The fixed telemetry schema reserves state labels for a future licensing implementation. Those labels do not start a beta trial, activate a beta license, fulfil an order, or make a beta purchase service available.",
         "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, search queries, tokens, or secrets.",
       ],
     },
     {
-      title: "Trial and licensing information",
+      title: "Beta commerce and licensing boundary",
       body: [
-        "Starting a trial sends the email address provided by the user together with the install identifier, app version, and macOS version so the trial period can be registered and enforced.",
-        "Purchase, receipt, billing, and license-portal information may be processed by the hosted commerce provider. CmdTab stores the operational records required to fulfil licenses and handle support requests.",
-        "Trial registration, purchase, download, licensing, fulfilment, fraud prevention, refunds, and support are essential product operations. They remain available when optional analytics are declined and are not switched on or off by the analytics controls.",
+        "CmdTab's beta configuration does not provide checkout, payment, receipts, billing, trial registration, license activation or recovery, fulfilment, refunds, or purchase processing.",
+        "Related commerce endpoints and background work are fail-closed while the beta commerce switch is disabled. Optional analytics consent cannot enable those operations.",
       ],
     },
     {
       title: "How the information is used",
       body: [
-        "When accepted, website analytics are used to understand discovery, page performance, trial and purchase journeys, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
-        "When enabled, app telemetry is used to understand aggregate trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to count uniquely identifiable installations or reconstruct the contents of a user's open windows.",
+        "When accepted, website analytics are used to understand discovery, page performance, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
+        "When enabled, app telemetry is used to understand aggregate app versions, macOS versions, and broad product activity. It is not used to count uniquely identifiable installations, establish an entitlement, or reconstruct the contents of a user's open windows.",
       ],
     },
     {
       title: "Third-party services",
       body: [
         "Hosting and edge delivery are provided through Vercel. If you accept optional analytics, Vercel Web Analytics and Speed Insights also process aggregate traffic and performance measurements.",
-        "Transactional email may be delivered through Resend. Hosted checkout, receipt, and license-management links may point to Lemon Squeezy or another configured commerce provider, whose own terms and privacy policy apply to that transaction.",
+        "The beta does not expose transactional email, hosted checkout, receipt, billing, or license-management services. A future commerce provider is not part of this beta privacy practice.",
       ],
     },
     {
       title: "Retention, access, and deletion",
       body: [
-        "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
         "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; native telemetry records are aggregate-only and cannot be linked back to an install or account.",
-        "For access, correction, or deletion requests concerning CmdTab-held data, contact support@cmdtab.net and include enough information to locate the relevant beta, support request, or install record.",
+        "Because beta commerce is fail-closed, CmdTab does not collect or retain beta payment, purchase, receipt, license, activation, fulfilment, refund, or fraud-prevention records.",
+        "For an access, correction, or deletion request concerning CmdTab-held data, contact support@cmdtab.net with enough information to identify the request. This contact path does not promise a response time.",
       ],
     },
     {

@@ -59,7 +59,7 @@ export default function CmdTabVsAltTabPage() {
         breadcrumbs={breadcrumbs}
         eyebrow="Focused comparison"
         title="CmdTab versus AltTab: choose the window-switching model first"
-        description="AltTab is the mature, broadly adopted choice with a free core. CmdTab is an active beta built around exact-window global recency and three presentation modes. The right answer depends on which workflow you value."
+        description="AltTab is the mature, broadly adopted choice with a free core. CmdTab is in release preparation around exact-window global recency and three presentation modes. The right answer depends on which workflow you value."
         className="pt-14"
       >
         <div className="mb-8 grid gap-3 border-b border-white/8 pb-8 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-8">

@@ -9,77 +9,79 @@ export const commercePageContent = {
     process: [
       {
         title: "Join the beta",
-        body: "Use the signed Apple-silicon beta when it is published and report issues through the documented support path.",
+        body: "Join the waitlist for a release notification. No beta download, installation, or operational support service is currently published.",
       },
       {
         title: "Watch for GA details",
         body: "A US$12 personal licence is planned for general availability, not the beta period.",
       },
       {
-        title: "Use support if needed",
-        body: "For beta installation, permissions, security, or recovery guidance, email support@cmdtab.net.",
+        title: "Privacy and security contact",
+        body: "support@cmdtab.net is the published contact path for privacy and security reports; it does not promise a response time or beta operational support.",
       },
     ],
     notes: [
       "No payment during beta",
       "Planned US$12 at GA",
-      "Support is available by email",
+      "Privacy and security contact only",
     ],
   },
   trial: {
     eyebrow: "Public beta",
     title: "Join the CmdTab beta waitlist.",
     description:
-      "Get notified when a signed Apple-silicon beta download is available, then enable the required permissions and try CmdTab in real work.",
+      "Get notified when a signed Apple-silicon beta download is available. Installation, permissions, updates, licensing, and support operations remain unavailable until the required release gates pass.",
     checklist: [
-      "Download the signed beta build when it is published.",
-      "Enable Accessibility and Screen Recording in macOS.",
-      "Use CmdTab in your normal app-switching workflow.",
+      "Join the waitlist for a beta publication notification.",
+      "Review the documented Accessibility and Screen Recording requirements.",
+      "Read the known limitations before any future beta installation.",
     ],
     note:
-      "If the beta build is not live yet, join the waitlist or email support@cmdtab.net for help.",
+      "The beta build is not published. Join the waitlist for updates; support@cmdtab.net is reserved for privacy and security reports.",
   },
   help: {
-    eyebrow: "Help",
-    title: "Beta support and recovery guidance.",
+    eyebrow: "Beta boundaries",
+    title: "Privacy, security, and beta availability information.",
     description:
-      "Use this page for beta installation, permissions, security reporting, or existing licence recovery guidance. The beta has no payment path.",
+      "CmdTab has no published beta download, installation, update, licensing, recovery, or operational-support service. Use the documented privacy and security contact path for relevant reports.",
     journey: [
       {
-        title: "Use the public beta",
-        body: "Use the signed beta in real work and report issues with your macOS version and CmdTab build.",
+        title: "Check beta availability",
+        body: "The signed beta is not published. Join the waitlist for a future release notification rather than attempting installation or update steps.",
       },
       {
-        title: "No payment during beta",
-        body: "The planned US$12 personal licence belongs to general availability, not the beta release.",
+        title: "Keep commerce fail-closed",
+        body: "The planned US$12 personal licence belongs to general availability. The beta provides no payment, licence, recovery, fulfilment, or refund service.",
       },
       {
-        title: "Email support",
-        body: "For existing licence recovery or beta help, send one concise request to support@cmdtab.net.",
+        title: "Report privacy or security concerns",
+        body: "support@cmdtab.net is the published privacy and security contact path. It does not promise a response time or operational support.",
       },
     ],
     supportPoints: [
-      "Get beta installation or permission help.",
+      "Review permission requirements and known limitations.",
       "Report a security issue privately.",
-      "Ask for existing licence recovery guidance.",
+      "Make a privacy request through the published contact path.",
     ],
     terms: [
       {
         title: "Planned pricing",
-        body: "US$12 is planned for general availability; there is no payment path during beta.",
+        body: "US$12 is planned for general availability; no checkout, payment, or purchase support is available now.",
       },
       {
-        title: "Beta before GA",
-        body: "The beta exists for tested feedback and does not include checkout or an offer.",
+        title: "Unpublished beta",
+        body: "The beta is still in release preparation and does not include a download, checkout, trial, or operational support service.",
       },
       {
-        title: "Direct support",
-        body: "Support, recovery, and security reports go to support@cmdtab.net without a promised response time.",
+        title: "Contact boundary",
+        body: "Privacy and security reports may go to support@cmdtab.net without a promised response time; it is not a licence-recovery or beta-support service.",
       },
     ],
   },
 } as const;
 
+// Kept for the dormant, commerce-gated request handler. No public route renders
+// this form while the beta's operational support boundary is fail-closed.
 export const licenseRequestReasonOptions = [
   { value: "license_recovery", label: "Find my license or receipt" },
   { value: "activation_help", label: "Activation or moving to another Mac" },

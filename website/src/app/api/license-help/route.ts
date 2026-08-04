@@ -8,7 +8,7 @@ import {
   renderApplicantLicenseEmail,
 } from "@/content/license-email";
 import { licenseRequestReasonOptions } from "@/content/commerce-pages";
-import { getServerEnv, getSiteUrl } from "@/lib/env";
+import { getServerEnv, getSiteUrl, isCommerceLaunchEnabled } from "@/lib/env";
 import {
   checkRateLimit,
   createFingerprint,
@@ -223,6 +223,18 @@ async function sendApplicantConfirmationEmail(payload: {
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+
+  if (!isCommerceLaunchEnabled()) {
+    return jsonResponse(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "Online license support is unavailable during this beta.",
+        requestId,
+      },
+      503,
+    );
+  }
 
   if (!isSameOrigin(request) || !passesFetchSiteProtection(request)) {
     return jsonResponse(

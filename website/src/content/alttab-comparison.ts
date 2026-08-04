@@ -59,7 +59,7 @@ export const altTabComparison = {
     [
       "Commercial model",
       "Free open-source core. Pro is US$9.99 once; Pro Lifetime is US$24.99 once; new users receive a 14-day Pro trial.",
-      `${productFacts.trialLength} followed by a one-time purchase. The current CmdTab personal license is ${productFacts.licensePrice}.`,
+      `CmdTab has no beta trial or purchase service. ${productFacts.licensePrice} is a future general-availability plan.`,
     ],
     [
       "Public evidence",
@@ -69,7 +69,7 @@ export const altTabComparison = {
     [
       "Current product stage",
       "Mature, broadly adopted product with a free core and optional paid tier.",
-      "CmdTab is an active beta with a smaller adoption base, a public implementation contract, and an evidence-led validation plan.",
+        "CmdTab is in release preparation with a public implementation contract and an evidence-led validation plan.",
     ],
   ] as const,
   decisions: [
@@ -81,7 +81,7 @@ export const altTabComparison = {
     {
       title: "Pay for CmdTab only when its exact-window workflow earns it",
       body:
-        "CmdTab is the more specific fit when one global exact-window MRU sequence, three presentation modes, remembered Command Palette choices, Hot Swap, and Quick Actions remove enough repeated friction to justify a one-time license. The trial exists to test that claim before paying.",
+        "CmdTab is the more specific fit when one global exact-window MRU sequence, three presentation modes, remembered Command Palette choices, Hot Swap, and Quick Actions remove enough repeated friction to justify a future one-time licence. No beta trial or purchase is currently available.",
     },
     {
       title: "Keep the built-in switcher when simplicity wins",

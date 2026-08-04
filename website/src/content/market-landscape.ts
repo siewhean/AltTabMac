@@ -88,7 +88,7 @@ export const marketLandscape = {
       name: "CmdTab",
       operator: "CmdTab",
       commercialModel:
-        `${productFacts.trialLength} followed by a one-time purchase. The current CmdTab personal license is ${productFacts.licensePrice}.`,
+        `CmdTab has no beta trial or purchase service. ${productFacts.licensePrice} is a future general-availability plan.`,
       minimumSystem: productFacts.minimumMacOS,
       switchingModel:
         "Each eligible top-level window is a separate target in one exact-window recent-use sequence, including multiple windows from the same app.",
