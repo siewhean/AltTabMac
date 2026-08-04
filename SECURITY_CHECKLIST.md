@@ -79,7 +79,9 @@ scanner, beta-DMG preflight/name binding, and an unavailable purchase-confirmati
 surface. Its local checks, independent combined source review, and the executed
 hosted check set passed on documentation/evidence head
 `db78652ee357352b1ad77959e37a00625f912f84`; run links are retained in the G8
-record. It must not inherit the `081ec041` P0/P1 source disposition.
+record. Its separate focused Gate 2 review found no new source P0/P1 and is
+recorded in the G2 source record; it remains distinct from signed-artifact and
+real-machine security evidence.
 
 ## Mandatory candidate evidence
 

@@ -59,6 +59,9 @@
   `5c6bf288` / `db78652`; PR #49 remains draft with macOS 14/15, Security,
   SEO/GEO, Release Readiness, Workflow Health, Audit Source Export, and Vercel
   passing.
+- [x] Independently re-audit the `5c6bf288` operational-controls source delta:
+  no source P0/P1; credential scanner, preflight, Sparkle resolution, beta
+  naming, CI privilege, and unavailable purchase-confirmation boundary covered.
 
 ### Review
 

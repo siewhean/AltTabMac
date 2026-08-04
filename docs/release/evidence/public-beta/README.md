@@ -18,7 +18,7 @@
 | --- | --- | --- |
 | [`G0-governance`](G0-governance/) | `2bcb2275b41cc6712dec8abcb2a4b62f3569143c` governance and evidence reconciliation | PASS (repository governance only) |
 | [`G1-artifact-source`](G1-artifact-source/) | `f258eb6c4cdce3fa6c0a87211d78b37bd0145d0d` exact unsigned package/reproducibility result | PASS — independent QA/QC approved; signing and clean-machine gates remain separate |
-| [`G2-security-source`](G2-security-source/) | `081ec04199885dffb5c7dddd30b6dcd23279bd55` source P0/P1 and QA/QC disposition | PASS (source review only) |
+| [`G2-security-source`](G2-security-source/) | `081ec041` baseline source review plus `5c6bf28` operational-controls P0/P1 review; CI green through `52e7a9d` | PASS (repository source review only) |
 | [`G8-ci`](G8-ci/) | `2bcb2275b41cc6712dec8abcb2a4b62f3569143c` executed hosted CI | PASS (executed CI capacity); branch/release controls remain BLOCKED |
 
 ## Gate 0 draft record - 2026-08-01
