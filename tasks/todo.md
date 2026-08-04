@@ -1,5 +1,33 @@
 # Todo
 
+## 2026-08-04 — Restore switcher thumbnail rendering
+
+- [x] Reproduce the all-skeleton thumbnail state with the current draft beta build.
+- [x] Trace TCC permission, primary Core Graphics/SkyLight capture, recovery,
+  cache publication, and grid rendering without weakening privacy behavior.
+- [x] Apply the smallest protected-path fix and add a regression for the failed
+  capture-to-visible-thumbnail path.
+- [x] Run focused preview tests, the full Swift suite, package and launch the
+  exact app, then obtain independent QA/QC. Keep PR #49 draft.
+
+### Review
+
+- The screenshot's skeleton came from the stale radial build; that placeholder
+  was already absent from the draft beta source. The fresh beta package instead
+  surfaced one propagation defect: an old enriched item could hide a fresh
+  Phase-2 thumbnail for the same window. The publication now preserves AX data
+  while overlaying the newest base preview and its frame.
+- Focused regression and full Swift suite passed (286 tests), and the exact
+  local arm64 package built and launched. Shortcut exercise showed the macOS
+  native switcher because the newly packaged beta instance lacks Accessibility
+  permission; real thumbnails also require Screen Recording. These are live
+  machine permissions, not source-test substitutes. Open both privacy panes
+  for the active beta bundle and rerun the visual matrix before a release pass.
+- Independent QA/QC: `PASS` for the source merge and focused policy suite;
+  `NOT TESTED` for real-machine TCC-granted rendering. The fix retains enriched
+  AX/workspace/activation fields while publishing fresh base preview, backdrop,
+  and geometry for the same exact window identity.
+
 ## 2026-08-04 — Consolidate local CmdTab branches into draft beta
 
 - [x] Review every local CmdTab branch/worktree for unique commits, merge-base,

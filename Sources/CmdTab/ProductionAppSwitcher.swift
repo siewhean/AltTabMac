@@ -176,7 +176,14 @@ enum ProductionEnrichmentPublication {
         // already present in the completed cache.
         for item in safeBaseItems {
             guard represented.insert(item.historyIdentity).inserted else { continue }
-            publication.append(cachedByIdentity[item.historyIdentity] ?? item)
+            if let enrichedItem = cachedByIdentity[item.historyIdentity] {
+                publication.append(merging(
+                    enrichedItem: enrichedItem,
+                    latestBaseItem: item
+                ))
+            } else {
+                publication.append(item)
+            }
         }
 
         // AX may have synthesized minimized or off-space windows absent from the
@@ -189,6 +196,36 @@ enum ProductionEnrichmentPublication {
 
         return SwitcherMembershipPolicy
             .deduplicatedWithoutRepresentedFallbacks(publication)
+    }
+
+    /// Keep exact AX/workspace enrichment while allowing the base switcher's
+    /// second phase to publish a just-captured image immediately. Without this
+    /// merge, an older enriched item with no preview can mask the newer base
+    /// thumbnail until another whole-desktop AX pass completes.
+    private static func merging(
+        enrichedItem: SwitcherItem,
+        latestBaseItem: SwitcherItem
+    ) -> SwitcherItem {
+        SwitcherItem(
+            title: enrichedItem.title,
+            subtitle: enrichedItem.subtitle,
+            icon: latestBaseItem.icon ?? enrichedItem.icon,
+            previewImage: latestBaseItem.previewImage ?? enrichedItem.previewImage,
+            backdropImage: latestBaseItem.backdropImage ?? enrichedItem.backdropImage,
+            backdropFrame: latestBaseItem.backdropFrame ?? enrichedItem.backdropFrame,
+            backdropSourceScreenFrame: latestBaseItem.backdropSourceScreenFrame
+                ?? enrichedItem.backdropSourceScreenFrame,
+            previewCacheKey: latestBaseItem.previewCacheKey,
+            historyIdentity: enrichedItem.historyIdentity,
+            sourceAppIdentifier: enrichedItem.sourceAppIdentifier,
+            kind: enrichedItem.kind,
+            dedupeKey: enrichedItem.dedupeKey,
+            isMinimized: enrichedItem.isMinimized,
+            isFullscreen: enrichedItem.isFullscreen,
+            workspaceSnapshot: enrichedItem.workspaceSnapshot,
+            historyDescriptor: enrichedItem.historyDescriptor,
+            activate: enrichedItem.activate
+        )
     }
 }
 

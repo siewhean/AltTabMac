@@ -345,6 +345,42 @@ final class ProductionMembershipPolicyTests: XCTestCase {
         )
     }
 
+    func testEnrichedPublicationPublishesFreshBaseThumbnailImmediately() {
+        let identity = SwitcherHistoryIdentity.appWindow(pid: 10, windowID: 1)
+        let cachedEnriched = item(
+            identity: identity,
+            bundle: "com.example.Editor",
+            title: "Enriched document"
+        )
+        let freshPreview = NSImage(
+            size: NSSize(width: 8, height: 8)
+        )
+        let latestBaseItem = item(
+            identity: identity,
+            bundle: "com.example.Editor",
+            title: "Base document",
+            previewImage: freshPreview
+        )
+
+        let published = ProductionEnrichmentPublication
+            .coveringLatestBaseSnapshot(
+                baseItems: [latestBaseItem],
+                cachedEnrichedItems: [cachedEnriched],
+                configuration: configuration(
+                    visibility: .allSpaces,
+                    includeMinimized: true
+                ),
+                globalVisibility: .allSpaces,
+                globalIncludesMinimized: true
+            )
+
+        XCTAssertEqual(published.first?.title, "Enriched document")
+        XCTAssertTrue(
+            published.first?.previewImage === freshPreview,
+            "A stale enriched item without an image must not mask a fresh Phase-2 thumbnail."
+        )
+    }
+
     private func configuration(
         visibility: WindowVisibilityScope,
         includeMinimized: Bool
@@ -365,13 +401,14 @@ final class ProductionMembershipPolicyTests: XCTestCase {
         identity: SwitcherHistoryIdentity,
         bundle: String,
         title: String,
-        kind: SwitcherItemKind = .appWindow
+        kind: SwitcherItemKind = .appWindow,
+        previewImage: NSImage? = nil
     ) -> SwitcherItem {
         SwitcherItem(
             title: title,
             subtitle: bundle,
             icon: nil,
-            previewImage: nil,
+            previewImage: previewImage,
             historyIdentity: identity,
             sourceAppIdentifier: bundle,
             kind: kind,

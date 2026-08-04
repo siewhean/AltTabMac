@@ -38,6 +38,11 @@ Security, SEO/GEO/browser, Release Readiness, Workflow Health, Audit Source
 Export, and Vercel checks, plus independent combined QA/QC. Real-machine and
 signed-artifact evidence remains required.
 
+The current draft also prevents an older AX-enriched publication from masking
+a fresh Phase-2 window thumbnail for the same exact identity. Live previews
+remain intentionally dependent on the user's Screen Recording permission; the
+global CmdTab shortcut also requires Accessibility permission.
+
 The final documentation head
 `f258eb6c4cdce3fa6c0a87211d78b37bd0145d0d` repeats that hosted check set and
 is the exact unsigned Gate 1 artifact source: two independent arm64 clean

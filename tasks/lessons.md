@@ -1,5 +1,10 @@
 # Lessons
 
+- 2026-08-04: When an AX-enriched snapshot is reused to cover the latest base
+  snapshot, preserve its exact activation and workspace data but overlay any
+  fresh base thumbnail and frame. Otherwise an earlier previewless enrichment
+  can hide a completed Phase-2 capture until another full enrichment pass.
+
 - 2026-08-04: A release preflight must return before any output-directory,
   artifact, signing, notarization, or network operation, and it may name only
   required secret variables—not their values. Update tooling must resolve from
