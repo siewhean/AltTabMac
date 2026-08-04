@@ -11,7 +11,7 @@
 - [x] Remove only the reviewed worktrees and stale local branches after their
   commits are retained by the draft beta branch; preserve acceptance and
   security-report evidence.
-- [ ] Run independent QA/QC of the consolidation commit and the remaining
+- [x] Run independent QA/QC of the consolidation commit and the remaining
   repository state. Keep PR #49 draft.
 
 ### Review
@@ -27,6 +27,10 @@
   `Documents/CmdTab-acceptance` plus `Documents/CmdTab-security-reports` as
   audit evidence. No production merge, signing, notarization, publication,
   commerce enablement, or evidence-retention change is authorized.
+- Independent QA/QC: `PASS` for consolidation at
+  `e02c5ef45ca593cf59f41b6d31dcda24f82e2231` (clean remote parity, docs-only
+  scope, two remaining Git worktrees, and retained evidence). Signing,
+  notarization, clean-machine, update, and soak remain `NOT TESTED` beta gates.
 
 ## 2026-08-04 — Gate 3/5 credential-free release preparation
 
