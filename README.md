@@ -15,6 +15,11 @@ to an icon fallback, stale cancellation callbacks cannot clear a newer capture
 request, and diagnostics are local aggregate counters only. These source
 changes still require fresh hosted and real-machine evidence.
 
+The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
+the update resolves the current moderate PostCSS advisory while retaining the
+mandatory audit gate. It is source-verified only until fresh hosted evidence
+for its replacement candidate completes.
+
 ## Product
 
 CmdTab is a native macOS window switcher built with Swift, AppKit, and SwiftUI. Eligible top-level windows are separate exact `(PID, CGWindowID)` targets in one global recent-use sequence. Multiple windows from one app remain separate, preview failure changes presentation rather than membership, and permanent history updates only after activation is confirmed.

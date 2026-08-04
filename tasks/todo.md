@@ -1,5 +1,28 @@
 # Todo
 
+## 2026-08-04 — Dependency-audit remediation
+
+- [x] Diagnose the exact-head Vercel preview and Security failures as the
+  same newly disclosed moderate PostCSS advisory in the pinned Next.js tree.
+- [x] Pin compatible Next.js `16.3.0` and PostCSS `8.5.23`, refresh only the
+  npm lockfile, and update the version-pinning showcase verifier.
+- [x] Under Node `24.18.0`, run `npm ci`, the mandatory dependency audit,
+  security/prebuild/production-build gates, and rendered/retrieval checks
+  against the local built server.
+- [x] Obtain independent QA/QC of the dependency-audit remediation.
+- [ ] Push the replacement draft candidate and require fresh hosted Vercel,
+  Security, SEO/GEO, workflow, and macOS evidence.
+
+### Review
+
+- `npm audit --audit-level=moderate` returned zero vulnerabilities. The full
+  `npm run security:check`, `npm run prebuild`, and `npm run build` commands
+  passed with commerce still fail-closed; rendered-site and retrieval checks
+  passed against `next start` on port 3001. Generated showcase outputs were
+  restored after verification and are not part of this correction.
+- Independent QA/QC verified the coherent lockfile, retained mandatory audit,
+  fail-closed commerce checks, and absence of generated/release artifacts.
+
 ## 2026-08-04 — Preview-recovery cancellation ownership
 
 - [x] Prevent a callback cancelled by a newer preview generation from clearing

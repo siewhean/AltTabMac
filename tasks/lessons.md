@@ -1,5 +1,9 @@
 # Lessons
 
+- 2026-08-04: A version-pinning verifier must be updated in the same logical
+  dependency-security correction as its lockfile; otherwise a safe patch
+  upgrade is blocked by a stale assertion rather than the dependency audit.
+
 - 2026-08-04: A cancellation callback for an identity-keyed preview request
   must clear the in-flight marker only when it still owns the current
   generation; otherwise an older callback can permit a duplicate capture while
