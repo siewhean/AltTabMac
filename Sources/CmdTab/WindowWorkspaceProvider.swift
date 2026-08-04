@@ -190,9 +190,11 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
             0x7,
             windowNumbers
         ) else {
+            let failure = Self.membershipSnapshotFailureStatus()
+            updateStatus(failure)
             return .fallback(
                 isOnScreen: isOnScreen,
-                reason: "SkyLight could not resolve workspace membership for window \(windowID)."
+                reason: failure.reason ?? "SkyLight could not resolve workspace membership."
             )
         }
 
@@ -372,6 +374,12 @@ final class WindowWorkspaceProvider: WindowWorkspaceProviding {
         stateLock.lock()
         _status = status
         stateLock.unlock()
+    }
+
+    static func membershipSnapshotFailureStatus() -> CapabilityStatus {
+        .failed(
+            "SkyLight could not resolve workspace membership; CmdTab is using the public on-screen fallback."
+        )
     }
 
     // MARK: Symbol and metadata parsing

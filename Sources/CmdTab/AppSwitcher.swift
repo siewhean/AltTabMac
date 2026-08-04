@@ -72,30 +72,6 @@ enum SkyLightCapture {
     }
 }
 
-// MARK: - _AXUIElementGetWindow (exact CGWindowID → AXUIElement matching)
-//
-// Private but stable API used by every major window manager (yabai, AltTab,
-// Amethyst, etc.). Resolves the CGWindowID for an AX window element so we can
-// match the exact window the user clicked on — eliminating the heuristic
-// title/position scoring that causes "wrong window focused" bugs.
-
-private enum AXWindowIDLookup {
-    private typealias GetWindowFn = @convention(c) (AXUIElement, UnsafeMutablePointer<CGWindowID>) -> Int32
-
-    private static let resolved: GetWindowFn? = {
-        guard let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "_AXUIElementGetWindow") else { return nil }
-        return unsafeBitCast(sym, to: GetWindowFn.self)
-    }()
-
-    /// Returns the CGWindowID for an AXUIElement window, or nil if unavailable.
-    static func windowID(for element: AXUIElement) -> CGWindowID? {
-        guard let fn = resolved else { return nil }
-        var wid: CGWindowID = 0
-        guard fn(element, &wid) == 0 else { return nil }  // 0 = kAXErrorSuccess
-        return wid
-    }
-}
-
 enum WindowServerFocus {
     private enum Mode: UInt32 {
         case allWindows = 0x100
@@ -1061,7 +1037,7 @@ final class AppSwitcher: NSObject {
 
         // ── Strategy 1: Exact CGWindowID match (eliminates wrong-window bugs) ──
         for axWindow in windows {
-            if let axWinID = AXWindowIDLookup.windowID(for: axWindow), axWinID == candidate.id {
+            if let axWinID = AXWindowIdentityLookup.windowID(for: axWindow), axWinID == candidate.id {
                 raiseWindow(axWindow, ownerPID: candidate.ownerPID)
                 ensureWindowFrontmost(candidate, attempt: attempt)
                 return
@@ -1092,7 +1068,7 @@ final class AppSwitcher: NSObject {
     private func raiseWindow(_ axWindow: AXUIElement, ownerPID: pid_t) {
         let t = kCFBooleanTrue!
         let axApp = AXUIElementCreateApplication(ownerPID)
-        if let axWindowID = AXWindowIDLookup.windowID(for: axWindow) {
+        if let axWindowID = AXWindowIdentityLookup.windowID(for: axWindow) {
             let focusStatus = WindowServerFocus.focusWindow(
                 ownerPID: ownerPID,
                 windowID: axWindowID
@@ -1269,7 +1245,7 @@ final class AppSwitcher: NSObject {
         }
 
         if case let .appWindow(_, windowID) = item.historyIdentity,
-           let exactWindow = windows.first(where: { AXWindowIDLookup.windowID(for: $0) == windowID }) {
+           let exactWindow = windows.first(where: { AXWindowIdentityLookup.windowID(for: $0) == windowID }) {
             return exactWindow
         }
 
@@ -1314,7 +1290,7 @@ final class AppSwitcher: NSObject {
         if AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &value) == .success,
            let focusedWindow = value {
             let axWindow = unsafeBitCast(focusedWindow, to: AXUIElement.self)
-            if let windowID = AXWindowIDLookup.windowID(for: axWindow) {
+            if let windowID = AXWindowIdentityLookup.windowID(for: axWindow) {
                 return windowID
             }
         }
@@ -1323,7 +1299,7 @@ final class AppSwitcher: NSObject {
         if AXUIElementCopyAttributeValue(axApp, kAXMainWindowAttribute as CFString, &value) == .success,
            let mainWindow = value {
             let axWindow = unsafeBitCast(mainWindow, to: AXUIElement.self)
-            return AXWindowIDLookup.windowID(for: axWindow)
+            return AXWindowIdentityLookup.windowID(for: axWindow)
         }
 
         return nil
@@ -1464,7 +1440,7 @@ final class AppSwitcher: NSObject {
         }
 
         let displayWindows = windows.filter { isSwitcherDisplayWindow($0) }
-        let displayIDs = displayWindows.compactMap { AXWindowIDLookup.windowID(for: $0) }
+        let displayIDs = displayWindows.compactMap { AXWindowIdentityLookup.windowID(for: $0) }
 
         // AX enumeration and the private ID bridge can be temporarily
         // incomplete. Never turn that uncertainty into a membership denylist:
@@ -1475,7 +1451,7 @@ final class AppSwitcher: NSObject {
             preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
         ]
         .compactMap { $0 }
-        let preferredIDs = preferredWindows.compactMap { AXWindowIDLookup.windowID(for: $0) }
+        let preferredIDs = preferredWindows.compactMap { AXWindowIdentityLookup.windowID(for: $0) }
 
         let hasUnresolvedAXWindowID = displayIDs.count != displayWindows.count ||
             preferredIDs.count != preferredWindows.count

@@ -33,7 +33,7 @@ final class ProductionDiagnosticsWindowController: NSWindowController {
 struct ProductionDiagnosticsSnapshot: Equatable {
     let accessibilityReady: Bool
     let screenRecordingReady: Bool
-    let secureInputActive: Bool
+    let secureInput: CapabilityStatus
     let exactIdentity: CapabilityStatus
     let hardwarePreview: CapabilityStatus
     let exactFocus: CapabilityStatus
@@ -49,7 +49,7 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         return ProductionDiagnosticsSnapshot(
             accessibilityReady: AXIsProcessTrusted(),
             screenRecordingReady: CGPreflightScreenCaptureAccess(),
-            secureInputActive: SecureInputMonitor.isEnabled,
+            secureInput: SecureInputMonitor.status,
             exactIdentity: AXWindowIdentityLookup.status,
             hardwarePreview: SkyLightCapture.status,
             exactFocus: WindowServerFocus.status,
@@ -79,7 +79,7 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         architecture=\(ProcessInfo.processInfo.machineArchitecture)
         accessibility=\(accessibilityReady ? "ready" : "required")
         screenRecording=\(screenRecordingReady ? "ready" : "required")
-        secureInput=\(secureInputActive ? "active" : "inactive")
+        secureInput=\(secureInput.level.rawValue):\(secureInput.reason ?? "inactive")
         exactWindowIdentity=\(exactIdentity.level.rawValue):\(exactIdentity.reason ?? "ok")
         hardwarePreview=\(hardwarePreview.level.rawValue):\(hardwarePreview.reason ?? "ok")
         exactWindowFocus=\(exactFocus.level.rawValue):\(exactFocus.reason ?? "ok")
@@ -125,8 +125,8 @@ struct ProductionDiagnosticsView: View {
                     )
                     diagnosticRow(
                         title: "Secure Input",
-                        value: snapshot.secureInputActive ? "Active — shortcuts bypassed" : "Inactive",
-                        level: snapshot.secureInputActive ? .degraded : .available
+                        value: statusText(snapshot.secureInput),
+                        level: snapshot.secureInput.level
                     )
                     diagnosticRow(
                         title: "Exact Window Identity",

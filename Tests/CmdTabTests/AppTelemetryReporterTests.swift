@@ -20,10 +20,9 @@ final class AppTelemetryReporterTests: XCTestCase {
         let transport = RecordingTelemetryTransport()
         let reporter = AppTelemetryReporter(
             preferences: preferences,
-            installIDStore: installIDStore,
             transport: transport
         )
-        let controller = makeLicensingController()
+        let controller = makeLicensingController(installIDStore: installIDStore)
 
         reporter.startSession(licensingController: controller)
         reporter.trackTrialStarted(licensingController: controller)
@@ -43,20 +42,20 @@ final class AppTelemetryReporterTests: XCTestCase {
         let transport = RecordingTelemetryTransport()
         let reporter = AppTelemetryReporter(
             preferences: preferences,
-            installIDStore: installIDStore,
             transport: transport,
             heartbeatSleep: {
                 try await Task.sleep(nanoseconds: 60 * 1_000_000_000)
             }
         )
-        let controller = makeLicensingController()
+        let controller = makeLicensingController(installIDStore: installIDStore)
 
         reporter.setEnabled(true, licensingController: controller)
         reporter.startSession(licensingController: controller)
         await waitUntil { await transport.eventNames() == ["app_activation"] }
 
         XCTAssertTrue(reporter.hasActiveSession)
-        XCTAssertEqual(installIDStore.saveCount, 1)
+        XCTAssertEqual(installIDStore.loadCount, 0)
+        XCTAssertEqual(installIDStore.saveCount, 0)
         let enabledEventNames = await transport.eventNames()
         XCTAssertEqual(enabledEventNames, ["app_activation"])
 
@@ -73,7 +72,6 @@ final class AppTelemetryReporterTests: XCTestCase {
         let transport = RecordingTelemetryTransport()
         let reporter = AppTelemetryReporter(
             preferences: preferences,
-            installIDStore: CountingInstallIDStore(),
             transport: transport
         )
         let controller = makeLicensingController()
@@ -100,7 +98,6 @@ final class AppTelemetryReporterTests: XCTestCase {
         let transport = SuspendingActionTelemetryTransport()
         let reporter = AppTelemetryReporter(
             preferences: preferences,
-            installIDStore: CountingInstallIDStore(),
             transport: transport,
             heartbeatSleep: {
                 try await Task.sleep(nanoseconds: 60 * 1_000_000_000)
@@ -127,6 +124,30 @@ final class AppTelemetryReporterTests: XCTestCase {
         )
     }
 
+    func testSerializedTelemetryUsesOnlyAggregateAllowlistedFields() throws {
+        let payload = AppTelemetryPayload(
+            eventName: .licenseActivated,
+            licenseState: .licensed,
+            appVersion: "1.0.0",
+            osVersion: "14.6.0",
+            occurredAt: Date(timeIntervalSince1970: 1_725_000_000)
+        )
+
+        let json = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: payload.encodedJSON()) as? [String: Any]
+        )
+        XCTAssertEqual(
+            Set(json.keys),
+            Set(AppTelemetryPayload.CodingKeys.allCases.map(\.rawValue))
+        )
+        for forbiddenKey in [
+            "installId", "licenseId", "deviceId", "windowTitle", "windowTitles",
+            "preview", "previews", "screenshot", "screenshots", "token", "secret",
+        ] {
+            XCTAssertNil(json[forbiddenKey], "Telemetry must not serialize \(forbiddenKey).")
+        }
+    }
+
     private func makeDefaults() -> UserDefaults {
         let suiteName = "AppTelemetryReporterTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -134,14 +155,16 @@ final class AppTelemetryReporterTests: XCTestCase {
         return defaults
     }
 
-    private func makeLicensingController() -> LicensingController {
+    private func makeLicensingController(
+        installIDStore: AppInstallIDStore = CountingInstallIDStore()
+    ) -> LicensingController {
         LicensingController(
             trialStore: TelemetryMemoryTrialStartDateStore(),
             trialClaimStore: TelemetryMemoryTrialClaimStore(),
             licenseStore: TelemetryMemoryLicenseKeyStore(),
             activationMetadataStore: TelemetryMemoryActivationStore(),
             payloadCacheStore: TelemetryMemoryPayloadCacheStore(),
-            installIDStore: CountingInstallIDStore(),
+            installIDStore: installIDStore,
             serverClient: TelemetryNoopServerClient()
         )
     }
@@ -178,15 +201,8 @@ private final class CountingInstallIDStore: AppInstallIDStore {
 private actor RecordingTelemetryTransport: AppTelemetryTransport {
     private var names: [String] = []
 
-    func sendAppTelemetry(
-        installID: String,
-        eventName: String,
-        licenseState: String,
-        licenseID: String?,
-        appVersion: String,
-        osVersion: String
-    ) async {
-        names.append(eventName)
+    func sendAppTelemetry(_ payload: AppTelemetryPayload) async {
+        names.append(payload.eventName.rawValue)
     }
 
     func eventNames() -> [String] {
@@ -199,16 +215,10 @@ private actor SuspendingActionTelemetryTransport: AppTelemetryTransport {
     private var completed: [String] = []
     private var cancelled: [String] = []
 
-    func sendAppTelemetry(
-        installID: String,
-        eventName: String,
-        licenseState: String,
-        licenseID: String?,
-        appVersion: String,
-        osVersion: String
-    ) async {
+    func sendAppTelemetry(_ payload: AppTelemetryPayload) async {
+        let eventName = payload.eventName.rawValue
         started.append(eventName)
-        guard eventName == "license_activated" else {
+        guard payload.eventName == .licenseActivated else {
             completed.append(eventName)
             return
         }

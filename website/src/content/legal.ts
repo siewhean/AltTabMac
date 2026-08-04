@@ -14,8 +14,8 @@ export const privacyContent = {
       title: "Native app telemetry",
       body: [
         "Optional native-app telemetry is off by default and can be enabled or disabled in CmdTab Settings. When enabled, the app sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",
-        "When enabled, the payload contains a pseudonymous install identifier, event name, license state, license identifier when present, app version, macOS version, and event timestamp.",
-        "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, or search queries.",
+        "When enabled, the payload contains event name, license state without a license identifier, app version, macOS version, and event timestamp. It does not contain an install, device, account, or license identifier.",
+        "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, search queries, tokens, or secrets.",
       ],
     },
     {
@@ -30,7 +30,7 @@ export const privacyContent = {
       title: "How the information is used",
       body: [
         "When accepted, website analytics are used to understand discovery, page performance, trial and purchase journeys, and whether factual product pages answer the questions visitors bring from search and AI-assisted discovery.",
-        "When enabled, app telemetry is used to understand active installations, trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to reconstruct the contents of a user's open windows.",
+        "When enabled, app telemetry is used to understand aggregate trial state, license activation, app versions, macOS versions, and broad product activity. It is not used to count uniquely identifiable installations or reconstruct the contents of a user's open windows.",
       ],
     },
     {
@@ -44,7 +44,7 @@ export const privacyContent = {
       title: "Retention, access, and deletion",
       body: [
         "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
-        "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes or until the associated record is deleted. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
+        "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; native telemetry records are aggregate-only and cannot be linked back to an install or account.",
         "For access, correction, or deletion requests concerning CmdTab-held data, contact support@cmdtab.net and include enough information to locate the relevant beta, support request, or install record.",
       ],
     },

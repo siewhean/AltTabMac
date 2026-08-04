@@ -53,6 +53,22 @@ final class WorkspaceProviderModelTests: XCTestCase {
         XCTAssertEqual(snapshot.stageManagerState, .unknown)
     }
 
+    func testWorkspaceMembershipFailureIsVisibleAndUsesPublicFallback() {
+        let status = WindowWorkspaceProvider.membershipSnapshotFailureStatus()
+        let snapshot = WindowWorkspaceSnapshot.fallback(
+            isOnScreen: true,
+            reason: status.reason ?? "missing status"
+        )
+
+        XCTAssertEqual(status.level, .failed)
+        XCTAssertEqual(
+            status.reason,
+            "SkyLight could not resolve workspace membership; CmdTab is using the public on-screen fallback."
+        )
+        XCTAssertEqual(snapshot.capability.level, .degraded)
+        XCTAssertEqual(snapshot.stageManagerState, .activeSet)
+    }
+
     func testCapabilityFactoriesPreserveReasons() {
         XCTAssertEqual(CapabilityStatus.available.level, .available)
         XCTAssertEqual(CapabilityStatus.degraded("d").reason, "d")

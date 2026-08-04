@@ -594,6 +594,26 @@ final class AppSwitcherActivationTests: XCTestCase {
         )
     }
 
+    func testClassicMembershipFallsOpenWhenSharedExactAXLookupFails() {
+        let lookup = AXWindowIdentityLookup.resolution(
+            symbolAvailable: true,
+            resultCode: -25204,
+            windowID: 77
+        )
+
+        XCTAssertNil(lookup.windowID)
+        let allowedWindowIDs = AppSwitcher.resolvedAllowedWindowIDs(
+            displayWindowIDs: [],
+            preferredWindowIDs: [],
+            hasUnresolvedAXWindowID: lookup.windowID == nil
+        )
+        XCTAssertNil(allowedWindowIDs)
+        XCTAssertTrue(
+            AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: allowedWindowIDs),
+            "A failed exact AX lookup must preserve the classic CG membership fallback."
+        )
+    }
+
     func testSwitcherDisplaySubroleRejectsFloatingPanels() {
         XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole(kAXStandardWindowSubrole as String))
         XCTAssertTrue(AppSwitcher.isSwitcherDisplaySubrole("AXFullScreenWindow"))

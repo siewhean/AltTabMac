@@ -44,6 +44,11 @@ struct AXWindowCatalogSnapshot {
 }
 
 enum AXWindowIdentityLookup {
+    struct Resolution: Equatable {
+        let windowID: CGWindowID?
+        let status: CapabilityStatus
+    }
+
     private typealias GetWindowFn = @convention(c) (
         AXUIElement,
         UnsafeMutablePointer<CGWindowID>
@@ -72,25 +77,48 @@ enum AXWindowIdentityLookup {
     }
 
     static func windowID(for element: AXUIElement) -> CGWindowID? {
-        guard let resolved else { return nil }
+        guard let resolved else {
+            let resolution = Self.resolution(
+                symbolAvailable: false,
+                resultCode: nil,
+                windowID: 0
+            )
+            capabilityStatus.record(resolution.status)
+            return resolution.windowID
+        }
         var windowID: CGWindowID = 0
         let result = resolved(element, &windowID)
-        guard result == 0 else {
-            capabilityStatus.record(
-                NativeCapabilityStatusEvaluator.operationStatus(
-                    symbolAvailable: true,
-                    resultCode: result,
-                    capability: "Exact AX window identity"
-                )
-            )
-            return nil
+        let resolution = Self.resolution(
+            symbolAvailable: true,
+            resultCode: result,
+            windowID: windowID
+        )
+        capabilityStatus.record(resolution.status)
+        return resolution.windowID
+    }
+
+    /// Maps the private bridge outcome to a capability status without exposing
+    /// an AX element to diagnostics or test fixtures.
+    static func resolution(
+        symbolAvailable: Bool,
+        resultCode: Int32?,
+        windowID: CGWindowID
+    ) -> Resolution {
+        let status = NativeCapabilityStatusEvaluator.operationStatus(
+            symbolAvailable: symbolAvailable,
+            resultCode: resultCode,
+            capability: "Exact AX window identity"
+        )
+        guard status.level == .available else {
+            return Resolution(windowID: nil, status: status)
         }
         guard windowID != 0 else {
-            capabilityStatus.record(.failed("Exact AX window identity returned a zero window ID."))
-            return nil
+            return Resolution(
+                windowID: nil,
+                status: .failed("Exact AX window identity returned a zero window ID.")
+            )
         }
-        capabilityStatus.record(.available)
-        return windowID
+        return Resolution(windowID: windowID, status: .available)
     }
 
     static func windowElement(

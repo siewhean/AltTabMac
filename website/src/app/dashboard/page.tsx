@@ -95,7 +95,7 @@ export default async function DashboardPage() {
       : Promise.resolve({
           appActivations7d: 0,
           heartbeats7d: 0,
-          activeInstalls7d: 0,
+          appEvents7d: 0,
           licenseActivations30d: 0,
           latestActivity: undefined,
         }),
@@ -172,7 +172,7 @@ export default async function DashboardPage() {
                 <p>Claimed trials 30d: <span className="text-text">{trialClaimStats.claims30d}</span></p>
                 <p>Active trials: <span className="text-text">{trialClaimStats.active}</span></p>
                 <p>Trial downloads 30d: <span className="text-text">{trialDownloadClicks30d}</span></p>
-                <p>Active installs 7d: <span className="text-text">{appUsageOverview.activeInstalls7d}</span></p>
+                <p>Consented app events 7d: <span className="text-text">{appUsageOverview.appEvents7d}</span></p>
                 <p>Latest app activity: <span className="text-text">{appUsageOverview.latestActivity ? formatSingaporeDateTime(appUsageOverview.latestActivity) : "No app events yet"}</span></p>
               </div>
             </div>

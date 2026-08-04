@@ -52,12 +52,12 @@ export const faqItems = [
   {
     question: "Does CmdTab upload window titles or preview images?",
     answer:
-      "The current native-app telemetry payload does not contain window titles, preview images, screenshots, keystrokes, file names, clipboard contents, or search queries. Preview capture is used to render the local switcher interface.",
+      "The current native-app telemetry payload does not contain install, device, or license identifiers; window titles; preview images; screenshots; keystrokes; file names; clipboard contents; search queries; tokens; or secrets. Preview capture is used to render the local switcher interface.",
   },
   {
     question: "What app telemetry does CmdTab send?",
     answer:
-      "Optional native-app telemetry is off by default. If enabled in Settings, the app sends a pseudonymous install identifier, event name and timestamp, license state and identifier when present, app version, and macOS version. It reports app activation, an hourly heartbeat while running, trial start, and license activation events.",
+      "Optional native-app telemetry is off by default. If enabled in Settings, the app sends event name and timestamp, license state without a license identifier, app version, and macOS version. It reports app activation, an hourly heartbeat while running, trial start, and license activation events without a stable identifier.",
   },
   {
     question: "Does the website use analytics by default?",

@@ -121,15 +121,47 @@ extension CmdTabServerClient {
     }
 }
 
+enum AppTelemetryEventName: String, CaseIterable, Codable, Sendable {
+    case appActivation = "app_activation"
+    case appHeartbeat = "app_heartbeat"
+    case licenseActivated = "license_activated"
+    case trialStarted = "trial_started"
+}
+
+enum AppTelemetryLicenseState: String, CaseIterable, Codable, Sendable {
+    case unregistered
+    case trialActive = "trial_active"
+    case trialExpired = "trial_expired"
+    case licensed
+}
+
+/// The complete, intentionally fixed native telemetry wire contract. It has no
+/// extensibility bag and no stable identifier, so local window data, device
+/// identifiers, tokens, and secrets cannot enter the serialized request.
+struct AppTelemetryPayload: Codable, Equatable, Sendable {
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case eventName
+        case licenseState
+        case appVersion
+        case osVersion
+        case occurredAt
+    }
+
+    let eventName: AppTelemetryEventName
+    let licenseState: AppTelemetryLicenseState
+    let appVersion: String
+    let osVersion: String
+    let occurredAt: Date
+
+    func encodedJSON() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(self)
+    }
+}
+
 protocol AppTelemetryTransport {
-    func sendAppTelemetry(
-        installID: String,
-        eventName: String,
-        licenseState: String,
-        licenseID: String?,
-        appVersion: String,
-        osVersion: String
-    ) async
+    func sendAppTelemetry(_ payload: AppTelemetryPayload) async
 }
 
 @MainActor
@@ -157,14 +189,9 @@ enum CmdTabServerClientError: LocalizedError {
 
 final class LiveCmdTabServerClient: CmdTabServerClient, AppTelemetryTransport {
     private let session: URLSession
-    private let currentDate: () -> Date
 
-    init(
-        session: URLSession = .shared,
-        currentDate: @escaping () -> Date = Date.init
-    ) {
+    init(session: URLSession = .shared) {
         self.session = session
-        self.currentDate = currentDate
     }
 
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord {
@@ -299,26 +326,11 @@ final class LiveCmdTabServerClient: CmdTabServerClient, AppTelemetryTransport {
         return decoded
     }
 
-    func sendAppTelemetry(
-        installID: String,
-        eventName: String,
-        licenseState: String,
-        licenseID: String?,
-        appVersion: String,
-        osVersion: String
-    ) async {
+    func sendAppTelemetry(_ payload: AppTelemetryPayload) async {
         var request = URLRequest(url: LicensingConfiguration.appTelemetryAPIURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        guard let body = try? JSONSerialization.data(withJSONObject: [
-            "installId": installID,
-            "eventName": eventName,
-            "licenseState": licenseState,
-            "licenseId": licenseID.map { $0 as Any } ?? NSNull(),
-            "appVersion": appVersion,
-            "osVersion": osVersion,
-            "occurredAt": ISO8601DateFormatter().string(from: currentDate()),
-        ]) else {
+        guard let body = try? payload.encodedJSON() else {
             return
         }
         request.httpBody = body
@@ -338,7 +350,6 @@ final class AppTelemetryReporter: AppTelemetryReporting {
     typealias HeartbeatSleep = @Sendable () async throws -> Void
 
     private let preferences: TelemetryPreferences
-    private let installIDStore: AppInstallIDStore
     private let transport: AppTelemetryTransport
     private let heartbeatSleep: HeartbeatSleep
     private var heartbeatTask: Task<Void, Never>?
@@ -349,41 +360,37 @@ final class AppTelemetryReporter: AppTelemetryReporting {
 
     init(
         preferences: TelemetryPreferences? = nil,
-        installIDStore: AppInstallIDStore = UserDefaultsAppInstallIDStore(),
         transport: AppTelemetryTransport = LiveCmdTabServerClient(),
         heartbeatSleep: @escaping HeartbeatSleep = {
             try await Task.sleep(nanoseconds: 60 * 60 * 1_000_000_000)
         }
     ) {
         self.preferences = preferences ?? .shared
-        self.installIDStore = installIDStore
         self.transport = transport
         self.heartbeatSleep = heartbeatSleep
     }
 
-    private func installID() -> String {
-        if let existing = installIDStore.loadInstallID(), !existing.isEmpty {
-            return existing
-        }
-        let generated = UUID().uuidString.lowercased()
-        installIDStore.saveInstallID(generated)
-        return generated
+    private func payload(
+        eventName: AppTelemetryEventName,
+        licensingController: LicensingController
+    ) -> AppTelemetryPayload {
+        AppTelemetryPayload(
+            eventName: eventName,
+            licenseState: licensingController.telemetryLicenseState,
+            appVersion: licensingController.appVersion,
+            osVersion: licensingController.osVersion,
+            occurredAt: Date()
+        )
     }
 
     func startSession(licensingController: LicensingController) {
         guard preferences.isEnabled, !hasActiveSession else { return }
 
-        let installID = installID()
         hasActiveSession = true
         sessionActivationTask = Task { [weak self] in
             guard let self, self.preferences.isEnabled else { return }
             await transport.sendAppTelemetry(
-                installID: installID,
-                eventName: "app_activation",
-                licenseState: licensingController.telemetryLicenseState,
-                licenseID: licensingController.currentLicenseID,
-                appVersion: licensingController.appVersion,
-                osVersion: licensingController.osVersion
+                self.payload(eventName: .appActivation, licensingController: licensingController)
             )
         }
 
@@ -397,12 +404,7 @@ final class AppTelemetryReporter: AppTelemetryReporting {
                 }
                 guard !Task.isCancelled, preferences.isEnabled else { break }
                 await transport.sendAppTelemetry(
-                    installID: installID,
-                    eventName: "app_heartbeat",
-                    licenseState: licensingController.telemetryLicenseState,
-                    licenseID: licensingController.currentLicenseID,
-                    appVersion: licensingController.appVersion,
-                    osVersion: licensingController.osVersion
+                    self.payload(eventName: .appHeartbeat, licensingController: licensingController)
                 )
             }
         }
@@ -428,19 +430,18 @@ final class AppTelemetryReporter: AppTelemetryReporting {
     }
 
     func trackLicenseActivation(licensingController: LicensingController) {
-        trackAction("license_activated", licensingController: licensingController)
+        trackAction(.licenseActivated, licensingController: licensingController)
     }
 
     func trackTrialStarted(licensingController: LicensingController) {
-        trackAction("trial_started", licensingController: licensingController)
+        trackAction(.trialStarted, licensingController: licensingController)
     }
 
     private func trackAction(
-        _ eventName: String,
+        _ eventName: AppTelemetryEventName,
         licensingController: LicensingController
     ) {
         guard preferences.isEnabled else { return }
-        let installID = installID()
         let taskID = UUID()
         let task = Task { [weak self] in
             guard let self else { return }
@@ -449,12 +450,7 @@ final class AppTelemetryReporter: AppTelemetryReporting {
                 return
             }
             await transport.sendAppTelemetry(
-                installID: installID,
-                eventName: eventName,
-                licenseState: licensingController.telemetryLicenseState,
-                licenseID: licensingController.currentLicenseID,
-                appVersion: licensingController.appVersion,
-                osVersion: licensingController.osVersion
+                self.payload(eventName: eventName, licensingController: licensingController)
             )
             self.actionTaskDidComplete(taskID)
         }

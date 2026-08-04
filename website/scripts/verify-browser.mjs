@@ -840,12 +840,11 @@ try {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          installId: "install_test_123",
           eventName: "app_activation",
           licenseState: "unregistered",
-          licenseId: null,
           appVersion: "1.0.0",
           osVersion: "macOS 15.5",
+          occurredAt: "2026-08-04T12:00:00Z",
         }),
       }).then((response) => response.status),
       fetch("/api/analytics", {

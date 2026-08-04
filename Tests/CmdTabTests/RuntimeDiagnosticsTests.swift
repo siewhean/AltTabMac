@@ -2,6 +2,34 @@ import XCTest
 @testable import CmdTab
 
 final class RuntimeDiagnosticsTests: XCTestCase {
+    func testSanitizedDiagnosticsExposeExactIdentityCapabilityState() {
+        let snapshot = ProductionDiagnosticsSnapshot(
+            accessibilityReady: true,
+            screenRecordingReady: true,
+            secureInput: .unavailable("Secure Event Input state is unavailable on this macOS build; CmdTab relies on event-tap disable behaviour."),
+            exactIdentity: .failed("Exact AX window identity failed with result -25204."),
+            hardwarePreview: .available,
+            exactFocus: .available,
+            workspace: .available,
+            enabledProfileCount: 1,
+            profileValidationIssues: [],
+            durableRecordCount: 0,
+            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json",
+            runtimeCounters: RuntimeDiagnostics().snapshot()
+        )
+
+        XCTAssertTrue(
+            snapshot.sanitizedReport.contains(
+                "exactWindowIdentity=failed:Exact AX window identity failed with result -25204."
+            )
+        )
+        XCTAssertTrue(
+            snapshot.sanitizedReport.contains(
+                "secureInput=unavailable:Secure Event Input state is unavailable on this macOS build; CmdTab relies on event-tap disable behaviour."
+            )
+        )
+    }
+
     func testSnapshotUsesFixedAggregateCountersOnly() {
         let diagnostics = RuntimeDiagnostics()
 

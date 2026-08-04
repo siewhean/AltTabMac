@@ -132,6 +132,26 @@ const migration = read("db/migrations/001_commerce_lifecycle.sql");
 assert.match(migration, /create table if not exists ingest_rate_limits/);
 assert.match(migration, /create table if not exists request_deduplication/);
 
+const appTelemetryRoute = read("src/app/api/app-telemetry/route.ts");
+const appTelemetryContract = read("src/lib/app-telemetry-contract.ts");
+const appUsageStore = read("src/lib/app-usage-store.ts");
+const appTelemetryMigration = read("db/migrations/002_app_usage_aggregate_only.sql");
+assert.match(appTelemetryRoute, /isAllowedIngestRequest\(request\)/);
+assert.match(appTelemetryRoute, /enforceIngestRateLimit\(request, "app-telemetry"\)/);
+assert.match(appTelemetryRoute, /parseAppTelemetryPayload\(/);
+assert.match(appTelemetryRoute, /recordAppUsageEvent\(payload\)/);
+assert.doesNotMatch(appTelemetryRoute, /installId|licenseId|metadata/);
+assert.match(appTelemetryContract, /\)\.strict\(\)/);
+assert.doesNotMatch(
+  appTelemetryContract,
+  /^\s*(?:installId|licenseId|deviceId|metadata)\s*:/m,
+  "the parsed native telemetry object must not accept an identifier or extensibility field",
+);
+assert.doesNotMatch(appUsageStore, /input\.installId|input\.licenseId|install_id\)/);
+assert.match(appUsageStore, /count\(\*\) filter \(/);
+assert.match(appTelemetryMigration, /update app_usage_events set install_id = null/);
+assert.match(appTelemetryMigration, /update app_usage_events set license_id = null/);
+
 const auth0 = read("src/lib/auth0-oidc.ts");
 assert.doesNotMatch(auth0, /acr.*includes\(/);
 

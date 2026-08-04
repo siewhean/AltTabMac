@@ -7,8 +7,8 @@
 | Candidate baseline | `dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407` |
 | Intended tag | `v1.0.0-beta.N` only |
 | Public-beta decision | BLOCKED |
-| Baseline architecture / minimum OS | universal-arm64-x86_64 / macOS 13.0+ |
-| Public-beta target architecture | arm64 only; Gate 1 must commit and verify it |
+| Baseline architecture / minimum OS | arm64 only / macOS 13.0+ |
+| Public-beta target architecture | arm64 only; Intel is unsupported |
 | Commerce state | Disabled: `CMDTAB_REQUIRE_COMMERCE_READY` unset or not `1` |
 | Stable release state | No stable DMG, manifest, or appcast publication |
 
@@ -26,6 +26,16 @@
 | Deployment | No candidate-bound Vercel deployment evidence retained in this gate | NOT TESTED |
 | Signing/mail/clean machines | Credentials, verified support mailbox, and clean-machine evidence absent | BLOCKED / NOT TESTED |
 
+## Executed-CI refresh - historical `616a78f`
+
+The draft PR #49 candidate `616a78fd1f29716c2d0183dc8aff792d58d5b1f7`
+had actual, non-zero-step passes for macOS 14/15, Security, SEO/GEO, Release
+Readiness, Workflow Health, Audit Source Export, and Vercel. Its website and
+native repository checks are useful historical evidence only: the current Gate
+2/Gate 5 correction creates a new candidate SHA that must receive its own
+executed checks. This record does not authorize signing, publication, commerce,
+or a beta download.
+
 **Gate 0 status:** **PASS (repository governance only).** Its dedicated commit
 contains the reconciled ledger, runbooks, matrices, and evidence index. The
 independent documentation review on 2026-08-01 corrected baseline architecture,
@@ -40,6 +50,8 @@ remain blocked or not tested; this is not evidence that any launch gate passed.
   packaging at `516a9476...`; it is not signed-beta evidence.
 - [`../five-feature-suite/`](../five-feature-suite/) is feature evidence, not
   a signed artifact, clean-machine, or release-operations acceptance record.
+- The Gate 0 zero-step CI row above is a 2026-08-01 historical observation,
+  not a description of restored Actions capacity or a current candidate result.
 
 ## Required per-gate record
 

@@ -27,10 +27,10 @@ security certification. The canonical beta gate is
 - `CMDTAB_REQUIRE_COMMERCE_READY != 1` is mandatory for this beta. It must
   keep checkout hidden, return `503 commerce_disabled` from the webhook, and
   make outbox workers no-op before configuration/database access.
-- Existing `SECURITY.md` legitimately retains the personal disclosure channel
-  until a domain mailbox is verified. `support@cmdtab.net` is required before a
-  public beta can be published; do not claim it is live before send-and-reply
-  evidence exists.
+- `SECURITY.md` names `support@cmdtab.net` as the private disclosure channel.
+  The mailbox still requires inbound/outbound send-and-reply and monitoring
+  evidence before a public beta can be published; do not claim that operation
+  is live before it is tested.
 - The old checklist's statements that authentication, sessions, webhooks, and
   database controls were out of scope are stale. Their implementation and
   deployment contracts are in scope even when production is deliberately
@@ -46,6 +46,10 @@ security certification. The canonical beta gate is
 - Dynamic SkyLight/AX/front-process outcomes now report observable capability
   state and explicit degraded/failure diagnostics without changing protected
   routing or activation verification.
+- Opt-in native telemetry has a fixed aggregate-only payload with no stable
+  identifier, local window content, token, secret, or metadata field. The
+  privacy manifest is package- and bundle-verified; its final signed-artifact
+  applicability still needs Gate 2 review.
 - Public beta copy has no checkout/offer schema or current purchase promise and
   uses `support@cmdtab.net`; mailbox verification is still external.
 

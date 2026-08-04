@@ -82,14 +82,23 @@ the beta cannot accidentally take payment.
 
 ## Privacy manifest decision
 
-The 2026-08-01 review of Apple's privacy-manifest guidance records that
-collected-data declarations span Apple platforms, while required-reason API
-declarations identify iOS-family platforms. CmdTab is direct Developer-ID
-distribution, not an App Store Connect submission; no manifest is currently
-packaged. Before Gate 3, recheck the current Apple guidance against the chosen
-SDK and every bundled dependency. If a manifest becomes applicable, package it
-under `Contents/Resources`, declare only verified collection/use, and bind it
-to the signed artifact evidence.
+The 2026-08-04 review uses Apple's [privacy-manifest guidance](https://developer.apple.com/documentation/bundleresources/privacy-manifest-files),
+[macOS bundle placement guidance](https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk),
+and [required-reason API guidance](https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
+Collected-data declarations are relevant across Apple platforms; Apple documents
+required-reason API declarations and App Store Connect enforcement separately
+for the listed iOS-family distribution paths. Direct Developer-ID distribution
+does not remove the need for a truthful bundle decision.
+
+CmdTab therefore packages `Resources/PrivacyInfo.xcprivacy` into
+`Contents/Resources/PrivacyInfo.xcprivacy` and validates it during packaging
+and bundle verification. It declares opt-in, aggregate-only native telemetry:
+event name/time, license state without a license identifier, app version, and
+macOS version. It declares no tracking and no unreviewed required-reason API.
+The native/server contract is closed to identifiers, local window content,
+previews, screenshots, tokens, secrets, and metadata. Before Gate 3, recheck
+the final SDK and every embedded dependency against current Apple guidance and
+bind the exact signed bundle and manifest hash to the evidence record.
 
 ## Known beta limitations
 

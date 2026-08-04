@@ -1,35 +1,24 @@
 import { randomUUID } from "node:crypto";
 
+import type { AppTelemetryEventInput } from "@/lib/app-telemetry-contract";
 import { getSql, isDatabaseConfigured } from "@/lib/postgres";
 
 type AppUsageRow = {
   id: string;
-  install_id: string;
   event_name: string;
   license_state: string;
-  license_id: string | null;
-  app_version: string | null;
-  os_version: string | null;
-  metadata: Record<string, unknown> | null;
+  app_version: string;
+  os_version: string;
   occurred_at: string;
   created_at: string;
 };
 
-export type AppUsageEventInput = {
-  installId: string;
-  eventName: "app_activation" | "app_heartbeat" | "license_activated" | "trial_started";
-  licenseState: "unregistered" | "trial_active" | "trial_expired" | "licensed";
-  licenseId?: string;
-  appVersion?: string;
-  osVersion?: string;
-  metadata?: Record<string, unknown>;
-  occurredAt?: string;
-};
+export type AppUsageEventInput = AppTelemetryEventInput;
 
 export type AppUsageOverview = {
   appActivations7d: number;
   heartbeats7d: number;
-  activeInstalls7d: number;
+  appEvents7d: number;
   licenseActivations30d: number;
   latestActivity?: string;
 };
@@ -47,13 +36,10 @@ async function ensureSchema() {
   await sql`
     create table if not exists app_usage_events (
       id text primary key,
-      install_id text not null,
       event_name text not null,
       license_state text not null,
-      license_id text,
-      app_version text,
-      os_version text,
-      metadata jsonb,
+      app_version text not null,
+      os_version text not null,
       occurred_at timestamptz not null,
       created_at timestamptz not null default now()
     )
@@ -62,6 +48,36 @@ async function ensureSchema() {
   await sql`
     create index if not exists app_usage_events_occurred_at_idx
       on app_usage_events (occurred_at desc)
+  `;
+
+  // Older deployments used these columns for stable identifiers. Keep the
+  // columns only for safe application rollback, but make every stored value
+  // anonymous before accepting the v2 aggregate-only payload.
+  await sql`
+    do $$
+    begin
+      if exists (
+        select 1
+        from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'app_usage_events'
+          and column_name = 'install_id'
+      ) then
+        alter table app_usage_events alter column install_id drop not null;
+        update app_usage_events set install_id = null where install_id is not null;
+      end if;
+
+      if exists (
+        select 1
+        from information_schema.columns
+        where table_schema = current_schema()
+          and table_name = 'app_usage_events'
+          and column_name = 'license_id'
+      ) then
+        update app_usage_events set license_id = null where license_id is not null;
+      end if;
+    end
+    $$;
   `;
 
   await sql`
@@ -76,30 +92,23 @@ export async function recordAppUsageEvent(input: AppUsageEventInput) {
   if (!isDatabaseConfigured()) return null;
   await ensureSchema();
   const sql = getSql();
-  const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
-  const safeOccurredAt = Number.isNaN(occurredAt.getTime()) ? new Date() : occurredAt;
+  const occurredAt = new Date(input.occurredAt);
 
   const [row] = await sql<AppUsageRow[]>`
     insert into app_usage_events (
       id,
-      install_id,
       event_name,
       license_state,
-      license_id,
       app_version,
       os_version,
-      metadata,
       occurred_at
     ) values (
       ${randomUUID()},
-      ${input.installId.trim()},
       ${input.eventName},
       ${input.licenseState},
-      ${input.licenseId?.trim() || null},
-      ${input.appVersion?.trim() || null},
-      ${input.osVersion?.trim() || null},
-      ${input.metadata ? sql.json(JSON.parse(JSON.stringify(input.metadata))) : null},
-      ${safeOccurredAt.toISOString()}
+      ${input.appVersion},
+      ${input.osVersion},
+      ${occurredAt.toISOString()}
     )
     returning *
   `;
@@ -112,7 +121,7 @@ export async function getAppUsageOverview() {
     return {
       appActivations7d: 0,
       heartbeats7d: 0,
-      activeInstalls7d: 0,
+      appEvents7d: 0,
       licenseActivations30d: 0,
       latestActivity: undefined,
     } satisfies AppUsageOverview;
@@ -124,7 +133,7 @@ export async function getAppUsageOverview() {
     {
       app_activations_7d: number;
       heartbeats_7d: number;
-      active_installs_7d: number;
+      app_events_7d: number;
       license_activations_30d: number;
       latest_activity: string | null;
     }[]
@@ -138,9 +147,9 @@ export async function getAppUsageOverview() {
         where event_name = 'app_heartbeat'
           and occurred_at >= now() - interval '7 days'
       )::int as heartbeats_7d,
-      count(distinct install_id) filter (
+      count(*) filter (
         where occurred_at >= now() - interval '7 days'
-      )::int as active_installs_7d,
+      )::int as app_events_7d,
       count(*) filter (
         where event_name = 'license_activated'
           and occurred_at >= now() - interval '30 days'
@@ -152,7 +161,7 @@ export async function getAppUsageOverview() {
   return {
     appActivations7d: row?.app_activations_7d ?? 0,
     heartbeats7d: row?.heartbeats_7d ?? 0,
-    activeInstalls7d: row?.active_installs_7d ?? 0,
+    appEvents7d: row?.app_events_7d ?? 0,
     licenseActivations30d: row?.license_activations_30d ?? 0,
     latestActivity: row?.latest_activity ?? undefined,
   } satisfies AppUsageOverview;

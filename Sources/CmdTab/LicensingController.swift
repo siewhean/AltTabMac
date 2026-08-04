@@ -409,16 +409,16 @@ final class LicensingController: ObservableObject {
         return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 
-    var telemetryLicenseState: String {
+    var telemetryLicenseState: AppTelemetryLicenseState {
         switch status {
         case .unregistered:
-            return "unregistered"
+            return .unregistered
         case .activeTrial:
-            return "trial_active"
+            return .trialActive
         case .expired:
-            return "trial_expired"
+            return .trialExpired
         case .licensed:
-            return "licensed"
+            return .licensed
         }
     }
 

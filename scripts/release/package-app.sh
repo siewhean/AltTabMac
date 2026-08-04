@@ -6,6 +6,7 @@ CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 BUILD_TOOL="${ROOT_DIR}/scripts/release/build-app.sh"
 VERIFY_TOOL="${ROOT_DIR}/scripts/release/verify-bundle.sh"
 MANIFEST_TOOL="${ROOT_DIR}/scripts/release/write-bundle-manifest.py"
+PRIVACY_MANIFEST_VERIFIER="${ROOT_DIR}/scripts/release/verify-privacy-manifest.py"
 OUTPUT_APP="${CMDTAB_OUTPUT_APP:-${ROOT_DIR}/dist/CmdTab.app}"
 SKIP_SIGN="${CMDTAB_SKIP_ADHOC_SIGN:-0}"
 SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"
@@ -44,6 +45,7 @@ for tool in python3 plutil codesign xattr shasum ditto; do
 done
 
 python3 "${CONFIG_TOOL}" verify-repository
+python3 "${PRIVACY_MANIFEST_VERIFIER}" "${ROOT_DIR}/Resources/PrivacyInfo.xcprivacy"
 
 APP_NAME="$(python3 "${CONFIG_TOOL}" get appName)"
 EXECUTABLE_NAME="$(python3 "${CONFIG_TOOL}" get executableName)"
@@ -95,6 +97,7 @@ SPARKLE_FRAMEWORK="$(dirname "${BINARY_PATH}")/Sparkle.framework"
 ditto "${SPARKLE_FRAMEWORK}" "${STAGE_APP}/Contents/Frameworks/Sparkle.framework"
 python3 "${CONFIG_TOOL}" render-info-plist "${STAGE_APP}/Contents/Info.plist"
 install -m 0644 "${ROOT_DIR}/Resources/${ICON_FILE}.icns" "${STAGE_APP}/Contents/Resources/${ICON_FILE}.icns"
+install -m 0644 "${ROOT_DIR}/Resources/PrivacyInfo.xcprivacy" "${STAGE_APP}/Contents/Resources/PrivacyInfo.xcprivacy"
 if [[ -f "${ROOT_DIR}/Resources/${ICON_FILE}.png" ]]; then
   install -m 0644 "${ROOT_DIR}/Resources/${ICON_FILE}.png" "${STAGE_APP}/Contents/Resources/${ICON_FILE}.png"
 fi

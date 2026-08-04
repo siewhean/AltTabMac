@@ -40,14 +40,13 @@ export const productFacts = {
       "Optional app telemetry is off by default. If enabled, an activation event is sent when the app starts, followed by an hourly heartbeat while it remains running.",
     events: ["App activation", "Hourly heartbeat", "Trial started", "License activated"],
     fields: [
-      "Pseudonymous install identifier",
       "Event name and timestamp",
-      "License state and license identifier when present",
+      "License state without a license identifier",
       "App version",
       "macOS version",
     ],
     excluded:
-      "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, or search queries.",
+      "The current native-app telemetry payload does not contain install, device, or license identifiers; window titles; window previews; screenshots; keystrokes; file names; clipboard contents; search queries; tokens; or secrets.",
   },
   contactEmail: siteConfig.contactEmail,
 } as const;
