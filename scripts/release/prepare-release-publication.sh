@@ -50,6 +50,15 @@ if [[ -n "${BETA_VERSION}" ]]; then
   APPCAST_NAME="beta-appcast.xml"
 fi
 
+CONFIG_VERSION="$(python3 "${ROOT_DIR}/scripts/release/release_config.py" get marketingVersion)"
+if [[ "${CHANNEL}" == "beta" ]]; then
+  BETA_BASE_VERSION="${BETA_VERSION%-beta.*}"
+  [[ "${BETA_BASE_VERSION}" == "${CONFIG_VERSION}" ]] || {
+    echo "Beta publication version must use ReleaseConfig marketingVersion (${CONFIG_VERSION}) as its x.y.z base." >&2
+    exit 1
+  }
+fi
+
 if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then
   CURRENT_SHA="$(git -C "${ROOT_DIR}" rev-parse HEAD)"
   [[ "${SOURCE_SHA}" == "${CURRENT_SHA}" ]] || {

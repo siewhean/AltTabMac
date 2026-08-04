@@ -9,6 +9,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlparse
 
+from release_manifest import bundle_version_for_manifest, validate_manifest
+
 SPARKLE = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 
 
@@ -20,6 +22,12 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise SystemExit("release manifest root must be an object")
+    try:
+        validate_manifest(manifest)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     channel = manifest.get("channel")
     if channel not in {"stable", "beta"}:
         raise SystemExit("release manifest channel must be stable or beta")
@@ -32,6 +40,8 @@ def main() -> None:
     if len(matching) != 1:
         raise SystemExit("appcast must contain exactly one item for the manifest build")
     item = matching[0]
+    if item.findtext(f"{{{SPARKLE}}}shortVersionString") != bundle_version_for_manifest(manifest):
+        raise SystemExit("appcast short version does not match the bundled marketing version")
     item_channel = item.findtext(f"{{{SPARKLE}}}channel")
     if channel == "stable" and item_channel is not None:
         raise SystemExit("stable update item must use Sparkle's default channel")

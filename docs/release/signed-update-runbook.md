@@ -37,7 +37,11 @@ and this beta does not support Intel execution.
 ## Prepare beta update metadata
 
 The immutable DMG URL must include the exact 40-character source SHA and end in
-`CmdTab-{version}-{build}.dmg`.
+`CmdTab-{version}-{build}.dmg`. Before signing, set `ReleaseConfig.json` and
+the rendered bundle to the intended three-integer Apple marketing version and
+build (for example `1.0.0` and `1`). `--beta` identifies the prerelease
+(`1.0.0-beta.N`) and must use that bundled marketing version as its base. The
+publication command mounts and verifies the DMG before it writes any metadata.
 
 ```bash
 ./scripts/release/prepare-release-publication.sh --beta 1.0.0-beta.1 \
@@ -48,12 +52,13 @@ The immutable DMG URL must include the exact 40-character source SHA and end in
   previous-beta.json
 ```
 
-The command verifies bytes and SHA-256, rejects an equal or lower build than the
+The command verifies the mounted app's `CFBundleShortVersionString` base and
+`CFBundleVersion`, bytes and SHA-256, rejects an equal or lower build than the
 published beta manifest, generates EdDSA enclosure and feed signatures, and
-validates the beta appcast against the manifest. `--beta` is required and must
-use `x.y.z-beta.N`; it emits `beta.json` and `beta-appcast.xml`. Omitting
-`--beta` preserves the stable-only command for GA and emits `stable.json` and
-`appcast.xml`.
+validates both the appcast build and bundled marketing version against the
+manifest. `--beta` is required and must use `x.y.z-beta.N`; it emits `beta.json` and
+`beta-appcast.xml`. Omitting `--beta` preserves the stable-only command for GA
+and emits `stable.json` and `appcast.xml`.
 
 Publish only in this order:
 

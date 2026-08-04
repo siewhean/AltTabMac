@@ -8,6 +8,7 @@ import datetime as dt
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -25,6 +26,19 @@ APPCAST_URLS = {
 }
 
 
+def bundle_version_for_manifest(manifest: dict[str, object]) -> str:
+    """Return the bundle marketing version bound by one manifest.
+
+    Beta labels identify a release stream, while macOS bundle short versions
+    remain Apple's three-integer marketing version.  The build number provides
+    the monotonic update identity within that beta stream.
+    """
+    version = str(manifest["version"])
+    if manifest["channel"] == "beta":
+        return version.rsplit("-beta.", 1)[0]
+    return version
+
+
 def file_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -40,6 +54,31 @@ def https_url(value: str, name: str) -> str:
     if parsed.query or parsed.fragment:
         raise ValueError(f"{name} must not contain a query or fragment")
     return value
+
+
+def verify_beta_dmg_identity(
+    artifact: Path,
+    *,
+    version: str,
+    build: int,
+) -> None:
+    """Bind beta metadata creation to the mounted signed app before output."""
+    verifier = ROOT / "scripts" / "release" / "verify-notarized-dmg.sh"
+    result = subprocess.run(
+        [
+            str(verifier),
+            str(artifact),
+            "--expected-version", version,
+            "--expected-build", str(build),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip()
+        suffix = f": {detail}" if detail else ""
+        raise ValueError(f"beta DMG identity verification failed{suffix}")
 
 
 def validate_manifest(
@@ -102,19 +141,47 @@ def validate_manifest(
 
 def create_manifest(args: argparse.Namespace) -> dict[str, object]:
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    bundle_version = str(config["marketingVersion"])
+    bundle_build = int(config["buildNumber"])
     source_sha = args.source_sha.lower()
     if not SHA_PATTERN.fullmatch(source_sha):
         raise ValueError("source SHA must be exactly 40 lowercase hexadecimal characters")
     artifact = args.dmg.resolve()
     if not artifact.is_file() or artifact.stat().st_size < 1:
         raise ValueError("DMG artifact is missing or empty")
-    if args.channel == "beta" and not args.version:
-        raise ValueError("beta manifest creation requires --version x.y.z-beta.N")
+    release_version = args.version or bundle_version
+    if args.channel == "beta":
+        if not args.version:
+            raise ValueError("beta manifest creation requires --version x.y.z-beta.N")
+        if not VERSION_PATTERNS["beta"].fullmatch(release_version):
+            raise ValueError(
+                "beta manifest creation requires --version x.y.z-beta.N"
+            )
+        if not VERSION_PATTERNS["stable"].fullmatch(bundle_version):
+            raise ValueError(
+                "beta manifest creation requires ReleaseConfig marketingVersion "
+                "to use Apple's x.y.z bundle format"
+            )
+        if bundle_version_for_manifest({"channel": "beta", "version": release_version}) != bundle_version:
+            raise ValueError(
+                "beta manifest version must use the configured bundled "
+                f"CFBundleShortVersionString ({bundle_version}) as its x.y.z base"
+            )
+        verify_beta_dmg_identity(
+            artifact,
+            version=bundle_version,
+            build=bundle_build,
+        )
+    elif args.version is not None and release_version != bundle_version:
+        raise ValueError(
+            "stable manifest version must match the configured bundled "
+            "CFBundleShortVersionString"
+        )
     manifest: dict[str, object] = {
         "schemaVersion": 1,
         "channel": args.channel,
-        "version": args.version or config["marketingVersion"],
-        "build": int(config["buildNumber"]),
+        "version": release_version,
+        "build": bundle_build,
         "minimumMacOS": config["minimumSystemVersion"],
         "dmgURL": args.dmg_url,
         "bytes": artifact.stat().st_size,

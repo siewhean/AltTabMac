@@ -12,11 +12,6 @@ if [[ -z "${DMG_PATH}" || -z "${MANIFEST_PATH}" || -z "${OUTPUT_PATH}" ]]; then
   exit 2
 fi
 
-"${ROOT_DIR}/scripts/release/verify-notarized-dmg.sh" "${DMG_PATH}"
-
-python3 "${ROOT_DIR}/scripts/release/release_manifest.py" \
-  validate "${MANIFEST_PATH}" --artifact "${DMG_PATH}"
-
 GENERATE_APPCAST="${CMDTAB_GENERATE_APPCAST:-${ROOT_DIR}/.build/artifacts/sparkle/Sparkle/bin/generate_appcast}"
 SIGN_UPDATE="${CMDTAB_SIGN_UPDATE:-${ROOT_DIR}/.build/artifacts/sparkle/Sparkle/bin/sign_update}"
 [[ -x "${GENERATE_APPCAST}" ]] || { echo "Missing Sparkle generate_appcast tool" >&2; exit 1; }
@@ -34,7 +29,24 @@ trap cleanup EXIT
 DMG_NAME="$(python3 -c 'import json,sys,urllib.parse; print(urllib.parse.urlparse(json.load(open(sys.argv[1]))["dmgURL"]).path.rsplit("/",1)[-1])' "${MANIFEST_PATH}")"
 DOWNLOAD_PREFIX="$(python3 -c 'import json,sys; value=json.load(open(sys.argv[1]))["dmgURL"]; print(value.rsplit("/",1)[0] + "/")' "${MANIFEST_PATH}")"
 BUILD_NUMBER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build"])' "${MANIFEST_PATH}")"
+RELEASE_VERSION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "${MANIFEST_PATH}")"
 CHANNEL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["channel"])' "${MANIFEST_PATH}")"
+MARKETING_VERSION="${RELEASE_VERSION}"
+if [[ "${CHANNEL}" == "beta" ]]; then
+  MARKETING_VERSION="${RELEASE_VERSION%-beta.*}"
+fi
+
+# Re-check the actual mounted app for direct callers as well as the publication
+# wrapper. A signed DMG and a valid manifest are insufficient if their bundle
+# version or build identities differ.
+"${ROOT_DIR}/scripts/release/verify-notarized-dmg.sh" \
+  "${DMG_PATH}" \
+  --expected-version "${MARKETING_VERSION}" \
+  --expected-build "${BUILD_NUMBER}"
+
+python3 "${ROOT_DIR}/scripts/release/release_manifest.py" \
+  validate "${MANIFEST_PATH}" --artifact "${DMG_PATH}"
+
 cp "${DMG_PATH}" "${TEMP_ROOT}/${DMG_NAME}"
 
 GENERATE_ARGUMENTS=(

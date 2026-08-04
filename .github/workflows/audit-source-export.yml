@@ -4,13 +4,9 @@ on:
   push:
     branches:
       - release/public-release-readiness
-    paths:
-      - .github/workflows/audit-source-export.yml
   pull_request:
     branches:
       - main
-    paths:
-      - .github/workflows/audit-source-export.yml
 
 permissions:
   contents: read
@@ -24,13 +20,20 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 1
+          persist-credentials: false
+          # PR workflows otherwise default to GitHub's temporary merge ref.
+          # The retained audit archive must bind to the submitted candidate SHA.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Create tracked-source archive
         shell: bash
+        env:
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          git archive --format=zip --output="/tmp/AltTabMac-source-${GITHUB_SHA}.zip" HEAD
-          shasum -a 256 "/tmp/AltTabMac-source-${GITHUB_SHA}.zip"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          git archive --format=zip --output="/tmp/AltTabMac-source-${CANDIDATE_SHA}.zip" HEAD
+          shasum -a 256 "/tmp/AltTabMac-source-${CANDIDATE_SHA}.zip"
 
       - name: Upload private audit source archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

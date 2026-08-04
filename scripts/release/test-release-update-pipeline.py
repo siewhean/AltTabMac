@@ -6,11 +6,14 @@ import importlib.util
 import json
 import os
 import plistlib
+import re
 import shutil
 import subprocess
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_SPEC = importlib.util.spec_from_file_location(
@@ -90,6 +93,23 @@ class ReleaseManifestTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+        release_config = release_dir / "release_config.py"
+        release_config.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import os, sys",
+                    'values = {"marketingVersion": os.environ["CMDTAB_TEST_CONFIG_VERSION"], "buildNumber": os.environ["CMDTAB_TEST_CONFIG_BUILD"]}',
+                    'if sys.argv[1:] and sys.argv[1] == "get" and sys.argv[2] in values:',
+                    "    print(values[sys.argv[2]])",
+                    "    raise SystemExit(0)",
+                    "raise SystemExit(2)",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
         appcast = release_dir / "generate-signed-appcast.sh"
         appcast.write_text(
             "\n".join(
@@ -108,6 +128,10 @@ class ReleaseManifestTests(unittest.TestCase):
         environment.update(
             {
                 "CMDTAB_ALLOW_TEST_SOURCE_SHA": "1",
+                "CMDTAB_TEST_CONFIG_VERSION": "1.0.0",
+                "CMDTAB_TEST_CONFIG_BUILD": "1",
+                "CMDTAB_TEST_PACKAGED_VERSION": "1.0.0",
+                "CMDTAB_TEST_PACKAGED_BUILD": "1",
                 "CMDTAB_TEST_MANIFEST_ARGS": str(root / "manifest-args.json"),
                 "CMDTAB_TEST_APPCAST_ARGS": str(root / "appcast-args.txt"),
             }
@@ -163,6 +187,25 @@ class ReleaseManifestTests(unittest.TestCase):
                 "docs/secrets-management.md"
             )
         )
+
+    def test_candidate_security_and_audit_workflows_cover_every_source_change(self) -> None:
+        self.assertEqual(
+            verify_workflow_actions.candidate_workflow_coverage_failures(),
+            [],
+        )
+        for filename in verify_workflow_actions.CANDIDATE_WORKFLOWS:
+            lines = (
+                ROOT / ".github" / "workflows" / filename
+            ).read_text(encoding="utf-8").splitlines()
+            for event in ("push", "pull_request"):
+                block = verify_workflow_actions.workflow_event_block(lines, event)
+                self.assertIsNotNone(block)
+                self.assertFalse(
+                    any(
+                        line.strip().startswith(("paths:", "paths-ignore:"))
+                        for line in block or []
+                    )
+                )
 
     def test_release_signing_requires_clean_untracked_state_and_notarized_dmg(self) -> None:
         notarized_build = (
@@ -220,8 +263,12 @@ class ReleaseManifestTests(unittest.TestCase):
             )
             self.assertNotIn("--channel", stable_arguments)
             self.assertNotIn("--version", stable_arguments)
-
             beta_output = root / "beta-output"
+            beta_environment = {
+                **environment,
+                "CMDTAB_TEST_CONFIG_VERSION": "1.0.0",
+                "CMDTAB_TEST_PACKAGED_VERSION": "1.0.0",
+            }
             beta = subprocess.run(
                 [
                     "bash", str(publication), "--beta", "1.0.0-beta.7", str(dmg),
@@ -230,7 +277,7 @@ class ReleaseManifestTests(unittest.TestCase):
                 ],
                 capture_output=True,
                 text=True,
-                env=environment,
+                env=beta_environment,
             )
             self.assertEqual(beta.returncode, 0, beta.stderr)
             self.assertTrue((beta_output / "beta.json").is_file())
@@ -249,13 +296,44 @@ class ReleaseManifestTests(unittest.TestCase):
                 "1.0.0-beta.7",
             )
             self.assertEqual(
-                Path(environment["CMDTAB_TEST_APPCAST_ARGS"])
+                Path(beta_environment["CMDTAB_TEST_APPCAST_ARGS"])
                 .read_text(encoding="utf-8")
                 .splitlines()[1:],
                 [
                     str(beta_output / "beta.json"),
                     str(beta_output / "beta-appcast.xml"),
                 ],
+            )
+
+    def test_publication_wrapper_rejects_beta_version_before_writing_metadata(self) -> None:
+        source_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            publication, environment = self.publication_harness(root)
+            dmg = root / "CmdTab.dmg"
+            dmg.write_bytes(b"test")
+            beta_environment = {
+                **environment,
+                "CMDTAB_TEST_CONFIG_VERSION": "1.0.1",
+                "CMDTAB_TEST_PACKAGED_VERSION": "1.0.1",
+            }
+            rejected = subprocess.run(
+                [
+                    "bash", str(publication), "--beta", "1.0.0-beta.8", str(dmg),
+                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.8-1.dmg",
+                    source_sha, str(root / "output"),
+                ],
+                capture_output=True,
+                text=True,
+                env=beta_environment,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("must use ReleaseConfig marketingVersion", rejected.stderr)
+            self.assertFalse(
+                Path(beta_environment["CMDTAB_TEST_MANIFEST_ARGS"]).exists()
+            )
+            self.assertFalse(
+                Path(beta_environment["CMDTAB_TEST_APPCAST_ARGS"]).exists()
             )
 
     def test_publication_wrapper_rejects_missing_or_invalid_beta_version_before_signing(self) -> None:
@@ -408,6 +486,94 @@ class ReleaseManifestTests(unittest.TestCase):
             artifact.write_bytes(b"test")
             release_manifest.validate_manifest(manifest(), artifact=artifact)
 
+    def test_beta_manifest_creation_rejects_bundle_version_or_build_mismatch(self) -> None:
+        source_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "CmdTab.dmg"
+            artifact.write_bytes(b"test")
+            config_path = root / "ReleaseConfig.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "marketingVersion": "1.0.0",
+                        "buildNumber": "17",
+                        "minimumSystemVersion": "13.0",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = Namespace(
+                channel="beta",
+                version="1.0.0-beta.1",
+                dmg=artifact,
+                dmg_url=f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.1-17.dmg",
+                source_sha=source_sha,
+                release_date="2026-08-04",
+                previous=None,
+                output=root / "beta.json",
+            )
+            with mock.patch.object(release_manifest, "CONFIG_PATH", config_path):
+                for detail in (
+                    "DMG CFBundleShortVersionString (1.0.1) does not match expected release version (1.0.0).",
+                    "DMG CFBundleVersion (18) does not match expected release build (17).",
+                ):
+                    with mock.patch.object(
+                        release_manifest.subprocess,
+                        "run",
+                        return_value=subprocess.CompletedProcess(
+                            args=[], returncode=1, stdout="", stderr=detail
+                        ),
+                    ):
+                        with self.assertRaisesRegex(ValueError, re.escape(detail)):
+                            release_manifest.create_manifest(args)
+            self.assertFalse(args.output.exists())
+
+    def test_beta_manifest_binds_prerelease_to_numeric_bundle_version_and_build(self) -> None:
+        source_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = root / "CmdTab.dmg"
+            artifact.write_bytes(b"test")
+            config_path = root / "ReleaseConfig.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "marketingVersion": "1.0.0",
+                        "buildNumber": "17",
+                        "minimumSystemVersion": "13.0",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            args = Namespace(
+                channel="beta",
+                version="1.0.0-beta.1",
+                dmg=artifact,
+                dmg_url=f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.1-17.dmg",
+                source_sha=source_sha,
+                release_date="2026-08-04",
+                previous=None,
+                output=root / "beta.json",
+            )
+            with mock.patch.object(release_manifest, "CONFIG_PATH", config_path), mock.patch.object(
+                release_manifest.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+            ) as verified:
+                created = release_manifest.create_manifest(args)
+            self.assertEqual(created["version"], "1.0.0-beta.1")
+            self.assertEqual(created["build"], 17)
+            self.assertEqual(
+                verified.call_args.args[0][-4:],
+                ["--expected-version", "1.0.0", "--expected-build", "17"],
+            )
+
+            args.version = "1.0.1-beta.1"
+            with mock.patch.object(release_manifest, "CONFIG_PATH", config_path):
+                with self.assertRaisesRegex(ValueError, "as its x.y.z base"):
+                    release_manifest.create_manifest(args)
+
     def test_tampered_artifact_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             artifact = Path(directory) / "CmdTab.dmg"
@@ -458,6 +624,7 @@ class ReleaseManifestTests(unittest.TestCase):
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel><item>
     <sparkle:version>2</sparkle:version>
+    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
     <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
     <enclosure url="{manifest()['dmgURL']}" length="4"
       sparkle:sha256="{manifest()['sha256']}" sparkle:edSignature="{'A' * 88}" type="application/octet-stream"/>
@@ -498,6 +665,7 @@ class ReleaseManifestTests(unittest.TestCase):
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel><item>
     <sparkle:version>2</sparkle:version>
+    <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
     <sparkle:channel>beta</sparkle:channel>
     <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
     <enclosure url="{release['dmgURL']}" length="4"
@@ -521,6 +689,20 @@ class ReleaseManifestTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("beta channel", rejected.stderr)
+            appcast_path.write_text(
+                appcast_path.read_text(encoding="utf-8").replace(
+                    "<sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>",
+                    "<sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>",
+                ),
+                encoding="utf-8",
+            )
+            version_rejected = subprocess.run(
+                ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"), str(appcast_path), str(manifest_path)],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(version_rejected.returncode, 0)
+            self.assertIn("short version", version_rejected.stderr)
 
 
 if __name__ == "__main__":

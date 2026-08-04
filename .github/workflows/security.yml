@@ -1,20 +1,13 @@
 name: Security
 
 on:
+  # Security must execute for every candidate change. Path filters would let a
+  # native, release, or workflow-only correction bypass this required check.
   push:
-    paths:
-      - "website/**"
-      - ".github/workflows/security.yml"
-      - "scripts/release/verify-workflow-actions.py"
-      - "SECURITY.md"
-      - "SECURITY_CHECKLIST.md"
   pull_request:
-    paths:
-      - "website/**"
-      - ".github/workflows/security.yml"
-      - "scripts/release/verify-workflow-actions.py"
-      - "SECURITY.md"
-      - "SECURITY_CHECKLIST.md"
+
+permissions:
+  contents: read
 
 jobs:
   website-security:
@@ -25,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Verify immutable workflow action pins
         working-directory: ${{ github.workspace }}
