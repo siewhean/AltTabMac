@@ -1,5 +1,30 @@
 # Todo
 
+## 2026-08-04 — Gate 3/5 credential-free release preparation
+
+- [x] Add a no-mutation notarized-DMG preflight that validates the clean
+  candidate, release configuration, tools, and names the required secure
+  variables without reading or disclosing values.
+- [x] Resolve Sparkle `generate_appcast` and `sign_update` from an explicit
+  isolated SwiftPM scratch path, retaining paired executable overrides rather
+  than relying on repository-local `.build` state.
+- [x] Require a beta-labelled local DMG filename while retaining the numeric
+  bundle short version, and reject mismatched publication inputs before
+  metadata is written.
+- [x] Obtain independent QA/QC of this combined source diff; do not sign,
+  notarize, publish, tag, merge, or enable commerce.
+
+### Review
+
+- Independent QA/QC passed the source diff: 23 release-pipeline tests, Bash
+  syntax, ReleaseConfig validation/repository verification, Sparkle-tool
+  preflight, and whitespace hygiene. A dirty-worktree preflight correctly
+  exited before creating `dist/release`; an isolated SwiftPM artifact
+  resolution verified both Sparkle tools separately.
+- A clean exact candidate is still required to run the no-mutation preflight
+  to success. Developer ID identity, notarization, real artifact, update,
+  clean-machine, and go-live evidence remain external gates.
+
 ## 2026-08-04 — Remaining operational-gap closure
 
 - [x] Audit the remaining beta release, website, workflow, and commerce
@@ -19,6 +44,17 @@
   with the unpublished, fail-closed beta state.
 - [x] Run combined independent QA/QC, commit the replacement candidate, and
   obtain fresh executed hosted evidence while PR #49 remains a draft.
+- [x] Reconcile G0/G2/G8 candidate records with exact SHA, P0/P1 disposition,
+  independent QA/QC scope, executed run identifiers, and the remaining
+  branch-protection/release-environment control gap.
+- [ ] Reproduce the G1 unsigned-artifact/reproducibility record after the next
+  source candidate is frozen; do not inherit `081ec041` evidence.
+- [x] Commit the repository-owned operational controls as
+  `5c6bf288baae9f20bc5b43e5ddfe351539b4a08d`: index-backed credential-content
+  scanning, beta-DMG preflight/name binding, isolated Sparkle resolution, and
+  unavailable purchase-confirmation copy.
+- [ ] Obtain independent combined QA/QC and fresh executed hosted checks for
+  `5c6bf288`; keep PR #49 draft until they pass.
 
 ### Review
 

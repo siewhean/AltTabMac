@@ -19,13 +19,26 @@ opt-in telemetry contract with no stable identifier, and packages a verified
 macOS privacy manifest. The beta bundle accepts only the isolated beta Sparkle
 feed. Beta metadata binds its `x.y.z-beta.N` prerelease label to the numeric
 bundle version and build in the notarized DMG, rather than using an invalid
-prerelease bundle version. These source changes still require fresh hosted and
-real-machine evidence.
+prerelease bundle version. These source changes have candidate-bound hosted
+source-CI evidence at `081ec04199885dffb5c7dddd30b6dcd23279bd55` and a
+documentation-only refresh at `2bcb2275b41cc6712dec8abcb2a4b62f3569143c`;
+the newer operational-controls source candidate
+`5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` has passed local release,
+security-scanner, Swift, and website checks but still needs its own executed
+hosted evidence and independent combined QA/QC. Real-machine and signed-artifact
+evidence remains required.
 
 The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
 the update resolves the current moderate PostCSS advisory while retaining the
-mandatory audit gate. It is source-verified only until fresh hosted evidence
-for its replacement candidate completes.
+mandatory audit gate. Its candidate-bound source CI passed at `081ec041`; it
+does not replace signed-artifact, clean-machine, or production acceptance.
+
+Before credentials are retrieved, `build-notarized-dmg.sh --preflight --beta
+x.y.z-beta.N` validates the exact clean candidate, release configuration,
+toolchain, and isolated SwiftPM Sparkle-tool contract without reading secret
+values, creating artifacts, signing, notarizing, or making network requests.
+The beta label is the notarized DMG and immutable-object filename; the mounted
+bundle retains Apple's numeric `CFBundleShortVersionString`.
 
 ## Product
 

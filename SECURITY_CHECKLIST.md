@@ -1,6 +1,8 @@
 # CmdTab Security Checklist
 
-**Reviewed against:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
+**Reviewed against:** baseline `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`;
+application-source candidate `081ec04199885dffb5c7dddd30b6dcd23279bd55`;
+documentation/CI refresh `2bcb2275b41cc6712dec8abcb2a4b62f3569143c`.
 **Release status:** **BLOCKED** - this is a scope and evidence ledger, not a
 security certification. The canonical beta gate is
 [`docs/release/public-beta-readiness.md`](docs/release/public-beta-readiness.md).
@@ -53,11 +55,36 @@ security certification. The canonical beta gate is
 - Public beta copy has no checkout/offer schema or current purchase promise and
   uses `support@cmdtab.net`; mailbox verification is still external.
 
+## Candidate disposition and independent source review
+
+The static source audit at
+`081ec04199885dffb5c7dddd30b6dcd23279bd55` found **no open P0**. The P1
+findings listed above were remediated before that candidate's executed checks.
+The combined diff and the non-zero-step macOS 14/15, Security, SEO/GEO,
+Release Readiness, Workflow Health, Audit Source Export, and Vercel results
+were independently QA/QC reviewed as recorded in
+[`tasks/todo.md`](tasks/todo.md). The follow-up documentation candidate
+`2bcb2275b41cc6712dec8abcb2a4b62f3569143c` repeated the hosted CI set; run
+identifiers and exact scope are retained in
+[`docs/release/evidence/public-beta/G8-ci/`](docs/release/evidence/public-beta/G8-ci/).
+
+This is a **source-review disposition only**. It does not close an item that
+requires Developer-ID signing, a notarized artifact, real permission states,
+production services, or a clean machine. Any commit after `2bcb2275` must
+receive replacement-candidate review and executed evidence.
+
+The operational-controls source candidate
+`5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` adds an index-backed tracked-secret
+scanner, beta-DMG preflight/name binding, and an unavailable purchase-confirmation
+surface. Its local checks passed; its independent combined source review and
+executed hosted checks are pending. It must not inherit the `081ec041` P0/P1
+source disposition.
+
 ## Mandatory candidate evidence
 
 | Area | Required evidence | Status |
 | --- | --- | --- |
-| Fresh security review | Candidate SHA, P0/P1 triage, disposition, and independent review | BLOCKED - no P0; repository P1 remediations need signed-artifact review |
+| Fresh security review | Candidate SHA, P0/P1 triage, disposition, and independent review | PASS (source review at `081ec041`; no open source P0/P1); signed-artifact review remains BLOCKED |
 | Web hardening | State-changing route origin/fetch-site review, CSP decision, headers, dependency/secret scans | BLOCKED |
 | Native privacy | Entitlements, Hardened Runtime, logging/telemetry data-flow review, privacy-manifest/required-reason applicability | BLOCKED |
 | Private capabilities | Need, detection, public fallback, degraded UI, tests, and clean-machine observation for each capability | BLOCKED |

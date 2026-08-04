@@ -51,11 +51,13 @@ uses an intentionally fixed five-field aggregate-only wire contract, and the
 package verifier requires its matching privacy manifest. These are source-level
 controls, not signed-artifact evidence.
 
-Gate 2 remains blocked on real signed-artifact permission transitions,
-independent candidate-SHA review, and clean-machine observation. The privacy
-manifest decision is documented in the runbooks and must be revalidated against
-the final signed bundle and dependencies. Source tests do not substitute for
-those observations.
+Gate 2 remains blocked on real signed-artifact permission transitions and
+clean-machine observation. The source P0/P1 disposition and independent
+candidate-SHA review are recorded for `081ec041` in
+[`SECURITY_CHECKLIST.md`](../../SECURITY_CHECKLIST.md) and the per-gate source
+record. The privacy manifest decision is documented in the runbooks and must
+be revalidated against the final signed bundle and dependencies. Source tests
+do not substitute for those observations.
 
 ## Evidence boundaries
 
@@ -71,7 +73,12 @@ The application-source candidate
 for macOS 14/15, Security, SEO/GEO/browser QA, Release Readiness, Workflow
 Health, Audit Source Export, and Vercel. `4f714e7` and `616a78f` are older
 historical evidence. GitHub Actions capacity is restored, but `main` remains
-unprotected and release-environment controls remain unconfigured.
+unprotected and release-environment controls remain unconfigured. The
+documentation-only follow-up `2bcb2275b41cc6712dec8abcb2a4b62f3569143c`
+repeated the same hosted source-CI set. Neither record transfers to a later
+source candidate. The operational-controls candidate
+`5c6bf288baae9f20bc5b43e5ddfe351539b4a08d` is local-verified only pending its
+replacement QA/QC and hosted workflows.
 
 ## External blockers
 
@@ -80,8 +87,9 @@ unprotected and release-environment controls remain unconfigured.
 - verified `support@cmdtab.net` mailbox and operational owners;
 - clean Apple-silicon Ventura and current-stable macOS accounts; real beta
   testers for soak/update/rollback proof;
-- restored GitHub Actions capacity with executed logs and protected release
-  controls;
+- configured `main` branch protection and a trusted release environment
+  (executed GitHub Actions capacity is already evidenced, but these controls
+  remain absent);
 - explicit beta go-live approval.
 
 See the gate checklist, risk register, evidence contract, and runbooks in

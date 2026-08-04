@@ -20,11 +20,23 @@ update UI is disabled and they cannot contact a production feed.
 
 ## Build and notarize
 
+Before credentials are requested or loaded, run the non-mutating preflight on
+the exact clean candidate:
+
+```bash
+./scripts/release/build-notarized-dmg.sh --preflight --beta 1.0.0-beta.1
+```
+
+It verifies the release configuration, clean worktree, macOS tools, and the
+isolated SwiftPM Sparkle-tool provisioning contract. It names the three secure
+variables required for execution but neither reads nor prints their values; it
+does not sign, create artifacts, contact Apple, or make a network request.
+
 ```bash
 export CMDTAB_SIGNING_IDENTITY='Developer ID Application: Owner (TEAMID)'
 export CMDTAB_NOTARY_PROFILE='cmdtab-notary-profile'
 export CMDTAB_SPARKLE_PUBLIC_ED_KEY='<base64-public-key>'
-./scripts/release/build-notarized-dmg.sh
+./scripts/release/build-notarized-dmg.sh --beta 1.0.0-beta.1
 ```
 
 The script signs Sparkle's nested services leaf-first, signs the app with
@@ -52,7 +64,9 @@ publication command mounts and verifies the DMG before it writes any metadata.
   previous-beta.json
 ```
 
-The command verifies the mounted app's `CFBundleShortVersionString` base and
+The beta argument makes the local notarized filename and immutable public
+object name identical (`CmdTab-1.0.0-beta.1-1.dmg`), while the mounted app
+retains Apple's numeric `CFBundleShortVersionString` (`1.0.0`). The command verifies the mounted app's `CFBundleShortVersionString` base and
 `CFBundleVersion`, bytes and SHA-256, rejects an equal or lower build than the
 published beta manifest, generates EdDSA enclosure and feed signatures, and
 validates both the appcast build and bundled marketing version against the

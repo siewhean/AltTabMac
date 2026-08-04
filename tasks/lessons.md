@@ -1,5 +1,22 @@
 # Lessons
 
+- 2026-08-04: A release preflight must return before any output-directory,
+  artifact, signing, notarization, or network operation, and it may name only
+  required secret variables—not their values. Update tooling must resolve from
+  the release's isolated SwiftPM scratch path or paired explicit overrides,
+  never an incidental repository-local `.build` directory.
+
+- 2026-08-04: A beta label belongs in the release tag, manifest, appcast
+  channel, and immutable DMG filename, while `CFBundleShortVersionString`
+  remains Apple's numeric `x.y.z`. Enforce the filename equivalence before
+  metadata creation so a signed local artifact cannot diverge from its public
+  object contract.
+
+- 2026-08-04: A gate table is not an evidence record. Record the exact source
+  SHA, command/result scope, independent QA/QC disposition, status, and next
+  action per gate; downgrade a claimed pass when candidate-bound evidence is
+  absent rather than inheriting a prior candidate's artifact result.
+
 - 2026-08-04: A beta prerelease label is not a valid
   `CFBundleShortVersionString`. Keep the bundle and Sparkle short version at
   Apple's numeric `x.y.z` format, bind the exact build from the mounted signed

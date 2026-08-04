@@ -12,6 +12,15 @@
 | Commerce state | Disabled: `CMDTAB_REQUIRE_COMMERCE_READY` unset or not `1` |
 | Stable release state | No stable DMG, manifest, or appcast publication |
 
+## Current repository-owned gate records
+
+| Record | Exact source / scope | Status |
+| --- | --- | --- |
+| [`G0-governance`](G0-governance/) | `2bcb2275b41cc6712dec8abcb2a4b62f3569143c` governance and evidence reconciliation | PASS (repository governance only) |
+| [`G1-artifact-source`](G1-artifact-source/) | Candidate-bound unsigned package/reproducibility record | NOT TESTED for the next frozen source candidate |
+| [`G2-security-source`](G2-security-source/) | `081ec04199885dffb5c7dddd30b6dcd23279bd55` source P0/P1 and QA/QC disposition | PASS (source review only) |
+| [`G8-ci`](G8-ci/) | `2bcb2275b41cc6712dec8abcb2a4b62f3569143c` executed hosted CI | PASS (executed CI capacity); branch/release controls remain BLOCKED |
+
 ## Gate 0 draft record - 2026-08-01
 
 | Item | Evidence | Status |
