@@ -10,6 +10,7 @@ import os
 import plistlib
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -199,6 +200,16 @@ def verify_repository(config: dict[str, Any]) -> None:
             "Sensitive key or certificate material remains tracked:\n  "
             + "\n  ".join(sorted(sensitive_paths)[:20])
         )
+
+    secret_scan = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "release" / "scan_tracked_secrets.py")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if secret_scan.returncode != 0:
+        details = secret_scan.stderr.strip() or secret_scan.stdout.strip()
+        raise SystemExit(f"Tracked-secret content verification failed:\n{details}")
 
     with (ROOT / "Resources" / "CmdTab.entitlements").open("rb") as handle:
         entitlements = plistlib.load(handle)

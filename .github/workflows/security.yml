@@ -25,6 +25,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: python3 scripts/release/verify-workflow-actions.py
 
+      - name: Scan tracked text for credential material
+        working-directory: ${{ github.workspace }}
+        run: python3 scripts/release/scan_tracked_secrets.py
+
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:

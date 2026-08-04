@@ -243,6 +243,7 @@ assert.match(
 );
 
 const helpPage = read("src/app/help/page.tsx");
+const thankYouPage = read("src/app/thank-you/page.tsx");
 const commercePages = read("src/content/commerce-pages.ts");
 assert.doesNotMatch(
   helpPage,
@@ -263,6 +264,21 @@ assert.doesNotMatch(
   commercePages,
   /For beta installation, permissions, security, or recovery guidance|For existing licence recovery or beta help/,
   "public commerce content must not advertise unavailable beta help or recovery",
+);
+assert.match(
+  thankYouPage,
+  /noIndex:\s*true/,
+  "the unreachable purchase-confirmation route must remain excluded from search",
+);
+assert.match(
+  thankYouPage,
+  /does not provide checkout, payment, purchase confirmation, licence activation, or a beta download/,
+  "the purchase-confirmation route must state its fail-closed beta boundary",
+);
+assert.doesNotMatch(
+  thankYouPage,
+  /activation email|one-click CmdTab link|manual code|Download CmdTab|Activation help|recovery request/i,
+  "the purchase-confirmation route must not claim unavailable beta delivery, activation, download, or recovery operations",
 );
 
 const home = read("src/content/home.ts");

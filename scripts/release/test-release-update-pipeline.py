@@ -223,7 +223,23 @@ class ReleaseManifestTests(unittest.TestCase):
 
         self.assertIn("--untracked-files=all", notarized_build)
         self.assertIn("--untracked-files=all", publication)
+        self.assertIn("--preflight|--dry-run", notarized_build)
+        self.assertIn("No signing, notarization, artifact creation, or network request", notarized_build)
+        self.assertLess(
+            notarized_build.index('if [[ "${PREFLIGHT_ONLY}" == "1" ]]'),
+            notarized_build.index('mkdir -p "${OUTPUT_DIR}"'),
+        )
+        self.assertLess(
+            notarized_build.index('if [[ "${PREFLIGHT_ONLY}" == "1" ]]'),
+            notarized_build.index('SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"'),
+        )
+        self.assertIn('DMG_PATH="${OUTPUT_DIR}/CmdTab-${BETA_VERSION}-${BUILD}.dmg"', notarized_build)
+        self.assertIn("Notarized public-beta builds require --beta", notarized_build)
+        self.assertIn("Beta publication DMG must be named", publication)
         self.assertIn("verify-notarized-dmg.sh", appcast)
+        self.assertIn("resolve-sparkle-tools.sh", appcast)
+        self.assertNotIn(".build/artifacts/sparkle", appcast)
+        self.assertNotIn("mapfile", appcast)
         for required in [
             "codesign --verify",
             "stapler validate",
@@ -264,6 +280,8 @@ class ReleaseManifestTests(unittest.TestCase):
             self.assertNotIn("--channel", stable_arguments)
             self.assertNotIn("--version", stable_arguments)
             beta_output = root / "beta-output"
+            beta_dmg = root / "CmdTab-1.0.0-beta.7-1.dmg"
+            beta_dmg.write_bytes(b"test")
             beta_environment = {
                 **environment,
                 "CMDTAB_TEST_CONFIG_VERSION": "1.0.0",
@@ -271,8 +289,8 @@ class ReleaseManifestTests(unittest.TestCase):
             }
             beta = subprocess.run(
                 [
-                    "bash", str(publication), "--beta", "1.0.0-beta.7", str(dmg),
-                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.7-2.dmg",
+                    "bash", str(publication), "--beta", "1.0.0-beta.7", str(beta_dmg),
+                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.7-1.dmg",
                     source_sha, str(beta_output),
                 ],
                 capture_output=True,
@@ -304,6 +322,52 @@ class ReleaseManifestTests(unittest.TestCase):
                     str(beta_output / "beta-appcast.xml"),
                 ],
             )
+
+    def test_beta_publication_rejects_numeric_local_dmg_name_before_metadata(self) -> None:
+        source_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            publication, environment = self.publication_harness(root)
+            numeric_dmg = root / "CmdTab-1.0.0-1.dmg"
+            numeric_dmg.write_bytes(b"test")
+            rejected = subprocess.run(
+                [
+                    "bash", str(publication), "--beta", "1.0.0-beta.7", str(numeric_dmg),
+                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.7-1.dmg",
+                    source_sha, str(root / "output"),
+                ],
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("Beta publication DMG must be named CmdTab-1.0.0-beta.7-1.dmg", rejected.stderr)
+            self.assertFalse(Path(environment["CMDTAB_TEST_MANIFEST_ARGS"]).exists())
+            self.assertFalse(Path(environment["CMDTAB_TEST_APPCAST_ARGS"]).exists())
+
+    def test_sparkle_tool_resolver_preserves_explicit_pair_overrides(self) -> None:
+        resolver = ROOT / "scripts" / "release" / "resolve-sparkle-tools.sh"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            generator = root / "generate_appcast"
+            signer = root / "sign_update"
+            for executable in (generator, signer):
+                executable.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+                executable.chmod(0o755)
+            scratch = root / "isolated-scratch"
+            result = subprocess.run(
+                ["bash", str(resolver), "--scratch-path", str(scratch)],
+                capture_output=True,
+                text=True,
+                env={
+                    **os.environ,
+                    "CMDTAB_GENERATE_APPCAST": str(generator),
+                    "CMDTAB_SIGN_UPDATE": str(signer),
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines(), [str(generator), str(signer)])
+            self.assertFalse(scratch.exists())
 
     def test_publication_wrapper_rejects_beta_version_before_writing_metadata(self) -> None:
         source_sha = "a" * 40

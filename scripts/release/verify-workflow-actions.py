@@ -24,6 +24,7 @@ CANDIDATE_WORKFLOW_REQUIREMENTS = {
     "security.yml": (
         "permissions:\n  contents: read",
         "persist-credentials: false",
+        "scripts/release/scan_tracked_secrets.py",
     ),
     "audit-source-export.yml": (
         "permissions:\n  contents: read",

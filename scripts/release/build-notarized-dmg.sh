@@ -4,16 +4,40 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CONFIG_TOOL="${ROOT_DIR}/scripts/release/release_config.py"
 OUTPUT_DIR="${CMDTAB_RELEASE_OUTPUT_DIR:-${ROOT_DIR}/dist/release}"
-SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"
-NOTARY_PROFILE="${CMDTAB_NOTARY_PROFILE:-}"
 
-if [[ -z "${SIGNING_IDENTITY}" || -z "${NOTARY_PROFILE}" || -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
-  echo "Set CMDTAB_SIGNING_IDENTITY, CMDTAB_NOTARY_PROFILE, and CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
-  exit 2
-fi
-for tool in codesign ditto hdiutil osascript python3 spctl swift xcrun; do
+usage() {
+  echo "Usage: $0 [--preflight] [--beta x.y.z-beta.N]" >&2
+}
+
+PREFLIGHT_ONLY=0
+BETA_VERSION=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --preflight|--dry-run)
+      PREFLIGHT_ONLY=1
+      shift
+      ;;
+    --beta)
+      BETA_VERSION="${2:-}"
+      [[ -n "${BETA_VERSION}" ]] || { usage; exit 2; }
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+for tool in codesign ditto git hdiutil lipo osascript plutil python3 shasum spctl swift xattr xcrun; do
   command -v "${tool}" >/dev/null 2>&1 || { echo "Missing required tool: ${tool}" >&2; exit 1; }
 done
+python3 "${CONFIG_TOOL}" validate >/dev/null
+python3 "${CONFIG_TOOL}" verify-repository >/dev/null
 if ! git -C "${ROOT_DIR}" diff --quiet ||
    ! git -C "${ROOT_DIR}" diff --cached --quiet ||
    [[ -n "$(git -C "${ROOT_DIR}" status --porcelain --untracked-files=all)" ]]; then
@@ -21,12 +45,49 @@ if ! git -C "${ROOT_DIR}" diff --quiet ||
   exit 1
 fi
 
+"${ROOT_DIR}/scripts/release/resolve-sparkle-tools.sh" --preflight >/dev/null
+
 VERSION="$(python3 "${CONFIG_TOOL}" get marketingVersion)"
 BUILD="$(python3 "${CONFIG_TOOL}" get buildNumber)"
+if [[ -n "${BETA_VERSION}" ]]; then
+  [[ "${BETA_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]] || {
+    echo "Beta notarized builds require --beta x.y.z-beta.N." >&2
+    exit 2
+  }
+  [[ "${BETA_VERSION%-beta.*}" == "${VERSION}" ]] || {
+    echo "Beta notarized build version must use ReleaseConfig marketingVersion (${VERSION}) as its x.y.z base." >&2
+    exit 1
+  }
+fi
+
+if [[ "${PREFLIGHT_ONLY}" == "1" ]]; then
+  echo "Notarized DMG preflight passed."
+  if [[ -n "${BETA_VERSION}" ]]; then
+    echo "Validated beta artifact filename: CmdTab-${BETA_VERSION}-${BUILD}.dmg."
+  else
+    echo "A beta build must supply --beta x.y.z-beta.N before artifact creation."
+  fi
+  echo "Required secure variables at execution: CMDTAB_SIGNING_IDENTITY, CMDTAB_NOTARY_PROFILE, CMDTAB_SPARKLE_PUBLIC_ED_KEY."
+  echo "No signing, notarization, artifact creation, or network request was performed."
+  exit 0
+fi
+
+SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"
+NOTARY_PROFILE="${CMDTAB_NOTARY_PROFILE:-}"
+if [[ -z "${SIGNING_IDENTITY}" || -z "${NOTARY_PROFILE}" || -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
+  echo "Set CMDTAB_SIGNING_IDENTITY, CMDTAB_NOTARY_PROFILE, and CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
+  exit 2
+fi
+
+[[ -n "${BETA_VERSION}" ]] || {
+  echo "Notarized public-beta builds require --beta x.y.z-beta.N." >&2
+  exit 2
+}
+
 VOLUME_NAME="CmdTab ${VERSION}"
 APP_PATH="${OUTPUT_DIR}/CmdTab.app"
 ZIP_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}.zip"
-DMG_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}.dmg"
+DMG_PATH="${OUTPUT_DIR}/CmdTab-${BETA_VERSION}-${BUILD}.dmg"
 DMG_RW_PATH="${OUTPUT_DIR}/CmdTab-${VERSION}-${BUILD}-layout.dmg"
 EVIDENCE_DIR="${OUTPUT_DIR}/notarization"
 DMG_STAGE="$(mktemp -d /tmp/cmdtab-dmg-stage.XXXXXX)"

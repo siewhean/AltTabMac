@@ -7,6 +7,7 @@
     "predev": "npm run showcase:generate",
     "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
     "release:config-check": "python3 ../scripts/release/release_config.py verify-repository",
+    "secrets:tracked-check": "python3 ../scripts/release/scan_tracked_secrets.py",
     "commerce:readiness-check": "node scripts/verify-commerce-readiness.mjs",
     "features:source-check": "python3 ../scripts/release/verify-five-feature-source.py && python3 ../scripts/release/verify-five-feature-audit-fixes.py",
     "test:unit": "rm -rf /tmp/cmdtab-website-unit-tests && tsc --target ES2022 --module Node16 --moduleResolution Node16 --skipLibCheck --outDir /tmp/cmdtab-website-unit-tests src/content/license-delivery-email.ts src/lib/analytics-measurement.ts src/lib/app-telemetry-contract.ts src/lib/constant-time.ts src/lib/content-security-policy.ts src/lib/csv.ts src/lib/demo-keyboard-navigation.ts src/lib/stable-release.ts src/lib/commerce.ts src/lib/license-token.ts src/lib/license-lifecycle-contract.ts src/lib/license-delivery-result.ts src/lib/lemonsqueezy.ts src/lib/entitlement-token.ts src/lib/license-signing.ts src/lib/aws-kms-p256.ts src/lib/env.ts src/lib/internal-worker-auth.ts src/lib/purchase-fulfillment.ts src/lib/admin-auth-config.ts src/lib/admin-request-security.ts src/lib/admin-session-token.ts src/lib/auth0-oidc.ts tests/analytics-measurement.test.ts tests/app-telemetry-contract.test.ts tests/security-hardening.test.ts tests/commerce-config.test.ts tests/commerce-end-to-end.test.ts tests/license-lifecycle.test.ts tests/license-delivery-email.test.ts tests/purchase-fulfillment.test.ts tests/license-token-v2.test.ts tests/admin-auth-security.test.ts && NODE_PATH=$PWD/node_modules node --test /tmp/cmdtab-website-unit-tests/tests/*.test.js && node --test tests/commerce-readiness.test.mjs",
@@ -26,7 +27,7 @@
     "showcase:responses": "node scripts/verify-showcase-responses.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
     "security:deps": "npm audit --audit-level=moderate",
-    "security:check": "npm run release:config-check && npm run commerce:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
+    "security:check": "npm run release:config-check && npm run secrets:tracked-check && npm run commerce:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.864.0",

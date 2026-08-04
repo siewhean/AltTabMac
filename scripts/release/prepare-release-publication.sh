@@ -57,6 +57,12 @@ if [[ "${CHANNEL}" == "beta" ]]; then
     echo "Beta publication version must use ReleaseConfig marketingVersion (${CONFIG_VERSION}) as its x.y.z base." >&2
     exit 1
   }
+  CONFIG_BUILD="$(python3 "${ROOT_DIR}/scripts/release/release_config.py" get buildNumber)"
+  EXPECTED_DMG_NAME="CmdTab-${BETA_VERSION}-${CONFIG_BUILD}.dmg"
+  [[ "$(basename "${DMG_PATH}")" == "${EXPECTED_DMG_NAME}" ]] || {
+    echo "Beta publication DMG must be named ${EXPECTED_DMG_NAME}." >&2
+    exit 1
+  }
 fi
 
 if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then

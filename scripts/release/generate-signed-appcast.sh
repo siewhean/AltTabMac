@@ -6,16 +6,12 @@ DMG_PATH="${1:-}"
 MANIFEST_PATH="${2:-}"
 OUTPUT_PATH="${3:-}"
 KEY_ACCOUNT="${CMDTAB_SPARKLE_KEY_ACCOUNT:-ed25519}"
+TOOL_RESOLVER="${ROOT_DIR}/scripts/release/resolve-sparkle-tools.sh"
 
 if [[ -z "${DMG_PATH}" || -z "${MANIFEST_PATH}" || -z "${OUTPUT_PATH}" ]]; then
   echo "Usage: $0 /path/to/CmdTab.dmg /path/to/{stable,beta}.json /path/to/appcast.xml" >&2
   exit 2
 fi
-
-GENERATE_APPCAST="${CMDTAB_GENERATE_APPCAST:-${ROOT_DIR}/.build/artifacts/sparkle/Sparkle/bin/generate_appcast}"
-SIGN_UPDATE="${CMDTAB_SIGN_UPDATE:-${ROOT_DIR}/.build/artifacts/sparkle/Sparkle/bin/sign_update}"
-[[ -x "${GENERATE_APPCAST}" ]] || { echo "Missing Sparkle generate_appcast tool" >&2; exit 1; }
-[[ -x "${SIGN_UPDATE}" ]] || { echo "Missing Sparkle sign_update tool" >&2; exit 1; }
 
 TEMP_ROOT="$(mktemp -d /tmp/cmdtab-appcast.XXXXXX)"
 cleanup() {
@@ -25,6 +21,14 @@ cleanup() {
   esac
 }
 trap cleanup EXIT
+
+TOOL_OUTPUT="$("${TOOL_RESOLVER}" --scratch-path "${TEMP_ROOT}/swiftpm-artifacts")"
+GENERATE_APPCAST="$(printf '%s\n' "${TOOL_OUTPUT}" | sed -n '1p')"
+SIGN_UPDATE="$(printf '%s\n' "${TOOL_OUTPUT}" | sed -n '2p')"
+[[ -n "${GENERATE_APPCAST}" && -n "${SIGN_UPDATE}" ]] || {
+  echo "Sparkle tool resolver did not return both required utilities." >&2
+  exit 1
+}
 
 DMG_NAME="$(python3 -c 'import json,sys,urllib.parse; print(urllib.parse.urlparse(json.load(open(sys.argv[1]))["dmgURL"]).path.rsplit("/",1)[-1])' "${MANIFEST_PATH}")"
 DOWNLOAD_PREFIX="$(python3 -c 'import json,sys; value=json.load(open(sys.argv[1]))["dmgURL"]; print(value.rsplit("/",1)[0] + "/")' "${MANIFEST_PATH}")"
