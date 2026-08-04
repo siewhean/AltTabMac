@@ -25,13 +25,17 @@ is authorized from this baseline.
 - Commerce source implements licensing, refund/revocation, webhooks, and an
   outbox, but current launch control is fail-closed: when
   `CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1`, checkout is
-  hidden, webhooks return `503 commerce_disabled`, and workers no-op before
-  opening commerce infrastructure.
+  hidden; trial, license, recovery, device, and license-help routes return
+  generic `503 commerce_disabled` before rate limits, body parsing, database,
+  KMS, or email work; webhooks return `503 commerce_disabled`; and workers
+  no-op before opening commerce infrastructure.
 - The next draft candidate packages a beta-only Sparkle feed at
   `https://cmdtab.net/releases/beta/appcast.xml`. The stable web manifest and
   appcast routes remain `503` with `no-store` until GA. The repository can
-  prepare beta metadata only; it has not published an appcast, manifest, DMG,
-  or download.
+  prepare beta metadata only. Its prerelease label is bound to the numeric
+  short bundle version and build in the mounted notarized DMG before a beta
+  manifest and appcast are emitted; it has not published an appcast, manifest,
+  DMG, or download.
 - Dynamic SkyLight/SLS/CGS, `_AXUIElementGetWindow`, and Secure Input calls
   remain intentionally scoped native capabilities. Their source contract now
   requires an observable sanitized status, explicit fallback/degraded state,
@@ -62,12 +66,13 @@ acceptance without an exact-candidate rerun:
 - website or Vercel results from earlier branches;
 - test totals recorded in old task ledgers or status documents.
 
-The `616a78f` draft candidate had executed, non-zero-step passes for macOS
+The `4f714e7` draft candidate had executed, non-zero-step passes for macOS
 14/15, Security, SEO/GEO, Release Readiness, Workflow Health, Audit Source
-Export, and Vercel. This working-tree correction supersedes that candidate;
-the replacement SHA requires fresh executed checks before it can be considered
-for review. GitHub Actions capacity is restored, but `main` remains unprotected
-and release-environment controls remain unconfigured.
+Export, and Vercel; `616a78f` is older historical evidence. This working-tree
+correction supersedes that candidate; the replacement SHA requires fresh
+executed checks before it can be considered for review. GitHub Actions capacity
+is restored, but `main` remains unprotected and release-environment controls
+remain unconfigured.
 
 ## External blockers
 

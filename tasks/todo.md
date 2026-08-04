@@ -1,5 +1,35 @@
 # Todo
 
+## 2026-08-04 — Remaining operational-gap closure
+
+- [x] Audit the remaining beta release, website, workflow, and commerce
+  controls without changing the draft/publication boundary.
+- [x] Fail-close every public trial, licensing, recovery, device, and
+  license-help side-effect path before rate limits, parsing, database, KMS, or
+  email work when commerce is disabled.
+- [x] Make missing or malformed beta manifest and appcast inputs unpublished
+  `503`/`no-store` responses without exposing parser detail.
+- [x] Bind beta manifest/appcast generation to the mounted notarized DMG's
+  numeric Apple bundle version and build, while retaining `x.y.z-beta.N` only
+  as the prerelease/tag/manifest label.
+- [x] Make Security and the preserved one-day Audit Source Export execute for
+  every PR candidate, with least-privilege checkout and the archive bound to
+  the submitted head SHA.
+- [x] Align privacy, FAQ, terms, consent UI, and canonical release records
+  with the unpublished, fail-closed beta state.
+- [ ] Run combined independent QA/QC, commit the replacement candidate, and
+  require fresh executed hosted evidence while PR #49 remains a draft.
+
+### Review
+
+- The previous `4f714e7` hosted passes are historical because these combined
+  source corrections create a replacement candidate. No signing, notarization,
+  tag, beta feed, beta manifest, deployment, checkout, or commerce enablement
+  is authorized by this task.
+- External Gates 3, 4, 5, 6, 8, 9, and 10 remain `BLOCKED` or `NOT TESTED`
+  until their required credentials, machines, mailbox, controls, or approval
+  exist.
+
 ## 2026-08-04 — Gate 2 capability and privacy evidence
 
 - [x] Route classic private AX window-ID lookup through observable capability

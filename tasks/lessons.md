@@ -1,5 +1,21 @@
 # Lessons
 
+- 2026-08-04: A beta prerelease label is not a valid
+  `CFBundleShortVersionString`. Keep the bundle and Sparkle short version at
+  Apple's numeric `x.y.z` format, bind the exact build from the mounted signed
+  DMG, and carry `x.y.z-beta.N` only in the beta manifest, appcast channel, and
+  release tag.
+
+- 2026-08-04: A disabled commerce boundary must cover every customer-lifecycle
+  ingress, including recovery, device, trial, and support helpers, before
+  rate-limiting, parsing, database, KMS, or email work. Hiding checkout or
+  gating webhooks alone is not sufficient.
+
+- 2026-08-04: Candidate-bound security and private source evidence workflows
+  cannot use path filters or a pull-request merge ref. Run them for every
+  candidate with least-privilege credentials and archive the submitted head
+  SHA, while preserving approved retention policy.
+
 - 2026-08-04: When a privacy wire contract removes a field, update every
   SEO/content verifier in the same change. A test that requires retired copy
   can turn a truthful disclosure into a hosted release blocker.

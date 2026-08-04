@@ -17,7 +17,10 @@ classic private AX window-ID lookup through one observable status, reports
 Secure Input and workspace degradation truthfully, uses a fixed five-field
 opt-in telemetry contract with no stable identifier, and packages a verified
 macOS privacy manifest. The beta bundle accepts only the isolated beta Sparkle
-feed. These source changes still require fresh hosted and real-machine evidence.
+feed. Beta metadata binds its `x.y.z-beta.N` prerelease label to the numeric
+bundle version and build in the notarized DMG, rather than using an invalid
+prerelease bundle version. These source changes still require fresh hosted and
+real-machine evidence.
 
 The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
 the update resolves the current moderate PostCSS advisory while retaining the
@@ -53,7 +56,7 @@ Existing `CMDTAB1` paid licenses remain supported for offline compatibility;
 production KMS provisioning and embedding its public keyrings in the signed
 app remain release gates.
 
-The repository-owned commerce lifecycle now exchanges a high-entropy opaque
+The repository-owned commerce lifecycle can exchange a high-entropy opaque
 purchase activation code for an install-bound signed entitlement, keeps paid
 access offline after activation, and transactionally limits each license to
 three named Macs. Deactivation frees a slot immediately; recovery is
@@ -64,14 +67,16 @@ evidence covers three successful devices, fourth-device rejection, immediate
 deactivation, and subsequent activation. Live Lemon Squeezy, email-provider,
 KMS, and production-database execution remain external release gates.
 
-Commerce launch is one explicit boundary. Scheduled and manually invoked
-license-outbox workers always require their bearer secret, but while
-`CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1` they return a
-successful `commerce_disabled` no-op before opening the commerce database.
-Once the switch is enabled, the production migration and all commerce secrets
-must already be present and the worker resumes normal retry processing. This
-keeps waitlist-mode deployments from querying tables that are intentionally not
-yet provisioned.
+Commerce launch is one explicit boundary. While
+`CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1`, every public
+trial, license, recovery, device, and license-help route returns a generic
+`503 commerce_disabled` before rate limiting, body parsing, database, KMS, or
+email work. Scheduled and manually invoked license-outbox workers always
+require their bearer secret and return a successful `commerce_disabled` no-op
+before opening the commerce database. Once the switch is enabled, the
+production migration and all commerce secrets must already be present and the
+worker can resume normal processing. This keeps waitlist-mode deployments from
+querying tables that are intentionally not yet provisioned.
 
 The signed Lemon Squeezy webhook uses the same boundary. While commerce is
 disabled it returns `503 commerce_disabled` before loading commerce
@@ -82,9 +87,8 @@ switch and infrastructure are ready instead of acknowledging and losing it.
 The public checkout surface follows the same switch. A staged checkout provider
 or URL is not exposed to purchase buttons or structured offers until the launch
 switch is exactly `1`, preventing a customer from being charged while webhook
-fulfillment is disabled. Existing license-portal and support links remain
-available because they serve already-issued customers and do not create a new
-purchase.
+fulfillment is disabled. The unpublished-beta site must not imply existing
+license-portal, recovery, or operational-support availability.
 
 ## PR #35 five-feature QA
 
@@ -191,15 +195,15 @@ npm run build
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
-Hosted GitHub Actions capacity is restored for PR #49. The executed `616a78f`
+Hosted GitHub Actions capacity is restored for PR #49. The executed `4f714e7`
 candidate passed macOS 14/15, Security, Workflow Health, Repository Health,
-SEO/GEO, Release Readiness browser QA, Audit Source Export, and Vercel checks.
-This working-tree Gate 2/Gate 5 correction creates a replacement candidate, so
-those results are historical and fresh executed checks are required after its
-commit and push. Its first hosted run found a stale SEO verifier that required
-the retired telemetry install identifier; the verifier now protects the
-truthful privacy copy and its replacement candidate requires fresh executed
-checks. PR #49 remains a draft. No failed or zero-step check is waived.
+SEO/GEO, Release Readiness browser QA, Audit Source Export, and Vercel checks;
+earlier `616a78f` evidence is also historical. The current working-tree
+operational correction creates a replacement candidate, so all of those results
+must be rerun after its commit and push. Security and audit-export workflows now
+run on every candidate change, and the retained one-day archive is bound to the
+submitted PR head rather than a synthetic merge ref. PR #49 remains a draft. No
+failed or zero-step check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 
