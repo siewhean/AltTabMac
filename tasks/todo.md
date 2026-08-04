@@ -32,6 +32,14 @@
   clean-machine acceptance, beta N-to-N+1/rollback execution, verified support
   mailbox, and go-live approval remain external `NOT TESTED` evidence.
 
+## 2026-08-04 — Hosted SEO verifier reconciliation
+
+- [x] Diagnose the exact-head SEO/GEO, website-security, and Vercel failure as
+  a stale verifier that required the retired telemetry install identifier.
+- [x] Update only the verifier and rerun the complete local website gate.
+- [ ] Push the replacement draft candidate and require fresh executed hosted
+  checks.
+
 ## 2026-08-04 — Dependency-audit remediation
 
 - [x] Diagnose the exact-head Vercel preview and Security failures as the

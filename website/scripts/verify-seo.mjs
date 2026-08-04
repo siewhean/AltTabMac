@@ -179,7 +179,11 @@ assert.match(faqPage, /createFaqStructuredData/, "FAQ page must publish matching
 
 const privacy = read("src/content/legal.ts");
 assert.match(privacy, /hourly heartbeat/, "privacy disclosure must describe native app heartbeat telemetry");
-assert.match(privacy, /pseudonymous install identifier/, "privacy disclosure must identify the app install identifier");
+assert.match(
+  privacy,
+  /does not contain an install, device, account, or license identifier/,
+  "privacy disclosure must state that native telemetry has no stable identifier",
+);
 assert.match(privacy, /does not contain window titles/, "privacy disclosure must identify excluded local window content");
 assert.match(privacy, /visitor identifier/, "privacy disclosure must describe first-party website analytics IDs");
 

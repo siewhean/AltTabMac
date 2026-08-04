@@ -196,7 +196,10 @@ candidate passed macOS 14/15, Security, Workflow Health, Repository Health,
 SEO/GEO, Release Readiness browser QA, Audit Source Export, and Vercel checks.
 This working-tree Gate 2/Gate 5 correction creates a replacement candidate, so
 those results are historical and fresh executed checks are required after its
-commit and push. PR #49 remains a draft. No failed or zero-step check is waived.
+commit and push. Its first hosted run found a stale SEO verifier that required
+the retired telemetry install identifier; the verifier now protects the
+truthful privacy copy and its replacement candidate requires fresh executed
+checks. PR #49 remains a draft. No failed or zero-step check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

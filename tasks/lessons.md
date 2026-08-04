@@ -1,5 +1,9 @@
 # Lessons
 
+- 2026-08-04: When a privacy wire contract removes a field, update every
+  SEO/content verifier in the same change. A test that requires retired copy
+  can turn a truthful disclosure into a hosted release blocker.
+
 - 2026-08-04: Route every caller of one private capability through a single
   observable status holder. A silent duplicate bridge can make a public
   fallback behave safely while leaving diagnostics unable to distinguish an
