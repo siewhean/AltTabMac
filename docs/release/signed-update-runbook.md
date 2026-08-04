@@ -1,8 +1,10 @@
 # Signed Update Runbook
 
-CmdTab uses Sparkle 2.9.2 on the default stable channel. The application keeps
+CmdTab uses Sparkle 2.9.2 on the isolated beta channel. The application keeps
 one `SPUStandardUpdaterController` for its lifetime, uses Sparkle's standard
-second-launch consent prompt, and checks daily only after the user opts in.
+second-launch consent prompt, and checks daily only after the user opts in. Its
+packaged feed is `https://cmdtab.net/releases/beta/appcast.xml`; the stable
+endpoint remains unavailable until GA.
 
 ## One-time owner setup
 
@@ -32,33 +34,35 @@ then records Gatekeeper output. The credential-gated release path requests
 Apple Silicon slice. An accepted local ad-hoc build is not equivalent evidence,
 and this beta does not support Intel execution.
 
-## Prepare update metadata
+## Prepare beta update metadata
 
 The immutable DMG URL must include the exact 40-character source SHA and end in
 `CmdTab-{version}-{build}.dmg`.
 
 ```bash
-./scripts/release/prepare-release-publication.sh \
-  dist/release/CmdTab-1.0.0-1.dmg \
-  "https://releases.cmdtab.net/<source-sha>/CmdTab-1.0.0-1.dmg" \
+./scripts/release/prepare-release-publication.sh --beta 1.0.0-beta.1 \
+  dist/release/CmdTab-1.0.0-beta.1-1.dmg \
+  "https://releases.cmdtab.net/<source-sha>/CmdTab-1.0.0-beta.1-1.dmg" \
   "<source-sha>" \
   dist/release/publication \
-  previous-stable.json
+  previous-beta.json
 ```
 
 The command verifies bytes and SHA-256, rejects an equal or lower build than the
-published manifest, generates EdDSA enclosure and feed signatures, and validates
-the appcast against the manifest.
+published beta manifest, generates EdDSA enclosure and feed signatures, and
+validates the beta appcast against the manifest. `--beta` is required and must
+use `x.y.z-beta.N`; it emits `beta.json` and `beta-appcast.xml`. Omitting
+`--beta` preserves the stable-only command for GA and emits `stable.json` and
+`appcast.xml`.
 
 Publish only in this order:
 
 1. Immutable notarized DMG.
-2. Copy the generated `stable.json` to the repository's
-   `release/stable.json`, rebuild and deploy the website, then verify that
-   `/releases/stable.json` is byte-for-byte equivalent and `/trial` links to
-   its immutable `dmgURL`. Until that file exists, both surfaces deliberately
-   expose no download.
-3. Publish `appcast.xml` last.
+2. Copy the generated `beta.json` to the repository's `release/beta.json`,
+   rebuild and deploy the website, then verify that `/releases/beta.json` is
+   byte-for-byte equivalent and `/trial` links to its immutable `dmgURL`.
+   Stable surfaces remain unavailable until GA.
+3. Publish `beta-appcast.xml` as `/releases/beta/appcast.xml` last.
 
 Rollback never lowers a client build number. Rebuild reverted source as a newly
 signed, notarized release with a strictly higher `CFBundleVersion`.

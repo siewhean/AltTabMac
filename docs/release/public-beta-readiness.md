@@ -1,6 +1,6 @@
 # CmdTab Signed Public-Beta Gate Ledger
 
-**Candidate source:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
+**Baseline source:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
 **Target:** direct-download `v1.0.0-beta.N`, Apple silicon (`arm64`) only,
 macOS 13.0 Ventura or later, bundle ID `net.cmdtab.CmdTab`.
 
@@ -16,9 +16,10 @@ unset or not `1`. No payment CTA, checkout, fulfillment, or outbox processing
 may be public. Any US$12 reference must be clearly future-tense (planned at
 GA); no `Product` or `Offer` structured data may advertise a transaction.
 At GA, stable download and appcast must be controlled independently. Gate 5
-must make stable download and appcast unavailable with `503` and `no-store`
-until GA and add a separate beta manifest/appcast namespace; the baseline has
-no stable-appcast route evidence yet.
+must keep stable download and appcast unavailable with `503` and `no-store`
+until GA and use a separate beta manifest/appcast namespace. Repository source
+now enforces those beta/stable route contracts, but no deployed or signed-update
+acceptance evidence exists.
 
 ## Master checklist
 
@@ -26,12 +27,12 @@ no stable-appcast route evidence yet.
 | --- | --- | --- |
 | G0 Governance | Candidate ancestry, evidence index, risk register, matrices, runbooks, and truthful source-status reconciliation | PASS (repository governance only); external release rows remain independently blocked or not tested |
 | G1 Artifact integrity | `arm64` beta configuration; current full/focused tests; clean unsigned builds; bundle/entitlement/resource/secret/dSYM review | PASS (repository build integrity); signed distribution remains blocked at G3 |
-| G2 Security/privacy/permissions | Candidate-SHA security audit; P0/P1 triage; private capability/fallback review; privacy and real permission-state evidence | BLOCKED - repository P1 fixes are committed; signed-artifact permission/privacy evidence remains NOT TESTED |
+| G2 Security/privacy/permissions | Candidate-SHA security audit; P0/P1 triage; private capability/fallback review; privacy and real permission-state evidence | BLOCKED - next candidate has source controls for observable fallbacks, aggregate-only telemetry, and privacy-manifest packaging; signed-artifact permission/privacy evidence remains NOT TESTED |
 | G3 Developer ID artifact | Team-ID-confirmed Developer ID signature, Hardened Runtime, timestamp, notarization, staple, Gatekeeper, checksum | BLOCKED - credentials absent |
 | G4 Functional acceptance | Exact quarantined signed DMG on clean arm64 Ventura/current macOS accounts; protected-window matrix and performance/soak | NOT TESTED |
-| G5 Beta update/rollback | Isolated beta feed/manifest; signed N-to-N+1, tamper/interruption/cache failure, withdrawal, rollback rehearsal | BLOCKED / NOT TESTED |
+| G5 Beta update/rollback | Isolated beta feed/manifest; signed N-to-N+1, tamper/interruption/cache failure, withdrawal, rollback rehearsal | BLOCKED / NOT TESTED - source is locked to the beta feed and metadata harness; no signed update, withdrawal, or rollback has run |
 | G6 Website/support/commerce | Beta-only website pages, tested support mailbox, disabled commerce proof, production browser/accessibility/header evidence | BLOCKED |
-| G8 CI/CD | Executed candidate SHA logs for Security, SEO/GEO, Release Readiness, macOS 14/15; branch protection; trusted release environment | BLOCKED - runs have no steps and `main` is unprotected |
+| G8 CI/CD | Executed candidate SHA logs for Security, SEO/GEO, Release Readiness, macOS 14/15; branch protection; trusted release environment | BLOCKED - `616a78f` had executed passes, but the replacement candidate needs fresh runs and `main` is unprotected |
 | G9 RC/soak | Frozen `v1.0.0-beta.N`, private-beta soak, P0/P1 closure, immutable evidence bundle | NOT TESTED |
 | G10 Publication/operations | Explicit owner approval; prerelease/feed/manifest/download publication; 1h/1d/3d/1w checks and withdrawal control | BLOCKED - approval and prerequisites absent |
 

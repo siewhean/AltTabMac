@@ -12,8 +12,12 @@ go-live evidence.
 The current draft candidate also hardens membership and preview reliability:
 fresh base windows cannot be hidden by enrichment, capture uncertainty degrades
 to an icon fallback, stale cancellation callbacks cannot clear a newer capture
-request, and diagnostics are local aggregate counters only. These source
-changes still require fresh hosted and real-machine evidence.
+request, and diagnostics are local aggregate counters only. It now routes every
+classic private AX window-ID lookup through one observable status, reports
+Secure Input and workspace degradation truthfully, uses a fixed five-field
+opt-in telemetry contract with no stable identifier, and packages a verified
+macOS privacy manifest. The beta bundle accepts only the isolated beta Sparkle
+feed. These source changes still require fresh hosted and real-machine evidence.
 
 The draft website dependency tree pins Next.js `16.3.0` and PostCSS `8.5.23`:
 the update resolves the current moderate PostCSS advisory while retaining the
@@ -187,16 +191,12 @@ npm run build
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
-Hosted GitHub Actions capacity is restored for PR #49. The first executed candidate
-runs exposed a macOS 14 concurrency compile failure, updater-test framework
-incompatibility, stale rendered-retrieval assertions, and tracked Finder metadata.
-The repository corrections need fresh hosted evidence. The homepage autoplay,
-Help-page contrast, and analytics-response defects are corrected in
-`d7c3ffe`, which passed local Swift, source-security, production-build, and
-in-app-browser checks. The subsequent `e1bc01d` candidate passed executed
-macOS 14/15, Security, Workflow Health, Repository Health, SEO/GEO, Release
-Readiness browser QA, Audit Source Export, and Vercel checks; PR #49 remains a
-clean draft. No failed check is waived.
+Hosted GitHub Actions capacity is restored for PR #49. The executed `616a78f`
+candidate passed macOS 14/15, Security, Workflow Health, Repository Health,
+SEO/GEO, Release Readiness browser QA, Audit Source Export, and Vercel checks.
+This working-tree Gate 2/Gate 5 correction creates a replacement candidate, so
+those results are historical and fresh executed checks are required after its
+commit and push. PR #49 remains a draft. No failed or zero-step check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

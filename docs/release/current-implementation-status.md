@@ -1,6 +1,6 @@
 # CmdTab Public-Beta Release Status
 
-**Updated:** 2026-08-01
+**Updated:** 2026-08-04
 **Candidate baseline:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
 **Canonical gate ledger:** [`public-beta-readiness.md`](public-beta-readiness.md)
 
@@ -27,26 +27,31 @@ is authorized from this baseline.
   `CMDTAB_REQUIRE_COMMERCE_READY` is absent or not exactly `1`, checkout is
   hidden, webhooks return `503 commerce_disabled`, and workers no-op before
   opening commerce infrastructure.
-- The committed website and release surfaces still describe stable commerce
-  and stable updates in places. They require a beta-specific copy/configuration
-  pass before public-beta publication; no current source claim is beta-launch
-  evidence.
-- Dynamic SkyLight/SLS/CGS and `_AXUIElementGetWindow` calls remain in the
-  native code. Some capability-status/fallback paths exist, but a fresh
-  candidate-SHA audit must establish every private capability's need, failure
-  signal, public fallback, truthful UI, and regression coverage.
+- The next draft candidate packages a beta-only Sparkle feed at
+  `https://cmdtab.net/releases/beta/appcast.xml`. The stable web manifest and
+  appcast routes remain `503` with `no-store` until GA. The repository can
+  prepare beta metadata only; it has not published an appcast, manifest, DMG,
+  or download.
+- Dynamic SkyLight/SLS/CGS, `_AXUIElementGetWindow`, and Secure Input calls
+  remain intentionally scoped native capabilities. Their source contract now
+  requires an observable sanitized status, explicit fallback/degraded state,
+  and regression coverage. Real-machine observation remains required.
 
 ## Security remediation and remaining acceptance boundary
 
-The candidate-SHA static audit found no P0. Its four repository-owned P1
-findings are remediated: confirmed Screen Recording denial clears every preview
-cache; the reminder worker requires a strong bearer secret before lookup; native
-private-capability failures are exposed through diagnostics and truthful
-fallback status; and beta copy has no payment offer or personal-Gmail contact.
+The source static audit found no P0. Repository-owned corrections now include
+Screen Recording denial cache clearing, pre-lookup reminder-worker bearer
+validation, observable native private-capability fallback states, and beta copy
+with no payment offer or personal-Gmail contact. Native telemetry is opt-in,
+uses an intentionally fixed five-field aggregate-only wire contract, and the
+package verifier requires its matching privacy manifest. These are source-level
+controls, not signed-artifact evidence.
 
-Gate 2 remains blocked on real signed-artifact permission transitions, current
-Apple privacy-manifest applicability evidence, and independent candidate-SHA
-review. Source tests do not substitute for those observations.
+Gate 2 remains blocked on real signed-artifact permission transitions,
+independent candidate-SHA review, and clean-machine observation. The privacy
+manifest decision is documented in the runbooks and must be revalidated against
+the final signed bundle and dependencies. Source tests do not substitute for
+those observations.
 
 ## Evidence boundaries
 
@@ -57,9 +62,12 @@ acceptance without an exact-candidate rerun:
 - website or Vercel results from earlier branches;
 - test totals recorded in old task ledgers or status documents.
 
-The latest candidate GitHub runs for Release Readiness, Security, and SEO/GEO
-were created but had zero job steps. They are **BLOCKED**, not passing CI.
-Issue #30 remains open, and `main` has no branch-protection configuration.
+The `616a78f` draft candidate had executed, non-zero-step passes for macOS
+14/15, Security, SEO/GEO, Release Readiness, Workflow Health, Audit Source
+Export, and Vercel. This working-tree correction supersedes that candidate;
+the replacement SHA requires fresh executed checks before it can be considered
+for review. GitHub Actions capacity is restored, but `main` remains unprotected
+and release-environment controls remain unconfigured.
 
 ## External blockers
 

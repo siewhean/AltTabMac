@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import plistlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -61,6 +64,56 @@ def beta_manifest(build: int = 2) -> dict[str, object]:
 
 
 class ReleaseManifestTests(unittest.TestCase):
+    def publication_harness(self, root: Path) -> tuple[Path, dict[str, str]]:
+        release_dir = root / "scripts" / "release"
+        release_dir.mkdir(parents=True)
+        publication = release_dir / "prepare-release-publication.sh"
+        shutil.copy2(
+            ROOT / "scripts" / "release" / "prepare-release-publication.sh",
+            publication,
+        )
+
+        manifest = release_dir / "release_manifest.py"
+        manifest.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env python3",
+                    "import json, os, sys",
+                    "from pathlib import Path",
+                    'Path(os.environ["CMDTAB_TEST_MANIFEST_ARGS"]).write_text(json.dumps(sys.argv[1:]), encoding="utf-8")',
+                    'output = Path(sys.argv[sys.argv.index("--output") + 1])',
+                    "output.parent.mkdir(parents=True, exist_ok=True)",
+                    'output.write_text("{}\\n", encoding="utf-8")',
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        appcast = release_dir / "generate-signed-appcast.sh"
+        appcast.write_text(
+            "\n".join(
+                [
+                    "#!/usr/bin/env bash",
+                    "set -euo pipefail",
+                    "printf '%s\\n' \"$@\" > \"${CMDTAB_TEST_APPCAST_ARGS}\"",
+                    'touch "$3"',
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        appcast.chmod(0o755)
+        environment = os.environ.copy()
+        environment.update(
+            {
+                "CMDTAB_ALLOW_TEST_SOURCE_SHA": "1",
+                "CMDTAB_TEST_MANIFEST_ARGS": str(root / "manifest-args.json"),
+                "CMDTAB_TEST_APPCAST_ARGS": str(root / "appcast-args.txt"),
+            }
+        )
+        return publication, environment
+
     def test_workflow_pin_parser_covers_step_shorthand_and_containers(self) -> None:
         pattern = verify_workflow_actions.USE_PATTERN
         self.assertEqual(
@@ -136,6 +189,103 @@ class ReleaseManifestTests(unittest.TestCase):
             "spctl --assess --type execute",
         ]:
             self.assertIn(required, verifier)
+
+    def test_publication_wrapper_preserves_stable_default_and_emits_beta_namespace(self) -> None:
+        source_sha = "a" * 40
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            publication, environment = self.publication_harness(root)
+            dmg = root / "CmdTab.dmg"
+            dmg.write_bytes(b"test")
+
+            stable_output = root / "stable-output"
+            stable = subprocess.run(
+                [
+                    "bash", str(publication), str(dmg),
+                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-2.dmg",
+                    source_sha, str(stable_output),
+                ],
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertEqual(stable.returncode, 0, stable.stderr)
+            self.assertTrue((stable_output / "stable.json").is_file())
+            self.assertTrue((stable_output / "appcast.xml").is_file())
+            self.assertFalse((stable_output / "beta.json").exists())
+            stable_arguments = json.loads(
+                Path(environment["CMDTAB_TEST_MANIFEST_ARGS"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertNotIn("--channel", stable_arguments)
+            self.assertNotIn("--version", stable_arguments)
+
+            beta_output = root / "beta-output"
+            beta = subprocess.run(
+                [
+                    "bash", str(publication), "--beta", "1.0.0-beta.7", str(dmg),
+                    f"https://releases.cmdtab.net/{source_sha}/CmdTab-1.0.0-beta.7-2.dmg",
+                    source_sha, str(beta_output),
+                ],
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertEqual(beta.returncode, 0, beta.stderr)
+            self.assertTrue((beta_output / "beta.json").is_file())
+            self.assertTrue((beta_output / "beta-appcast.xml").is_file())
+            self.assertFalse((beta_output / "stable.json").exists())
+            beta_arguments = json.loads(
+                Path(environment["CMDTAB_TEST_MANIFEST_ARGS"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                beta_arguments[beta_arguments.index("--channel") + 1], "beta"
+            )
+            self.assertEqual(
+                beta_arguments[beta_arguments.index("--version") + 1],
+                "1.0.0-beta.7",
+            )
+            self.assertEqual(
+                Path(environment["CMDTAB_TEST_APPCAST_ARGS"])
+                .read_text(encoding="utf-8")
+                .splitlines()[1:],
+                [
+                    str(beta_output / "beta.json"),
+                    str(beta_output / "beta-appcast.xml"),
+                ],
+            )
+
+    def test_publication_wrapper_rejects_missing_or_invalid_beta_version_before_signing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            publication, environment = self.publication_harness(root)
+            missing = subprocess.run(
+                ["bash", str(publication), "--beta"],
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertEqual(missing.returncode, 2)
+            self.assertIn("Usage:", missing.stderr)
+
+            invalid = subprocess.run(
+                [
+                    "bash", str(publication), "--beta", "1.0.0", "CmdTab.dmg",
+                    "https://releases.cmdtab.net/example/CmdTab-1.0.0-2.dmg",
+                    "a" * 40, str(root / "output"),
+                ],
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertEqual(invalid.returncode, 2)
+            self.assertIn("Beta publication requires", invalid.stderr)
+            self.assertFalse(
+                Path(environment["CMDTAB_TEST_MANIFEST_ARGS"]).exists()
+            )
 
     def test_branded_dmg_contract_has_drag_install_layout(self) -> None:
         notarized_build = (
@@ -219,6 +369,38 @@ class ReleaseManifestTests(unittest.TestCase):
         ]:
             self.assertIn(required, packager)
         self.assertIn("Expected architectures", verifier)
+
+    def test_beta_candidate_configuration_rejects_the_stable_feed(self) -> None:
+        config_path = ROOT / "release" / "ReleaseConfig.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        beta_feed = "https://cmdtab.net/releases/beta/appcast.xml"
+        self.assertEqual(config["updateChannel"], "beta")
+        self.assertEqual(config["updateFeedURL"], beta_feed)
+
+        with (ROOT / "Resources" / "Info.plist").open("rb") as handle:
+            self.assertEqual(plistlib.load(handle)["SUFeedURL"], beta_feed)
+
+        valid = subprocess.run(
+            ["python3", str(ROOT / "scripts" / "release" / "release_config.py"), "validate"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(valid.returncode, 0, valid.stderr)
+
+        with tempfile.TemporaryDirectory() as directory:
+            invalid_path = Path(directory) / "ReleaseConfig.json"
+            invalid = {**config, "updateChannel": "stable", "updateFeedURL": "https://cmdtab.net/releases/appcast.xml"}
+            invalid_path.write_text(json.dumps(invalid), encoding="utf-8")
+            rejected = subprocess.run(
+                [
+                    "python3", str(ROOT / "scripts" / "release" / "release_config.py"),
+                    "--config", str(invalid_path), "validate",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("isolated beta update channel", rejected.stderr)
 
     def test_valid_manifest_and_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

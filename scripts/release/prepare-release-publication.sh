@@ -2,6 +2,30 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+usage() {
+  echo "Usage: $0 [--beta x.y.z-beta.N] CmdTab.dmg immutable-dmg-url 40-char-source-sha output-dir [previous-{stable,beta}.json]" >&2
+}
+
+BETA_VERSION=""
+case "${1:-}" in
+  --beta)
+    BETA_VERSION="${2:-}"
+    if [[ -z "${BETA_VERSION}" ]]; then
+      usage
+      exit 2
+    fi
+    shift 2
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  --*)
+    usage
+    exit 2
+    ;;
+esac
+
 DMG_PATH="${1:-}"
 DMG_URL="${2:-}"
 SOURCE_SHA="${3:-}"
@@ -9,8 +33,21 @@ OUTPUT_DIR="${4:-}"
 PREVIOUS_MANIFEST="${5:-}"
 
 if [[ -z "${DMG_PATH}" || -z "${DMG_URL}" || -z "${SOURCE_SHA}" || -z "${OUTPUT_DIR}" ]]; then
-  echo "Usage: $0 CmdTab.dmg immutable-dmg-url 40-char-source-sha output-dir [previous-stable.json]" >&2
+  usage
   exit 2
+fi
+
+CHANNEL="stable"
+MANIFEST_NAME="stable.json"
+APPCAST_NAME="appcast.xml"
+if [[ -n "${BETA_VERSION}" ]]; then
+  [[ "${BETA_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]] || {
+    echo "Beta publication requires --beta x.y.z-beta.N." >&2
+    exit 2
+  }
+  CHANNEL="beta"
+  MANIFEST_NAME="beta.json"
+  APPCAST_NAME="beta-appcast.xml"
 fi
 
 if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then
@@ -27,8 +64,8 @@ if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then
   fi
 fi
 
-MANIFEST_PATH="${OUTPUT_DIR}/stable.json"
-APPCAST_PATH="${OUTPUT_DIR}/appcast.xml"
+MANIFEST_PATH="${OUTPUT_DIR}/${MANIFEST_NAME}"
+APPCAST_PATH="${OUTPUT_DIR}/${APPCAST_NAME}"
 CREATE_ARGUMENTS=(
   create
   --dmg "${DMG_PATH}"
@@ -36,6 +73,9 @@ CREATE_ARGUMENTS=(
   --source-sha "${SOURCE_SHA}"
   --output "${MANIFEST_PATH}"
 )
+if [[ "${CHANNEL}" == "beta" ]]; then
+  CREATE_ARGUMENTS+=(--channel beta --version "${BETA_VERSION}")
+fi
 if [[ -n "${PREVIOUS_MANIFEST}" ]]; then
   CREATE_ARGUMENTS+=(--previous "${PREVIOUS_MANIFEST}")
 fi
@@ -44,7 +84,7 @@ mkdir -p "${OUTPUT_DIR}"
 python3 "${ROOT_DIR}/scripts/release/release_manifest.py" "${CREATE_ARGUMENTS[@]}"
 
 # Appcast generation is deliberately last: callers must upload the immutable
-# DMG and stable manifest before promoting this final feed file.
+# DMG and channel-specific manifest before promoting this final feed file.
 "${ROOT_DIR}/scripts/release/generate-signed-appcast.sh" \
   "${DMG_PATH}" \
   "${MANIFEST_PATH}" \

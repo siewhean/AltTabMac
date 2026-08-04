@@ -50,11 +50,11 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://cmdtab.net/releases/appcast.xml</string>
-	<key>SUScheduledCheckInterval</key>
-	<integer>86400</integer>
+	<string>https://cmdtab.net/releases/beta/appcast.xml</string>
 	<key>SURequireSignedFeed</key>
 	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key>
 	<true/>
 </dict>

@@ -1,5 +1,19 @@
 # Lessons
 
+- 2026-08-04: Route every caller of one private capability through a single
+  observable status holder. A silent duplicate bridge can make a public
+  fallback behave safely while leaving diagnostics unable to distinguish an
+  unavailable symbol from a runtime failure.
+
+- 2026-08-04: An opt-in telemetry promise needs a closed wire schema and a
+  matching storage migration, not just client-side convention. Keep rollback
+  table shape compatible while nulling legacy identifiers, and never replace
+  them with a hash or a new stable identifier.
+
+- 2026-08-04: A beta app must reject the stable updater feed at configuration,
+  bundle-rendering, and runtime validation layers; a beta-only publication
+  wrapper alone cannot prevent a cross-channel update.
+
 - 2026-08-04: A version-pinning verifier must be updated in the same logical
   dependency-security correction as its lockfile; otherwise a safe patch
   upgrade is blocked by a stale assertion rather than the dependency audit.

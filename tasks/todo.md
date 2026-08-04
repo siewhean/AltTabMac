@@ -1,5 +1,37 @@
 # Todo
 
+## 2026-08-04 — Gate 2 capability and privacy evidence
+
+- [x] Route classic private AX window-ID lookup through observable capability
+  status, preserving heuristic/app fallback and membership on lookup failure.
+- [x] Add a privacy-manifest applicability decision grounded in the actual
+  native telemetry payload, package it in the macOS bundle, and verify it.
+- [x] Add telemetry serialization and local-diagnostics privacy contracts that
+  reject titles, previews, screenshots, identifiers, tokens, and secrets.
+- [x] Reconcile the canonical beta ledger, status, evidence index, security
+  checklist, and update runbook with the current candidate and executed CI.
+- [x] Run focused/full native, privacy-manifest, release-update, website, and
+  browser checks without changing the draft/publication boundary.
+- [ ] Obtain independent QA/QC and fresh hosted CI for the replacement SHA
+  while PR #49 remains a draft.
+
+### Review
+
+- The combined source-built Swift suite passed 285/285. The beta-update
+  pipeline passed 17/17; release identity, workflow-action, privacy-manifest,
+  repository-hygiene, security, prebuild, production-build, rendered-page,
+  retrieval, and Chrome browser checks passed locally. The Chrome-only
+  verification artifacts were removed from the worktree after inspection.
+- The beta configuration accepts only `/releases/beta/appcast.xml`; stable
+  routes remain `503`/`no-store`. No DMG, appcast, manifest, signing,
+  publication, deployment, or commerce action was performed.
+
+### Boundary
+
+- Developer-ID entitlements/notarization, real permission transitions,
+  clean-machine acceptance, beta N-to-N+1/rollback execution, verified support
+  mailbox, and go-live approval remain external `NOT TESTED` evidence.
+
 ## 2026-08-04 — Dependency-audit remediation
 
 - [x] Diagnose the exact-head Vercel preview and Security failures as the

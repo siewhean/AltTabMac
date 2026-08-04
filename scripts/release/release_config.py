@@ -15,6 +15,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = ROOT / "release" / "ReleaseConfig.json"
+BETA_UPDATE_CHANNEL = "beta"
+BETA_UPDATE_FEED_URL = "https://cmdtab.net/releases/beta/appcast.xml"
 
 REQUIRED_KEYS = {
     "schemaVersion",
@@ -56,12 +58,14 @@ def load_config(path: Path) -> dict[str, Any]:
         raise SystemExit("packageType must remain APPL")
     if data["architecturePolicy"] != "arm64-only":
         raise SystemExit("Only the arm64-only architecture policy is supported for this beta")
-    if data["updateChannel"] != "stable":
-        raise SystemExit("Only the stable update channel is supported for v1")
+    if data["updateChannel"] != BETA_UPDATE_CHANNEL:
+        raise SystemExit("Only the isolated beta update channel is supported for this candidate")
     if data["sparkleVersion"] != "2.9.2":
         raise SystemExit("Sparkle must remain pinned to reviewed version 2.9.2")
-    if not re.fullmatch(r"https://[^\s]+", data["updateFeedURL"]):
-        raise SystemExit("updateFeedURL must be an HTTPS URL")
+    if data["updateFeedURL"] != BETA_UPDATE_FEED_URL:
+        raise SystemExit(
+            f"updateFeedURL must be the isolated beta feed: {BETA_UPDATE_FEED_URL}"
+        )
     if data["updateCheckIntervalSeconds"] != 86400:
         raise SystemExit("updateCheckIntervalSeconds must remain one day")
     return data

@@ -5,7 +5,7 @@ import XCTest
 final class UpdaterControllerTests: XCTestCase {
     private var validConfiguration: [String: Any] {
         [
-            "SUFeedURL": "https://cmdtab.net/releases/appcast.xml",
+            "SUFeedURL": UpdaterController.betaFeedURL,
             "SUPublicEDKey": Data(repeating: 0xA5, count: 32).base64EncodedString(),
             "SURequireSignedFeed": true,
             "SUVerifyUpdateBeforeExtraction": true,
@@ -24,6 +24,10 @@ final class UpdaterControllerTests: XCTestCase {
         var insecureFeed = validConfiguration
         insecureFeed["SUFeedURL"] = "http://cmdtab.net/releases/appcast.xml"
         XCTAssertFalse(UpdaterController.hasValidConfiguration(infoDictionary: insecureFeed))
+
+        var stableFeed = validConfiguration
+        stableFeed["SUFeedURL"] = "https://cmdtab.net/releases/appcast.xml"
+        XCTAssertFalse(UpdaterController.hasValidConfiguration(infoDictionary: stableFeed))
 
         var shortKey = validConfiguration
         shortKey["SUPublicEDKey"] = Data(repeating: 1, count: 31).base64EncodedString()

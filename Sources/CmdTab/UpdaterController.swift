@@ -4,6 +4,7 @@ import Sparkle
 @MainActor
 final class UpdaterController {
     static let shared = UpdaterController()
+    nonisolated static let betaFeedURL = "https://cmdtab.net/releases/beta/appcast.xml"
 
     private let standardController: SPUStandardUpdaterController?
 
@@ -38,6 +39,7 @@ final class UpdaterController {
     nonisolated static func hasValidConfiguration(infoDictionary: [String: Any]) -> Bool {
         guard
             let feed = infoDictionary["SUFeedURL"] as? String,
+            feed == betaFeedURL,
             let feedURL = URL(string: feed),
             feedURL.scheme == "https",
             feedURL.host?.isEmpty == false,
