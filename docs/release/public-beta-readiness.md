@@ -32,7 +32,7 @@ acceptance evidence exists.
 | G4 Functional acceptance | Exact quarantined signed DMG on clean arm64 Ventura/current macOS accounts; protected-window matrix and performance/soak | NOT TESTED |
 | G5 Beta update/rollback | Isolated beta feed/manifest; signed N-to-N+1, tamper/interruption/cache failure, withdrawal, rollback rehearsal | BLOCKED / NOT TESTED - source is locked to the beta feed; publication scripts bind the beta prerelease label to the numeric bundle version/build in the mounted notarized DMG and reject malformed web manifests; no signed update, withdrawal, or rollback has run |
 | G6 Website/support/commerce | Beta-only website pages, tested support mailbox, disabled commerce proof, production browser/accessibility/header evidence | BLOCKED |
-| G8 CI/CD | Executed candidate SHA logs for Security, SEO/GEO, Release Readiness, macOS 14/15; branch protection; trusted release environment | BLOCKED - `4f714e7` had executed passes, but the replacement candidate needs fresh runs; source security/audit workflows now cover every candidate change while `main` remains unprotected |
+| G8 CI/CD | Executed candidate SHA logs for Security, SEO/GEO, Release Readiness, macOS 14/15; branch protection; trusted release environment | BLOCKED - `081ec04199885dffb5c7dddd30b6dcd23279bd55` has executed passes; source security/audit workflows cover every candidate change, but `main` remains unprotected and release-environment controls are unconfigured |
 | G9 RC/soak | Frozen `v1.0.0-beta.N`, private-beta soak, P0/P1 closure, immutable evidence bundle | NOT TESTED |
 | G10 Publication/operations | Explicit owner approval; prerelease/feed/manifest/download publication; 1h/1d/3d/1w checks and withdrawal control | BLOCKED - approval and prerequisites absent |
 

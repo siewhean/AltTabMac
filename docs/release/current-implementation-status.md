@@ -66,13 +66,12 @@ acceptance without an exact-candidate rerun:
 - website or Vercel results from earlier branches;
 - test totals recorded in old task ledgers or status documents.
 
-The `4f714e7` draft candidate had executed, non-zero-step passes for macOS
-14/15, Security, SEO/GEO, Release Readiness, Workflow Health, Audit Source
-Export, and Vercel; `616a78f` is older historical evidence. This working-tree
-correction supersedes that candidate; the replacement SHA requires fresh
-executed checks before it can be considered for review. GitHub Actions capacity
-is restored, but `main` remains unprotected and release-environment controls
-remain unconfigured.
+The application-source candidate
+`081ec04199885dffb5c7dddd30b6dcd23279bd55` has executed, non-zero-step passes
+for macOS 14/15, Security, SEO/GEO/browser QA, Release Readiness, Workflow
+Health, Audit Source Export, and Vercel. `4f714e7` and `616a78f` are older
+historical evidence. GitHub Actions capacity is restored, but `main` remains
+unprotected and release-environment controls remain unconfigured.
 
 ## External blockers
 

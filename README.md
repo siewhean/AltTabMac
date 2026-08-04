@@ -195,15 +195,14 @@ npm run build
 
 The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
 
-Hosted GitHub Actions capacity is restored for PR #49. The executed `4f714e7`
-candidate passed macOS 14/15, Security, Workflow Health, Repository Health,
-SEO/GEO, Release Readiness browser QA, Audit Source Export, and Vercel checks;
-earlier `616a78f` evidence is also historical. The current working-tree
-operational correction creates a replacement candidate, so all of those results
-must be rerun after its commit and push. Security and audit-export workflows now
-run on every candidate change, and the retained one-day archive is bound to the
-submitted PR head rather than a synthetic merge ref. PR #49 remains a draft. No
-failed or zero-step check is waived.
+Hosted GitHub Actions capacity is restored for PR #49. The application-source
+candidate `081ec04199885dffb5c7dddd30b6dcd23279bd55` passed macOS 14/15,
+Security, Workflow Health, Repository Health, SEO/GEO/browser QA, Release
+Readiness, Audit Source Export, and Vercel checks with actual workflow steps;
+`4f714e7` and `616a78f` are historical. Security and audit-export workflows
+now run on every candidate change, and the retained one-day archive is bound to
+the submitted PR head rather than a synthetic merge ref. PR #49 remains a
+draft. No failed or zero-step check is waived.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

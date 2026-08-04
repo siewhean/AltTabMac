@@ -17,15 +17,16 @@
   the submitted head SHA.
 - [x] Align privacy, FAQ, terms, consent UI, and canonical release records
   with the unpublished, fail-closed beta state.
-- [ ] Run combined independent QA/QC, commit the replacement candidate, and
-  require fresh executed hosted evidence while PR #49 remains a draft.
+- [x] Run combined independent QA/QC, commit the replacement candidate, and
+  obtain fresh executed hosted evidence while PR #49 remains a draft.
 
 ### Review
 
-- The previous `4f714e7` hosted passes are historical because these combined
-  source corrections create a replacement candidate. No signing, notarization,
-  tag, beta feed, beta manifest, deployment, checkout, or commerce enablement
-  is authorized by this task.
+- The application-source candidate `081ec04199885dffb5c7dddd30b6dcd23279bd55`
+  received actual passes for macOS 14/15, Security, SEO/GEO/browser QA, Release
+  Readiness, Workflow Health, Audit Source Export, and Vercel. No signing,
+  notarization, tag, beta feed, beta manifest, production deployment, checkout,
+  or commerce enablement is authorized by this task.
 - External Gates 3, 4, 5, 6, 8, 9, and 10 remain `BLOCKED` or `NOT TESTED`
   until their required credentials, machines, mailbox, controls, or approval
   exist.

@@ -27,17 +27,16 @@
 | Deployment | No candidate-bound Vercel deployment evidence retained in this gate | NOT TESTED |
 | Signing/mail/clean machines | Credentials, verified support mailbox, and clean-machine evidence absent | BLOCKED / NOT TESTED |
 
-## Executed-CI refresh - historical `4f714e7`
+## Executed-CI refresh - candidate `081ec041`
 
-The draft PR #49 candidate `4f714e70a2d25db0f1b1e0a353a0532df8a98679`
-had actual, non-zero-step passes for macOS 14/15, Security, SEO/GEO, Release
-Readiness, Workflow Health, Audit Source Export, and Vercel. Earlier
-`616a78fd1f29716c2d0183dc8aff792d58d5b1f7` evidence is also historical. The
-current Gate 2/Gate 5/Gate 8 correction creates a new candidate SHA that must
-receive its own executed checks. Source workflow hardening now runs Security
-and Audit Source Export for every candidate change and binds the private
-one-day archive to the submitted PR head. This record does not authorize
-signing, publication, commerce, or a beta download.
+The draft PR #49 application-source candidate
+`081ec04199885dffb5c7dddd30b6dcd23279bd55` had actual, non-zero-step passes
+for macOS 14/15, Security, SEO/GEO/browser QA, Release Readiness, Workflow
+Health, Audit Source Export, and Vercel. Earlier `4f714e7` and
+`616a78fd1f29716c2d0183dc8aff792d58d5b1f7` evidence is historical. Source
+workflow hardening runs Security and Audit Source Export for every candidate
+change and binds the private one-day archive to the submitted PR head. This
+record does not authorize signing, publication, commerce, or a beta download.
 
 **Gate 0 status:** **PASS (repository governance only).** Its dedicated commit
 contains the reconciled ledger, runbooks, matrices, and evidence index. The
