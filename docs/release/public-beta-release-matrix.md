@@ -11,8 +11,8 @@ that policy conflict requires an explicit release decision before promotion.
 
 | Requirement | Result | Evidence / remaining gate |
 | --- | --- | --- |
-| Source candidate clean/exact SHA | IN PROGRESS | Candidate branch is based on `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`; freeze and record its committed SHA and clean-tree receipt. |
-| Full Swift source suite | PASS (local source) | 378 XCTest and 2 Swift Testing tests passed in the candidate worktree on 2026-09-29. This is not hosted CI or signed-artifact acceptance. |
+| Source candidate clean/exact SHA | PASS (candidate branch) | PR #50 is based on `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`. The clean committed candidate was checked at `4ab25b27`; verify the current PR head and clean-tree receipt after any new commit. |
+| Full Swift source suite | PASS (source) | 380 XCTest cases passed locally after the updater tests moved to XCTest for the older toolchain; hosted macOS 14 and 15 Swift checks passed at `4ab25b27`. This is not signed-artifact acceptance. |
 | CG-first membership | PASS (source) | `AppSwitcher` evaluates Core Graphics candidates before positive mapped AX exclusion. |
 | AX omission preserves CG windows | PASS (source) | Membership regression matrices cover silent AX omission and missing ID bridge. |
 | Window completeness | PARTIAL (local ad-hoc app) | One-display v9 PDFgear/WindowLab checks passed; second display, Stage Manager, and final signed-candidate matrix remain untested. |
@@ -39,7 +39,7 @@ that policy conflict requires an explicit release decision before promotion.
 | Hardened Runtime | UNPROVEN | Enforced for release packaging; no accepted signed artifact supplied. |
 | Notarization | UNPROVEN | No `CmdTabNotary` Keychain profile; requires accepted `notarytool` receipt and stapling validation. |
 | Gatekeeper | UNPROVEN | Requires clean-account DMG installation assessment. |
-| CI | NOT_RUN (candidate SHA) | Open a candidate PR and obtain executed macOS 14/15, release, website and workflow-health checks. Existing PR #49 hosted jobs failed before any step; they do not qualify this candidate. |
+| CI | PASS at `4ab25b27` | [PR #50](https://github.com/siewhean/AltTabMac/pull/50) ran macOS 14/15 Swift, release configuration, website security/SEO/browser/accessibility, Vercel, and workflow-health checks successfully. Every later commit needs a new exact-head result; PR #49 does not qualify this candidate. |
 
 ## Required external receipts
 

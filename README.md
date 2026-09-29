@@ -6,8 +6,9 @@ The attached local CmdTab.app passed the bounded functional and CPU checks
 recorded in [live QA observations](docs/qa/evidence/attached-app-live-2026-09-28/observations.md).
 Those observations belong to an ad-hoc signed app and do not qualify a rebuilt
 candidate or public release. The candidate keeps the universal arm64/x86_64,
-macOS 14+, public-beta configuration. Public release remains blocked on the
-exact signed artifact, hosted CI, and the external checks listed in the
+macOS 14+, public-beta configuration. PR #50 hosted checks passed on
+`4ab25b27`; each later commit needs its own CI result. Public release remains
+blocked on the exact signed artifact and external checks listed in the
 [release matrix](docs/release/public-beta-release-matrix.md).
 
 The public website remains waitlist-first and commerce stays fail-closed unless

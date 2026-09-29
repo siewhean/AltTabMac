@@ -12,8 +12,10 @@ release-tooling source on current `origin/main`. The 2026-09-28 live functional
 and bounded CPU checks apply to an ad-hoc local app, not automatically to this
 rebuilt candidate. See [the exact observation record](../qa/evidence/attached-app-live-2026-09-28/observations.md).
 The candidate retains universal arm64/x86_64 packaging, macOS 14+, and the
-public-beta channel. Full candidate tests, package verification, hosted CI,
-signed-artifact and physical release checks need their own exact-SHA evidence.
+public-beta channel. Local validation reached 380 XCTest cases and universal
+ad-hoc package verification. PR #50's hosted Swift, website, security, and
+browser checks passed at `4ab25b27`; subsequent commits require fresh CI.
+Signed-artifact and physical release checks still need exact-SHA evidence.
 
 ## Accepted baseline
 
@@ -80,8 +82,8 @@ The following cannot be accepted from repository automation alone:
 - clean Apple Silicon and Intel installation and N-to-N+1 update evidence;
 - real 10/25/50-window and 1,000-session performance acceptance on the final
   signed candidate;
-- restored GitHub-hosted runner/account capacity. Current required workflows
-  fail before their first step and therefore provide no source-quality signal.
+- exact-head hosted CI on any later candidate commit. PR #50's checks passed
+  at `4ab25b27`, but that result cannot qualify a changed head.
 
 No release branch or public download may be promoted until every applicable
 external item is evidenced. Unsupported hardware or unavailable credentials
@@ -95,6 +97,6 @@ activation-outcome accounting, signing/notarization guards, deterministic CI
 configuration validation, centralized status-bearing private-window capability
 providers, and physical-evidence procedures are repository complete. The
 macOS-14/15 private-capability canary is a physical receipt gate, not CI proof.
-The release remains **BLOCKED** until the exact candidate has hosted
-CI, authorized-Mac performance/soak and VoiceOver receipts, Developer ID
+The release remains **BLOCKED** until the exact signed candidate has
+authorized-Mac performance/soak and VoiceOver receipts, Developer ID
 signing/notarization/Gatekeeper proof, and a real signed beta N->N+1 update.
