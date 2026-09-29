@@ -100,6 +100,10 @@ img {
   transform: translate3d(0, 18px, 0) scale(0.975);
 }
 
+.motion-reveal--no-fade {
+  opacity: 1;
+}
+
 .motion-reveal[data-visible="true"] {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);

@@ -99,7 +99,7 @@ export default function HelpPage() {
             </div>
           </MotionReveal>
 
-          <MotionReveal direction="right" delay={120}>
+          <MotionReveal direction="right" delay={120} className="motion-reveal--no-fade">
             <LicenseRequestForm />
           </MotionReveal>
         </div>

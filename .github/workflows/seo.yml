@@ -24,8 +24,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
+      DATABASE_URL: postgres://cmdtab_ci:cmdtab_ci@127.0.0.1:5432/cmdtab_ci
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cmdtab_ci
+          POSTGRES_PASSWORD: cmdtab_ci
+          POSTGRES_DB: cmdtab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cmdtab_ci -d cmdtab_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: website
