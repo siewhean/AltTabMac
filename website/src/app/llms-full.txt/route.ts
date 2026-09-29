@@ -172,7 +172,7 @@ The visual preview may fall back to an application icon or placeholder, but an o
 
 ### Does CmdTab use ScreenCaptureKit?
 
-The current implementation should not be described that way. The public source uses CoreGraphics, Accessibility APIs, and a WindowServer/SkyLight capture path. No ScreenCaptureKit claim is published.
+Yes. CmdTab first tries SkyLight and Core Graphics for immediate window previews, then uses ScreenCaptureKit for asynchronous recovery when those captures fail. Accessibility APIs identify eligible windows and help activate the selected target. ScreenCaptureKit recovery does not guarantee a preview for protected content or when Screen Recording permission is unavailable.
 
 ### Does CmdTab publish a RAM or sub-50 ms performance claim?
 

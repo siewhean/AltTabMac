@@ -77,8 +77,9 @@ final class CapturePixelFormatTests: XCTestCase {
             XCTAssertEqual(trimmed.height, 62)
             let alphaContext = try XCTUnwrap(CGContext(
                 data: nil, width: trimmed.width, height: trimmed.height,
-                bitsPerComponent: 8, bytesPerRow: trimmed.width, space: nil,
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.alphaOnly.rawValue)
+                bitsPerComponent: 8, bytesPerRow: trimmed.width,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue
             ))
             alphaContext.draw(trimmed, in: CGRect(x: 0, y: 0, width: trimmed.width, height: trimmed.height))
             let alpha = try XCTUnwrap(alphaContext.data).assumingMemoryBound(to: UInt8.self)
