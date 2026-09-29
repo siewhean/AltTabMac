@@ -83,12 +83,21 @@ private struct SessionMeasurement: Codable {
     let cpuMilliseconds: Double?
     let residentBytes: UInt64?
     let eventTapState: String
-    let failure: String?
+    let interruptionCode: String?
+    let interruptionDetail: String?
+    let previewIntegrity: String
+    let activationOutcome: String
+    let cmdTabRunningAfterSession: Bool
 }
 
 private struct Preconditions: Codable {
     let accessibilityTrusted: Bool
     let screenCaptureAuthorized: Bool
+    let secureInputObservation: String
+    let eventTapHIDObservation: String
+    let candidateLaunchStatus: String
+    let candidateFrontmostStatus: String
+    let cmdTabProcessRunning: Bool
     let fixtureWindowCountExpected: Int
     let fixtureWindowCountObserved: Int
 }
@@ -111,7 +120,41 @@ private struct ProbeResult: Codable {
     let idleCPUPercent: Double?
     let evidenceState: String
     let evidenceStateReason: String
+    let prerequisiteInterruptions: [String]
+    let activationOutcomeMetrics: ActivationOutcomeMetrics
     let eventTapObservationMethod: String
+}
+
+private struct ActivationOutcomeMetrics: Codable {
+    let requested: Int
+    let exactVerified: Int
+    let applicationFallbackUnverified: Int
+    let targetDisappeared: Int
+    let accessibilityUnavailable: Int
+    let verificationFailure: Int
+
+    static func snapshot() -> ActivationOutcomeMetrics {
+        let defaults = UserDefaults(suiteName: "net.cmdtab.CmdTab")
+        return ActivationOutcomeMetrics(
+            requested: defaults?.integer(forKey: "activationOutcome.requested") ?? 0,
+            exactVerified: defaults?.integer(forKey: "activationOutcome.exactVerified") ?? 0,
+            applicationFallbackUnverified: defaults?.integer(forKey: "activationOutcome.applicationFallback") ?? 0,
+            targetDisappeared: defaults?.integer(forKey: "activationOutcome.targetDisappeared") ?? 0,
+            accessibilityUnavailable: defaults?.integer(forKey: "activationOutcome.accessibilityUnavailable") ?? 0,
+            verificationFailure: defaults?.integer(forKey: "activationOutcome.verificationFailure") ?? 0
+        )
+    }
+
+    func delta(since baseline: ActivationOutcomeMetrics) -> ActivationOutcomeMetrics {
+        ActivationOutcomeMetrics(
+            requested: max(0, requested - baseline.requested),
+            exactVerified: max(0, exactVerified - baseline.exactVerified),
+            applicationFallbackUnverified: max(0, applicationFallbackUnverified - baseline.applicationFallbackUnverified),
+            targetDisappeared: max(0, targetDisappeared - baseline.targetDisappeared),
+            accessibilityUnavailable: max(0, accessibilityUnavailable - baseline.accessibilityUnavailable),
+            verificationFailure: max(0, verificationFailure - baseline.verificationFailure)
+        )
+    }
 }
 
 private struct WindowIdentity {
@@ -380,6 +423,23 @@ private func measureSession(
     _ = fixture.activate(options: [])
     RunLoop.current.run(until: Date().addingTimeInterval(0.02))
 
+    guard NSWorkspace.shared.frontmostApplication?.processIdentifier == fixture.processIdentifier else {
+        return SessionMeasurement(
+            index: index,
+            revealMilliseconds: nil,
+            selectionMilliseconds: nil,
+            observationCaptureMilliseconds: nil,
+            cpuMilliseconds: nil,
+            residentBytes: processUsage(pid: cmdTabPID)?.residentBytes,
+            eventTapState: "not_observed",
+            interruptionCode: "fixture_frontmost_mismatch",
+            interruptionDetail: "The fixture was not frontmost before the shortcut.",
+            previewIntegrity: "unavailable",
+            activationOutcome: "not_observed",
+            cmdTabRunningAfterSession: NSRunningApplication(processIdentifier: cmdTabPID) != nil
+        )
+    }
+
     let baselineWindowIDs = Set(visibleWindows(pid: cmdTabPID).map(\.id))
     let usageBefore = processUsage(pid: cmdTabPID)
     let sessionStarted = DispatchTime.now().uptimeNanoseconds
@@ -398,7 +458,11 @@ private func measureSession(
             cpuMilliseconds: nil,
             residentBytes: processUsage(pid: cmdTabPID)?.residentBytes,
             eventTapState: "unresponsive",
-            failure: "No CmdTab overlay became externally visible after the shortcut"
+            interruptionCode: "reveal_timeout",
+            interruptionDetail: "No CmdTab overlay became externally visible after the shortcut.",
+            previewIntegrity: "unavailable",
+            activationOutcome: "not_observed",
+            cmdTabRunningAfterSession: NSRunningApplication(processIdentifier: cmdTabPID) != nil
         )
     }
 
@@ -416,7 +480,11 @@ private func measureSession(
             cpuMilliseconds: nil,
             residentBytes: processUsage(pid: cmdTabPID)?.residentBytes,
             eventTapState: "responsive",
-            failure: "The visible overlay could not be captured"
+            interruptionCode: "observation_capture_unavailable",
+            interruptionDetail: "The visible overlay could not be captured.",
+            previewIntegrity: "unavailable",
+            activationOutcome: "not_observed",
+            cmdTabRunningAfterSession: NSRunningApplication(processIdentifier: cmdTabPID) != nil
         )
     }
 
@@ -441,6 +509,7 @@ private func measureSession(
     }
 
     let usageAfter = processUsage(pid: cmdTabPID)
+    let cmdTabRunningAfterSession = NSRunningApplication(processIdentifier: cmdTabPID) != nil
     let cpuMilliseconds: Double?
     if let before = usageBefore, let after = usageAfter {
         let beforeCPU = before.userNanoseconds + before.systemNanoseconds
@@ -458,9 +527,21 @@ private func measureSession(
         cpuMilliseconds: cpuMilliseconds,
         residentBytes: usageAfter?.residentBytes,
         eventTapState: "responsive",
-        failure: selectionMilliseconds == nil
-            ? "No externally visible selection change was observed"
-            : nil
+        interruptionCode: !cmdTabRunningAfterSession
+            ? "cmdtab_terminated_or_unresponsive"
+            : selectionMilliseconds == nil
+            ? "selection_timeout"
+            : nil,
+        interruptionDetail: !cmdTabRunningAfterSession
+            ? "CmdTab was not running after the selection attempt."
+            : selectionMilliseconds == nil
+            ? "No externally visible selection change was observed."
+            : nil,
+        previewIntegrity: "observed",
+        activationOutcome: NSWorkspace.shared.frontmostApplication?.processIdentifier == fixture.processIdentifier
+            ? "fixture_application_frontmost_verified"
+            : "frontmost_mismatch",
+        cmdTabRunningAfterSession: cmdTabRunningAfterSession
     )
 }
 
@@ -490,12 +571,14 @@ private func run() throws {
     try terminateApplications(bundleIdentifier: "net.cmdtab.fixture.WindowLab")
     RunLoop.current.run(until: Date().addingTimeInterval(1))
     let cmdTab = try launch(app: arguments.cmdTabApp, arguments: [])
-    guard cmdTab.bundleURL?.resolvingSymlinksInPath().standardizedFileURL ==
-            arguments.cmdTabApp.resolvingSymlinksInPath().standardizedFileURL else {
-        throw ProbeError.launch(
-            "macOS launched a different CmdTab bundle; no candidate was measured"
-        )
-    }
+    let candidateLaunchMatches =
+        cmdTab.bundleURL?.resolvingSymlinksInPath().standardizedFileURL ==
+        arguments.cmdTabApp.resolvingSymlinksInPath().standardizedFileURL
+    let candidateBecameFrontmost = candidateLaunchMatches && waitFor(timeout: 1) {
+        NSWorkspace.shared.frontmostApplication?.processIdentifier == cmdTab.processIdentifier
+            ? true
+            : nil
+    } == true
     let fixture = try launch(
         app: arguments.windowLabApp,
         arguments: ["standard", "--window-count", String(arguments.windowCount)]
@@ -507,9 +590,15 @@ private func run() throws {
     let preconditions = Preconditions(
         accessibilityTrusted: AXIsProcessTrusted(),
         screenCaptureAuthorized: CGPreflightScreenCaptureAccess(),
+        secureInputObservation: "not_observable_by_probe",
+        eventTapHIDObservation: "external_behavioral_proxy_only",
+        candidateLaunchStatus: candidateLaunchMatches ? "exact_bundle_verified" : "mismatch",
+        candidateFrontmostStatus: candidateBecameFrontmost ? "verified" : "mismatch",
+        cmdTabProcessRunning: NSRunningApplication(processIdentifier: cmdTab.processIdentifier) != nil,
         fixtureWindowCountExpected: arguments.windowCount,
         fixtureWindowCountObserved: observedWindowCount
     )
+    let activationMetricsBaseline = ActivationOutcomeMetrics.snapshot()
 
     var measurements: [SessionMeasurement] = []
     if preconditions.accessibilityTrusted,
@@ -544,13 +633,29 @@ private func run() throws {
         idleCPUPercent = nil
     }
 
-    let preconditionsReady =
-        preconditions.accessibilityTrusted &&
-        preconditions.screenCaptureAuthorized &&
-        observedWindowCount == arguments.windowCount
+    var prerequisiteInterruptions: [String] = []
+    if !preconditions.accessibilityTrusted {
+        prerequisiteInterruptions.append("accessibility_unavailable")
+    }
+    if !preconditions.screenCaptureAuthorized {
+        prerequisiteInterruptions.append("screen_recording_unavailable")
+    }
+    if observedWindowCount != arguments.windowCount {
+        prerequisiteInterruptions.append("fixture_window_count_mismatch")
+    }
+    if !preconditions.cmdTabProcessRunning {
+        prerequisiteInterruptions.append("cmdtab_terminated_or_unresponsive")
+    }
+    if !candidateLaunchMatches {
+        prerequisiteInterruptions.append("candidate_launch_mismatch")
+    }
+    if !candidateBecameFrontmost {
+        prerequisiteInterruptions.append("candidate_frontmost_mismatch")
+    }
+    let preconditionsReady = prerequisiteInterruptions.isEmpty
     let result = ProbeResult(
         metadata: RunMetadata(
-            schemaVersion: 1,
+            schemaVersion: 2,
             sourceSHA: arguments.sourceSHA,
             runKind: arguments.runKind,
             capturedAt: ISO8601DateFormatter().string(from: Date()),
@@ -565,7 +670,9 @@ private func run() throws {
         evidenceState: preconditionsReady ? "measured" : "blocked",
         evidenceStateReason: preconditionsReady
             ? "Real measurements were collected on this host."
-            : "Required macOS permissions or exact fixture-window count were unavailable; no measurements were fabricated.",
+            : "Typed prerequisite interruptions prevented measurement; no samples were fabricated.",
+        prerequisiteInterruptions: prerequisiteInterruptions,
+        activationOutcomeMetrics: ActivationOutcomeMetrics.snapshot().delta(since: activationMetricsBaseline),
         eventTapObservationMethod:
             "External behavioral proxy: responsive means the global shortcut produced a visible CmdTab overlay; the foreign process CFMachPort is not introspected."
     )

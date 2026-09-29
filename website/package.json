@@ -8,11 +8,12 @@
     "showcase:generate": "node scripts/generate-hd-showcase-media.mjs && node scripts/normalize-showcase-autoplay.mjs",
     "release:config-check": "python3 ../scripts/release/release_config.py verify-repository",
     "commerce:readiness-check": "node scripts/verify-commerce-readiness.mjs",
+    "beta-trial:readiness-check": "node scripts/verify-beta-trial-readiness.mjs",
     "features:source-check": "python3 ../scripts/release/verify-five-feature-source.py && python3 ../scripts/release/verify-five-feature-audit-fixes.py",
-    "test:unit": "rm -rf /tmp/cmdtab-website-unit-tests && tsc --target ES2022 --module Node16 --moduleResolution Node16 --skipLibCheck --outDir /tmp/cmdtab-website-unit-tests src/content/license-delivery-email.ts src/lib/constant-time.ts src/lib/content-security-policy.ts src/lib/csv.ts src/lib/demo-keyboard-navigation.ts src/lib/stable-release.ts src/lib/commerce.ts src/lib/license-token.ts src/lib/license-lifecycle-contract.ts src/lib/license-delivery-result.ts src/lib/lemonsqueezy.ts src/lib/entitlement-token.ts src/lib/license-signing.ts src/lib/aws-kms-p256.ts src/lib/env.ts src/lib/internal-worker-auth.ts src/lib/purchase-fulfillment.ts src/lib/admin-auth-config.ts src/lib/admin-request-security.ts src/lib/admin-session-token.ts src/lib/auth0-oidc.ts tests/security-hardening.test.ts tests/commerce-config.test.ts tests/commerce-end-to-end.test.ts tests/license-lifecycle.test.ts tests/license-delivery-email.test.ts tests/purchase-fulfillment.test.ts tests/license-token-v2.test.ts tests/admin-auth-security.test.ts && NODE_PATH=$PWD/node_modules node --test /tmp/cmdtab-website-unit-tests/tests/*.test.js && node --test tests/commerce-readiness.test.mjs",
+    "test:unit": "rm -rf /tmp/cmdtab-website-unit-tests && tsc --target ES2022 --module Node16 --moduleResolution Node16 --skipLibCheck --outDir /tmp/cmdtab-website-unit-tests src/content/license-delivery-email.ts src/lib/constant-time.ts src/lib/content-security-policy.ts src/lib/csv.ts src/lib/demo-keyboard-navigation.ts src/lib/stable-release.ts src/lib/commerce.ts src/lib/license-token.ts src/lib/license-lifecycle-contract.ts src/lib/license-delivery-result.ts src/lib/lemonsqueezy.ts src/lib/entitlement-token.ts src/lib/license-signing.ts src/lib/aws-kms-p256.ts src/lib/env.ts src/lib/internal-worker-auth.ts src/lib/purchase-fulfillment.ts src/lib/admin-auth-config.ts src/lib/admin-request-security.ts src/lib/admin-session-token.ts src/lib/auth0-oidc.ts tests/security-hardening.test.ts tests/commerce-config.test.ts tests/commerce-end-to-end.test.ts tests/license-lifecycle.test.ts tests/license-delivery-email.test.ts tests/purchase-fulfillment.test.ts tests/license-token-v2.test.ts tests/admin-auth-security.test.ts && NODE_PATH=$PWD/node_modules node --test /tmp/cmdtab-website-unit-tests/tests/*.test.js && node --test tests/commerce-readiness.test.mjs tests/beta-trial-readiness.test.mjs",
     "analytics:privacy-check": "node scripts/verify-analytics-privacy.mjs",
     "api:security-check": "node scripts/verify-api-security.mjs",
-    "prebuild": "npm run release:config-check && npm run commerce:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck",
+    "prebuild": "npm run release:config-check && npm run commerce:readiness-check && npm run beta-trial:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -33,12 +34,12 @@
     "@aws-sdk/credential-providers": "^3.864.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "16.2.11",
+    "next": "16.3.6",
     "postgres": "^3.4.8",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "resend": "6.18.0",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -48,13 +49,13 @@
     "autoprefixer": "^10.4.21",
     "axe-core": "4.12.1",
     "ffmpeg-static": "5.3.0",
-    "postcss": "8.5.21",
+    "postcss": "8.5.28",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "postcss": "8.5.21",
-    "sharp": "0.35.3",
+    "postcss": "8.5.28",
+    "sharp": "0.35.4",
     "svix": "1.98.0",
     "uuid": "11.1.1"
   }

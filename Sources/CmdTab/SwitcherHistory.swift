@@ -283,10 +283,6 @@ enum SwitcherOrdering {
         let rankByIdentity = Dictionary(
             uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
         )
-        let visibleCountByPID = Dictionary(
-            grouping: items.compactMap(\.historyIdentity.ownerPID),
-            by: { $0 }
-        ).mapValues(\.count)
 
         func appRank(bundleID: String?, pid: Int32?) -> Int? {
             historyEntries.firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
@@ -295,11 +291,6 @@ enum SwitcherOrdering {
         func rank(for item: SwitcherItem) -> Int? {
             if let exact = rankByIdentity[item.historyIdentity] {
                 return exact
-            }
-            if item.kind == .appWindow,
-               let pid = item.historyIdentity.ownerPID,
-               visibleCountByPID[pid] == 1 {
-                return appRank(bundleID: item.sourceAppIdentifier, pid: pid)
             }
             if item.kind == .appFallback,
                let pid = item.historyIdentity.ownerPID {

@@ -6,7 +6,6 @@ import Darwin
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var singletonLockFileDescriptor: Int32 = -1
-    private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     private var screenTopologyObserver: ScreenTopologyObserver?
     private var licensingObserver: AnyCancellable?
@@ -22,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
             activateExistingInstanceIfPossible()
-            shouldAllowTermination = true
             NSApp.terminate(nil)
             return
         }
@@ -172,14 +170,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleRecoveredWindowPreview(_ notification: Notification) {
-        // A deferred ScreenCaptureKit image was added to the exact in-memory
-        // continuity store. Refresh the current base/enriched snapshot so a visible
-        // Arc or Telegram tile can replace its placeholder without another trigger.
-        switcher?.refreshPreviewCache()
+        // The recovered exact frame is already in the continuity store. Publish
+        // that tile without triggering another whole-desktop capture pass.
+        guard let windowID = notification.userInfo?["windowID"] as? CGWindowID else { return }
+        switcher?.publishRecoveredPreview(windowID: windowID)
     }
 
     func requestTermination() {
-        shouldAllowTermination = true
         NSApp.terminate(nil)
     }
 
@@ -198,7 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        shouldAllowTermination ? .terminateNow : .terminateCancel
+        .terminateNow
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

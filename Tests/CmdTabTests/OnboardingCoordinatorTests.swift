@@ -203,14 +203,18 @@ final class OnboardingCoordinatorTests: XCTestCase {
             trialStore: UserDefaultsTrialStartDateStore(defaults: defaults),
             trialClaimStore: claimStore,
             licenseStore: OnboardingTestLicenseKeyStore(),
+            deviceEntitlementStore: OnboardingTestDeviceEntitlementStore(),
             activationMetadataStore: UserDefaultsLicenseActivationMetadataStore(defaults: defaults),
             payloadCacheStore: UserDefaultsLicensedPayloadCacheStore(defaults: defaults),
             installIDStore: UserDefaultsAppInstallIDStore(defaults: defaults),
+            deviceIdentityStore: OnboardingTestDeviceIdentityStore(),
             trialClaimAuthenticator: OnboardingTrustingTrialClaimAuthenticator(),
+            secureTrialClockStore: OnboardingTestSecureTrialClockStore(),
+            revocationStore: OnboardingTestRevocationStore(),
             serverClient: OnboardingTestServerClient(),
             currentDate: { now },
             publicKeyDERBase64: "",
-            developerSettings: developerSettings
+            debugCompatibility: developerSettings
         )
         return OnboardingCoordinator(
             store: store,
@@ -302,4 +306,27 @@ private final class OnboardingTestLicenseKeyStore: LicenseKeyStore {
     func loadLicenseKey() -> String? { nil }
     func saveLicenseKey(_ value: String) throws {}
     func clearLicenseKey() throws {}
+}
+
+private final class OnboardingTestDeviceEntitlementStore: DeviceLicenseEntitlementStore {
+    func loadEntitlement() -> String? { nil }
+    func saveEntitlement(_ value: String) throws {}
+    func clearEntitlement() throws {}
+}
+
+private final class OnboardingTestDeviceIdentityStore: LicenseDeviceIdentityStore {
+    func loadOrCreateSecret() throws -> Data { Data(repeating: 1, count: 32) }
+}
+
+private final class OnboardingTestSecureTrialClockStore: SecureTrialClockStore {
+    private var lastSeenDate: Date?
+
+    func loadLastSeenDate() -> Date? { lastSeenDate }
+    func saveLastSeenDate(_ value: Date) { lastSeenDate = value }
+    func clearLastSeenDate() { lastSeenDate = nil }
+}
+
+private final class OnboardingTestRevocationStore: LicenseRevocationStore {
+    func isRevoked(licenseID: String) -> Bool { false }
+    func saveRevocation(licenseID: String) throws {}
 }

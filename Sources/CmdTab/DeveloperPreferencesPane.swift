@@ -1,3 +1,6 @@
+// This pane can generate local test licenses and alter trial state, so it is
+// intentionally absent from non-DEBUG application binaries.
+#if DEBUG
 import SwiftUI
 
 struct DeveloperPreferencesPane: View {
@@ -293,3 +296,4 @@ private struct DeveloperCard<Content: View>: View {
         )
     }
 }
+#endif

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cmdtab.net/schemas/private-capability-canary-v1.json",
+  "title": "CmdTab private-capability physical canary receipt",
+  "description": "A privacy-safe, candidate-bound observation from one authorized physical Mac. Schema validation is not a macOS acceptance result.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "receiptKind",
+    "receiptState",
+    "source",
+    "artifact",
+    "host",
+    "recordedAt",
+    "operatorAcknowledgement",
+    "capabilities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "receiptKind": { "const": "cmdtab.private-capability-canary" },
+    "receiptState": { "enum": ["observed", "blocked"] },
+    "source": { "$ref": "#/$defs/source" },
+    "artifact": { "$ref": "#/$defs/artifact" },
+    "host": { "$ref": "#/$defs/host" },
+    "recordedAt": { "type": "string", "format": "date-time" },
+    "operatorAcknowledgement": {
+      "type": "object",
+      "required": ["authorizedMac", "noSecretsIncluded"],
+      "additionalProperties": false,
+      "properties": {
+        "authorizedMac": { "const": true },
+        "noSecretsIncluded": { "const": true }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["axWindowIDBridge", "skyLightExactFocus", "skyLightCapture"],
+      "additionalProperties": false,
+      "properties": {
+        "axWindowIDBridge": { "$ref": "#/$defs/axBridge" },
+        "skyLightExactFocus": { "$ref": "#/$defs/exactFocus" },
+        "skyLightCapture": { "$ref": "#/$defs/capture" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "source": {
+      "type": "object",
+      "required": ["sha", "branch", "clean", "releaseConfigSHA256"],
+      "additionalProperties": false,
+      "properties": {
+        "sha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "branch": { "type": "string", "minLength": 1 },
+        "clean": { "const": true },
+        "releaseConfigSHA256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes", "bundleIdentifier", "marketingVersion", "buildNumber"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "bytes": { "type": "integer", "minimum": 1 },
+        "bundleIdentifier": { "const": "net.cmdtab.CmdTab" },
+        "marketingVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$" },
+        "buildNumber": { "type": "string", "pattern": "^[1-9]\\d*$" }
+      }
+    },
+    "host": {
+      "type": "object",
+      "required": ["productVersion", "majorVersion", "architecture"],
+      "additionalProperties": false,
+      "properties": {
+        "productVersion": { "type": "string", "pattern": "^(14|15)(?:\\.\\d+){0,2}$" },
+        "majorVersion": { "enum": [14, 15] },
+        "architecture": { "enum": ["arm64", "x86_64"] }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["state", "failureReason"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "enum": ["available", "degraded", "unavailable", "failed"] },
+        "failureReason": { "type": ["string", "null"] }
+      }
+    },
+    "axBridge": {
+      "allOf": [{ "$ref": "#/$defs/capability" }],
+      "type": "object",
+      "required": ["fixtureWindowCount", "roundTripResult"],
+      "properties": {
+        "fixtureWindowCount": { "type": "integer", "minimum": 2 },
+        "roundTripResult": { "enum": ["exact_id_round_trip", "identity_unavailable"] }
+      }
+    },
+    "exactFocus": {
+      "allOf": [{ "$ref": "#/$defs/capability" }],
+      "type": "object",
+      "required": ["iterations", "exactVerifiedCount", "nonExactOutcomeCount", "wrongSiblingCount"],
+      "properties": {
+        "iterations": { "type": "integer", "minimum": 2 },
+        "exactVerifiedCount": { "type": "integer", "minimum": 0 },
+        "nonExactOutcomeCount": { "type": "integer", "minimum": 0 },
+        "wrongSiblingCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "capture": {
+      "allOf": [{ "$ref": "#/$defs/capability" }],
+      "type": "object",
+      "required": ["fixtureWindowCount", "correctPreviewCount", "truthfullyUnavailableCount", "staleOrCrossWindowPreviewCount"],
+      "properties": {
+        "fixtureWindowCount": { "type": "integer", "minimum": 2 },
+        "correctPreviewCount": { "type": "integer", "minimum": 0 },
+        "truthfullyUnavailableCount": { "type": "integer", "minimum": 0 },
+        "staleOrCrossWindowPreviewCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

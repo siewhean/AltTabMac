@@ -99,8 +99,8 @@ printf 'Building %s in %s (deterministic-linker=%s jobs=%s architectures=%s)\n' 
   "${BUILD_JOBS:-default}" \
   "${BUILD_ARCHITECTURES:-host}" >&2
 if [[ "${BUILD_ARCHITECTURES}" == "arm64,x86_64" ]]; then
-  ARM64_BINARY="$(build_product "${SCRATCH_PATH}/arm64" "arm64-apple-macosx13.0")"
-  X86_64_BINARY="$(build_product "${SCRATCH_PATH}/x86_64" "x86_64-apple-macosx13.0")"
+  ARM64_BINARY="$(build_product "${SCRATCH_PATH}/arm64" "arm64-apple-macosx14.0")"
+  X86_64_BINARY="$(build_product "${SCRATCH_PATH}/x86_64" "x86_64-apple-macosx14.0")"
   UNIVERSAL_DIRECTORY="${SCRATCH_PATH}/universal"
   mkdir -p "${UNIVERSAL_DIRECTORY}"
   lipo -create \

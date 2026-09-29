@@ -231,8 +231,10 @@ private struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             stepContent(
                 symbol: "checkmark.shield.fill",
-                title: "Start a Trial or Activate",
-                detail: "Access is granted only after CmdTab verifies a server-backed 14-day trial claim or a signed license. An unavailable server never creates an unsigned local trial."
+                title: LicensingConfiguration.commerceEnabled ? "Start a Trial or Activate" : "Start a Trial",
+                detail: LicensingConfiguration.commerceEnabled
+                    ? "Start your free 14-day trial. CmdTab needs an internet connection once to activate it; after that, it works completely offline. If you already have an activation code, enter it below."
+                    : "Start your free 14-day trial. CmdTab needs an internet connection once to activate it; after that, it works completely offline."
             )
 
             Text(licensingController.licenseSummaryTitle)
@@ -271,7 +273,8 @@ private struct OnboardingView: View {
                 }
             }
 
-            HStack(spacing: 12) {
+            if LicensingConfiguration.commerceEnabled {
+                HStack(spacing: 12) {
                 SecureField("Purchase activation code", text: $licensingController.enteredLicenseKey)
                     .textFieldStyle(.roundedBorder)
                 Button {
@@ -296,6 +299,7 @@ private struct OnboardingView: View {
                             .trimmingCharacters(in: .whitespacesAndNewlines)
                             .isEmpty
                 )
+                }
             }
 
             if let message = licensingController.trialMessage {

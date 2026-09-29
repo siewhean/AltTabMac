@@ -86,6 +86,10 @@ struct PhysicalModifierChordTimingState {
     private var rightCommandDownAt: TimeInterval?
     private var leftOptionDownAt: TimeInterval?
     private var rightOptionDownAt: TimeInterval?
+    private var leftCommandRecentDownAt: TimeInterval?
+    private var rightCommandRecentDownAt: TimeInterval?
+    private var leftOptionRecentDownAt: TimeInterval?
+    private var rightOptionRecentDownAt: TimeInterval?
 
     init(
         maximumSeparation: TimeInterval = Self.defaultMaximumSeparation
@@ -101,17 +105,28 @@ struct PhysicalModifierChordTimingState {
         switch key {
         case .leftCommand:
             leftCommandDownAt = isDown ? uptime : nil
+            if isDown { leftCommandRecentDownAt = uptime }
         case .rightCommand:
             rightCommandDownAt = isDown ? uptime : nil
+            if isDown { rightCommandRecentDownAt = uptime }
         case .leftOption:
             leftOptionDownAt = isDown ? uptime : nil
+            if isDown { leftOptionRecentDownAt = uptime }
         case .rightOption:
             rightOptionDownAt = isDown ? uptime : nil
+            if isDown { rightOptionRecentDownAt = uptime }
+        }
+
+        if leftCommandDownAt == nil && rightCommandDownAt == nil && leftOptionDownAt == nil && rightOptionDownAt == nil {
+            leftCommandRecentDownAt = nil
+            rightCommandRecentDownAt = nil
+            leftOptionRecentDownAt = nil
+            rightOptionRecentDownAt = nil
         }
     }
 
     func accepts(keys: [PhysicalModifierTriggerKey]) -> Bool {
-        let times = keys.compactMap(downAt)
+        let times = keys.compactMap { downAt(for: $0) ?? recentDownAt(for: $0) }
         guard times.count == keys.count,
               let earliest = times.min(),
               let latest = times.max() else {
@@ -125,6 +140,10 @@ struct PhysicalModifierChordTimingState {
         rightCommandDownAt = nil
         leftOptionDownAt = nil
         rightOptionDownAt = nil
+        leftCommandRecentDownAt = nil
+        rightCommandRecentDownAt = nil
+        leftOptionRecentDownAt = nil
+        rightOptionRecentDownAt = nil
     }
 
     private func downAt(
@@ -139,6 +158,21 @@ struct PhysicalModifierChordTimingState {
             return leftOptionDownAt
         case .rightOption:
             return rightOptionDownAt
+        }
+    }
+
+    private func recentDownAt(
+        for key: PhysicalModifierTriggerKey
+    ) -> TimeInterval? {
+        switch key {
+        case .leftCommand:
+            return leftCommandRecentDownAt
+        case .rightCommand:
+            return rightCommandRecentDownAt
+        case .leftOption:
+            return leftOptionRecentDownAt
+        case .rightOption:
+            return rightOptionRecentDownAt
         }
     }
 }

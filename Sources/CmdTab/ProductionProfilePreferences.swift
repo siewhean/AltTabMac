@@ -3,6 +3,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 final class ProductionProfilePreferencesWindowController: NSWindowController, NSWindowDelegate {
+    static let shared = ProductionProfilePreferencesWindowController()
+
     private let model = ProductionProfileEditorModel()
     private var retainedController: NSHostingController<ProductionProfilePreferencesView>?
 

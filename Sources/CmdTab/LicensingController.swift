@@ -102,7 +102,10 @@ final class LicensingController: ObservableObject {
     private let telemetryReporter: AppTelemetryReporting?
     private let currentDate: () -> Date
     private let publicKeyDERBase64: String
+    private var keychainReadObserver: NSObjectProtocol?
+    #if DEBUG
     private let developerSettings: DeveloperSettings
+    #endif
     private let iso8601 = ISO8601DateFormatter()
 
     init(
@@ -126,7 +129,9 @@ final class LicensingController: ObservableObject {
         telemetryReporter: AppTelemetryReporting? = nil,
         currentDate: @escaping () -> Date = Date.init,
         publicKeyDERBase64: String = LicensingConfiguration.publicKeyDERBase64,
-        developerSettings: DeveloperSettings? = nil
+        // This compatibility argument is inert in release builds; DEBUG alone
+        // casts it to the internal scenario state used by tests.
+        debugCompatibility: Any? = nil
     ) {
         self.trialStore = trialStore
         self.trialClaimStore = trialClaimStore
@@ -149,11 +154,27 @@ final class LicensingController: ObservableObject {
         self.telemetryReporter = telemetryReporter
         self.currentDate = currentDate
         self.publicKeyDERBase64 = publicKeyDERBase64
-        self.developerSettings = developerSettings ?? .shared
+        #if DEBUG
+        self.developerSettings = (debugCompatibility as? DeveloperSettings) ?? .shared
+        #endif
 
         self.status = .unregistered
 
+        keychainReadObserver = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshStatus() }
+        }
+
         refreshStatus()
+    }
+
+    deinit {
+        if let keychainReadObserver {
+            NotificationCenter.default.removeObserver(keychainReadObserver)
+        }
     }
 
     var hasUnlockedAccess: Bool {
@@ -236,37 +257,64 @@ final class LicensingController: ObservableObject {
     }
 
     func refreshStatus() {
+        defer { BoundedKeychainReadRegistry.validationCompletedIfIdle() }
         let now = currentDate()
 
-        if let paidEntitlement = deviceEntitlementStore.loadEntitlement(),
-           let verifiedPayload = try? validatePaidDeviceEntitlement(
-            paidEntitlement
-           ) {
-            guard !isRevoked(
-                payload: verifiedPayload,
-                entitlementToken: paidEntitlement
-            ) else {
-                try? deviceEntitlementStore.clearEntitlement()
+        // A timed-out securityd read is unknown, never proof of an entitlement
+        // or a clear revocation state. Keep shortcuts disabled until it resolves.
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            status = .unregistered
+            return
+        }
+
+        let paidEntitlement = deviceEntitlementStore.loadEntitlement()
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            status = .unregistered
+            return
+        }
+        if let paidEntitlement {
+            if let verifiedPayload = try? validatePaidDeviceEntitlement(paidEntitlement) {
+                guard !isRevoked(
+                    payload: verifiedPayload,
+                    entitlementToken: paidEntitlement
+                ) else {
+                    try? deviceEntitlementStore.clearEntitlement()
+                    try? licenseStore.clearLicenseKey()
+                    payloadCacheStore.clearPayload()
+                    status = .unregistered
+                    return
+                }
+                guard !BoundedKeychainReadRegistry.hasPendingReads else {
+                    status = .unregistered
+                    return
+                }
+                payloadCacheStore.savePayload(verifiedPayload)
+                status = .licensed(
+                    payload: verifiedPayload,
+                    activatedAt: activationMetadataStore.loadActivationDate()
+                )
+                return
+            }
+            // A missing or temporarily unavailable Keychain read is not proof
+            // that a stored paid entitlement is invalid. Clear only a token
+            // that was actually returned and failed signature validation.
+            try? deviceEntitlementStore.clearEntitlement()
+        }
+
+        let storedToken = licenseStore.loadLicenseKeySilently()
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            status = .unregistered
+            return
+        }
+        if let storedToken,
+           let verifiedPayload = try? validateLicenseKey(normalizeToken(storedToken)) {
+            guard !isLicenseRevoked(verifiedPayload.licenseID) else {
                 try? licenseStore.clearLicenseKey()
                 payloadCacheStore.clearPayload()
                 status = .unregistered
                 return
             }
-            payloadCacheStore.savePayload(verifiedPayload)
-            status = .licensed(
-                payload: verifiedPayload,
-                activatedAt: activationMetadataStore.loadActivationDate()
-            )
-            return
-        } else {
-            try? deviceEntitlementStore.clearEntitlement()
-        }
-
-        if let storedToken = licenseStore.loadLicenseKeySilently(),
-           let verifiedPayload = try? validateLicenseKey(normalizeToken(storedToken)) {
-            guard !isLicenseRevoked(verifiedPayload.licenseID) else {
-                try? licenseStore.clearLicenseKey()
-                payloadCacheStore.clearPayload()
+            guard !BoundedKeychainReadRegistry.hasPendingReads else {
                 status = .unregistered
                 return
             }
@@ -281,10 +329,12 @@ final class LicensingController: ObservableObject {
         // grant paid access without re-verifying the signed Keychain token.
         payloadCacheStore.clearPayload()
 
+        #if DEBUG
         if let overrideStatus = developerOverrideStatus(now: now) {
             status = overrideStatus
             return
         }
+        #endif
 
         if let claim = trialClaimStore.loadClaim(),
            let trialInstallBinding = try? deviceIdentifier(),
@@ -294,7 +344,12 @@ final class LicensingController: ObservableObject {
            ),
            let startedAt = claim.startedDate,
            let claimedEndsAt = claim.endsDate {
-            if let lastSeen = secureTrialClockStore.loadLastSeenDate(),
+            let lastSeen = secureTrialClockStore.loadLastSeenDate()
+            guard !BoundedKeychainReadRegistry.hasPendingReads else {
+                status = .unregistered
+                return
+            }
+            if let lastSeen,
                now.addingTimeInterval(Self.clockRollbackTolerance) < lastSeen {
                 enteredTrialEmail = Self.visibleTrialEmail(claim.email)
                 status = .unregistered
@@ -447,9 +502,11 @@ final class LicensingController: ObservableObject {
             enteredLicenseKey = ""
         }
 
+        #if DEBUG
         if developerSettings.releaseChannel == .test {
             developerSettings.licensingScenario = .live
         }
+        #endif
 
         refreshStatus()
         trialMessage = LicensingMessage(
@@ -594,9 +651,11 @@ final class LicensingController: ObservableObject {
             try licenseStore.saveLicenseKey(normalized)
             activationMetadataStore.saveActivationDate(currentDate())
             payloadCacheStore.savePayload(payload)
+            #if DEBUG
             if developerSettings.releaseChannel == .test {
                 developerSettings.licensingScenario = .live
             }
+            #endif
             enteredLicenseKey = normalized
             status = .licensed(payload: payload, activatedAt: activationMetadataStore.loadActivationDate())
             licenseMessage = LicensingMessage(
@@ -775,6 +834,7 @@ final class LicensingController: ObservableObject {
         return "token:\(digest)"
     }
 
+    #if DEBUG
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
         guard developerSettings.releaseChannel == .test else { return nil }
 
@@ -819,6 +879,7 @@ final class LicensingController: ObservableObject {
             )
         }
     }
+    #endif
 
     private static let anonymousTrialEmailSuffix = "@trial.cmdtab.invalid"
     private static let secondsPerDay: TimeInterval = 24 * 60 * 60

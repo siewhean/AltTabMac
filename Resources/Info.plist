@@ -33,8 +33,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>CmdTabCommerceEnabled</key>
+	<false/>
 	<key>LSMinimumSystemVersion</key>
-	<string>13.0</string>
+	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAccessibilityUsageDescription</key>
@@ -50,7 +52,7 @@
 	<key>SUEnableSystemProfiling</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://cmdtab.net/releases/appcast.xml</string>
+	<string>https://cmdtab.net/releases/beta/appcast.xml</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>SURequireSignedFeed</key>

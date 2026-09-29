@@ -9,7 +9,7 @@ export const productFacts = {
   currentVersion: "1.0.0",
   buildNumber: "1",
   bundleIdentifier: "net.cmdtab.CmdTab",
-  minimumMacOS: "macOS 13.0 (Ventura) or later",
+  minimumMacOS: "macOS 14.0 (Sonoma) or later",
   trialLength: commerceContent.trialLength,
   licenseModel: "One-time purchase",
   licensePrice: commerceContent.license.price,

@@ -8,7 +8,7 @@ OUTPUT_PATH="${3:-}"
 KEY_ACCOUNT="${CMDTAB_SPARKLE_KEY_ACCOUNT:-ed25519}"
 
 if [[ -z "${DMG_PATH}" || -z "${MANIFEST_PATH}" || -z "${OUTPUT_PATH}" ]]; then
-  echo "Usage: $0 /path/to/CmdTab.dmg /path/to/stable.json /path/to/appcast.xml" >&2
+  echo "Usage: $0 /path/to/CmdTab.dmg /path/to/{beta,stable}.json /path/to/appcast.xml" >&2
   exit 2
 fi
 
@@ -34,6 +34,7 @@ trap cleanup EXIT
 DMG_NAME="$(python3 -c 'import json,sys,urllib.parse; print(urllib.parse.urlparse(json.load(open(sys.argv[1]))["dmgURL"]).path.rsplit("/",1)[-1])' "${MANIFEST_PATH}")"
 DOWNLOAD_PREFIX="$(python3 -c 'import json,sys; value=json.load(open(sys.argv[1]))["dmgURL"]; print(value.rsplit("/",1)[0] + "/")' "${MANIFEST_PATH}")"
 BUILD_NUMBER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["build"])' "${MANIFEST_PATH}")"
+CHANNEL="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["channel"])' "${MANIFEST_PATH}")"
 cp "${DMG_PATH}" "${TEMP_ROOT}/${DMG_NAME}"
 
 GENERATE_ARGUMENTS=(
@@ -44,6 +45,12 @@ GENERATE_ARGUMENTS=(
   --maximum-versions 3
   "${TEMP_ROOT}"
 )
+if [[ "${CHANNEL}" == "beta" ]]; then
+  GENERATE_ARGUMENTS+=(--channel beta)
+elif [[ "${CHANNEL}" != "stable" ]]; then
+  echo "Manifest channel must be beta or stable." >&2
+  exit 1
+fi
 
 if [[ -n "${CMDTAB_SPARKLE_PRIVATE_ED_KEY:-}" ]]; then
   printf '%s' "${CMDTAB_SPARKLE_PRIVATE_ED_KEY}" |

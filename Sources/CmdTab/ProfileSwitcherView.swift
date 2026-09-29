@@ -18,22 +18,6 @@ struct ProfileSwitcherView: View {
                 ProductionRadialMenuView(viewModel: viewModel)
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            if !viewModel.items.isEmpty {
-                Label("Right-click for window actions", systemImage: "cursorarrow.click.2")
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.52))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(Color.black.opacity(0.48))
-                    )
-                    .padding(12)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
         .id(style)
     }
 }

@@ -1,10 +1,18 @@
 # CmdTab
 
-Last updated: 2026-08-01
-Active task: preserve the accepted native switcher and current frontend while
-closing production-runtime blockers. The public website remains waitlist-first
-and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
-with the complete database, Lemon Squeezy, email, and KMS configuration.
+Last updated: 2026-09-29
+Active task: qualify the native switcher changes in a clean candidate branch.
+The attached local CmdTab.app passed the bounded functional and CPU checks
+recorded in [live QA observations](docs/qa/evidence/attached-app-live-2026-09-28/observations.md).
+Those observations belong to an ad-hoc signed app and do not qualify a rebuilt
+candidate or public release. The candidate keeps the universal arm64/x86_64,
+macOS 14+, public-beta configuration. Public release remains blocked on the
+exact signed artifact, hosted CI, and the external checks listed in the
+[release matrix](docs/release/public-beta-release-matrix.md).
+
+The public website remains waitlist-first and commerce stays fail-closed unless
+`CMDTAB_REQUIRE_COMMERCE_READY=1` is set with the complete database, Lemon
+Squeezy, email, and KMS configuration.
 
 ## Product
 

@@ -6,7 +6,7 @@ final class PreferencesWindowController: NSWindowController {
     var onRefreshPreviews: (() -> Void)?
     var onApplySwitcherStyle: ((SwitcherStyle) -> Void)?
     var onOpenOnboarding: (() -> Void)?
-    private var preferredInitialPane: PreferencesPaneSelection = .general
+    private var preferredInitialPane: PreferencesPaneSelection = .appearance
 
     private let styleChangeHUDController = StyleChangeHUDController()
 
@@ -17,21 +17,33 @@ final class PreferencesWindowController: NSWindowController {
             onRefreshPreviews: { },
             onApplySwitcherStyle: { _ in },
             onOpenOnboarding: { },
-            initialPane: .general
+            initialPane: .appearance
         )
         let hostingController = NSHostingController(rootView: rootView)
-        let window = NSWindow(contentViewController: hostingController)
+        // AppKit owns this fixed-size window. Avoid deriving its initial size
+        // from a GeometryReader while the hosting hierarchy is being laid out.
+        hostingController.sizingOptions = []
+        let contentSize = NSSize(width: 720, height: 760)
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: contentSize),
+            styleMask: [.titled, .closable, .miniaturizable],
+            backing: .buffered,
+            defer: false
+        )
 
         window.title = "CmdTab Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
-        window.titlebarAppearsTransparent = true
-        window.titleVisibility = .hidden
-        window.titlebarSeparatorStyle = .none
-        window.center()
-        window.setContentSize(NSSize(width: 720, height: 760))
-        window.minSize = NSSize(width: 720, height: 760)
+        // Reserve native titlebar space for the screen-sharing indicator:
+        // macOS 26 reported negative geometry in _positionSharingIndicator
+        // while the previous full-size transparent window was captured.
+        window.titlebarAppearsTransparent = false
+        window.titleVisibility = .visible
+        window.contentViewController = hostingController
+        window.setContentSize(contentSize)
+        window.contentMinSize = contentSize
+        window.isRestorable = false
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenAuxiliary]
+        window.center()
 
         super.init(window: window)
         refreshContent()
@@ -43,7 +55,7 @@ final class PreferencesWindowController: NSWindowController {
     }
 
     func show() {
-        show(initialPane: .general)
+        show(initialPane: .appearance)
     }
 
     func show(initialPane: PreferencesPaneSelection) {

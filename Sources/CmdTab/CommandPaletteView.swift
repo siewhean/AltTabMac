@@ -5,13 +5,8 @@ import AppKit
 
 /// Compact vertical list with a live-search header bar.
 ///
-/// How search input works without a key window:
-/// The panel is `.nonactivatingPanel` during hotkey-triggered use, so a
-/// standard SwiftUI TextField never receives focus. Instead, HotkeyManager
-/// intercepts printable keyDown events and forwards them to
-/// SwitcherWindowController.appendSearchCharacter(_:) / deleteSearchCharacter().
-/// The controller updates `viewModel.searchQuery` and rebuilds `viewModel.items`
-/// to only the matching subset, so all existing navigation logic is unchanged.
+/// Command Palette runs in an activating panel and owns a native AppKit search
+/// field so macOS handles all normal text input and accessibility behavior.
 struct CommandPaletteView: View {
     @ObservedObject var viewModel: SwitcherViewModel
     @ObservedObject private var preferences = SwitcherPreferences.shared
@@ -70,18 +65,12 @@ struct CommandPaletteView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.45))
 
-            // Displays typed characters; acts as a read-only mirror of searchQuery
-            // because the panel is nonactivating (see doc comment above).
-            Group {
-                if viewModel.searchQuery.isEmpty {
-                    Text("Type to filter…")
-                        .foregroundColor(.white.opacity(0.30))
-                } else {
-                    Text(viewModel.searchQuery)
-                        .foregroundColor(.white)
-                }
-            }
-            .font(.system(size: 14, weight: .regular, design: .monospaced))
+            NativePaletteSearchField(
+                text: $viewModel.searchQuery,
+                focusToken: viewModel.paletteSearchFocusToken,
+                command: { viewModel.onPaletteInputCommand?($0) }
+            )
+            .frame(height: 24)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if !viewModel.searchQuery.isEmpty {
@@ -111,7 +100,7 @@ struct CommandPaletteView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { idx, item in
                                 PaletteRowView(item: item, isSelected: idx == resolvedSelectedIndex)
-                                    .id(idx)
+                                    .id(item.id)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
                                     }
@@ -120,13 +109,16 @@ struct CommandPaletteView: View {
                         .id(paletteListIdentity)
                     }
                     .onChange(of: resolvedSelectedIndex) { idx in
+                        guard viewModel.items.indices.contains(idx) else { return }
                         withAnimation(.easeInOut(duration: 0.10)) {
-                            proxy.scrollTo(idx, anchor: .center)
+                            proxy.scrollTo(viewModel.items[idx].id, anchor: .center)
                         }
                     }
                     .onChange(of: viewModel.searchQuery) { _ in
                         // Snap to top whenever the filter changes so the first result is visible.
-                        proxy.scrollTo(0, anchor: .top)
+                        if let firstID = viewModel.items.first?.id {
+                            proxy.scrollTo(firstID, anchor: .top)
+                        }
                     }
                 }
             }
@@ -205,5 +197,9 @@ private struct PaletteRowView: View {
                 )
         )
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(primaryText + (secondaryText.map { ", \($0)" } ?? ""))
+        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
     }
 }

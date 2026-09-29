@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import os.log
 
 private let searchMemoryLog = OSLog(
@@ -33,10 +34,32 @@ final class SearchMemoryStore {
             return
         }
         do {
-            self.entries = try JSONDecoder().decode(
+            let decoded = try JSONDecoder().decode(
                 [String: RememberedSelection].self,
                 from: data
             )
+            // Migrate any plaintext keys to SHA-256 hashes if necessary
+            var migrated: [String: RememberedSelection] = [:]
+            var didMigrate = false
+            for (k, v) in decoded {
+                let normalized = Self.normalizedMemoryQuery(k)
+                guard !normalized.isEmpty else {
+                    didMigrate = true
+                    continue
+                }
+                let hashed = Self.hashKey(normalized)
+                if hashed != k {
+                    didMigrate = true
+                }
+                migrated[hashed] = v
+            }
+            self.entries = migrated
+            if didMigrate {
+                // Initialisation is single-threaded and `entries` is fully set
+                // above, so persist directly. Dispatching onto `queue` and then
+                // synchronously dispatching to that same queue traps at launch.
+                persistLocked()
+            }
         } catch {
             self.entries = [:]
             os_log(
@@ -50,21 +73,26 @@ final class SearchMemoryStore {
     }
 
     func rememberedStableKey(for query: String) -> String? {
-        let normalizedQuery = normalizedMemoryQuery(query)
-        guard !normalizedQuery.isEmpty else { return nil }
+        guard let key = hashedKey(for: query) else { return nil }
 
         return queue.sync {
-            entries[normalizedQuery]?.stableKey
+            entries[key]?.stableKey
+        }
+    }
+
+    func clearMemory() {
+        queue.sync {
+            entries.removeAll()
+            defaults.removeObject(forKey: defaultsKey)
         }
     }
 
     func noteSelection(query: String, identity: SwitcherHistoryIdentity) {
-        let normalizedQuery = normalizedMemoryQuery(query)
-        guard !normalizedQuery.isEmpty else { return }
+        guard let key = hashedKey(for: query) else { return }
 
         queue.sync {
-            let existing = entries[normalizedQuery]
-            entries[normalizedQuery] = RememberedSelection(
+            let existing = entries[key]
+            entries[key] = RememberedSelection(
                 stableKey: identity.stableKey,
                 count: (existing?.count ?? 0) + 1,
                 lastUsedAt: Date()
@@ -107,7 +135,22 @@ final class SearchMemoryStore {
         }
     }
 
-    private func normalizedMemoryQuery(_ query: String) -> String {
+    private func hashedKey(for query: String) -> String? {
+        let normalized = Self.normalizedMemoryQuery(query)
+        guard !normalized.isEmpty else { return nil }
+        return Self.hashKey(normalized)
+    }
+
+    private static func hashKey(_ input: String) -> String {
+        // If it's already a 64-char hex string, don't double-hash
+        if input.count == 64 && input.allSatisfy({ $0.isHexDigit }) {
+            return input
+        }
+        let digest = SHA256.hash(data: Data(input.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func normalizedMemoryQuery(_ query: String) -> String {
         let filteredScalars = query.unicodeScalars.filter {
             CharacterSet.alphanumerics.contains($0)
         }

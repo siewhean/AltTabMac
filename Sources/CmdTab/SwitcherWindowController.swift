@@ -232,30 +232,6 @@ final class SwitcherWindowController {
         appSwitcher.warmCache(force: true)
     }
 
-    // MARK: - Command Palette search API (called from HotkeyManager)
-
-    /// Append a printable character to the live search query.
-    /// Only meaningful when style is .commandPalette; safe to call otherwise.
-    func appendSearchCharacter(_ char: String) {
-        guard !char.isEmpty else { return }
-        let newQuery = viewModel.searchQuery + char
-        viewModel.searchQuery = newQuery
-        if preferences.switcherStyle == .commandPalette {
-            updatePaletteFilter(newQuery)
-        }
-    }
-
-    /// Remove the last character from the live search query.
-    func deleteSearchCharacter() {
-        var query = viewModel.searchQuery
-        guard !query.isEmpty else { return }
-        query.removeLast()
-        viewModel.searchQuery = query
-        if preferences.switcherStyle == .commandPalette {
-            updatePaletteFilter(query)
-        }
-    }
-
     // MARK: - Private
 
     private func buildPanel() {
@@ -344,19 +320,7 @@ final class SwitcherWindowController {
     private func handlePanelKeyEvent(_ event: NSEvent) -> Bool {
         guard viewModel.isVisible else { return false }
 
-        if preferences.switcherStyle == .commandPalette {
-            if event.keyCode == 51 {
-                deleteSearchCharacter()
-                return true
-            }
-
-            if let searchableCharacter = searchableCharacter(from: event) {
-                appendSearchCharacter(searchableCharacter)
-                return true
-            }
-
-            return false
-        }
+        if preferences.switcherStyle == .commandPalette { return false }
 
         let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let commandHeld = modifierFlags.contains(.command)
@@ -380,25 +344,6 @@ final class SwitcherWindowController {
 
     private func handlePanelScrollEvent(_ event: NSEvent) -> Bool {
         viewModel.isVisible && event.hasPreciseScrollingDeltas
-    }
-
-    private func searchableCharacter(from event: NSEvent) -> String? {
-        let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .function])
-        guard !modifierFlags.contains(.option),
-              !modifierFlags.contains(.control),
-              !modifierFlags.contains(.function) else {
-            return nil
-        }
-
-        guard let characters = event.charactersIgnoringModifiers,
-              characters.count == 1,
-              let scalar = characters.unicodeScalars.first,
-              scalar.value >= 32,
-              scalar.value != 127 else {
-            return nil
-        }
-
-        return String(scalar)
     }
 
     private func makeSession(reverse: Bool) -> SwitcherCycleSession? {

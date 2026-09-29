@@ -31,9 +31,22 @@ REQUIRED_KEYS = {
     "architecturePolicy",
     "distributionChannel",
     "updateChannel",
+    "commerceEnabled",
     "sparkleVersion",
-    "updateFeedURL",
     "updateCheckIntervalSeconds",
+}
+
+KEY_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,127}")
+# Canonical DER SubjectPublicKeyInfo encoding for id-ecPublicKey / prime256v1.
+# A public verification key is intentionally allowed in the signed bundle; a
+# private key cannot satisfy this exact SPKI representation.
+P256_SPKI_PREFIX = bytes.fromhex("3059301306072A8648CE3D020106082A8648CE3D03010703420004")
+P256_SPKI_LENGTH = 91
+
+CHANNELS = {
+    "development": {"distributionChannel": "local-qa", "feedURL": None},
+    "beta": {"distributionChannel": "public-beta", "feedURL": "https://cmdtab.net/releases/beta/appcast.xml"},
+    "stable": {"distributionChannel": "developer-id-direct", "feedURL": "https://cmdtab.net/releases/appcast.xml"},
 }
 
 
@@ -54,14 +67,22 @@ def load_config(path: Path) -> dict[str, Any]:
         raise SystemExit("minimumSystemVersion is invalid")
     if data["packageType"] != "APPL":
         raise SystemExit("packageType must remain APPL")
-    if data["updateChannel"] != "stable":
-        raise SystemExit("Only the stable update channel is supported for v1")
+    channel = data["updateChannel"]
+    if channel not in CHANNELS:
+        raise SystemExit("updateChannel must be development, beta, or stable")
+    if data["distributionChannel"] != CHANNELS[channel]["distributionChannel"]:
+        raise SystemExit("distributionChannel does not match updateChannel")
+    if not isinstance(data["commerceEnabled"], bool):
+        raise SystemExit("commerceEnabled must be a boolean")
+    if channel == "beta" and data["commerceEnabled"]:
+        raise SystemExit("Public beta must keep commerceEnabled false")
     if data["sparkleVersion"] != "2.9.2":
         raise SystemExit("Sparkle must remain pinned to reviewed version 2.9.2")
-    if not re.fullmatch(r"https://[^\s]+", data["updateFeedURL"]):
-        raise SystemExit("updateFeedURL must be an HTTPS URL")
     if data["updateCheckIntervalSeconds"] != 86400:
         raise SystemExit("updateCheckIntervalSeconds must remain one day")
+    # Feed selection is derived from the typed channel, never trusted as a
+    # separately editable URL in release metadata.
+    data["updateFeedURL"] = CHANNELS[channel]["feedURL"]
     return data
 
 
@@ -92,11 +113,6 @@ def plist_for(
         "NSHighResolutionCapable": bool(config["highResolutionCapable"]),
         "NSSupportsAutomaticTermination": False,
         "NSSupportsSuddenTermination": False,
-        "SUFeedURL": config["updateFeedURL"],
-        "SUScheduledCheckInterval": config["updateCheckIntervalSeconds"],
-        "SUEnableSystemProfiling": False,
-        "SURequireSignedFeed": True,
-        "SUVerifyUpdateBeforeExtraction": True,
         "NSAccessibilityUsageDescription": (
             "CmdTab needs Accessibility permission to intercept Command-Tab and "
             "Option-Tab and activate the selected window."
@@ -105,7 +121,16 @@ def plist_for(
             "CmdTab needs Screen Recording permission to display previews of your open windows. "
             "Captured window images stay on your Mac."
         ),
+        "CmdTabCommerceEnabled": config["commerceEnabled"],
     }
+    if config["updateFeedURL"] is not None:
+        plist.update({
+            "SUFeedURL": config["updateFeedURL"],
+            "SUScheduledCheckInterval": config["updateCheckIntervalSeconds"],
+            "SUEnableSystemProfiling": False,
+            "SURequireSignedFeed": True,
+            "SUVerifyUpdateBeforeExtraction": True,
+        })
     public_key = (
         os.environ.get("CMDTAB_SPARKLE_PUBLIC_ED_KEY", "").strip()
         if include_environment_key
@@ -119,7 +144,57 @@ def plist_for(
         if len(decoded_key) != 32:
             raise SystemExit("CMDTAB_SPARKLE_PUBLIC_ED_KEY must decode to exactly 32 bytes")
         plist["SUPublicEDKey"] = public_key
+    trial_keyring = trial_public_keyring_from_environment() if include_environment_key else None
+    if trial_keyring is not None:
+        plist["CmdTabTrialPublicKeyring"] = trial_keyring
     return plist
+
+
+def validate_trial_public_keyring(raw: str, signing_kid: str) -> dict[str, str]:
+    """Accept only a non-empty public P-256 keyring containing the active kid."""
+    if not KEY_ID_PATTERN.fullmatch(signing_kid):
+        raise SystemExit("CMDTAB_TRIAL_SIGNING_KID must be a valid key identifier")
+    try:
+        decoded = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must be a JSON object") from error
+    if not isinstance(decoded, dict) or not decoded:
+        raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must be a non-empty JSON object")
+
+    keyring: dict[str, str] = {}
+    for kid, encoded_key in decoded.items():
+        if not isinstance(kid, str) or not KEY_ID_PATTERN.fullmatch(kid):
+            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains an invalid key identifier")
+        if not isinstance(encoded_key, str):
+            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains a non-string key")
+        try:
+            key = base64.b64decode(encoded_key, validate=True)
+        except ValueError as error:
+            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains invalid base64") from error
+        if (
+            base64.b64encode(key).decode("ascii") != encoded_key
+            or len(key) != P256_SPKI_LENGTH
+            or not key.startswith(P256_SPKI_PREFIX)
+        ):
+            raise SystemExit(
+                "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must contain canonical P-256 SPKI public keys"
+            )
+        keyring[kid] = encoded_key
+    if signing_kid not in keyring:
+        raise SystemExit(
+            "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must contain CMDTAB_TRIAL_SIGNING_KID"
+        )
+    return keyring
+
+
+def trial_public_keyring_from_environment() -> dict[str, str] | None:
+    raw = os.environ.get("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON", "").strip()
+    if not raw:
+        return None
+    return validate_trial_public_keyring(
+        raw,
+        os.environ.get("CMDTAB_TRIAL_SIGNING_KID", "").strip(),
+    )
 
 
 def render(config: dict[str, Any], output: Path) -> None:
@@ -183,6 +258,17 @@ def verify_repository(config: dict[str, Any]) -> None:
         config,
         ROOT / "Resources" / "Info.plist",
         include_environment_key=False,
+    )
+
+    expected_channel_copy = {
+        "development": "development update channel",
+        "beta": "beta update channel",
+        "stable": "stable update channel",
+    }[config["updateChannel"]]
+    require_literal(
+        ROOT / "Sources" / "CmdTab" / "PreferencesView.swift",
+        expected_channel_copy,
+        "update-preferences channel copy",
     )
 
     sensitive_paths = set(tracked_paths(".secrets"))

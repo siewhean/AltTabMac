@@ -259,13 +259,10 @@ final class ProfileHotkeyManager {
             guard switcher?.isVisible == true else {
                 return Unmanaged.passRetained(event)
             }
-            let delta = event.getDoubleValueField(
-                .scrollWheelEventPointDeltaAxis1
-            )
-            if abs(delta) >= 1 {
-                dispatchToMain { [weak self] in
-                    self?.switcher?.moveSelection(by: delta > 0 ? -1 : 1)
-                }
+            let receivedAt = currentUptime()
+            dispatchToMain { [weak self] in
+                guard let scrollEvent = NSEvent(cgEvent: event) else { return }
+                self?.switcher?.handleScrollSelection(scrollEvent, receivedAt: receivedAt)
             }
             return nil
 
@@ -404,7 +401,13 @@ final class ProfileHotkeyManager {
         _ event: CGEvent,
         keyCode: Int64
     ) -> Bool {
-        guard let switcher, switcher.isVisible else { return false }
+        guard let switcher else { return false }
+        if switcher.hasPendingPresentation, keyCode == 53 {
+            resetInteractionState(cancelVisibleSession: false, preserveSwallowedKeyUps: true)
+            dispatchToMain { switcher.cancelAndHide() }
+            return true
+        }
+        guard switcher.isVisible else { return false }
 
         switch keyCode {
         case 53:
@@ -437,17 +440,9 @@ final class ProfileHotkeyManager {
             break
         }
 
-        if switcher.currentStyle == .commandPalette {
-            if keyCode == 51 {
-                dispatchToMain { switcher.deleteSearchCharacter() }
-                return true
-            }
-            if let character = searchableCharacter(from: event) {
-                dispatchToMain { switcher.appendSearchCharacter(character) }
-                return true
-            }
-            return false
-        }
+        // Command Palette owns a native NSSearchField. Leave text events to
+        // AppKit so composition, paste, and accessibility stay native.
+        if switcher.currentStyle == .commandPalette { return false }
 
         let commandHeld = event.flags.contains(.maskCommand)
         let acceptsBare = !commandHeld &&
@@ -546,6 +541,12 @@ final class ProfileHotkeyManager {
             return
         }
         cancelScheduledReveal()
+        if switcher?.hasPendingPresentation == true {
+            timingState.cancel()
+            configurationFreeze.end()
+            dispatchToMain { [weak self] in self?.switcher?.cancelAndHide() }
+            return
+        }
         guard let action = timingState.handleModifierRelease(
             modifier,
             switcherVisible: switcher?.isVisible == true,
@@ -566,6 +567,12 @@ final class ProfileHotkeyManager {
                 return
             }
             self.cancelScheduledReveal()
+            if self.switcher?.hasPendingPresentation == true {
+                self.timingState.cancel()
+                self.configurationFreeze.end()
+                self.switcher?.cancelAndHide()
+                return
+            }
             if let action = self.timingState.handleModifierRelease(
                 modifier,
                 switcherVisible: self.switcher?.isVisible == true,
@@ -731,7 +738,7 @@ final class ProfileHotkeyManager {
             )
         }
 
-        guard cancelVisibleSession, switcher?.isVisible == true else { return }
+        guard switcher?.hasPendingPresentation == true || (cancelVisibleSession && switcher?.isVisible == true) else { return }
         dispatchToMain { [weak self] in
             self?.switcher?.cancelAndHide()
         }
@@ -790,7 +797,7 @@ final class ProfileHotkeyManager {
         rightCommandDown = false
         rightOptionDown = false
 
-        guard cancelVisibleSession, switcher?.isVisible == true else { return }
+        guard switcher?.hasPendingPresentation == true || (cancelVisibleSession && switcher?.isVisible == true) else { return }
         dispatchToMain { [weak self] in
             self?.switcher?.cancelAndHide()
         }
@@ -825,21 +832,6 @@ final class ProfileHotkeyManager {
         )
         guard count > 0 else { return nil }
         return String(utf16CodeUnits: buffer, count: count)
-    }
-
-    private func searchableCharacter(from event: CGEvent) -> String? {
-        let flags = event.flags
-        guard !flags.contains(.maskAlternate),
-              !flags.contains(.maskControl),
-              !flags.contains(.maskCommand),
-              let value = keyEquivalent(for: event),
-              value.count == 1,
-              let scalar = value.unicodeScalars.first,
-              scalar.value >= 32,
-              scalar.value != 127 else {
-            return nil
-        }
-        return value
     }
 
     private func dispatchToMain(_ work: @escaping () -> Void) {
