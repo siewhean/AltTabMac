@@ -544,8 +544,9 @@ try {
           fail(`${profile.name} ${path}: autoplay product video is missing`);
         } else {
           const firstVideo = result.videos[0];
-          if (!firstVideo.muted || firstVideo.loop || !firstVideo.playsInline || firstVideo.autoplayMode !== "one-shot") {
-            fail(`${profile.name} ${path}: first video is not configured for silent one-shot inline autoplay`);
+          const expectedMode = path === "/" ? "loop" : "one-shot";
+          if (!firstVideo.muted || firstVideo.loop !== (expectedMode === "loop") || !firstVideo.playsInline || firstVideo.autoplayMode !== expectedMode) {
+            fail(`${profile.name} ${path}: first video is not configured for silent ${expectedMode} inline autoplay`);
           }
           if (firstVideo.duration === null || firstVideo.duration > 5.05) {
             fail(`${profile.name} ${path}: first autoplay video exceeds five seconds`);
@@ -899,7 +900,7 @@ try {
     features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
   });
   let loaded = client.waitFor("Page.loadEventFired");
-  await client.send("Page.navigate", { url: `${baseUrl}/` });
+  await client.send("Page.navigate", { url: `${baseUrl}/showcase` });
   await loaded;
   await sleep(900);
   const oneShotSetup = await client.send("Runtime.evaluate", {
