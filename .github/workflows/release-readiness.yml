@@ -156,6 +156,15 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Select Swift Testing-compatible Xcode on macOS 14
+        if: matrix.runner == 'macos-14'
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+          test -d "$DEVELOPER_DIR"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          xcodebuild -version
+          swift --version
       - name: Verify pre-fix model evidence
         run: |
           python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/switcher-model.json
