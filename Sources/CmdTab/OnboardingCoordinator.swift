@@ -81,21 +81,17 @@ struct SystemOnboardingPermissionManager: OnboardingPermissionManaging {
     }
 
     func openAccessibilitySettings() {
-        openSystemSettings(
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-        )
+        DispatchQueue.main.async {
+            PermissionSetupWindowController.shared.show(for: .accessibility)
+        }
     }
 
     func openScreenRecordingSettings() {
-        openSystemSettings(
-            "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-        )
+        DispatchQueue.main.async {
+            PermissionSetupWindowController.shared.show(for: .screenRecording)
+        }
     }
 
-    private func openSystemSettings(_ rawValue: String) {
-        guard let url = URL(string: rawValue) else { return }
-        NSWorkspace.shared.open(url)
-    }
 }
 
 @MainActor

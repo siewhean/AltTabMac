@@ -8,3 +8,7 @@ npm-debug.log*
 tsconfig.tsbuildinfo
 .vercel
 .env*.local
+
+# Generated browser verification and build exports
+verification-artifacts/
+public/_build/

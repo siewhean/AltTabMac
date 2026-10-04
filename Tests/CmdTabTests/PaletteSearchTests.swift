@@ -118,6 +118,31 @@ final class PaletteSearchTests: XCTestCase {
         )
     }
 
+    func testSearchMemoryStoreMigratesLegacyPlaintextKeysWithoutQueueReentry() {
+        let suiteName = "CmdTab.SearchMemoryStoreMigrationTests"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let defaultsKey = "paletteSearchMemoryTests"
+        let identity = SwitcherHistoryIdentity.appWindow(pid: 222, windowID: 84)
+        let legacyEntries: [String: Any] = [
+            "System Preferences": [
+                "stableKey": identity.stableKey,
+                "count": 1,
+                "lastUsedAt": Date().timeIntervalSinceReferenceDate,
+            ],
+        ]
+        defaults.set(try! JSONSerialization.data(withJSONObject: legacyEntries), forKey: defaultsKey)
+
+        let store = SearchMemoryStore(defaults: defaults, defaultsKey: defaultsKey)
+
+        XCTAssertEqual(store.rememberedStableKey(for: "system-preferences"), identity.stableKey)
+        let persistedKeys = try! JSONSerialization.jsonObject(
+            with: defaults.data(forKey: defaultsKey)!
+        ) as! [String: Any]
+        XCTAssertNil(persistedKeys["System Preferences"])
+        XCTAssertEqual(persistedKeys.keys.first?.count, 64)
+    }
+
     func testWindowExclusionRulesMatchAppIdentifiersAndTitles() {
         let entries = WindowExclusionRules.normalizedEntries(from: "com.apple.finder\nMusic")
 

@@ -1,9 +1,9 @@
 # CmdTab Native Release — Current Implementation Status
 
-**Updated:** 2026-07-27
+**Updated:** 2026-10-04
 **Canonical long-form plan:** `docs/release/native-production-readiness-plan.md`  
-**Implementation branch:** `codex/implementation-plan-phase1`
-**Base:** `origin/main@5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`
+**Implementation branch:** `codex/clear-cmdtab-merge-blockers`
+**Base:** `origin/main@dcd02faafbe4cd944fa9899d4e5ddcd6d5f70407`
 
 ## Accepted baseline
 
@@ -27,8 +27,9 @@ The current candidate adds:
   delivery retry/outbox, and distinct partial/full refund and revocation state;
 - Auth0-compatible owner-only MFA dashboard sessions with idle/absolute limits,
   generation invalidation, CSRF checks, and audited actions;
-- Sparkle 2.9.2, a stable daily update controller, immutable release manifest,
-  signed appcast tooling, and Sparkle-aware nested packaging verification;
+- Sparkle 2.9.2, a typed beta/stable/development update configuration,
+  immutable release manifest, signed appcast tooling, and Sparkle-aware nested
+  packaging verification;
 - a single US$12 offer, terms/refund/device/update/recovery policies, immutable
   download gating, and deterministic showcase clips no longer than five
   seconds;
@@ -37,12 +38,12 @@ The current candidate adds:
 - immutable GitHub Action pins and release-readiness coverage for every PR and
   `main` push.
 
-Local automated evidence currently includes 233 passing Swift tests plus two
+Historical July implementation evidence included 233 passing Swift tests plus two
 updater-configuration tests, 28 passing website security/unit tests,
 TypeScript/build/browser verification, zero
 moderate dependency vulnerabilities, and release/update/performance harness
-tests. Final package/reproducibility and independent integration/security
-results are recorded in `tasks/todo.md` before push.
+tests. Those results do not qualify the October merge candidate; current
+qualification evidence is recorded separately.
 
 ## Release truth
 
@@ -69,9 +70,21 @@ The following cannot be accepted from repository automation alone:
 - clean Apple Silicon and Intel installation and N-to-N+1 update evidence;
 - real 10/25/50-window and 1,000-session performance acceptance on the final
   signed candidate;
-- restored GitHub-hosted runner/account capacity. Current required workflows
-  fail before their first step and therefore provide no source-quality signal.
+- exact-candidate GitHub CI. Historical runner/account capacity failures before
+  the first step provide no source-quality signal for the current candidate.
 
 No release branch or public download may be promoted until every applicable
 external item is evidenced. Unsupported hardware or unavailable credentials
 remain `NOT TESTED`, never inferred.
+
+# Public-beta blocker remediation — 2026-09-09
+
+The current candidate uses a typed `beta` release channel and the dedicated
+`https://cmdtab.net/releases/beta/appcast.xml` feed. Native palette input,
+activation-outcome accounting, signing/notarization guards, deterministic CI
+configuration validation, centralized status-bearing private-window capability
+providers, and physical-evidence procedures are repository complete. The
+macOS-14/15 private-capability canary is a physical receipt gate, not CI proof.
+The release remains **BLOCKED** until the exact candidate has hosted
+CI, authorized-Mac performance/soak and VoiceOver receipts, Developer ID
+signing/notarization/Gatekeeper proof, and a real signed beta N->N+1 update.

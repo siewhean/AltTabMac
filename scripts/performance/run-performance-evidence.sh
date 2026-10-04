@@ -14,12 +14,13 @@ Usage: scripts/performance/run-performance-evidence.sh [options]
 Options:
   --mode readiness|acceptance  Smoke harness or full release gate (default: readiness)
   --output-dir PATH            Evidence directory (default: /tmp/cmdtab-performance-<SHA>)
-  --cmdtab-app PATH            Use this app with --skip-build
-  --skip-build                 Do not package CmdTab from the current checkout
+  --cmdtab-app PATH            Signed candidate app required for acceptance
+  --skip-build                 Use --cmdtab-app instead of local-QA packaging
   --help                       Show this help
 
-Acceptance runs require a clean worktree and collect 100 sessions at each of
-10, 25, and 50 windows plus a separate 1,000-session 50-window soak.
+Acceptance runs require a clean worktree and an explicit Developer ID-signed
+candidate app. They collect 100 sessions at each of 10, 25, and 50 windows plus
+a separate 1,000-session 50-window soak.
 EOF
 }
 
@@ -74,8 +75,8 @@ if [[ "${MODE}" == "acceptance" && "${SOURCE_CLEAN}" != "true" ]]; then
   echo "Acceptance requires a clean worktree; no performance claim was produced." >&2
   exit 1
 fi
-if [[ "${MODE}" == "acceptance" && "${SKIP_BUILD}" == "1" ]]; then
-  echo "Acceptance must package CmdTab from the clean checkout; --skip-build is readiness-only." >&2
+if [[ "${MODE}" == "acceptance" && "${SKIP_BUILD}" != "1" ]]; then
+  echo "Acceptance requires --skip-build --cmdtab-app with the exact signed candidate." >&2
   exit 1
 fi
 
@@ -99,6 +100,20 @@ fi
   echo "Missing CmdTab app: ${CMDTAB_APP}" >&2
   exit 1
 }
+
+if [[ "${MODE}" == "acceptance" ]]; then
+  command -v codesign >/dev/null 2>&1 || {
+    echo "Acceptance requires codesign to validate the supplied candidate." >&2
+    exit 1
+  }
+  CODESIGN_DETAILS="$(codesign -dvv "${CMDTAB_APP}" 2>&1)"
+  if ! grep -q '^Authority=Developer ID Application:' <<<"${CODESIGN_DETAILS}" ||
+     ! grep -q 'flags=.*runtime' <<<"${CODESIGN_DETAILS}" ||
+     ! grep -q '^Timestamp=' <<<"${CODESIGN_DETAILS}"; then
+    echo "Acceptance requires a timestamped Hardened Runtime Developer ID candidate." >&2
+    exit 1
+  fi
+fi
 
 WINDOWLAB_APP="${OUTPUT_DIR}/fixture/WindowLab.app"
 PERFORMANCE_PROBE="${OUTPUT_DIR}/fixture/PerformanceProbe"

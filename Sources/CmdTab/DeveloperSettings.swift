@@ -1,3 +1,7 @@
+// Developer release-channel and licensing scenarios must not be compiled into
+// public builds. Keeping the whole implementation behind DEBUG also prevents
+// persisted UserDefaults values from becoming a release entitlement path.
+#if DEBUG
 import Combine
 import Foundation
 
@@ -111,3 +115,4 @@ final class DeveloperSettings: ObservableObject {
         licensingScenario = .live
     }
 }
+#endif

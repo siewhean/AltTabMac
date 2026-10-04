@@ -7,6 +7,7 @@ import json
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +18,12 @@ MODULE_SPEC = importlib.util.spec_from_file_location(
 assert MODULE_SPEC and MODULE_SPEC.loader
 release_manifest = importlib.util.module_from_spec(MODULE_SPEC)
 MODULE_SPEC.loader.exec_module(release_manifest)
+CONFIG_SPEC = importlib.util.spec_from_file_location(
+    "release_config", ROOT / "scripts" / "release" / "release_config.py"
+)
+assert CONFIG_SPEC and CONFIG_SPEC.loader
+release_config = importlib.util.module_from_spec(CONFIG_SPEC)
+CONFIG_SPEC.loader.exec_module(release_config)
 PIN_SPEC = importlib.util.spec_from_file_location(
     "verify_workflow_actions",
     ROOT / "scripts" / "release" / "verify-workflow-actions.py",
@@ -26,11 +33,11 @@ verify_workflow_actions = importlib.util.module_from_spec(PIN_SPEC)
 PIN_SPEC.loader.exec_module(verify_workflow_actions)
 
 
-def manifest(build: int = 2) -> dict[str, object]:
+def manifest(build: int = 2, channel: str = "stable") -> dict[str, object]:
     source_sha = "a" * 40
     return {
         "schemaVersion": 1,
-        "channel": "stable",
+        "channel": channel,
         "version": "1.0.0",
         "build": build,
         "minimumMacOS": "13.0",
@@ -39,11 +46,86 @@ def manifest(build: int = 2) -> dict[str, object]:
         "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
         "releaseDate": "2026-07-27",
         "sourceSHA": source_sha,
-        "appcastURL": "https://cmdtab.net/releases/appcast.xml",
+        "appcastURL": (
+            "https://cmdtab.net/releases/beta/appcast.xml"
+            if channel == "beta"
+            else "https://cmdtab.net/releases/appcast.xml"
+        ),
     }
 
 
 class ReleaseManifestTests(unittest.TestCase):
+    def test_release_config_derives_each_supported_channel(self) -> None:
+        base = json.loads((ROOT / "release" / "ReleaseConfig.json").read_text(encoding="utf-8"))
+        expected = {
+            "development": ("local-qa", None),
+            "beta": ("public-beta", "https://cmdtab.net/releases/beta/appcast.xml"),
+            "stable": ("developer-id-direct", "https://cmdtab.net/releases/appcast.xml"),
+        }
+        for channel, (distribution, feed) in expected.items():
+            candidate = dict(base, updateChannel=channel, distributionChannel=distribution)
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as handle:
+                json.dump(candidate, handle)
+                handle.flush()
+                loaded = release_config.load_config(Path(handle.name))
+                self.assertEqual(loaded["updateFeedURL"], feed)
+                plist = release_config.plist_for(loaded, include_environment_key=False)
+                self.assertEqual(plist.get("SUFeedURL"), feed)
+                if channel == "development":
+                    self.assertNotIn("SUScheduledCheckInterval", plist)
+
+    def test_release_config_rejects_mismatched_channel_metadata(self) -> None:
+        base = json.loads((ROOT / "release" / "ReleaseConfig.json").read_text(encoding="utf-8"))
+        candidate = dict(base, updateChannel="beta", distributionChannel="developer-id-direct")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as handle:
+            json.dump(candidate, handle)
+            handle.flush()
+            with self.assertRaisesRegex(SystemExit, "does not match"):
+                release_config.load_config(Path(handle.name))
+
+    def test_release_config_rejects_commerce_enabled_public_beta(self) -> None:
+        base = json.loads((ROOT / "release" / "ReleaseConfig.json").read_text(encoding="utf-8"))
+        candidate = dict(base, commerceEnabled=True)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json") as handle:
+            json.dump(candidate, handle)
+            handle.flush()
+            with self.assertRaisesRegex(SystemExit, "commerceEnabled false"):
+                release_config.load_config(Path(handle.name))
+
+    def test_release_info_plist_injects_only_valid_public_trial_keyring(self) -> None:
+        config = release_config.load_config(ROOT / "release" / "ReleaseConfig.json")
+        public_key = (
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ9FZZyw0trHoeLiL/uri6aLwr8R"
+            "hw9vNEGuI6afJqY9foeogoVNhQRZ4Hexv/fLhASKa4FKqaEflq3Uh6PIfDw=="
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "CMDTAB_TRIAL_SIGNING_KID": "trial-2026-01",
+                "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON": json.dumps(
+                    {"trial-2026-01": public_key}
+                ),
+            },
+            clear=True,
+        ):
+            plist = release_config.plist_for(config)
+        self.assertEqual(
+            plist["CmdTabTrialPublicKeyring"], {"trial-2026-01": public_key}
+        )
+
+    def test_release_info_plist_rejects_invalid_or_unbound_trial_keyring(self) -> None:
+        public_key = (
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ9FZZyw0trHoeLiL/uri6aLwr8R"
+            "hw9vNEGuI6afJqY9foeogoVNhQRZ4Hexv/fLhASKa4FKqaEflq3Uh6PIfDw=="
+        )
+        with self.assertRaisesRegex(SystemExit, "must contain CMDTAB_TRIAL_SIGNING_KID"):
+            release_config.validate_trial_public_keyring(
+                json.dumps({"trial-old": public_key}), "trial-2026-01"
+            )
+        with self.assertRaisesRegex(SystemExit, "canonical P-256 SPKI"):
+            release_config.validate_trial_public_keyring(
+                json.dumps({"trial-2026-01": "AA=="}), "trial-2026-01"
+            )
     def test_workflow_pin_parser_covers_step_shorthand_and_containers(self) -> None:
         pattern = verify_workflow_actions.USE_PATTERN
         self.assertEqual(
@@ -222,6 +304,15 @@ class ReleaseManifestTests(unittest.TestCase):
             release_manifest.validate_manifest(manifest(build=1), previous=previous)
         release_manifest.validate_manifest(manifest(build=3), previous=previous)
 
+    def test_beta_manifest_requires_beta_feed_and_channel_matched_history(self) -> None:
+        release_manifest.validate_manifest(manifest(channel="beta"))
+        bad_feed = manifest(channel="beta")
+        bad_feed["appcastURL"] = "https://cmdtab.net/releases/appcast.xml"
+        with self.assertRaisesRegex(ValueError, "does not match"):
+            release_manifest.validate_manifest(bad_feed)
+        with self.assertRaisesRegex(ValueError, "channel does not match"):
+            release_manifest.validate_manifest(manifest(channel="beta"), previous=manifest())
+
     def test_mutable_or_credentialed_urls_are_rejected(self) -> None:
         mutable = manifest()
         mutable["dmgURL"] = "https://releases.cmdtab.net/latest/CmdTab.dmg"
@@ -271,6 +362,25 @@ class ReleaseManifestTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("equal or lower", rejected.stderr)
+
+    def test_beta_appcast_requires_sparkle_beta_channel(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "beta.json"
+            beta_manifest = manifest(channel="beta")
+            manifest_path.write_text(json.dumps(beta_manifest), encoding="utf-8")
+            appcast_path = root / "appcast.xml"
+            appcast_path.write_text(
+                f'''<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><item>
+<sparkle:version>2</sparkle:version><sparkle:channel>beta</sparkle:channel>
+<sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+<enclosure url="{beta_manifest["dmgURL"]}" length="4" sparkle:edSignature="{'A' * 88}" />
+</item></channel></rss>''', encoding="utf-8")
+            result = subprocess.run(
+                ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"), str(appcast_path), str(manifest_path)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

@@ -10,12 +10,35 @@ OUTPUT_APP="${CMDTAB_OUTPUT_APP:-${ROOT_DIR}/dist/CmdTab.app}"
 SKIP_SIGN="${CMDTAB_SKIP_ADHOC_SIGN:-0}"
 SIGNING_IDENTITY="${CMDTAB_SIGNING_IDENTITY:-}"
 KEEP_SCRATCH="${CMDTAB_KEEP_RELEASE_SCRATCH:-0}"
+PACKAGE_MODE="${CMDTAB_PACKAGE_MODE:-local-qa}"
 SCRATCH_ROOT="${CMDTAB_RELEASE_SCRATCH:-$(mktemp -d /tmp/cmdtab-package.XXXXXX)}"
 STAGE_APP="${SCRATCH_ROOT}/CmdTab.app"
 
+case "${PACKAGE_MODE}" in
+  local-qa|release) ;;
+  *) echo "CMDTAB_PACKAGE_MODE must be local-qa or release." >&2; exit 2 ;;
+esac
 if [[ "${SKIP_SIGN}" == "1" && -n "${SIGNING_IDENTITY}" ]]; then
   echo "CMDTAB_SKIP_ADHOC_SIGN and CMDTAB_SIGNING_IDENTITY are mutually exclusive." >&2
   exit 2
+fi
+if [[ "${PACKAGE_MODE}" == "release" && ( -z "${SIGNING_IDENTITY}" || -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" || -z "${CMDTAB_NOTARY_PROFILE:-}" || "${SKIP_SIGN}" == "1" ) ]]; then
+  echo "Release packaging requires a Developer ID identity, Sparkle public key, notarization profile, and signing." >&2
+  exit 2
+fi
+if [[ "${PACKAGE_MODE}" == "release" && "${SIGNING_IDENTITY}" != Developer\ ID\ Application:* ]]; then
+  echo "Release packaging requires a Developer ID Application signing identity." >&2
+  exit 2
+fi
+
+UPDATE_CHANNEL="$(python3 "${CONFIG_TOOL}" get updateChannel)"
+if [[ "${PACKAGE_MODE}" == "release" && "${UPDATE_CHANNEL}" == "beta" ]]; then
+  command -v node >/dev/null 2>&1 || {
+    echo "Public-beta packaging requires Node.js for beta-trial readiness validation." >&2
+    exit 1
+  }
+  CMDTAB_REQUIRE_BETA_TRIAL_READY=1 \
+    node "${ROOT_DIR}/website/scripts/verify-beta-trial-readiness.mjs"
 fi
 if [[ -n "${SIGNING_IDENTITY}" && -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
   echo "Developer ID packaging requires CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
@@ -167,3 +190,4 @@ printf 'Packaged %s\n' "${OUTPUT_APP}"
 printf 'Manifest %s\n' "${MANIFEST_PATH}"
 printf 'Checksums %s\n' "${CHECKSUM_PATH}"
 printf 'Architecture policy %s\n' "${ARCHITECTURE_POLICY}"
+printf 'Package mode %s\n' "${PACKAGE_MODE}"

@@ -166,7 +166,7 @@ final class ProductionMembershipPolicyTests: XCTestCase {
             now: Date(timeIntervalSince1970: 101)
         )
         XCTAssertTrue(transientMiss.preview === image)
-        XCTAssertTrue(transientMiss.backdrop === image)
+        XCTAssertNil(transientMiss.backdrop, "Continuity retains only a downscaled thumbnail")
 
         let metadataChanged = SwitcherPreviewContinuityStore.resolve(
             key: "exact-gpu-window-v2",

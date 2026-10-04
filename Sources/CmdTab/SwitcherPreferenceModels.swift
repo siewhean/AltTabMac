@@ -196,7 +196,7 @@ enum SwitcherQuickAction: String, CaseIterable, Codable, Sendable {
         case .closeWindow:
             return .closeWindow
         case .quitApp:
-            return itemKind == .appWindow ? .closeWindow : .terminateApplication
+            return .terminateApplication
         }
     }
 
@@ -209,7 +209,7 @@ enum SwitcherQuickAction: String, CaseIterable, Codable, Sendable {
         case .closeWindow:
             return "Close Window"
         case .quitApp:
-            return "Close Window / Quit App"
+            return "Quit App"
         }
     }
 
@@ -235,7 +235,7 @@ enum SwitcherQuickAction: String, CaseIterable, Codable, Sendable {
         case .closeWindow:
             return "Close the selected window directly from the switcher."
         case .quitApp:
-            return "Close the selected window when a window tile is highlighted, or quit the full app when only an app tile is available."
+            return "Quit the application that owns the selected tile."
         }
     }
 }

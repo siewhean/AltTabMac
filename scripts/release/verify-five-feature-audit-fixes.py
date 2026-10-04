@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from hotkey_source_contract import verify_event_tap_authorization
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -92,11 +94,15 @@ def main() -> None:
         "swallowedKeyCodes.remove(keyCode) != nil",
         "ShortcutRecordingState.shared.isRecording",
         "SecureInputMonitor.isEnabled",
-        "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+        "LicensingController.shared.shouldHandleEventTapShortcut",
         "tapDisabledByTimeout",
         "scheduleInstallRetry",
     ):
         require(hotkeys, literal, "ProfileHotkeyManager.swift")
+    try:
+        verify_event_tap_authorization(hotkeys, read("Sources/CmdTab/LicensingController.swift"))
+    except ValueError as error:
+        fail(str(error))
     reject(
         hotkeys,
         "case .holdPrimaryModifier:\n            activeHoldMatch = match",
@@ -184,21 +190,36 @@ def main() -> None:
         "SwitcherPreviewPermissionState",
         "denialConfirmationInterval: TimeInterval = 1.0",
         "SwitcherPreviewContinuityStore",
-        "exactKeyMaximumAge: TimeInterval = 120",
         "identityMaximumAge: TimeInterval = 600",
-        "entriesByExactKey",
-        "entriesByIdentity",
+        "private static var entries: [String: Entry]",
+        "private static var windows: [WindowKey: Verification]",
+        "private static var captureTokens: [String: UUID]",
         "identityKey:",
         "captureAccessAllowed",
         "CGPreflightScreenCaptureAccess",
         "launchDate",
         "ReliableWindowPreviewRecovery.schedule",
-        "entriesByExactKey.removeValue(forKey: key)",
-        "entriesByIdentity.removeValue(forKey: identityKey)",
+        "generation != verified.generation",
+        "CFEqual($0.element, element)",
+        "purgeLocked(window: key)",
+        "captureTokens[identityKey] != captureToken",
+        "entries.removeValue(forKey: identity)",
+        "captureTokens.removeValue(forKey: identity)",
+        "entries.removeAll()",
+        "return current.minimized && entry.verificationToken == current.token",
+        "byteLimit = 128 * 1_024 * 1_024",
         "previewCacheKey != nil, kind == .appWindow",
     ):
         require(item, literal, "SwitcherItem.swift")
     reject(item, "identityMaximumAge: TimeInterval = 15", "SwitcherItem.swift")
+    retention_tests = read("Tests/CmdTabTests/MinimizedPreviewRetentionTests.swift")
+    for literal in (
+        "testReplacementAndProcessGenerationPurgeEvenBeforeNormalExpiry",
+        "testTerminationAndDenialPurgeRetainedFrames",
+        "testClosedWindowCannotBeResurrectedByInFlightCapture",
+        "testVerifiedMinimizedFrameSurvivesLongAbsenceWithOriginalCaptureDateAndNoBackdrop",
+    ):
+        require(retention_tests, literal, "MinimizedPreviewRetentionTests.swift")
 
     recovery = read("Sources/CmdTab/ReliableWindowPreviewRecovery.swift")
     for literal in (
@@ -206,8 +227,11 @@ def main() -> None:
         "SCShareableContent.getExcludingDesktopWindows",
         "SCContentFilter(desktopIndependentWindow:",
         "SCScreenshotManager.captureImage",
-        "inFlightIdentityKeys",
-        "retryAfterByIdentityKey",
+        "PreviewRecoveryRequestState",
+        "guard !entry.inFlight, entry.retryAfter <= now else { return false }",
+        "entry.attempts <= Self.transientRetryDelays.count",
+        "guard var entry = entries[identityKey], entry.token == token else { return nil }",
+        "SwitcherPreviewContinuityStore.isCurrentCapture",
         "didRecoverPreviewNotification",
         "SwitcherPreviewContinuityStore.resolve",
     ):
@@ -230,20 +254,19 @@ def main() -> None:
 
     menu = read("Sources/CmdTab/MenuBarController.swift")
     for literal in (
-        "Show Minimized Windows",
-        "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
-        "Press a profile's modifier and key as one deliberate chord",
-        "AlternateTriggerMode.productionHotSwapModes",
-        "Command double tap completed within 250 ms",
-        "One Command or Option press does nothing",
+        "Settings…",
+        "Check for Beta Updates…",
+        "Diagnostics…",
+        "Setup Guide…",
+        "Quit CmdTab",
         "menu.popUp(",
     ):
         require(menu, literal, "MenuBarController.swift")
-    reject(
-        menu,
-        "Modifier-only single taps and double taps are disabled",
-        "MenuBarController.swift",
-    )
+    for removed_menu_control in (
+        "Show Minimized Windows",
+        "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
+    ):
+        reject(menu, removed_menu_control, "MenuBarController.swift")
 
     feedback = read(
         "docs/release/evidence/five-feature-suite/manual-feedback-regressions.md"

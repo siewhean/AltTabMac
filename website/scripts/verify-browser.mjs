@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
@@ -189,6 +190,9 @@ chromeProcess.stderr.on("data", (chunk) => {
 
 const failures = [];
 const report = [];
+const helpNavigationReport = [];
+const analyticsContractReport = { verificationRunId: randomUUID() };
+const motionReport = {};
 const fail = (message) => failures.push(message);
 let client;
 const freshProfileAnalyticsRequests = [];
@@ -544,8 +548,12 @@ try {
           fail(`${profile.name} ${path}: autoplay product video is missing`);
         } else {
           const firstVideo = result.videos[0];
-          if (!firstVideo.muted || firstVideo.loop || !firstVideo.playsInline || firstVideo.autoplayMode !== "one-shot") {
-            fail(`${profile.name} ${path}: first video is not configured for silent one-shot inline autoplay`);
+          for (const [index, video] of result.videos.entries()) {
+            const expectedLoop = path === "/" && index === 0;
+            const expectedMode = expectedLoop ? "loop" : "one-shot";
+            if (!video.muted || video.loop !== expectedLoop || !video.playsInline || video.autoplayMode !== expectedMode) {
+              fail(`${profile.name} ${path}: video ${index} is not configured for silent ${expectedMode} inline autoplay`);
+            }
           }
           if (firstVideo.duration === null || firstVideo.duration > 5.05) {
             fail(`${profile.name} ${path}: first autoplay video exceeds five seconds`);
@@ -585,6 +593,100 @@ try {
           Buffer.from(screenshot.data, "base64"),
         );
       }
+      cleanups.forEach((cleanup) => cleanup());
+    }
+  }
+
+  // Exercise the route transitions that previously exposed stale chunks, in
+  // addition to the direct loads above. Keep all errors scoped to each mode.
+  await client.send("Emulation.setDeviceMetricsOverride", {
+    width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false,
+  });
+  for (const mode of ["direct", "internal", "reload"]) {
+    if (mode === "internal") {
+      const homeLoaded = client.waitFor("Page.loadEventFired");
+      await client.send("Page.navigate", { url: `${baseUrl}/` });
+      await homeLoaded;
+      await sleep(500);
+    }
+    const errors = [];
+    const responses = [];
+    const requestUrls = new Map();
+    const cleanups = [
+      client.on("Network.requestWillBeSent", ({ requestId, request }) => {
+        requestUrls.set(requestId, String(request?.url || ""));
+      }),
+      client.on("Runtime.exceptionThrown", ({ exceptionDetails }) => {
+        errors.push(exceptionDetails?.exception?.description || exceptionDetails?.text || "unknown exception");
+      }),
+      client.on("Runtime.consoleAPICalled", ({ type, args }) => {
+        if (!["error", "assert"].includes(type)) return;
+        const message = args?.map((item) => item.value || item.description || "").join(" ") || type;
+        if (!expectedLocalConsoleNoise(message)) errors.push(message);
+      }),
+      client.on("Log.entryAdded", ({ entry }) => {
+        if (entry?.level !== "error") return;
+        const message = `${entry.level}: ${entry.text || ""}`;
+        if (!expectedLocalConsoleNoise(message)) errors.push(message);
+      }),
+      client.on("Network.loadingFailed", ({ requestId, errorText, canceled }) => {
+        const url = requestUrls.get(requestId) || "unknown URL";
+        if (!canceled && !String(errorText).includes("ERR_ABORTED") && !expectedLocalVercelNoise(url)) {
+          errors.push(`${errorText}: ${url}`);
+        }
+      }),
+      client.on("Network.responseReceived", ({ response, type }) => {
+        const url = String(response?.url || "");
+        if (!url.startsWith(baseUrl) || expectedLocalVercelNoise(url)) return;
+        responses.push({ url, status: response.status, type });
+        if (response.status >= 400) errors.push(`${type} ${response.status} ${url}`);
+      }),
+    ];
+    try {
+      if (mode === "internal") {
+        const clicked = await client.send("Runtime.evaluate", {
+          expression: `(() => {
+            const link = [...document.querySelectorAll('a[href="/help"]')].find((item) => {
+              const rect = item.getBoundingClientRect();
+              return rect.width > 0 && rect.height > 0;
+            });
+            if (!link) return false;
+            link.click();
+            return true;
+          })()`,
+          returnByValue: true,
+        });
+        if (!clicked.result?.value) throw new Error("no visible internal /help link found");
+      } else {
+        const loaded = client.waitFor("Page.loadEventFired");
+        await client.send(mode === "reload" ? "Page.reload" : "Page.navigate",
+          mode === "reload" ? { ignoreCache: true } : { url: `${baseUrl}/help` });
+        await loaded;
+      }
+      const rendered = await client.send("Runtime.evaluate", {
+        expression: `new Promise((resolve) => {
+          const started = Date.now();
+          const check = () => {
+            const h1 = document.querySelector('h1')?.textContent?.trim() || '';
+            if (location.pathname === '/help' && /help/i.test(h1) && document.readyState === 'complete') {
+              resolve({ path: location.pathname, h1, title: document.title });
+            } else if (Date.now() - started > 10000) {
+              resolve({ path: location.pathname, h1, timedOut: true });
+            } else setTimeout(check, 50);
+          };
+          check();
+        })`,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      await sleep(500);
+      const result = rendered.result?.value || {};
+      if (result.path !== "/help" || result.timedOut || !result.h1) {
+        errors.push(`help route did not render: ${JSON.stringify(result)}`);
+      }
+      helpNavigationReport.push({ mode, result, responses, errors });
+      for (const error of errors) fail(`/help ${mode}: ${error}`);
+    } finally {
       cleanups.forEach((cleanup) => cleanup());
     }
   }
@@ -858,6 +960,7 @@ try {
     returnByValue: true,
   });
   const apiStatuses = apiContracts.result?.value || [];
+  analyticsContractReport.ingestionStatuses = apiStatuses;
   if (JSON.stringify(apiStatuses) !== JSON.stringify([400, 400, 400, 400, 413, 204, 415])) {
     fail(`analytics ingestion contract returned unexpected statuses: ${JSON.stringify(apiStatuses)}`);
   }
@@ -873,7 +976,7 @@ try {
             eventType: "event",
             eventName: "rate_limit_contract",
             path: "/",
-            eventData: { index },
+            eventData: { index, verificationRunId: ${JSON.stringify(analyticsContractReport.verificationRunId)} },
           }),
         });
         statuses.push(response.status);
@@ -884,6 +987,7 @@ try {
     returnByValue: true,
   });
   const rateLimitStatuses = rateLimitContracts.result?.value || [];
+  analyticsContractReport.rateLimitStatuses = rateLimitStatuses;
   if (!rateLimitStatuses.includes(429)) {
     fail(`analytics ingestion rate limit did not return 429: ${JSON.stringify(rateLimitStatuses)}`);
   }
@@ -902,11 +1006,45 @@ try {
   await client.send("Page.navigate", { url: `${baseUrl}/` });
   await loaded;
   await sleep(900);
+  const heroLoopEvaluation = await client.send("Runtime.evaluate", {
+    expression: `new Promise(async (resolve) => {
+      const video = document.querySelector('video');
+      if (!video || video.readyState < 1) return resolve({ ok: false, reason: 'hero video metadata unavailable' });
+      video.currentTime = Math.max(0, video.duration - 0.12);
+      try {
+        await video.play();
+      } catch (error) {
+        return resolve({ ok: false, reason: "hero playback failed: " + String(error.message || error) });
+      }
+      await new Promise((done) => setTimeout(done, 500));
+      const replayed = video.loop && video.dataset.autoplayMode === 'loop' && !video.paused && !video.ended && video.currentTime < video.duration - 0.12;
+      document.documentElement.style.scrollBehavior = 'auto';
+      document.body.style.scrollBehavior = 'auto';
+      window.scrollTo(0, document.body.scrollHeight);
+      await new Promise((done) => setTimeout(done, 300));
+      const pausedOffscreen = video.paused;
+      window.scrollTo(0, 0);
+      await new Promise((done) => setTimeout(done, 500));
+      const resumed = !video.paused;
+      resolve({ ok: replayed && pausedOffscreen && resumed, replayed, pausedOffscreen, resumed });
+    })`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  motionReport.heroLoop = heroLoopEvaluation.result?.value || {};
+  if (!motionReport.heroLoop.ok) fail(`homepage visible-loop guard failed: ${JSON.stringify(motionReport.heroLoop)}`);
+
+  loaded = client.waitFor("Page.loadEventFired");
+  await client.send("Page.navigate", { url: `${baseUrl}/showcase` });
+  await loaded;
+  await sleep(900);
   const oneShotSetup = await client.send("Runtime.evaluate", {
     expression: `(() => {
       const video = document.querySelector('video');
       if (!video) return { ok: false, reason: 'video missing' };
       if (video.readyState < 1) return { ok: false, reason: 'video metadata unavailable' };
+      document.documentElement.style.scrollBehavior = 'auto';
+      document.body.style.scrollBehavior = 'auto';
       video.currentTime = Math.max(0, video.duration - 0.12);
       void video.play();
       return { ok: true, duration: video.duration };
@@ -943,6 +1081,7 @@ try {
     returnByValue: true,
   });
   const oneShotResult = oneShotEvaluation.result?.value || {};
+  motionReport.showcaseOneShot = oneShotResult;
   if (!oneShotResult.ok) {
     fail(`one-shot autoplay replay guard failed: ${JSON.stringify(oneShotResult)}`);
   }
@@ -968,6 +1107,7 @@ try {
     returnByValue: true,
   });
   const reducedMotionResult = reducedMotionEvaluation.result?.value || {};
+  motionReport.reducedMotion = reducedMotionResult;
   if (!reducedMotionResult.ok) {
     fail(`reduced-motion autoplay guard failed: ${JSON.stringify(reducedMotionResult)}`);
   }
@@ -988,7 +1128,7 @@ try {
   }
   writeFileSync(
     resolve(artifactDir, "browser-report.json"),
-    JSON.stringify({ baseUrl, routes, report, failures }, null, 2),
+    JSON.stringify({ baseUrl, routes, report, helpNavigationReport, analyticsContractReport, motionReport, failures }, null, 2),
   );
   try {
     rmSync(chromeUserDataDir, {
@@ -1010,5 +1150,5 @@ if (failures.length) {
 }
 
 console.log(
-  `Browser verification passed for ${routes.length} routes at desktop, mobile, 200% zoom, and 400% zoom/320px reflow viewports, axe with no serious/critical violations, one-shot autoplay, reduced-motion safety, 44px targets, mobile navigation, and accessible wide tables.`,
+  `Browser verification passed for ${routes.length} routes at desktop, mobile, 200% zoom, and 400% zoom/320px reflow viewports, axe with no serious/critical violations, visible homepage looping, one-shot showcase autoplay, reduced-motion safety, 44px targets, mobile navigation, and accessible wide tables.`,
 );

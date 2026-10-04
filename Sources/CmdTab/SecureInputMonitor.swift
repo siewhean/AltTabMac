@@ -15,6 +15,10 @@ enum SecureInputMonitor {
     }()
 
     static var isEnabled: Bool {
-        function?() != 0
+        isEnabled(symbolResult: function?())
+    }
+
+    static func isEnabled(symbolResult: UInt8?) -> Bool {
+        (symbolResult ?? 0) != 0
     }
 }

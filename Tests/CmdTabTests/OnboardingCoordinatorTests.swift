@@ -203,14 +203,18 @@ final class OnboardingCoordinatorTests: XCTestCase {
             trialStore: UserDefaultsTrialStartDateStore(defaults: defaults),
             trialClaimStore: claimStore,
             licenseStore: OnboardingTestLicenseKeyStore(),
+            deviceEntitlementStore: OnboardingTestDeviceEntitlementStore(),
             activationMetadataStore: UserDefaultsLicenseActivationMetadataStore(defaults: defaults),
             payloadCacheStore: UserDefaultsLicensedPayloadCacheStore(defaults: defaults),
             installIDStore: UserDefaultsAppInstallIDStore(defaults: defaults),
+            deviceIdentityStore: OnboardingTestDeviceIdentityStore(),
             trialClaimAuthenticator: OnboardingTrustingTrialClaimAuthenticator(),
+            secureTrialClockStore: OnboardingTestSecureTrialClockStore(),
+            revocationStore: OnboardingTestRevocationStore(),
             serverClient: OnboardingTestServerClient(),
             currentDate: { now },
             publicKeyDERBase64: "",
-            developerSettings: developerSettings
+            debugCompatibility: developerSettings
         )
         return OnboardingCoordinator(
             store: store,
@@ -302,4 +306,33 @@ private final class OnboardingTestLicenseKeyStore: LicenseKeyStore {
     func loadLicenseKey() -> String? { nil }
     func saveLicenseKey(_ value: String) throws {}
     func clearLicenseKey() throws {}
+}
+
+// Onboarding behavior must not depend on the host's entitlement, trial clock,
+// or securityd availability. Keep every security store local to the fixture.
+private final class OnboardingTestDeviceEntitlementStore: DeviceLicenseEntitlementStore {
+    private var value: String?
+
+    func loadEntitlement() -> String? { value }
+    func saveEntitlement(_ value: String) throws { self.value = value }
+    func clearEntitlement() throws { value = nil }
+}
+
+private struct OnboardingTestDeviceIdentityStore: LicenseDeviceIdentityStore {
+    func loadOrCreateSecret() throws -> Data { Data(repeating: 1, count: 32) }
+}
+
+private final class OnboardingTestSecureTrialClockStore: SecureTrialClockStore {
+    private var date: Date?
+
+    func loadLastSeenDate() -> Date? { date }
+    func saveLastSeenDate(_ value: Date) { date = value }
+    func clearLastSeenDate() { date = nil }
+}
+
+private final class OnboardingTestRevocationStore: LicenseRevocationStore {
+    private var revokedIdentifiers = Set<String>()
+
+    func isRevoked(licenseID: String) -> Bool { revokedIdentifiers.contains(licenseID) }
+    func saveRevocation(licenseID: String) throws { revokedIdentifiers.insert(licenseID) }
 }

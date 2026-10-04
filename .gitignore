@@ -36,3 +36,7 @@ release-artifacts/
 *.swp
 *.swo
 *~
+
+# Python verifier caches
+__pycache__/
+*.py[cod]

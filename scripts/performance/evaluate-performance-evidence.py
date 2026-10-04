@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Any
 
 THRESHOLDS = {
-    "reveal_p95_ms_max": 500.0,
+    "reveal_p50_ms_max": 80.0,
+    "reveal_p95_ms_max": 150.0,
     "selection_p95_ms_max": 600.0,
     "observation_capture_p95_ms_max": 500.0,
     "session_cpu_p95_ms_max": 100.0,
@@ -26,6 +27,21 @@ EXPECTED = {
     "readiness": {"matrix_sessions": 3, "soak_sessions": 10},
     "acceptance": {"matrix_sessions": 100, "soak_sessions": 1000},
 }
+
+INTERRUPTION_CODES = frozenset({
+    "accessibility_unavailable",
+    "screen_recording_unavailable",
+    "secure_input_active",
+    "event_tap_or_hid_rejected",
+    "candidate_launch_mismatch",
+    "candidate_frontmost_mismatch",
+    "fixture_frontmost_mismatch",
+    "fixture_window_count_mismatch",
+    "cmdtab_terminated_or_unresponsive",
+    "reveal_timeout",
+    "selection_timeout",
+    "observation_capture_unavailable",
+})
 
 
 def percentile(values: list[float], fraction: float) -> float | None:
@@ -73,10 +89,14 @@ def summarize_run(document: dict[str, Any], path: Path) -> dict[str, Any]:
             if row.get(field) is not None
         ]
 
-    failures = [
-        {"index": row.get("index"), "failure": row.get("failure")}
+    interruptions = [
+        {
+            "index": row.get("index"),
+            "code": row.get("interruptionCode"),
+            "detail": row.get("interruptionDetail"),
+        }
         for row in measurements
-        if row.get("failure")
+        if row.get("interruptionCode")
     ]
     unresponsive = sum(
         row.get("eventTapState") != "responsive" for row in measurements
@@ -103,6 +123,8 @@ def summarize_run(document: dict[str, Any], path: Path) -> dict[str, Any]:
             "windowLabExecutableSHA256"
         ),
         "raw_evidence_state": document.get("evidenceState"),
+        "prerequisite_interruptions": document.get("prerequisiteInterruptions", []),
+        "reveal_p50_ms": percentile(numbers("revealMilliseconds"), 0.50),
         "reveal_p95_ms": percentile(numbers("revealMilliseconds"), 0.95),
         "selection_p95_ms": percentile(numbers("selectionMilliseconds"), 0.95),
         "observation_capture_p95_ms": percentile(
@@ -123,7 +145,20 @@ def summarize_run(document: dict[str, Any], path: Path) -> dict[str, Any]:
         ),
         "rss_samples_after_warmup": len(rss),
         "event_tap_unresponsive_sessions": unresponsive,
-        "failures": failures,
+        "missed_overlay_sessions": sum(
+            row.get("interruptionCode") in {"event_tap_or_hid_rejected", "reveal_timeout"}
+            for row in measurements
+        ),
+        "preview_integrity_failures": sum(
+            row.get("previewIntegrity") != "observed"
+            for row in measurements
+        ),
+        "cmdtab_not_running_sessions": sum(
+            row.get("cmdTabRunningAfterSession") is not True
+            for row in measurements
+        ),
+        "activation_outcomes": document.get("activationOutcomeMetrics"),
+        "interruptions": interruptions,
     }
 
 
@@ -132,7 +167,7 @@ def validate_document(document: dict[str, Any], path: Path) -> list[str]:
     metadata = document.get("metadata", {})
     preconditions = document.get("preconditions", {})
     measurements = document.get("measurements")
-    if metadata.get("schemaVersion") != 1:
+    if metadata.get("schemaVersion") != 2:
         reasons.append(f"{path}: unsupported or missing raw schema version.")
     if not isinstance(metadata.get("hostOS"), str) or not metadata.get("hostOS"):
         reasons.append(f"{path}: hostOS is missing.")
@@ -140,10 +175,34 @@ def validate_document(document: dict[str, Any], path: Path) -> list[str]:
         reasons.append(f"{path}: hostArchitecture is missing or unsupported.")
     if not isinstance(measurements, list):
         return reasons + [f"{path}: measurements must be an array."]
+    interruptions = document.get("prerequisiteInterruptions")
+    if not isinstance(interruptions, list) or any(
+        code not in INTERRUPTION_CODES for code in interruptions
+    ):
+        reasons.append(f"{path}: prerequisiteInterruptions must contain known codes.")
+    activation_metrics = document.get("activationOutcomeMetrics")
+    expected_activation_metric_keys = {
+        "requested", "exactVerified", "applicationFallbackUnverified",
+        "targetDisappeared", "accessibilityUnavailable", "verificationFailure",
+    }
+    if not isinstance(activation_metrics, dict) or set(activation_metrics) != expected_activation_metric_keys or any(
+        not isinstance(value, int) or value < 0 for value in activation_metrics.values()
+    ):
+        reasons.append(f"{path}: activationOutcomeMetrics must contain non-negative outcome counters.")
     if preconditions.get("fixtureWindowCountObserved") != preconditions.get(
         "fixtureWindowCountExpected"
     ):
         reasons.append(f"{path}: observed fixture-window count does not match expected.")
+    allowed_preconditions = {
+        "secureInputObservation": {"not_observable_by_probe", "active"},
+        "eventTapHIDObservation": {"external_behavioral_proxy_only", "rejected"},
+        "candidateLaunchStatus": {"exact_bundle_verified", "mismatch"},
+        "candidateFrontmostStatus": {"verified", "mismatch"},
+        "cmdTabProcessRunning": {True, False},
+    }
+    for field, allowed in allowed_preconditions.items():
+        if preconditions.get(field) not in allowed:
+            reasons.append(f"{path}: {field} is missing or invalid.")
     if document.get("evidenceState") == "measured" and (
         preconditions.get("accessibilityTrusted") is not True
         or preconditions.get("screenCaptureAuthorized") is not True
@@ -151,6 +210,14 @@ def validate_document(document: dict[str, Any], path: Path) -> list[str]:
         reasons.append(
             f"{path}: measured evidence requires Accessibility and Screen Recording."
         )
+    if document.get("evidenceState") == "measured" and (
+        preconditions.get("candidateLaunchStatus") != "exact_bundle_verified"
+        or preconditions.get("candidateFrontmostStatus") != "verified"
+        or preconditions.get("cmdTabProcessRunning") is not True
+        or preconditions.get("secureInputObservation") != "not_observable_by_probe"
+        or preconditions.get("eventTapHIDObservation") != "external_behavioral_proxy_only"
+    ):
+        reasons.append(f"{path}: measured evidence requires an exact running candidate.")
     for field in ("cmdTabExecutableSHA256", "windowLabExecutableSHA256"):
         value = metadata.get(field)
         if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
@@ -171,7 +238,7 @@ def validate_document(document: dict[str, Any], path: Path) -> list[str]:
         for field in numeric_fields:
             value = row.get(field)
             if value is None:
-                if not row.get("failure"):
+                if not row.get("interruptionCode"):
                     reasons.append(
                         f"{path}: successful session {row.get('index')} is missing {field}."
                     )
@@ -185,6 +252,31 @@ def validate_document(document: dict[str, Any], path: Path) -> list[str]:
                 reasons.append(
                     f"{path}: session {row.get('index')} has invalid {field}."
                 )
+        interruption = row.get("interruptionCode")
+        if interruption is not None and interruption not in INTERRUPTION_CODES:
+            reasons.append(
+                f"{path}: session {row.get('index')} has an unknown interruption code."
+            )
+        if interruption is None and row.get("interruptionDetail") is not None:
+            reasons.append(
+                f"{path}: session {row.get('index')} has interruption detail without a code."
+            )
+        if row.get("previewIntegrity") not in {"observed", "unavailable"}:
+            reasons.append(
+                f"{path}: session {row.get('index')} has invalid previewIntegrity."
+            )
+        if row.get("activationOutcome") not in {
+            "fixture_application_frontmost_verified",
+            "frontmost_mismatch",
+            "not_observed",
+        }:
+            reasons.append(
+                f"{path}: session {row.get('index')} has invalid activationOutcome."
+            )
+        if not isinstance(row.get("cmdTabRunningAfterSession"), bool):
+            reasons.append(
+                f"{path}: session {row.get('index')} is missing CmdTab liveness."
+            )
     idle_cpu = document.get("idleCPUPercent")
     if (
         not isinstance(idle_cpu, (int, float))
@@ -218,7 +310,9 @@ def evaluate(
     if any(run["run_kind"] != mode for run in summaries):
         reasons.append("One or more raw runs use a different run kind.")
     if any(run["raw_evidence_state"] != "measured" for run in summaries):
-        reasons.append("One or more raw runs were blocked and contain no measurements.")
+        reasons.append("One or more raw runs were blocked by typed prerequisite interruptions.")
+    if any(run["prerequisite_interruptions"] for run in summaries):
+        reasons.append("One or more raw runs have prerequisite interruptions.")
 
     matrix = [
         run for run in summaries
@@ -260,6 +354,7 @@ def evaluate(
         )
 
     always_required_checks = [
+        ("reveal_p50_ms", "reveal_p50_ms_max"),
         ("reveal_p95_ms", "reveal_p95_ms_max"),
         ("selection_p95_ms", "selection_p95_ms_max"),
         (
@@ -270,12 +365,53 @@ def evaluate(
         ("idle_cpu_percent", "idle_cpu_percent_max"),
     ]
     for run in summaries:
-        if run["failures"]:
-            reasons.append(f"{run['path']}: {len(run['failures'])} failed sessions.")
+        if run["interruptions"]:
+            reasons.append(
+                f"{run['path']}: {len(run['interruptions'])} interrupted sessions."
+            )
         if run["event_tap_unresponsive_sessions"]:
             reasons.append(
                 f"{run['path']}: event-tap responsiveness proxy failed in "
                 f"{run['event_tap_unresponsive_sessions']} sessions."
+            )
+        if run["missed_overlay_sessions"]:
+            reasons.append(
+                f"{run['path']}: {run['missed_overlay_sessions']} missed overlay/shortcut sessions."
+            )
+        if run["preview_integrity_failures"]:
+            reasons.append(
+                f"{run['path']}: {run['preview_integrity_failures']} preview-integrity failures."
+            )
+        if run["activation_outcomes"] is None:
+            reasons.append(f"{run['path']}: activation outcome counters are missing.")
+        else:
+            activation_metrics = run["activation_outcomes"]
+            terminal_outcomes = sum(
+                activation_metrics[key]
+                for key in (
+                    "exactVerified",
+                    "applicationFallbackUnverified",
+                    "targetDisappeared",
+                    "accessibilityUnavailable",
+                    "verificationFailure",
+                )
+            )
+            if activation_metrics["requested"] != run["sessions"]:
+                reasons.append(
+                    f"{run['path']}: requested activation count does not reconcile to sessions."
+                )
+            if terminal_outcomes != activation_metrics["requested"]:
+                reasons.append(
+                    f"{run['path']}: terminal activation outcomes do not reconcile to requests."
+                )
+            if mode == "acceptance" and activation_metrics["exactVerified"] != run["sessions"]:
+                reasons.append(
+                    f"{run['path']}: acceptance requires every activation to be exact-window verified."
+                )
+        if run["cmdtab_not_running_sessions"]:
+            reasons.append(
+                f"{run['path']}: CmdTab was not running after "
+                f"{run['cmdtab_not_running_sessions']} sessions."
             )
         if run["rss_strictly_monotonic_increase"]:
             reasons.append(f"{run['path']}: warmed RSS increased on every sample.")
@@ -314,7 +450,7 @@ def evaluate(
         else "blocked"
     )
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_sha": source_sha,
         "source_clean": source_clean,
         "mode": mode,

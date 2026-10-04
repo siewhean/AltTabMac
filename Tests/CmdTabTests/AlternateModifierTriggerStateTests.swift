@@ -164,7 +164,7 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
         )
     }
 
-    func testRightSideChordActivatesWhenSecondKeyGoesDown() {
+    func testRightSideChordActivatesOnCleanShortRelease() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
@@ -180,7 +180,7 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
 
-        XCTAssertTrue(
+        XCTAssertFalse(
             state.handleModifierChange(
                 .rightOption,
                 isDown: true,
@@ -192,9 +192,34 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
                 now: 40.02
             )
         )
+        // Modifier chords commit on a clean release within 280ms, never on key-down.
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightOption,
+                isDown: false,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: true,
+                rightOptionDown: false,
+                now: 40.10
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand,
+                isDown: false,
+                mode: .rightOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 40.12
+            )
+        )
     }
 
-    func testLeftSideChordActivatesWhenSecondKeyGoesDown() {
+    func testLeftSideChordActivatesOnCleanShortRelease() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
@@ -210,7 +235,7 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
 
-        XCTAssertTrue(
+        XCTAssertFalse(
             state.handleModifierChange(
                 .leftCommand,
                 isDown: true,
@@ -222,9 +247,34 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
                 now: 50.03
             )
         )
+        // Modifier chords commit on a clean release within 280ms, never on key-down.
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .leftOption,
+                isDown: false,
+                mode: .leftOptionDoubleTap,
+                leftCommandDown: true,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 50.10
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .leftCommand,
+                isDown: false,
+                mode: .leftOptionDoubleTap,
+                leftCommandDown: false,
+                leftOptionDown: false,
+                rightCommandDown: false,
+                rightOptionDown: false,
+                now: 50.12
+            )
+        )
     }
 
-    func testHoldingChordDoesNotRetriggerUntilReleased() {
+    func testHeldChordFiresOnceOnReleaseAndDoesNotRepeat() {
         var state = AlternateModifierTriggerState()
 
         XCTAssertFalse(
@@ -240,7 +290,7 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
             )
         )
 
-        XCTAssertTrue(
+        XCTAssertFalse(
             state.handleModifierChange(
                 .rightOption,
                 isDown: true,
@@ -263,6 +313,28 @@ final class AlternateModifierTriggerStateTests: XCTestCase {
                 rightCommandDown: true,
                 rightOptionDown: true,
                 now: 60.04
+            )
+        )
+        // Repeated down events must not fire; releasing either key commits only once.
+        XCTAssertTrue(
+            state.handleModifierChange(
+                .rightOption, isDown: false, mode: .rightOptionDoubleTap,
+                leftCommandDown: false, leftOptionDown: false,
+                rightCommandDown: true, rightOptionDown: false, now: 60.10
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightOption, isDown: false, mode: .rightOptionDoubleTap,
+                leftCommandDown: false, leftOptionDown: false,
+                rightCommandDown: true, rightOptionDown: false, now: 60.11
+            )
+        )
+        XCTAssertFalse(
+            state.handleModifierChange(
+                .rightCommand, isDown: false, mode: .rightOptionDoubleTap,
+                leftCommandDown: false, leftOptionDown: false,
+                rightCommandDown: false, rightOptionDown: false, now: 60.12
             )
         )
     }

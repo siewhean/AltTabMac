@@ -105,68 +105,6 @@ final class MenuBarController {
             statusItem.button?.toolTip = "Click for CmdTab controls and settings."
         }
 
-        let profilesItem = NSMenuItem(
-            title: "Shortcut Profiles…",
-            action: #selector(openShortcutProfiles),
-            keyEquivalent: ""
-        )
-        profilesItem.target = self
-        menu.addItem(profilesItem)
-
-        let reverseHelp = NSMenuItem(
-            title: "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
-            action: nil,
-            keyEquivalent: ""
-        )
-        reverseHelp.isEnabled = false
-        menu.addItem(reverseHelp)
-        menu.addItem(.separator())
-
-        let visibilityMenuItem = NSMenuItem(
-            title: "Window Visibility",
-            action: nil,
-            keyEquivalent: ""
-        )
-        visibilityMenuItem.submenu = visibilitySubmenu()
-        menu.addItem(visibilityMenuItem)
-
-        let displayMenuItem = NSMenuItem(
-            title: "Display Target",
-            action: nil,
-            keyEquivalent: ""
-        )
-        displayMenuItem.submenu = displaySubmenu()
-        menu.addItem(displayMenuItem)
-
-        let minimizedItem = NSMenuItem(
-            title: "Show Minimized Windows",
-            action: #selector(toggleIncludeMinimizedWindows),
-            keyEquivalent: ""
-        )
-        minimizedItem.state = preferences.includeMinimizedWindows ? .on : .off
-        minimizedItem.toolTip = "Turn the checkmark off to exclude minimized windows."
-        minimizedItem.target = self
-        menu.addItem(minimizedItem)
-
-        let alternateTriggerMenuItem = NSMenuItem(
-            title: "Hot Swap Shortcut",
-            action: nil,
-            keyEquivalent: ""
-        )
-        alternateTriggerMenuItem.submenu = alternateTriggerSubmenu()
-        menu.addItem(alternateTriggerMenuItem)
-
-        let launchAtLogin = NSMenuItem(
-            title: "Launch At Login",
-            action: #selector(toggleLaunchAtLogin),
-            keyEquivalent: ""
-        )
-        launchAtLogin.state = preferences.launchAtLogin ? .on : .off
-        launchAtLogin.target = self
-        menu.addItem(launchAtLogin)
-
-        menu.addItem(.separator())
-
         let settingsItem = NSMenuItem(
             title: "Settings…",
             action: #selector(openSettings),
@@ -175,13 +113,19 @@ final class MenuBarController {
         settingsItem.target = self
         menu.addItem(settingsItem)
 
-        let onboardingItem = NSMenuItem(
-            title: "Setup Guide…",
-            action: #selector(openOnboarding),
+        let updateItem = NSMenuItem(
+            title: "Check for Beta Updates…",
+            action: #selector(checkForUpdates),
             keyEquivalent: ""
         )
-        onboardingItem.target = self
-        menu.addItem(onboardingItem)
+        updateItem.target = self
+        updateItem.isEnabled = updaterController?.isConfigured == true
+        updateItem.toolTip = updaterController?.isConfigured == true
+            ? "Check the CmdTab beta update channel."
+            : "Updates are unavailable in this local QA build."
+        menu.addItem(updateItem)
+
+        menu.addItem(.separator())
 
         let diagnosticsItem = NSMenuItem(
             title: "Diagnostics…",
@@ -191,21 +135,13 @@ final class MenuBarController {
         diagnosticsItem.target = self
         menu.addItem(diagnosticsItem)
 
-        let licensingItem = NSMenuItem(
-            title: "Licensing…",
-            action: #selector(openLicensing),
+        let onboardingItem = NSMenuItem(
+            title: "Setup Guide…",
+            action: #selector(openOnboarding),
             keyEquivalent: ""
         )
-        licensingItem.target = self
-        menu.addItem(licensingItem)
-
-        let buyItem = NSMenuItem(
-            title: "Buy CmdTab",
-            action: #selector(openBuyPage),
-            keyEquivalent: ""
-        )
-        buyItem.target = self
-        menu.addItem(buyItem)
+        onboardingItem.target = self
+        menu.addItem(onboardingItem)
 
         let aboutItem = NSMenuItem(
             title: "About CmdTab",
@@ -214,18 +150,6 @@ final class MenuBarController {
         )
         aboutItem.target = self
         menu.addItem(aboutItem)
-
-        let updateItem = NSMenuItem(
-            title: "Check for Updates…",
-            action: #selector(checkForUpdates),
-            keyEquivalent: ""
-        )
-        updateItem.target = self
-        updateItem.isEnabled = updaterController?.isConfigured == true
-        updateItem.toolTip = updaterController?.isConfigured == true
-            ? "Check the stable CmdTab update channel."
-            : "Updates are unavailable in this local QA build."
-        menu.addItem(updateItem)
 
         menu.addItem(.separator())
 

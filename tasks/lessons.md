@@ -18,5 +18,14 @@
 - 2026-03-27: For delayed hotkey overlays, ignore repeated hidden keydowns on deterministic paths; otherwise auto-repeat can silently stretch the reveal threshold.
 - 2026-03-27: Accessibility close operations do not expose a `kAXCloseAction`; close windows by pressing the `kAXCloseButtonAttribute` instead of inventing a direct AX action constant.
 - 2026-03-27: When a testable state machine keeps private helper structs, keep the exposed stored properties private too; Swift will reject an internal type that surfaces private-type-backed state.
-- 2026-03-27: If a feature is only accessible through hidden shortcuts or buried implementation details, users will treat it as missing; surface shipped features explicitly in Settings and on the marketing site.
-- 2026-03-27: For marketing-site motion, start with CSS-first reveal primitives and ambient keyframes, and always keep `prefers-reduced-motion` as a first-class constraint instead of bolting it on later.
+- 2026-09-09: macOS App Lifecycle & Termination: Never return `.terminateCancel` or block on internal helper window close in `applicationShouldTerminate(_:)` unless user work would be irrevocably destroyed. Always allow clean OS-level logout, reboot, and Command-Q shutdown by returning `.terminateNow`.
+- 2026-09-09: Window Membership & Accessibility Invariants: Core Graphics window list (`CGWindowListCopyWindowInfo`) must be the primary authority for window candidates. Never treat AX window list enumeration failure as a reason to drop an active application's main window; positive exclusion is required to avoid missing windows from non-standard or partially-responsive applications.
+- 2026-09-09: Multi-layer Release Integrity: In release packaging (`package-app.sh`), release metadata must be strictly synchronized across `ReleaseConfig.json`, `Package.swift`, `Resources/Info.plist`, and marketing site metadata (`product-facts.ts`) — the packaging pipeline guards against divergence at build time.
+
+- 2026-09-15: Missing/duplicate tile remediation must inspect live PID/window IDs and exercise the entire publication pipeline. Passing finalizer-only tests does not establish that unknown CG surfaces are useful windows; never infer duplicate app fallbacks from icon-only presentation alone.
+
+- 2026-09-25: A freshness-sensitive per-process membership decision must run immediately after that process’s inspection. Group its candidates together and preserve original ranking indexes; one slow sibling must not invalidate helper evidence. Use one AX eligibility policy for base and enriched discovery.
+
+- 2026-09-25: Process-level geometry stacks do not identify the affected window or prove an app layout defect. Inspect the actual native window and size arguments; reproduce in plain AppKit before changing SwiftUI sizing or disabling system UI. Same-bundle-ID QA checkouts can confuse macOS Quit & Reopen; verify the executable path after every restart.
+
+- 2026-09-27: Permission acceptance must use one persistent exact bundle and distinguish identical-binary restart from ad-hoc rebuilds. Retain logs outside `/tmp`; never report a replaced or disappeared QA copy as the active authorized app.

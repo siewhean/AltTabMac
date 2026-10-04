@@ -1,3 +1,6 @@
+// A local private-key based generator is a development-only tool. Do not
+// compile its key-path handling or token generation into public builds.
+#if DEBUG
 import AppKit
 import CryptoKit
 import Foundation
@@ -74,3 +77,4 @@ private extension Data {
             .replacingOccurrences(of: "=", with: "")
     }
 }
+#endif

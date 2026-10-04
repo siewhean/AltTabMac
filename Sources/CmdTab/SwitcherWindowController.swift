@@ -126,6 +126,7 @@ final class SwitcherWindowController {
     // MARK: - Public API (called from HotkeyManager on main thread)
 
     func showOrAdvance(reverse: Bool = false) {
+        SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
         if !viewModel.isVisible {
             guard startSession(reverse: reverse) else { return }
             showPanel()
@@ -142,12 +143,13 @@ final class SwitcherWindowController {
     }
 
     func commitTriggerSession(reverse: Bool = false) {
+        SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
         guard startSession(reverse: reverse) else { return }
         commitCurrentSelection()
     }
 
     func showStandalone() {
-        guard startSession(reverse: false) else { return }
+        guard startSession(reverse: false, allowsLicensingPresentation: true) else { return }
         showPanel(makeKey: true)
     }
 
@@ -230,30 +232,6 @@ final class SwitcherWindowController {
 
     func refreshPreviewCache() {
         appSwitcher.warmCache(force: true)
-    }
-
-    // MARK: - Command Palette search API (called from HotkeyManager)
-
-    /// Append a printable character to the live search query.
-    /// Only meaningful when style is .commandPalette; safe to call otherwise.
-    func appendSearchCharacter(_ char: String) {
-        guard !char.isEmpty else { return }
-        let newQuery = viewModel.searchQuery + char
-        viewModel.searchQuery = newQuery
-        if preferences.switcherStyle == .commandPalette {
-            updatePaletteFilter(newQuery)
-        }
-    }
-
-    /// Remove the last character from the live search query.
-    func deleteSearchCharacter() {
-        var query = viewModel.searchQuery
-        guard !query.isEmpty else { return }
-        query.removeLast()
-        viewModel.searchQuery = query
-        if preferences.switcherStyle == .commandPalette {
-            updatePaletteFilter(query)
-        }
     }
 
     // MARK: - Private
@@ -344,19 +322,7 @@ final class SwitcherWindowController {
     private func handlePanelKeyEvent(_ event: NSEvent) -> Bool {
         guard viewModel.isVisible else { return false }
 
-        if preferences.switcherStyle == .commandPalette {
-            if event.keyCode == 51 {
-                deleteSearchCharacter()
-                return true
-            }
-
-            if let searchableCharacter = searchableCharacter(from: event) {
-                appendSearchCharacter(searchableCharacter)
-                return true
-            }
-
-            return false
-        }
+        if preferences.switcherStyle == .commandPalette { return false }
 
         let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let commandHeld = modifierFlags.contains(.command)
@@ -382,25 +348,6 @@ final class SwitcherWindowController {
         viewModel.isVisible && event.hasPreciseScrollingDeltas
     }
 
-    private func searchableCharacter(from event: NSEvent) -> String? {
-        let modifierFlags = event.modifierFlags.intersection([.command, .option, .control, .function])
-        guard !modifierFlags.contains(.option),
-              !modifierFlags.contains(.control),
-              !modifierFlags.contains(.function) else {
-            return nil
-        }
-
-        guard let characters = event.charactersIgnoringModifiers,
-              characters.count == 1,
-              let scalar = characters.unicodeScalars.first,
-              scalar.value >= 32,
-              scalar.value != 127 else {
-            return nil
-        }
-
-        return String(scalar)
-    }
-
     private func makeSession(reverse: Bool) -> SwitcherCycleSession? {
         let snapshot = items()
         let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
@@ -413,9 +360,12 @@ final class SwitcherWindowController {
         )
     }
 
-    private func startSession(reverse: Bool) -> Bool {
+    private func startSession(reverse: Bool, allowsLicensingPresentation: Bool = false) -> Bool {
+        if !allowsLicensingPresentation {
+            SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
+        }
         let hasAccess = MainActor.assumeIsolated {
-            LicensingController.shared.ensureUsageAllowed(openLicensing: { [weak self] in
+            LicensingController.shared.ensureUsageAllowed(presentLicensing: allowsLicensingPresentation, openLicensing: { [weak self] in
                 self?.onLicenseAccessRequired?()
             })
         }
@@ -688,6 +638,7 @@ final class SwitcherWindowController {
         updateBackdropPanelIfNeeded()
         updateMirroredPanelsIfNeeded(primaryScreen: targetScreen, style: preferences.switcherStyle)
         panel.alphaValue = 1
+        if !makeKey { SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows) }
 
         if makeKey {
             NSApp.activate(ignoringOtherApps: true)

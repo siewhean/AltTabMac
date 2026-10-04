@@ -3,6 +3,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 final class ProductionProfilePreferencesWindowController: NSWindowController, NSWindowDelegate {
+    static let shared = ProductionProfilePreferencesWindowController()
+
     private let model = ProductionProfileEditorModel()
     private var retainedController: NSHostingController<ProductionProfilePreferencesView>?
 
@@ -12,6 +14,7 @@ final class ProductionProfilePreferencesWindowController: NSWindowController, NS
         )
         let window = NSWindow(contentViewController: hosting)
         window.title = "CmdTab Shortcut Profiles"
+        window.identifier = SettingsWindowVisibilityPolicy.profilesIdentifier
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 1_020, height: 740))
         window.minSize = NSSize(width: 860, height: 640)
