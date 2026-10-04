@@ -49,7 +49,7 @@ final class MenuBarController {
             withTimeInterval: 6 * 60 * 60,
             repeats: true
         ) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 await self?.refreshLicenseAuthorization()
             }
         }

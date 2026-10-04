@@ -23,7 +23,7 @@ assert.match(home, /\/showcase\/overview-poster\.webp/, "rendered SoftwareApplic
 assert.doesNotMatch(home, /"(?:memoryRequirements|processorRequirements)":/, "rendered schema contains unproved memory or processor requirements");
 
 const expectedRoutes = new Map([
-  ["/showcase", /See CmdTab move, search, and reflow/i],
+  ["/showcase", /<h1[^>]*>CmdTab in motion\.<\/h1>/i],
   ["/features/classic-grid", /A visual Mac window switcher for choosing one exact window/i],
   ["/features/command-palette", /Search open Mac windows by app name or window text/i],
   ["/features/radial-menu", /A circular Mac window switcher for directional selection/i],
@@ -36,6 +36,10 @@ for (const [path, marker] of expectedRoutes) {
   assert.equal(response.status, 200, `${path} returned HTTP ${response.status}`);
   assert.match(body, marker, `${path} is missing its distinct visible purpose`);
   assert.match(body, /<h1(?:\s|>)/i, `${path} is missing its page-level H1`);
+  if (path === "/showcase") {
+    assert.match(body, /switcher styles and Quick Actions without recording a private desktop/i,
+      "/showcase must describe its distinct interface-motion demonstration and privacy boundary");
+  }
 }
 
 const { response: llmsResponse, body: llms } = await fetchResource("/llms.txt");
@@ -63,8 +67,8 @@ for (const expected of [
 }
 assert.ok(!llms.includes("/showcase/classic-grid.mp4"), "/llms.txt advertises a nonexistent Classic Grid MP4");
 assert.ok(!llms.includes("/showcase/command-palette.mp4"), "/llms.txt advertises a nonexistent Command Palette MP4");
-assert.match(llms, /authentic production SwiftUI\/AppKit Radial Menu render/i, "/llms.txt must identify the authentic production render");
-assert.match(llms, /deterministic product composites/i, "/llms.txt must identify composite media");
+assert.match(llms, /\[Radial Menu poster\][^\n]+deterministic product composite[^\n]+silent H\.264 at 30 fps/i, "/llms.txt must identify the Radial Menu composite and actual video format");
+assert.match(llms, /every maintained showcase item as an explicitly labelled deterministic HD product composite or poster/i, "/llms.txt must identify all showcase media as composites or posters");
 assert.match(llms, /not AI-generated/i, "/llms.txt must preserve the AI-generation boundary");
 assert.match(llms, /not claimed as an AI-search requirement/i, "/llms.txt must state the consolidated helper limitation");
 
@@ -75,10 +79,10 @@ assert.match(fullResponse.headers.get("x-robots-tag") || "", /noindex/i, "/llms-
 for (const expected of [
   "non-standard convenience export",
   "canonical HTML as authoritative",
-  "Real product images and short videos",
+  "HD product images and short videos",
   "Are the showcase screenshots and videos AI-generated?",
   "controlled fixture windows",
-  "deterministic product composites",
+  "Every showcase asset is a deterministic HD product composite generated at 1920 × 1200 from vector source",
   "No processor architecture, Universal Binary status, memory footprint",
   "Does CmdTab use ScreenCaptureKit?",
   "should not be described that way",

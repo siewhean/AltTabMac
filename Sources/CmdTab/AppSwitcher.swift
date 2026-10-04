@@ -1869,7 +1869,8 @@ final class AppSwitcher: NSObject {
               let alphaContext = CGContext(
                 data: nil, width: width, height: height,
                 bitsPerComponent: 8, bytesPerRow: width,
-                space: nil, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.alphaOnly.rawValue)
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue
               ), let data = alphaContext.data else { return cgImage }
         defer { withExtendedLifetime(alphaContext) {} }
         // Core Graphics converts any source layout into one byte of alpha per
