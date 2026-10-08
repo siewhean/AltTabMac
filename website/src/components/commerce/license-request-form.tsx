@@ -95,8 +95,8 @@ export function LicenseRequestForm() {
             Keep an eye on your inbox. If this is about a lost purchase email, include the original
             checkout address when you reply.
           </p>
-          <Button href="/buy" variant="secondary" {...analyticsAttributes("license_request_success_buy_click", "help")}>
-            Review buy page
+          <Button href="/waitlist" variant="secondary" {...analyticsAttributes("license_request_success_buy_click", "help")}>
+            Join the waitlist
           </Button>
         </div>
       ) : (

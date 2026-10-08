@@ -108,8 +108,8 @@ export default function ShowcasePage() {
             <p className="mt-2 text-sm leading-6 text-muted">The full behavior is easiest to judge with your real windows.</p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <Button href="/trial" className="w-full sm:w-auto">
-              Start the trial
+            <Button href="/waitlist" className="w-full sm:w-auto">
+              Join the waitlist
             </Button>
             <Button href="/evidence" variant="secondary" className="w-full sm:w-auto">
               Review evidence

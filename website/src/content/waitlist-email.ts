@@ -28,9 +28,9 @@ export const waitlistEmailContent = {
   },
   applicant: {
     onPageMessage: {
-      new: "You’re on the list. We’ll email you when the next beta opens and when trial access is ready.",
+      new: "You’re on the list. We’ll email you when early access opens.",
       existing:
-        "You were already on the list. We kept your place and will still email you about beta access and trial updates.",
+        "You were already on the list. We kept your place and will still email you about early access and launch updates.",
     },
     subject(input: ApplicantEmailInput) {
       return input.variant === "new"
@@ -61,7 +61,7 @@ export const waitlistEmailContent = {
     bullets: [
       "Private beta updates only",
       "First access to the trial when it is ready",
-      "Founder launch pricing access before the public release",
+      "Launch updates when access opens",
     ],
     ctaLabel: "Visit CmdTab",
     footer:

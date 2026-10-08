@@ -24,8 +24,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
-      BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+      GOOGLE_SITE_VERIFICATION: ${{ vars.GOOGLE_SITE_VERIFICATION }}
+      BING_SITE_VERIFICATION: ${{ vars.BING_SITE_VERIFICATION }}
+      DATABASE_URL: postgres://cmdtab_ci:cmdtab_ci@127.0.0.1:5432/cmdtab_ci
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cmdtab_ci
+          POSTGRES_PASSWORD: cmdtab_ci
+          POSTGRES_DB: cmdtab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cmdtab_ci -d cmdtab_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: website
@@ -33,6 +48,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -49,6 +66,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Require configured webmaster ownership inputs
+        run: node scripts/verify-webmaster-metadata.mjs --config-only
 
       - name: Build production website
         run: npx next build --webpack
@@ -101,6 +121,8 @@ jobs:
           mkdir -p verification-artifacts
           set -o pipefail
           npm run browser:check 2>&1 | tee verification-artifacts/browser-check.log
+          node scripts/verify-analytics-storage.mjs 2>&1 | tee verification-artifacts/analytics-storage-check.log
+          npm run waitlist:check 2>&1 | tee verification-artifacts/waitlist-check.log
 
       - name: Capture showcase and feature visual evidence
         run: |
@@ -119,6 +141,9 @@ jobs:
         if: always()
         run: |
           mkdir -p verification-artifacts
+          git rev-parse HEAD > verification-artifacts/source-sha.txt
+          git rev-parse HEAD^{tree} > verification-artifacts/tree-sha.txt
+          printf '%s\n' "${{ github.event.pull_request.head.sha || github.sha }}" > verification-artifacts/candidate-sha.txt
           cp /tmp/cmdtab-next.log verification-artifacts/next-server.log 2>/dev/null || true
           if [ -f /tmp/cmdtab-next.pid ]; then
             kill "$(cat /tmp/cmdtab-next.pid)" 2>/dev/null || true

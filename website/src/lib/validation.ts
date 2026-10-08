@@ -17,7 +17,8 @@ const metadataSchema = z
 
 export const waitlistPayloadSchema = z
   .object({
-    email: z.string().trim().email().transform((value) => value.toLowerCase()),
+    email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
+    consent: z.literal(true, { error: "Please agree to receive CmdTab waitlist updates." }),
     name: z.string().trim().max(80).optional(),
     source: z
       .string()

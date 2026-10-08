@@ -12,7 +12,7 @@ const productLinks = [
   { href: "/compatibility", label: "Compatibility" },
   { href: "/permissions", label: "Permissions" },
   { href: "/faq", label: "FAQ" },
-  { href: "/buy", label: "Buy" },
+  { href: "/waitlist", label: "Waitlist" },
 ] as const;
 
 const companyLinks = [
@@ -64,7 +64,7 @@ export function FooterSection() {
             Previews, search, quick actions, and exact-window recency in one native macOS switcher.
           </p>
           <div className="flex w-full flex-col gap-3 pt-1 sm:w-auto sm:flex-row">
-            <Button href="/trial" className="w-full sm:w-auto">
+            <Button href="/waitlist" className="w-full sm:w-auto">
               {siteConfig.ctas.primary}
             </Button>
             <Button href="/showcase" variant="secondary" className="w-full sm:w-auto">

@@ -10,9 +10,6 @@ import {
 import { getServerEnv, getSiteUrl } from "@/lib/env";
 import {
   checkRateLimit,
-  createFingerprint,
-  markSubmitted,
-  recentlySubmitted,
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
@@ -25,6 +22,7 @@ import {
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
+import { isSameOriginFormRequest } from "@/lib/form-request-origin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -102,26 +100,6 @@ function optionsResponse() {
       "X-Permitted-Cross-Domain-Policies": "none",
     },
   });
-}
-
-function isSameOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-
-  if (origin) {
-    return origin === requestOrigin;
-  }
-
-  if (referer) {
-    try {
-      return new URL(referer).origin === requestOrigin;
-    } catch {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 function passesFetchSiteProtection(request: Request) {
@@ -237,7 +215,7 @@ async function parseRequestBody(request: Request) {
 export async function POST(request: Request) {
   const requestId = randomUUID();
 
-  if (!isSameOrigin(request) || !passesFetchSiteProtection(request)) {
+  if (!isSameOriginFormRequest(request) || !passesFetchSiteProtection(request)) {
     return jsonResponse(
       {
         ok: false,
@@ -279,18 +257,6 @@ export async function POST(request: Request) {
     const body = await parseRequestBody(request);
     const payload = waitlistPayloadSchema.parse(body);
 
-    if (payload.honeypot) {
-      return jsonResponse(
-        {
-          ok: true,
-          code: "waitlist_submitted",
-          requestId,
-          submittedAt: new Date().toISOString(),
-        },
-        200,
-      );
-    }
-
     const ip = getClientIp(request);
     const userAgent = getUserAgent(request);
     const rateLimit = await checkRateLimit({
@@ -325,107 +291,57 @@ export async function POST(request: Request) {
       );
     }
 
-    const emailFingerprint = createFingerprint(payload.email);
-    const requestFingerprint = createFingerprint(
-      `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
-    );
-
-    if (
-      (await recentlySubmitted(emailFingerprint)) ||
-      (await recentlySubmitted(requestFingerprint))
-    ) {
-      return jsonResponse(
-        {
-          ok: true,
-          code: "waitlist_submitted",
-          requestId,
-          submittedAt: new Date().toISOString(),
-        },
-        200,
-      );
+    if (!isWaitlistStoreConfigured()) {
+      return jsonResponse({ ok: false, code: "service_unavailable", message: "The waitlist is temporarily unavailable. Please try again shortly.", requestId }, 503);
     }
+    const upsertResult = await upsertWaitlistSubmission({
+      email: payload.email,
+      name: payload.name,
+      source: payload.source,
+      metadata: { ...payload.metadata, consent: "waitlist_updates_v1", consent_at: new Date().toISOString() },
+      requestId,
+    });
+    const storedSubmission = upsertResult.submission;
+    const alreadyRegistered = upsertResult.alreadyRegistered;
 
-    let storedSubmission = null;
-    let alreadyRegistered = false;
-    if (isWaitlistStoreConfigured()) {
-      const upsertResult = await upsertWaitlistSubmission({
-        email: payload.email,
-        name: payload.name,
-        source: payload.source,
-        metadata: payload.metadata,
-        requestId,
-      });
-      storedSubmission = upsertResult.submission;
-      alreadyRegistered = upsertResult.alreadyRegistered;
+    // Enrollment depends on durable storage, not a third-party email provider.
+    // Keep notification state available for operator follow-up without sending duplicates.
+    if (alreadyRegistered) {
+      return jsonResponse({ ok: true, code: "waitlist_submitted", message: waitlistEmailContent.applicant.onPageMessage.existing, requestId, submittedAt: storedSubmission.createdAt, notificationDelivered: storedSubmission.notificationStatus === "delivered" });
     }
-
-    const deliveryTasks = [
-      sendApplicantConfirmationEmail({
-        email: payload.email,
-        name: payload.name,
-        alreadyRegistered,
-      }),
-    ];
-
-    if (shouldSendOwnerNotification(payload.email)) {
-      deliveryTasks.push(
-        submitWaitlistNotification({
+    let notificationDelivered = false;
+    try {
+      // Validate configuration before starting promises, avoiding unhandled rejections.
+      getServerEnv();
+      const deliveryTasks = [
+        sendApplicantConfirmationEmail({
           email: payload.email,
           name: payload.name,
-          source: payload.source,
-          metadata: payload.metadata,
-          requestId,
+          alreadyRegistered,
         }),
-      );
-    }
+      ];
 
-    const deliveryResults = await Promise.all(deliveryTasks);
-    const deliveryError = deliveryResults.find((result) => result.error)?.error;
-    if (deliveryError) {
-      console.error("[CmdTab Website] waitlist delivery failed", {
-        requestId,
-        errorName: deliveryError.name,
-        errorMessage: deliveryError.message,
-      });
-
-      if (storedSubmission) {
-        await updateWaitlistNotificationStatus(
-          storedSubmission.email,
-          "failed",
-          deliveryError.message,
+      if (shouldSendOwnerNotification(payload.email)) {
+        deliveryTasks.push(
+          submitWaitlistNotification({
+            email: payload.email,
+            name: payload.name,
+            source: payload.source,
+            metadata: payload.metadata,
+            requestId,
+          }),
         );
-        await markSubmitted(emailFingerprint);
-        await markSubmitted(requestFingerprint);
-
-        return jsonResponse({
-          ok: true,
-          code: "waitlist_submitted",
-          message: alreadyRegistered
-            ? waitlistEmailContent.applicant.onPageMessage.existing
-            : waitlistEmailContent.applicant.onPageMessage.new,
-          requestId,
-          submittedAt: new Date().toISOString(),
-          notificationDelivered: false,
-        });
       }
 
-      return jsonResponse(
-        {
-          ok: false,
-          code: "service_unavailable",
-          message: "The waitlist is temporarily unavailable. Please try again shortly.",
-          requestId,
-        },
-        503,
-      );
-    }
-
-    if (storedSubmission) {
+      const deliveryResults = await Promise.all(deliveryTasks);
+      const deliveryError = deliveryResults.find((result) => result.error)?.error;
+      if (deliveryError) throw new Error("Email provider rejected waitlist notification.");
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
+      notificationDelivered = true;
+    } catch {
+      console.error("[CmdTab Website] waitlist notification pending", { requestId });
+      await updateWaitlistNotificationStatus(storedSubmission.email, "failed", "Notification unavailable; enrollment stored.").catch(() => undefined);
     }
-
-    await markSubmitted(emailFingerprint);
-    await markSubmitted(requestFingerprint);
 
     return jsonResponse({
       ok: true,
@@ -435,7 +351,7 @@ export async function POST(request: Request) {
         : waitlistEmailContent.applicant.onPageMessage.new,
       requestId,
       submittedAt: new Date().toISOString(),
-      notificationDelivered: true,
+      notificationDelivered,
     });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {

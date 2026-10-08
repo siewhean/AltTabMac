@@ -3,6 +3,15 @@ export const privacyContent = {
     "This page explains what the CmdTab website and native app currently collect, which fields are transmitted, and how that information is used while you browse, start a trial, activate a license, or run the app.",
   sections: [
     {
+      title: "Waitlist signup and consent",
+      body: [
+        "Joining the waitlist stores your email address, optional name, signup source, and your explicit consent to waitlist and launch updates. This is separate from optional website analytics consent. Declining analytics does not prevent signup.",
+        "If you accept optional analytics, safe campaign labels and the signup page path can be attached to your signup so CmdTab can measure which campaigns bring interested users. Raw search queries and full referral URLs are not attached to your signup.",
+        "Waitlist records are kept until access opens or you request removal through Help. A successful signup means the record was stored; email delivery can be delayed. Enrollment does not guarantee a launch date or invitation.",
+        "CmdTab currently accepts waitlist signups only. New public purchases, downloads, and trial enrollment are closed. Existing customers can still request support or license recovery.",
+      ],
+    },
+    {
       title: "Website analytics",
       body: [
         "Optional website analytics are off by default. CmdTab does not create its website visitor identifier or session identifier and does not load Vercel Web Analytics or Speed Insights until you accept.",
@@ -45,7 +54,7 @@ export const privacyContent = {
       body: [
         "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
         "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes or until the associated record is deleted. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
-        "For access, correction, or deletion requests concerning CmdTab-held data, contact tohsh17@gmail.com and include enough information to locate the relevant trial, purchase, support request, or install record.",
+        "For access, correction, or deletion requests concerning CmdTab-held data, use the Help page at /help and include enough information to locate the relevant trial, purchase, support request, or install record.",
       ],
     },
     {
@@ -58,8 +67,8 @@ export const privacyContent = {
     {
       title: "Security contact",
       body: [
-        "Report a suspected security issue in the website or app privately to tohsh17@gmail.com.",
-        "CmdTab also publishes its disclosure policy at /.well-known/security.txt and on the Security page.",
+        "Report a suspected security issue in the website or app privately through the Help page at /help.",
+        "The Security page explains how to report issues privately through the Help page.",
       ],
     },
   ],

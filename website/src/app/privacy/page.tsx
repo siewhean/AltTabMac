@@ -73,7 +73,7 @@ export default function PrivacyPage() {
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row sm:flex-wrap">
             <Button href="/permissions">Review app permissions</Button>
-            <Button href={`mailto:${productFacts.contactEmail}`} variant="secondary">
+            <Button href={productFacts.contactPath} variant="secondary">
               Privacy request
             </Button>
             <Button href="/security" variant="secondary">

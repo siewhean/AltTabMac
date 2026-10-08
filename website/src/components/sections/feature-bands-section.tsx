@@ -32,12 +32,12 @@ export function FeatureBandsSection() {
 
       <div className="mt-8 flex flex-col gap-5 border-t border-white/8 pt-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Try CmdTab on your own desktop.</h2>
-          <p className="mt-2 text-sm leading-6 text-muted">See whether it earns a place in your workflow.</p>
+          <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Be first to hear when access opens.</h2>
+          <p className="mt-2 text-sm leading-6 text-muted">CmdTab is in private preview. Join for launch and early access updates.</p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Button href="/trial" className="w-full sm:w-auto">
-            Start the trial
+          <Button href="/waitlist" className="w-full sm:w-auto">
+            Join the waitlist
           </Button>
           <Button href="/features/window-switcher" variant="secondary" className="w-full sm:w-auto">
             See all features

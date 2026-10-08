@@ -1,10 +1,15 @@
 # CmdTab
 
-Last updated: 2026-08-01
-Active task: preserve the accepted native switcher and current frontend while
-closing production-runtime blockers. The public website remains waitlist-first
-and commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
-with the complete database, Lemon Squeezy, email, and KMS configuration.
+Last updated: 2026-10-09
+Active task: qualify the website-only waitlist, SEO/GEO, and Tailwind 4 candidate
+on `codex/waitlist-seo-growth`. Public purchases, trials, and release downloads
+are closed; existing-customer recovery remains available. Signup requires consent
+and durable storage. The organic campaign targets 1,000 net-new unique stored
+waitlist addresses by November 8; this is a target, not an achieved result or forecast.
+Campaign materials are drafts in `docs/marketing/2026-10-09-website-growth/`.
+Production has not been updated. Genuine Google/Bing ownership verification values
+remain missing and block qualification. Native signing, notarization, device,
+accessibility, soak, and update evidence remain separately unproven.
 
 ## Product
 
@@ -61,12 +66,12 @@ configuration, reading the webhook body, or touching lifecycle tables. The
 non-success response preserves the event for provider retry after the launch
 switch and infrastructure are ready instead of acknowledging and losing it.
 
-The public checkout surface follows the same switch. A staged checkout provider
-or URL is not exposed to purchase buttons or structured offers until the launch
-switch is exactly `1`, preventing a customer from being charged while webhook
-fulfillment is disabled. Existing license-portal and support links remain
-available because they serve already-issued customers and do not create a new
-purchase.
+The current public website is waitlist-only regardless of the commerce switch:
+`/buy` and `/trial` redirect to `/waitlist`, trial issuance/reminders return 403,
+and the stable release endpoint returns 503 without a download URL. No public
+purchase buttons or structured offers are exposed. The launch switch still
+protects internal commerce workers and fulfillment. Existing license-portal
+and support links serve already-issued customers.
 
 ## PR #35 five-feature QA
 

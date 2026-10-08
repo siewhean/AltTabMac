@@ -1,5 +1,26 @@
 # Todo
 
+## 2026-10-09 — Waitlist-only website qualification
+
+- [x] Inspect main, production identity, existing candidate, and configuration without changing production.
+- [x] Isolate website work; preserve the dirty native checkout and prior candidate.
+- [x] Close public purchases, trials, and downloads; require consent and durable unique signup storage.
+- [x] Improve canonical discovery, visible FAQ/source evidence, SEO/GEO, and organic campaign drafts.
+- [x] Migrate Tailwind 4 and patched dependencies; dependency audit reports zero vulnerabilities.
+- [x] Pass local production-build rehearsal: 12 browser profiles, real PostgreSQL 16 signup/analytics, and all three `/help` navigation modes.
+- [x] Resolve independent source-review findings and regressions found by the rehearsal.
+- [ ] Qualify the frozen SHA across all 88 browser route/profile checks and exact-SHA CI.
+- [ ] Commit the scoped candidate, obtain exact-SHA CI, and complete independent QA.
+- [ ] Supply genuine Google/Bing ownership values; missing configuration remains a blocker.
+
+### Review
+
+Initial browser verification exposed anchor-reset layering contrast errors and a Next.js
+internal-host mismatch rejecting valid waitlist submissions. Both were fixed and passed fresh
+local rehearsal checks. Full frozen-SHA qualification remains required. Production remains unchanged. Campaign target is 1,000 net-new unique
+stored addresses, with submissions, notification delivery, and human verification distinct.
+
+
 ## 2026-08-01 — Fail-closed commerce worker stabilization
 
 - [x] Reproduce the production `/api/internal/license-outbox` database error from Vercel runtime evidence.

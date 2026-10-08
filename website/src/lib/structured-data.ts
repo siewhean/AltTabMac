@@ -1,12 +1,9 @@
 import type { BreadcrumbItem } from "@/components/seo/breadcrumbs";
-import { commerceContent } from "@/content/commerce";
 import { productFacts } from "@/content/product-facts";
 import type { ShowcaseAsset } from "@/content/showcase";
 import { showcaseUploadDate } from "@/content/showcase";
 import { siteConfig } from "@/content/site";
-import { getCommerceConfig } from "@/lib/commerce";
 import { getSiteUrl } from "@/lib/env";
-import { getStableReleaseManifest } from "@/lib/stable-release";
 
 const featureList = [
   "Individual macOS window entries",
@@ -18,38 +15,7 @@ const featureList = [
   "Hide, minimize, close, and quit quick actions",
 ];
 
-function configuredOffers(siteUrl: string) {
-  const commerce = getCommerceConfig();
-  const release = getStableReleaseManifest();
-  const offers: Array<Record<string, string>> = [];
-
-  if (release) {
-    offers.push({
-      "@type": "Offer",
-      name: productFacts.trialLength,
-      price: "0",
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-      url: `${siteUrl}/trial`,
-    });
-  }
-
-  if (commerce.checkoutUrl) {
-    offers.push({
-      "@type": "Offer",
-      name: commerceContent.license.title,
-      price: commerceContent.license.price.replace(/[^0-9.]/g, ""),
-      priceCurrency: "USD",
-      availability: "https://schema.org/InStock",
-      url: `${siteUrl}/buy`,
-    });
-  }
-
-  return offers;
-}
-
 function softwareApplicationEntity(siteUrl: string) {
-  const offers = configuredOffers(siteUrl);
 
   return {
     "@type": "SoftwareApplication",
@@ -82,7 +48,6 @@ function softwareApplicationEntity(siteUrl: string) {
     publisher: {
       "@id": `${siteUrl}/#organization`,
     },
-    ...(offers.length > 0 ? { offers } : {}),
   };
 }
 
@@ -105,7 +70,7 @@ export function createHomeStructuredData() {
         name: siteConfig.name,
         url: siteUrl,
         logo: `${siteUrl}/brand/cmdtab.png`,
-        email: productFacts.contactEmail,
+        contactPoint: { "@type": "ContactPoint", contactType: "customer support", url: `${siteUrl}${productFacts.contactPath}` },
         founder: {
           "@id": `${siteUrl}/#founder`,
         },

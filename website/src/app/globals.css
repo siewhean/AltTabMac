@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/* Override v4 outline-none so existing focus variants retain the v3
+   transparent outline for forced-colors accessibility. */
+@utility outline-none {
+  outline: 2px solid transparent !important;
+  outline-offset: 2px;
+}
+
+@theme {
+  --blur-sm: 4px;
+  --default-ring-width: 3px;
+  --default-ring-color: var(--color-blue-500);
+}
+
+@layer base {
+  *, ::before, ::after, ::backdrop, ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   color-scheme: dark;
@@ -12,60 +33,63 @@
   --ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-* {
-  box-sizing: border-box;
-}
+/* Element resets belong below utilities in Tailwind 4’s cascade. */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-html {
-  scroll-behavior: smooth;
-}
+  html {
+    scroll-behavior: smooth;
+  }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top right, rgba(105, 214, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, #05070c 0%, #08111d 52%, #060913 100%);
-  color: #eaf1ff;
-  font-family:
-    "SF Pro Display",
-    "SF Pro Text",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  text-rendering: optimizeLegibility;
-  overflow-x: hidden;
-  position: relative;
-}
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top right, rgba(105, 214, 255, 0.08), transparent 24%),
+      linear-gradient(180deg, #05070c 0%, #08111d 52%, #060913 100%);
+    color: #eaf1ff;
+    font-family:
+      "SF Pro Display",
+      "SF Pro Text",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    position: relative;
+  }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(24, 36, 58, 0.28) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(24, 36, 58, 0.24) 1px, transparent 1px);
-  background-size: 96px 96px;
-  mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 82%);
-  opacity: 0.45;
-  z-index: -1;
-}
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(24, 36, 58, 0.28) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(24, 36, 58, 0.24) 1px, transparent 1px);
+    background-size: 96px 96px;
+    mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 82%);
+    opacity: 0.45;
+    z-index: -1;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 
-img {
-  display: block;
-  max-width: 100%;
-}
+  img {
+    display: block;
+    max-width: 100%;
+  }
 
-::selection {
-  background: rgba(78, 161, 255, 0.32);
-  color: #f8fbff;
+  ::selection {
+    background: rgba(78, 161, 255, 0.32);
+    color: #f8fbff;
+  }
 }
 
 .hero-enter {

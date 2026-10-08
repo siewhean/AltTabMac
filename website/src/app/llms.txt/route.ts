@@ -17,12 +17,13 @@ export async function GET() {
 
 > CmdTab is a standalone native macOS window-switcher application. It is separate from Apple’s built-in Command-Tab shortcut. CmdTab represents eligible application windows as separate targets with exact-window recent-use ordering, live previews with icon fallback, search, quick actions, and configurable Space and display scope.
 
-## Current product facts
+## Current availability and product facts
 
 - Version: ${productFacts.currentVersion} (build ${productFacts.buildNumber})
 - Minimum system: ${productFacts.minimumMacOS}
-- Trial: ${productFacts.trialLength}
-- License: ${productFacts.licenseModel}
+- Availability: Waitlist only. Public downloads, trials, and purchases are not available.
+- Waitlist: Free signup at ${siteUrl}/waitlist; no payment details required.
+- Launch date: Not announced.
 - Source: ${productFacts.sourceRepository}
 - Product facts reviewed: ${productFacts.reviewedAt}
 

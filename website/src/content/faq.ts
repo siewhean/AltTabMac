@@ -1,4 +1,21 @@
+export const faqReviewedAt = "2026-10-09";
+
 export const faqItems = [
+  {
+    question: "Can I download or buy CmdTab now?",
+    answer:
+      "No. CmdTab is accepting waitlist signups only. Downloads, free trials, and purchases are not currently available through this website. Join the waitlist to receive availability updates; no release date is promised.",
+  },
+  {
+    question: "Does joining the CmdTab waitlist cost anything?",
+    answer:
+      "No. Joining the waitlist is free and does not require payment details. It is an expression of interest, not a purchase, license, trial activation, or guaranteed invitation.",
+  },
+  {
+    question: "Does CmdTab switch browser tabs as well as windows?",
+    answer:
+      "CmdTab is designed around application windows. Multiple browser tabs inside one window are not described as separate CmdTab windows. Use your browser’s own tab shortcuts to move between those tabs.",
+  },
   {
     question: "What is CmdTab?",
     answer:
@@ -62,7 +79,7 @@ export const faqItems = [
   {
     question: "Does the website use analytics by default?",
     answer:
-      "No. CmdTab's first-party website analytics, Vercel Web Analytics, and Speed Insights stay off until you accept. You can decline or withdraw on the Privacy page; doing so deletes the website visitor and session identifiers stored by CmdTab in that browser. Trial, purchase, download, licensing, and support features continue to work.",
+      "No. CmdTab's first-party website analytics, Vercel Web Analytics, and Speed Insights stay off until you accept. You can decline or withdraw on the Privacy page; doing so deletes the website visitor and session identifiers stored by CmdTab in that browser. Waitlist signup continues to work without analytics consent.",
   },
   {
     question: "What macOS version does CmdTab require?",
@@ -75,28 +92,28 @@ export const faqItems = [
       "The current packaged version recorded in the project is CmdTab 1.0.0, build 1. The Changelog page is the canonical public source for dated changes.",
   },
   {
-    question: "Is there a free trial?",
+    question: "When will the CmdTab free trial launch?",
     answer:
-      "Yes. The current commercial path offers a 14-day trial so users can test CmdTab in their normal workflow before purchasing.",
+      "A public trial is not available now, and no launch date is confirmed. The website currently accepts waitlist signups only. Any future trial terms will be published when access is available.",
   },
   {
-    question: "Is CmdTab a subscription?",
+    question: "What will CmdTab cost?",
     answer:
-      "No. CmdTab is US$12 once for one perpetual personal license covering up to three personally owned Macs and all CmdTab 1.x updates.",
+      "Final public pricing and license terms will be published when CmdTab launches. The website is not accepting purchases now, and joining the waitlist is free.",
   },
   {
-    question: "What is the refund policy?",
+    question: "Will the waitlist charge me later?",
     answer:
-      "You may request a full refund within 14 days of purchase through the Help page. Partial refunds preserve access; a full refund, chargeback, payment dispute, fraud determination, or manual revocation ends the license.",
+      "No. A waitlist signup does not authorize a charge or create a paid subscription. You would need to make a separate purchase if a paid product becomes available.",
   },
   {
-    question: "How do I move CmdTab to another Mac?",
+    question: "How will I know when CmdTab is available?",
     answer:
-      "Deactivate an old Mac in the license portal to free its slot immediately, then activate the replacement. One personal license supports up to three active personally owned Macs; use Help if self-service recovery is unavailable.",
+      "Join the waitlist using your email address. Availability updates will describe how to get access when a public release is ready. Signup order does not promise an access date.",
   },
   {
     question: "Where can I get support?",
     answer:
-      "Use the Help page for trial access, installation, activation, purchase recovery, billing, refunds, or moving a license to another Mac.",
+      "Use the Help page for waitlist questions, product information, and published support options. The website does not currently offer public downloads, trial activation, or purchases.",
   },
 ] as const;

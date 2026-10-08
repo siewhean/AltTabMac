@@ -5,6 +5,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { analyticsAttributes } from "@/lib/analytics";
+import { hasAnalyticsConsent } from "@/lib/analytics-consent";
+import { collectWaitlistAttribution } from "@/lib/waitlist-attribution";
+import { trackSiteEvent } from "@/lib/site-analytics-client";
 
 type FormState =
   | { kind: "idle" }
@@ -15,12 +18,13 @@ type FormState =
 export function TrialWaitlistForm() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [consent, setConsent] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [state, setState] = useState<FormState>({ kind: "idle" });
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || !consent) return;
 
     setState({ kind: "submitting" });
 
@@ -33,7 +37,9 @@ export function TrialWaitlistForm() {
         body: JSON.stringify({
           email: email.trim(),
           name: name.trim() || undefined,
-          source: "trial_page_waitlist",
+          source: "waitlist_form",
+          consent,
+          metadata: collectWaitlistAttribution(window.location.search, window.location.pathname, hasAnalyticsConsent()),
           honeypot,
         }),
       });
@@ -41,22 +47,24 @@ export function TrialWaitlistForm() {
       const data = (await response.json()) as {
         ok: boolean;
         message?: string;
-        fieldErrors?: Record<string, string>;
+        fieldErrors?: Record<string, string | string[]>;
       };
 
       if (!response.ok || !data.ok) {
         setState({
           kind: "error",
           message: data.message ?? "Failed to join waitlist. Please try again.",
-          fieldErrors: data.fieldErrors,
+          fieldErrors: data.fieldErrors ? Object.fromEntries(Object.entries(data.fieldErrors).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value])) : undefined,
         });
         return;
       }
 
       setState({
         kind: "success",
-        message: data.message ?? "You're on the list! We'll email you as soon as your trial download is ready.",
+        message: data.message ?? "You’re on the list. We’ll email you when early access opens.",
       });
+      trackSiteEvent("waitlist_form_success_response", { context: "waitlist_form" });
+      setConsent(false);
       setEmail("");
       setName("");
       setHoneypot("");
@@ -72,7 +80,7 @@ export function TrialWaitlistForm() {
   const fieldErrors = state.kind === "error" ? state.fieldErrors : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" aria-live="polite">
       {state.kind === "success" ? (
         <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-6 text-emerald-200 space-y-3">
           <div className="flex items-center gap-2 font-semibold text-emerald-300">
@@ -92,9 +100,9 @@ export function TrialWaitlistForm() {
           </Button>
         </div>
       ) : (
-        <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <FormField
-            id="trial-name"
+            id="waitlist-name"
             label="Name (optional)"
             name="name"
             autoComplete="name"
@@ -106,8 +114,8 @@ export function TrialWaitlistForm() {
           />
 
           <FormField
-            id="trial-email"
-            label="Email address for trial download link"
+            id="waitlist-email"
+            label="Email address"
             type="email"
             name="email"
             autoComplete="email"
@@ -130,12 +138,18 @@ export function TrialWaitlistForm() {
             onChange={(e) => setHoneypot(e.target.value)}
           />
 
+          <label className="flex items-start gap-3 text-sm leading-6 text-muted">
+            <input type="checkbox" name="consent" required checked={consent} onChange={(event) => setConsent(event.target.checked)} disabled={isSubmitting} className="mt-1 h-4 w-4 accent-cyan" />
+            <span>I agree to receive CmdTab waitlist and launch updates. Read the <a href="/privacy" className="text-cyan underline">privacy policy</a>. You can request removal at any time.</span>
+          </label>
+          {fieldErrors?.consent ? <p className="text-sm text-rose-200">{fieldErrors.consent}</p> : null}
+
           <div className="pt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button
               type="submit"
-              disabled={isSubmitting || !email.trim()}
+              disabled={isSubmitting || !email.trim() || !consent}
               className="w-full sm:w-auto"
-              {...analyticsAttributes("trial_waitlist_submit", "trial_page")}
+              {...analyticsAttributes("waitlist_form_submit", "waitlist_form")}
             >
               {isSubmitting ? (
                 <>
@@ -143,11 +157,11 @@ export function TrialWaitlistForm() {
                   Joining Waitlist...
                 </>
               ) : (
-                "Request Trial Access"
+                "Join the waitlist"
               )}
             </Button>
             <p className="text-xs text-subdued">
-              We'll send you an email link the moment the trial build is ready for your Mac.
+              Free to join. Access updates only; no payment required.
             </p>
           </div>
 

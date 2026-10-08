@@ -4,7 +4,6 @@ import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
-import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createArticleStructuredData,
@@ -27,7 +26,10 @@ export const metadata = createPageMetadata({
   imageAlt: "Comparison of CmdTab and the built-in macOS Cmd+Tab switcher",
 });
 
+const reviewedAt = "2026-10-09";
+
 const comparisonRows = [
+  ["Availability today", "Included with macOS", "Free waitlist signup only; public downloads, trials, and purchases are unavailable"],
   ["Primary unit", "One entry per running application", "One entry per eligible application window"],
   ["Multiple windows from one app", "Use a separate Cmd+` workflow for the current app", "Separate windows can appear anywhere in one global sequence"],
   ["Visual identification", "Application icons", "Live window previews, with icon or placeholder fallback"],
@@ -39,6 +41,7 @@ const comparisonRows = [
 ] as const;
 
 const appleSources = [
+  { label: "Apple Support: Mac keyboard shortcuts", href: "https://support.apple.com/en-us/102650" },
   {
     label: "Apple Support: See all your open windows on Mac",
     href: "https://support.apple.com/guide/mac-help/mchlb7beb9af/mac",
@@ -62,6 +65,7 @@ export default function CmdTabVsMacOSPage() {
           name: title,
           description,
           path: "/compare/cmdtab-vs-macos-command-tab",
+          dateModified: reviewedAt,
         })}
       />
       <JsonLd
@@ -70,6 +74,8 @@ export default function CmdTabVsMacOSPage() {
           description,
           path: "/compare/cmdtab-vs-macos-command-tab",
           about: ["macOS Cmd+Tab", "Mac window switching", "CmdTab"],
+          dateModified: reviewedAt,
+          citation: appleSources.map((source) => source.href),
         })}
       />
       <SiteHeader />
@@ -82,7 +88,7 @@ export default function CmdTabVsMacOSPage() {
         className="pt-14"
       >
         <div className="mb-8">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date={reviewedAt} />
         </div>
         <p id="comparison-scroll-hint" className="mb-3 text-xs leading-5 text-subdued md:hidden">
           Swipe or use the arrow keys inside the table to compare all three columns.
@@ -133,10 +139,10 @@ export default function CmdTabVsMacOSPage() {
           </article>
           <article className="surface-panel p-7">
             <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">
-              Use CmdTab when the exact window matters
+              Consider CmdTab’s waitlist when the exact window matters
             </h2>
             <p className="mt-4 text-base leading-8 text-muted">
-              CmdTab is most useful when browsers, terminals, editors, documents, and communication apps each have several windows and you want one ordered, searchable list of exact targets.
+              CmdTab’s intended workflow fits people who keep several browser, terminal, editor, or document windows open and want one searchable list of exact targets. It currently accepts waitlist signups only; the built-in shortcuts remain available today.
             </p>
           </article>
         </div>
@@ -164,8 +170,8 @@ export default function CmdTabVsMacOSPage() {
         </ul>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button href="/features/window-switcher">Review exact CmdTab behavior</Button>
-          <Button href="/trial" variant="secondary">
-            Test it in your own workflow
+          <Button href="/waitlist" variant="secondary">
+            Join the free waitlist
           </Button>
         </div>
       </SectionShell>

@@ -43,15 +43,15 @@ export const commercePageContent = {
     eyebrow: "Help",
     title: "Purchase, activation, and recovery help.",
     description:
-      "Use this page if you started the trial, bought CmdTab, or need help finding a purchase later.",
+      "Use this page for waitlist questions, privacy requests, or existing customer activation and license recovery.",
     journey: [
       {
-        title: "Start with the trial",
-        body: "Use CmdTab in real work first. The trial exists to prove the app before you pay.",
+        title: "Waitlist questions",
+        body: "CmdTab is in private preview. Ask about your signup or request removal from the list.",
       },
       {
-        title: "Buy through checkout",
-        body: "When it earns a place in your setup, complete the one-time purchase through the hosted checkout.",
+        title: "Existing customer recovery",
+        body: "If you already have a license, use your original purchase email when requesting recovery or activation help.",
       },
       {
         title: "Use Help if needed",
@@ -66,15 +66,15 @@ export const commercePageContent = {
     terms: [
       {
         title: "One-time purchase",
-        body: "CmdTab is sold once, not as a subscription.",
+        body: "Existing personal license terms continue to apply. New purchases are closed.",
       },
       {
-        title: "Trial first, then decide",
-        body: "The trial exists so people can prove the app in real use before paying.",
+        title: "Waitlist only",
+        body: "New purchases, downloads, and public trial enrollment are closed for now.",
       },
       {
         title: "Hosted checkout, direct help",
-        body: "Checkout runs through the provider, but purchase questions still come back here.",
+        body: "Existing purchase questions and license recovery requests can still be submitted here.",
       },
     ],
   },
@@ -85,5 +85,5 @@ export const licenseRequestReasonOptions = [
   { value: "activation_help", label: "Activation or moving to another Mac" },
   { value: "billing_question", label: "Billing or purchase question" },
   { value: "refund_request", label: "Refund request" },
-  { value: "general", label: "General license help" },
+  { value: "general", label: "Waitlist, privacy, security, or general help" },
 ] as const;

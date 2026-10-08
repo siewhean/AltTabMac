@@ -44,14 +44,14 @@ export default function TermsPage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow="Terms"
-        title="Clear terms for buying and using CmdTab"
-        description="One personal license, one public price, and explicit rules for devices, refunds, recovery, updates, and retention."
+        title="Waitlist terms and existing customer support"
+        description="CmdTab is accepting waitlist signups only. There are no public purchases, downloads, or trial enrollments. Existing license terms and support remain available."
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={termsReviewedAt} label="Terms reviewed" />
           <p className="text-sm text-subdued">
-            {productFacts.licensePrice} once · {productFacts.licensedMacs} personal Macs
+            Waitlist only · no payment required
           </p>
         </div>
         <div className="space-y-10">
@@ -70,7 +70,7 @@ export default function TermsPage() {
             </section>
           ))}
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="/buy">Review the offer</Button>
+            <Button href="/waitlist">Join the waitlist</Button>
             <Button href="/privacy" variant="secondary">Privacy policy</Button>
             <Button href="/help" variant="secondary">Purchase or recovery help</Button>
           </div>

@@ -1,13 +1,11 @@
-import { productFacts } from "@/content/product-facts";
-
 export const altTabComparison = {
-  reviewedAt: "2026-07-21",
+  reviewedAt: "2026-10-09",
   methodology:
     "This comparison uses AltTab’s official product, pricing, and terms pages plus CmdTab’s canonical product and evidence pages. Feature tiers, prices, download counts, and compatibility can change after the review date.",
   adoptionNote:
-    "AltTab’s official pricing page displayed 8.2 million downloads and 16,000 GitHub stars on the review date. Those are adoption signals, not a controlled reliability benchmark.",
+    "AltTab’s official pricing page displayed 9.2 million downloads and 16,000 GitHub stars on the review date. Those are adoption signals, not a controlled reliability benchmark.",
   whyPay:
-    `CmdTab is not charging for a generic Command-Tab replacement. The ${productFacts.licensePrice} one-time license funds a narrower exact-window workflow: one global window-level MRU sequence, three switcher modes, remembered search choices, Hot Swap, Quick Actions, and an evidence-led native release process. Choose it only when that specific workflow saves enough repeated friction to justify paying; otherwise AltTab’s free core or Apple’s built-in switcher is the more rational choice.`,
+    "CmdTab currently accepts free waitlist signups only. Its intended focus is a global exact-window recent-use sequence, three switcher modes, remembered search choices, and Quick Actions. If you need an installable switcher today, evaluate AltTab’s available core or Apple’s built-in shortcuts; a CmdTab signup does not grant immediate access.",
   sources: [
     {
       label: "AltTab official product page",
@@ -59,7 +57,7 @@ export const altTabComparison = {
     [
       "Commercial model",
       "Free open-source core. Pro is US$9.99 once; Pro Lifetime is US$24.99 once; new users receive a 14-day Pro trial.",
-      `${productFacts.trialLength} followed by a one-time purchase. The current CmdTab personal license is ${productFacts.licensePrice}.`,
+      "Free waitlist signup only. Public downloads, trials, and purchases are not available.",
     ],
     [
       "Public evidence",
@@ -69,7 +67,7 @@ export const altTabComparison = {
     [
       "Current product stage",
       "Mature, broadly adopted product with a free core and optional paid tier.",
-      "CmdTab is an active beta with a smaller adoption base, a public implementation contract, and an evidence-led validation plan.",
+      "CmdTab is accepting waitlist signups. Public release qualification is separate from its published implementation and automated tests.",
     ],
   ] as const,
   decisions: [
@@ -79,9 +77,9 @@ export const altTabComparison = {
         "AltTab is the stronger default for users who want a widely adopted Windows-style switcher, a free open-source core, high-quality thumbnails, and an optional paid power-user tier.",
     },
     {
-      title: "Pay for CmdTab only when its exact-window workflow earns it",
+      title: "Join the CmdTab waitlist when its planned workflow fits",
       body:
-        "CmdTab is the more specific fit when one global exact-window MRU sequence, three presentation modes, remembered Command Palette choices, Hot Swap, and Quick Actions remove enough repeated friction to justify a one-time license. The trial exists to test that claim before paying.",
+        "CmdTab’s intended workflow combines one global exact-window recent-use sequence, three presentation modes, remembered Command Palette choices, and Quick Actions. Join its free waitlist if those capabilities fit your needs, while continuing to use an available switcher today.",
     },
     {
       title: "Keep the built-in switcher when simplicity wins",

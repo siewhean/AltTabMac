@@ -5,6 +5,9 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const publicRoutes = JSON.parse(read("src/content/public-routes.json"));
+const socialImage = read("src/app/opengraph-image.tsx");
+assert.match(socialImage, /Join the waitlist/, "public social preview must identify waitlist availability");
+assert.doesNotMatch(socialImage, /14-day free trial|One-time purchase/, "social preview must not advertise closed conversion paths");
 
 function versionTuple(value) {
   const match = String(value).match(/\d+\.\d+\.\d+/);
@@ -40,9 +43,11 @@ for (const requiredPath of [
   "/compare/mac-window-switchers",
   "/evidence",
   "/faq",
+  "/waitlist",
 ]) {
   assert.ok(routePaths.includes(requiredPath), `${requiredPath} is required`);
 }
+assert.ok(!routePaths.includes("/buy") && !routePaths.includes("/trial"), "retired conversion routes must not compete with the waitlist canonical page");
 assert.ok(!routePaths.includes("/llms-full.txt"), "the non-standard context export must not compete in the HTML sitemap");
 assert.ok(!routePaths.some((path) => path.startsWith("/dashboard") || path.startsWith("/api")), "private routes must not be public");
 
@@ -117,11 +122,7 @@ for (const required of [
 }
 assert.match(structuredData, /standalone macOS window-switcher application/, "software schema must disambiguate the CmdTab entity");
 assert.doesNotMatch(structuredData, /memoryRequirements|processorRequirements/, "unmeasured memory or processor claims must not enter schema");
-assert.match(structuredData, /getCommerceConfig/, "software offers must use the visible commerce configuration");
-assert.match(structuredData, /getStableReleaseManifest/, "trial structured data must require the canonical stable release manifest");
-assert.match(structuredData, /commerce\.checkoutUrl/, "license offer structured data must require a configured checkout URL");
-assert.doesNotMatch(structuredData, /standardCheckoutUrl/, "the retired standard checkout must not be emitted");
-assert.match(structuredData, /offers\.length > 0/, "empty or unavailable offers must not be emitted as InStock");
+assert.doesNotMatch(structuredData, /"Offer"|schema\.org\/InStock|configuredOffers|downloadUrl/, "waitlist-only software schema must not claim a purchasable or downloadable offer");
 
 const homePage = read("src/app/page.tsx");
 for (const requiredSection of ["HeroSection", "StylesSection", "FeatureBandsSection", "FooterSection"]) {
@@ -164,7 +165,16 @@ const faq = read("src/content/faq.ts");
 const questionCount = (faq.match(/question:/g) ?? []).length;
 assert.ok(questionCount >= 15, `expected at least 15 factual FAQ entries, found ${questionCount}`);
 const faqPage = read("src/app/faq/page.tsx");
-assert.match(faqPage, /createFaqStructuredData/, "FAQ page must publish matching FAQ structured data");
+assert.match(faqPage, /createFaqStructuredData\(faqItems\)/, "FAQ schema must reuse the exact visible FAQ source");
+assert.match(faqPage, /<FaqList items=\{faqItems\}/, "visible FAQ must match its structured answers");
+assert.match(faq, /Can I download or buy CmdTab now\?/, "FAQ must answer current availability directly");
+assert.match(faq, /Downloads, free trials, and purchases are not currently available/, "FAQ must make waitlist-only availability explicit");
+assert.match(faq, /browser tabs/, "FAQ must distinguish windows from browser tabs");
+const switchingGuide = read("src/app/guides/switch-between-windows-on-mac/page.tsx");
+assert.match(switchingGuide, /createFaqStructuredData\(guideQuestions\)/, "guide schema must reuse its visible questions");
+assert.match(switchingGuide, /<FaqList items=\{guideQuestions\}/, "guide answers must remain visible");
+assert.match(switchingGuide, /support\.apple\.com\/en-us\/102650/, "native shortcut claims need the Apple keyboard-shortcut source");
+assert.match(switchingGuide, /citation:/, "article schema must cite its visible primary sources");
 
 const privacy = read("src/content/legal.ts");
 assert.match(privacy, /hourly heartbeat/, "privacy disclosure must describe native app heartbeat telemetry");
@@ -222,7 +232,7 @@ assert.match(landscapePage, /Contexts/, "Contexts must be visible in the landsca
 
 const altTabComparison = read("src/content/alttab-comparison.ts");
 const altTabPage = read("src/app/compare/cmdtab-vs-alttab/page.tsx");
-for (const required of ["alt-tab.app/pricing", "alt-tab.app/terms", "8.2 million downloads", "16,000 GitHub stars", "active beta"]) {
+for (const required of ["alt-tab.app/pricing", "alt-tab.app/terms", "9.2 million downloads", "16,000 GitHub stars", "accepting waitlist signups"]) {
   assert.ok(altTabComparison.includes(required), `AltTab comparison is missing ${required}`);
 }
 assert.match(altTabComparison, /not a controlled reliability benchmark/, "AltTab adoption must not be misrepresented as reliability");
@@ -253,6 +263,7 @@ assert.match(indexNowSubmit, /keyLocation/, "IndexNow submissions must declare t
 
 assert.ok(existsSync(resolve(root, "src/app/llms.txt/route.ts")), "llms directory is missing");
 const llms = read("src/app/llms.txt/route.ts");
+assert.match(llms, /Availability: Waitlist only/, "retrieval directory must state current availability");
 assert.match(llms, /Product behavior and modes/, "llms directory must describe the deep feature sources");
 assert.match(llms, /Public evidence/, "llms directory must point to public evidence");
 assert.match(llms, /Source-dated comparisons/, "llms directory must point to the comparison methodology");
@@ -260,6 +271,8 @@ assert.match(llms, /\/llms-full\.txt/, "llms directory must disclose the optiona
 assert.match(llms, /not claimed as an AI-search requirement/, "llms directory must state the helper-file limitation");
 assert.ok(existsSync(resolve(root, "src/app/llms-full.txt/route.ts")), "consolidated context export is missing");
 const llmsFull = read("src/app/llms-full.txt/route.ts");
+assert.match(llmsFull, /Availability: Waitlist only/, "consolidated context must state current availability");
+assert.doesNotMatch(llmsFull, /Current personal-license price/, "consolidated context must not advertise a current purchase");
 assert.match(llmsFull, /non-standard convenience export/, "consolidated context must identify itself as non-standard");
 assert.match(llmsFull, /canonical HTML as authoritative/, "consolidated context must defer to canonical HTML");
 assert.match(llmsFull, /"X-Robots-Tag": "noindex, follow"/, "consolidated context must be noindex");

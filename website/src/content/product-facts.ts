@@ -16,7 +16,7 @@ export const productFacts = {
   licensedMacs: 3,
   updateEntitlement: "All CmdTab 1.x updates",
   refundPolicy: "14-day full refund",
-  reviewedAt: "2026-07-22",
+  reviewedAt: "2026-10-09",
   sourceRepository: "https://github.com/siewhean/AltTabMac",
   developerProfile: "https://github.com/siewhean",
   permissions: [
@@ -49,15 +49,15 @@ export const productFacts = {
     excluded:
       "The current native-app telemetry payload does not contain window titles, window previews, screenshots, keystrokes, file names, clipboard contents, or search queries.",
   },
-  contactEmail: siteConfig.contactEmail,
+  contactPath: siteConfig.contactPath,
 } as const;
 
 export const publicProductFactRows = [
   { label: "Product", value: "Native macOS window switcher" },
   { label: "Current app version", value: `${productFacts.currentVersion} (build ${productFacts.buildNumber})` },
   { label: "Minimum system", value: productFacts.minimumMacOS },
-  { label: "Trial", value: productFacts.trialLength },
-  { label: "License", value: productFacts.licenseModel },
+  { label: "Availability", value: "Private preview — waitlist only" },
+  { label: "Purchase", value: "Not available yet" },
   { label: "Switcher modes", value: productFacts.modes.join(", ") },
   { label: "Window scope", value: productFacts.windowScopes.join(", ") },
   { label: "Display placement", value: productFacts.displayTargets.join(", ") },

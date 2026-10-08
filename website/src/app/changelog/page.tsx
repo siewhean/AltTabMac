@@ -112,8 +112,8 @@ export default function ChangelogPage() {
                 checksum, source commit, and update feed are bound by the stable release manifest.
               </p>
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <Button href={release.dmgURL} target="_blank" rel="noreferrer">
-                  Download this release
+                <Button href="/waitlist">
+                  Join the waitlist
                 </Button>
                 <Button href="/releases/stable.json" variant="secondary">
                   Review release manifest

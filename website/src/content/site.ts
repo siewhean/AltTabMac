@@ -10,10 +10,10 @@ export const siteConfig = {
     { label: "Modes", href: "#modes" },
     { label: "Showcase", href: "/showcase" },
     { label: "Features", href: "#details" },
-    { label: "Buy", href: "/buy" },
+    { label: "Waitlist", href: "/waitlist" },
   ],
   ctas: {
-    primary: "Start the trial",
+    primary: "Join the waitlist",
     secondary: "Watch the app",
     tertiary: "Read the privacy policy",
   },
@@ -31,8 +31,7 @@ export const siteConfig = {
     "display-aware app switcher for Mac",
     "Mac app beta waitlist",
     "macOS productivity beta",
-    "one-time license for Mac utility",
-    "Mac utility free trial",
+    "Mac window switcher waitlist",
   ],
-  contactEmail: "tohsh17@gmail.com",
+  contactPath: "/help",
 } as const;

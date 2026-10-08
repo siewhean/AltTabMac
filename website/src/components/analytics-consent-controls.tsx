@@ -70,7 +70,7 @@ export function AnalyticsConsentBanner() {
       </h2>
       <p className="mt-2 text-sm leading-6 text-muted">
         CmdTab keeps website analytics and Vercel performance measurement off until you accept.
-        Trial, purchase, download, licensing, and support features work either way.
+        Waitlist signup and existing customer support work either way.
       </p>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button
@@ -141,7 +141,7 @@ export function AnalyticsPrivacyControls() {
       </div>
       <p className="mt-4 text-sm leading-6 text-subdued">
         Declining or withdrawing deletes CmdTab&apos;s stored website visitor and session
-        identifiers from this browser. Essential commerce and trial records are not analytics and
+        identifiers from this browser. Essential waitlist and existing customer records are not analytics and
         are retained under their separate operational terms.
       </p>
     </section>

@@ -190,7 +190,7 @@ export default function WindowSwitcherFeaturePage() {
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button href="/showcase">Watch the full showcase</Button>
-          <Button href="/trial" variant="secondary">Start the 14-day trial</Button>
+          <Button href="/waitlist" variant="secondary">Join the waitlist</Button>
           <Button href="/compare/cmdtab-vs-alttab" variant="secondary">
             Compare CmdTab with AltTab
           </Button>

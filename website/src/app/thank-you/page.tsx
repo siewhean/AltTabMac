@@ -55,7 +55,7 @@ export default function ThankYouPage() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button href="/trial">Download CmdTab</Button>
+          <Button href="/waitlist">Join the waitlist</Button>
           <Button href="/help" variant="secondary">
             Activation help
           </Button>

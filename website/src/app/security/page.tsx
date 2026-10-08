@@ -30,7 +30,7 @@ const disclosureSections = [
   {
     title: "How to report a vulnerability",
     body: [
-      `Report suspected security issues privately to ${productFacts.contactEmail}.`,
+      "Report suspected security issues privately through the Help page.",
       "Include the affected URL, app version or build, macOS version, feature, clear reproduction steps, impact, logs that do not expose other people's data, and a minimal proof of concept when one is needed to validate the issue.",
     ],
   },
@@ -98,7 +98,7 @@ export default function SecurityPage() {
           ))}
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href={`mailto:${productFacts.contactEmail}`}>Report privately</Button>
+            <Button href={productFacts.contactPath}>Report privately</Button>
             <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="secondary">
               Review public source
             </Button>

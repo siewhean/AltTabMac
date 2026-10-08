@@ -81,8 +81,8 @@ export default function HelpPage() {
                   <Button href="/faq" variant="secondary">
                     Read common answers
                   </Button>
-                  <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
-                    Review pricing
+                  <Button href="/waitlist" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
+                    Join the waitlist
                   </Button>
                   {commerce.licensePortalUrl ? (
                     <Button
@@ -106,9 +106,9 @@ export default function HelpPage() {
       </SectionShell>
 
       <SectionShell
-        eyebrow="How the buy path works"
+        eyebrow="Existing-customer terms"
         title="Simple terms, clear support"
-        description="This is the practical explanation of how the one-time buy flow is presented today."
+        description="Information for existing customers. New purchases and trials are currently closed."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">

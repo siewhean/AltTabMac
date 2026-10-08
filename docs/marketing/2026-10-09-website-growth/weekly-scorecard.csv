@@ -1,0 +1,5 @@
+checkpoint,period_start,period_end_exclusive,timezone,planned_cumulative_new_unique_stored_signups,observed_new_unique_stored_signups,starting_unique_stored_baseline,test_spam_exclusion_evidence,aggregate_query_evidence,measured_visitors,visitor_definition,consent_scope,source_attribution_coverage,source_sha,deployment_id,evidence_path,decision
+2026-10-15,2026-10-09,2026-10-16,Asia/Singapore,100,,,,,,,,,,,,
+2026-10-22,2026-10-09,2026-10-23,Asia/Singapore,300,,,,,,,,,,,,
+2026-10-29,2026-10-09,2026-10-30,Asia/Singapore,600,,,,,,,,,,,,
+2026-11-08,2026-10-09,2026-11-08,Asia/Singapore,1000,,,,,,,,,,,,

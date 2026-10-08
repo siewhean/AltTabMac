@@ -7,12 +7,53 @@ import { resolve } from "node:path";
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 
-const trial = read("src/app/api/trial/start/route.ts");
-assert.match(trial, /readBoundedJson\(request, MAX_REQUEST_BODY_BYTES\)/);
-assert.match(trial, /enforceIngestRateLimit\(request, "trial-start"\)/);
-assert.match(trial, /installId: z\.string\(\)\.trim\(\)\.regex\(\/\^\[a-f0-9\]\{64\}\$\/\)/);
-assert.match(trial, /code: "trial_unavailable"/);
-assert.doesNotMatch(trial, /code: result\.reason/);
+// Enrollment and trial reminders are deliberately closed during waitlist mode.
+// Active customer APIs retain their bounded input and abuse protection below.
+for (const [path, method, code] of [
+  ["src/app/api/trial/start/route.ts", "POST", "trial_unavailable"],
+  ["src/app/api/trial/reminder/route.ts", "GET", "waitlist_only"],
+]) {
+  const source = read(path);
+  assert.match(source, /export const dynamic = "force-dynamic"/);
+  assert.match(source, new RegExp(`export async function ${method}\\(\\) \\{\\s*return ingestJsonResponse\\(\\{[\\s\\S]*?code: "${code}"[\\s\\S]*?\\}, 403\\);\\s*\\}`));
+  assert.doesNotMatch(source, /readBounded|request\.json|request\.text|process\.env|fetch\(|getSql|getServerEnv|createOrGetTrialClaim|issueCmdTabToken|emails\.send|markTrialReminderSent/,
+    "closed public trial routes must not parse bodies or reach configuration, storage, signing, or email sinks");
+}
+const ingest = read("src/lib/ingest-request.ts");
+assert.match(ingest, /"Cache-Control": "no-store, max-age=0"/);
+assert.match(ingest, /"X-Content-Type-Options": "nosniff"/);
+const stableReleaseRoute = read("src/app/releases/stable.json/route.ts");
+assert.match(stableReleaseRoute, /error: "waitlist_only"/);
+assert.match(stableReleaseRoute, /status: 503/);
+assert.match(stableReleaseRoute, /"Cache-Control": "no-store"/);
+assert.doesNotMatch(stableReleaseRoute, /getStableReleaseManifest|dmgURL|readFileSync/);
+
+const waitlist = read("src/app/api/waitlist/route.ts");
+assert.match(waitlist, /waitlistPayloadSchema\.parse\(body\)/);
+assert.match(waitlist, /!isSameOriginFormRequest\(request\) \|\| !passesFetchSiteProtection\(request\)/);
+assert.match(waitlist, /checkRateLimit\(\{/);
+assert.match(waitlist, /code: "rate_limited"[\s\S]*?429/);
+assert.match(waitlist, /if \(!isWaitlistStoreConfigured\(\)\) \{[\s\S]*?503/,
+  "waitlist persistence must be mandatory; email delivery alone cannot report enrollment success");
+assert.ok(waitlist.indexOf("await upsertWaitlistSubmission(") < waitlist.indexOf("const deliveryTasks ="),
+  "waitlist enrollment must be persisted before email notification begins");
+assert.match(waitlist, /consent: "waitlist_updates_v1", consent_at: new Date\(\)\.toISOString\(\)/);
+assert.match(waitlist, /if \(alreadyRegistered\) \{[\s\S]*?return jsonResponse/);
+assert.doesNotMatch(waitlist, /recentlySubmitted\(/,
+  "a duplicate fingerprint must not pretend an email exists in durable storage");
+assert.match(waitlist, /notificationDelivered = false/);
+assert.match(waitlist, /updateWaitlistNotificationStatus\(storedSubmission\.email, "failed"/);
+assert.match(waitlist, /code: "service_unavailable"[\s\S]*?503/);
+const formOrigin = read("src/lib/form-request-origin.ts");
+assert.match(formOrigin, /request\.headers\.get\("host"\)/);
+assert.match(formOrigin, /parsed\.origin === expected/);
+const validation = read("src/lib/validation.ts");
+assert.match(validation, /consent: z\.literal\(true/);
+assert.match(validation, /honeypot: z\.string\(\)\.max\(0\)/);
+const waitlistStore = read("src/lib/waitlist-store.ts");
+assert.match(waitlistStore, /email text not null unique/);
+assert.match(waitlistStore, /on conflict \(email\) do nothing/);
+assert.match(waitlistStore, /alreadyRegistered: true/);
 
 const recovery = read("src/app/api/license/recover/route.ts");
 assert.match(recovery, /enforceIngestRateLimit\([\s\S]*"license-recovery"/);

@@ -42,8 +42,8 @@ export function SiteHeader() {
         ))}
       </nav>
 
-      <Button href="/trial" variant="secondary" className="hidden lg:inline-flex">
-        Start trial
+      <Button href="/waitlist" variant="secondary" className="hidden lg:inline-flex">
+        Join the waitlist
       </Button>
       <MobileNavigation />
     </header>

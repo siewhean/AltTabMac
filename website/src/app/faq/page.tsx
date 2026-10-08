@@ -4,8 +4,7 @@ import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
-import { faqItems } from "@/content/faq";
-import { productFacts } from "@/content/product-facts";
+import { faqItems, faqReviewedAt } from "@/content/faq";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createBreadcrumbStructuredData,
@@ -15,7 +14,7 @@ import {
 
 const title = "CmdTab frequently asked questions";
 const description =
-  "Factual answers about CmdTab window ordering, multiple windows per app, previews, Spaces, displays, permissions, telemetry, compatibility, trial terms, and support.";
+  "Factual answers about CmdTab window ordering, multiple windows per app, previews, Spaces, displays, permissions, privacy, compatibility, and free waitlist signup.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "FAQ", path: "/faq" as const },
@@ -38,6 +37,7 @@ export default function FaqPage() {
           name: title,
           description,
           path: "/faq",
+          dateModified: faqReviewedAt,
         })}
       />
       <SiteHeader />
@@ -46,11 +46,11 @@ export default function FaqPage() {
         breadcrumbs={breadcrumbs}
         eyebrow="FAQ"
         title="Direct answers about CmdTab"
-        description="This page is the canonical factual reference for how CmdTab behaves, what permissions and telemetry it uses, and how the trial and license work."
+        description="This page is the canonical factual reference for how CmdTab behaves, what permissions and telemetry it uses, and what joining the free waitlist means."
         className="pt-14"
       >
         <div className="mb-8">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date={faqReviewedAt} />
         </div>
         <FaqList items={faqItems} />
       </SectionShell>

@@ -1,13 +1,14 @@
+import { FaqList } from "@/components/seo/faq-list";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
-import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createArticleStructuredData,
+  createFaqStructuredData,
   createBreadcrumbStructuredData,
   createWebPageStructuredData,
 } from "@/lib/structured-data";
@@ -27,6 +28,27 @@ export const metadata = createPageMetadata({
   imageAlt: "Guide to switching between applications and individual windows on a Mac",
 });
 
+const reviewedAt = "2026-10-09";
+const appleKeyboardSource = "https://support.apple.com/en-us/102650";
+const guideQuestions = [
+  {
+    question: "Why does Command-Tab switch apps instead of windows?",
+    answer: "Command-Tab selects an application. For another window in the app you are using, try Command–grave accent. For a visual overview of windows across apps, open Mission Control. These built-in methods are available without installing CmdTab.",
+  },
+  {
+    question: "Why does Command–grave accent not work on my keyboard?",
+    answer: "The window-cycling key varies by keyboard layout. Apple describes it as usually the key above Tab and left of 1. Check your app’s Window menu and macOS keyboard shortcut settings for your layout and possible conflicts.",
+  },
+  {
+    question: "Is a browser tab the same as an application window?",
+    answer: "No. A browser window can contain several tabs. CmdTab’s documented switching unit is the application window; use the browser’s own shortcuts to navigate tabs within that window.",
+  },
+  {
+    question: "Can I install CmdTab from this guide?",
+    answer: "Not yet. CmdTab is accepting free waitlist signups only. Public downloads, trials, and purchases are unavailable, and no public release date is confirmed.",
+  },
+] as const;
+
 const methods = [
   {
     shortcut: "Command-Tab",
@@ -36,7 +58,7 @@ const methods = [
   {
     shortcut: "Command-`",
     title: "Cycle windows in the current application",
-    body: "Hold Command and press the grave-accent key repeatedly to cycle through windows belonging to the current application. This is useful after the correct app is already active.",
+    body: "Hold Command and press the grave-accent key to cycle windows in the current application. The second key varies by keyboard layout; check the app’s Window menu if the shortcut differs.",
   },
   {
     shortcut: "Control-Up Arrow",
@@ -46,7 +68,7 @@ const methods = [
   {
     shortcut: "CmdTab",
     title: "Use one list of individual windows",
-    body: "CmdTab replaces the app-only switcher with separate eligible windows, exact-window recent-use ordering, previews, search, and configurable Space and display scope.",
+    body: "CmdTab is designed to show separate eligible windows with recent-use ordering, previews, search, and configurable Space and display scope. It currently accepts waitlist signups only.",
   },
 ] as const;
 
@@ -54,8 +76,8 @@ const decisionRows = [
   ["I only need to move to another app", "Use macOS Command-Tab"],
   ["I am already in the right app and need its next window", "Use Command-`"],
   ["I need to inspect all visible windows and Spaces", "Use Mission Control"],
-  ["I want one ordered list of exact windows across apps", "Use CmdTab"],
-  ["I know part of the app or window title", "Use CmdTab Command Palette"],
+  ["I want one ordered list of exact windows across apps", "Review CmdTab’s planned workflow and join its waitlist"],
+  ["I know part of the app or window title", "Review CmdTab Command Palette; public access is not available yet"],
 ] as const;
 
 export default function SwitchWindowsGuidePage() {
@@ -67,6 +89,7 @@ export default function SwitchWindowsGuidePage() {
           name: title,
           description,
           path: "/guides/switch-between-windows-on-mac",
+          dateModified: reviewedAt,
         })}
       />
       <JsonLd
@@ -75,8 +98,11 @@ export default function SwitchWindowsGuidePage() {
           description,
           path: "/guides/switch-between-windows-on-mac",
           about: ["macOS keyboard shortcuts", "Mac windows", "Mission Control", "CmdTab"],
+          dateModified: reviewedAt,
+          citation: [appleKeyboardSource, "https://support.apple.com/guide/mac-help/mh35798/mac"],
         })}
       />
+      <JsonLd data={createFaqStructuredData(guideQuestions)} />
       <SiteHeader />
       <SectionShell
         headingAs="h1"
@@ -87,11 +113,11 @@ export default function SwitchWindowsGuidePage() {
         className="pt-14"
       >
         <div className="mb-8">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date={reviewedAt} />
         </div>
         <div className="surface-panel p-7">
           <p className="text-lg leading-8 text-text">
-            The built-in Command-Tab shortcut cycles applications, while Command-` cycles windows in the current application. Mission Control provides a visual overview. CmdTab is an optional third-party path when you want individual windows from different apps in one searchable recent-use sequence.
+            The built-in Command-Tab shortcut cycles applications, while Command-` cycles windows in the current application. Mission Control provides a visual overview. CmdTab is being prepared for that third-party workflow and currently accepts free waitlist signups.
           </p>
         </div>
       </SectionShell>
@@ -148,11 +174,27 @@ export default function SwitchWindowsGuidePage() {
       </SectionShell>
 
       <SectionShell
+        eyebrow="Common questions"
+        title="Apps, windows, and tabs are different targets"
+        className="pt-0"
+      >
+        <FaqList items={guideQuestions} />
+        <div className="mt-8">
+          <Button href="/waitlist">Join the free CmdTab waitlist</Button>
+        </div>
+      </SectionShell>
+
+      <SectionShell
         eyebrow="Primary sources"
         title="Apple documentation used for native behavior"
         className="pt-0"
       >
         <ul className="space-y-3 text-base leading-8 text-muted">
+          <li>
+            <a className="text-cyan underline underline-offset-4 hover:text-text" href={appleKeyboardSource} target="_blank" rel="noreferrer">
+              Apple Support: Mac keyboard shortcuts
+            </a>
+          </li>
           <li>
             <a
               className="text-cyan underline underline-offset-4 hover:text-text"

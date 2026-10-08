@@ -49,7 +49,7 @@ export function HeroSection() {
           </nav>
 
           <Button
-            href="/trial"
+            href="/waitlist"
             variant="secondary"
             className="hidden lg:inline-flex"
             {...analyticsAttributes("hero_nav_primary", "header")}
@@ -68,12 +68,12 @@ export function HeroSection() {
               {heroContent.title}
             </h1>
             <p className="mt-6 max-w-[34rem] text-pretty text-lg leading-8 text-muted sm:text-xl sm:leading-9">
-              CmdTab is a standalone macOS window switcher, separate from Apple’s built-in Command-Tab. See real window previews, search, and quick actions at a glance.
+              CmdTab is a standalone macOS window switcher, separate from Apple’s built-in Command-Tab. Find the right window with previews, search, and quick actions. Private preview: join the waitlist for early access updates.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
-                href="/trial"
+                href="/waitlist"
                 className="w-full sm:w-auto"
                 {...analyticsAttributes("hero_primary_cta", "hero")}
               >

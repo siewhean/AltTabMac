@@ -51,7 +51,7 @@ export default function OpenGraphImage() {
                 textTransform: "uppercase",
               }}
             >
-              14-day free trial
+              Join the waitlist
             </div>
             <div style={{ fontSize: 86, fontWeight: 600, letterSpacing: "-0.08em" }}>
               CmdTab
@@ -80,7 +80,7 @@ export default function OpenGraphImage() {
             <span>•</span>
             <span>Three switcher modes</span>
             <span>•</span>
-            <span>One-time purchase</span>
+            <span>No payment required</span>
           </div>
         </div>
       </div>

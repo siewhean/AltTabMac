@@ -1,0 +1,32 @@
+date,timezone,channel,action,asset,execution_gate,status
+2026-10-09,Asia/Singapore,measurement,Record deployment SHA; fresh visitor baseline; campaign-start unique stored signup aggregate,README.md,Draft only; production persistence and privacy checks pass,DRAFT_NOT_EXECUTED
+2026-10-10,Asia/Singapore,product,Check live waitlist page; screenshot mobile and desktop; verify no checkout/download CTA,README.md,Production deployment approved and checked,DRAFT_NOT_EXECUTED
+2026-10-11,Asia/Singapore,linkedin,Prepare problem post and verified guide destination,post-drafts.md: LinkedIn problem,Owner approves account and publication,DRAFT_NOT_EXECUTED
+2026-10-12,Asia/Singapore,x_threads,Prepare shortcut thread; answer genuine replies on approved account,post-drafts.md: practical shortcut,Owner approves account and publication,DRAFT_NOT_EXECUTED
+2026-10-13,Asia/Singapore,creative,Record safe real-app capture or label illustration; captions and alt text,post-drafts.md: storyboard,Footage claims and privacy reviewed,DRAFT_NOT_EXECUTED
+2026-10-14,Asia/Singapore,partners,Shortlist ten relevant public creators; write four personalized internal briefs,post-drafts.md: partner proposal,No outbound messages or emails,DRAFT_NOT_EXECUTED
+2026-10-15,Asia/Singapore,measurement,Checkpoint 1; compare observed stored signups against 100; recalculate funnel,weekly-scorecard.csv,Aggregate query and exclusions documented,DRAFT_NOT_EXECUTED
+2026-10-16,Asia/Singapore,community,Choose one permitted Mac community; prepare useful disclosed shortcut post,post-drafts.md: community,Rules checked; owner approves publication,DRAFT_NOT_EXECUTED
+2026-10-17,Asia/Singapore,linkedin,Prepare honest private-preview post; select actual approved showcase,post-drafts.md: honest preview,Owner approves account and publication,DRAFT_NOT_EXECUTED
+2026-10-18,Asia/Singapore,content,Review guide questions from genuine feedback; draft one factual FAQ revision,post-drafts.md: why another switcher,No fake comments or invented search demand,DRAFT_NOT_EXECUTED
+2026-10-19,Asia/Singapore,short_video,Prepare captioned window-story video on approved channel,post-drafts.md: storyboard,Owner approves footage and publication,DRAFT_NOT_EXECUTED
+2026-10-20,Asia/Singapore,community,Prepare second distinct workflow answer; link only where allowed,post-drafts.md: community,Rules checked; owner approves publication,DRAFT_NOT_EXECUTED
+2026-10-21,Asia/Singapore,partners,Review independently offered partner placement options; no outbound email,post-drafts.md: partner proposal,Record agreement only with real evidence,DRAFT_NOT_EXECUTED
+2026-10-22,Asia/Singapore,measurement,Checkpoint 2; compare stored signups against 300; reassess audience reach,weekly-scorecard.csv,Target missed stays missed,DRAFT_NOT_EXECUTED
+2026-10-23,Asia/Singapore,linkedin,Prepare availability FAQ; keep waitlist-only language explicit,post-drafts.md: availability,Owner approves account and publication,DRAFT_NOT_EXECUTED
+2026-10-24,Asia/Singapore,community,Prepare Finder-window workflow discussion with founder disclosure,post-drafts.md: community,Community rules and live claims checked,DRAFT_NOT_EXECUTED
+2026-10-25,Asia/Singapore,search,Inspect actual Search Console clicks and Bing citations if access exists,README.md: discovery principles,No visibility/traffic claim without account evidence,DRAFT_NOT_EXECUTED
+2026-10-26,Asia/Singapore,x_threads,Prepare built-in shortcut choice thread; point to canonical guide,post-drafts.md: practical shortcut,Owner approves account and publication,DRAFT_NOT_EXECUTED
+2026-10-27,Asia/Singapore,feedback,Summarize real feedback; choose one common problem for next draft,README.md: positioning,No personal information or invented testimonials,DRAFT_NOT_EXECUTED
+2026-10-28,Asia/Singapore,community,Prepare permitted window-heavy workflow post; do not mass cross-post,post-drafts.md: community,Owner approves destination and publication,DRAFT_NOT_EXECUTED
+2026-10-29,Asia/Singapore,measurement,Checkpoint 3; compare stored signups against 600; prioritize two proven channels,weekly-scorecard.csv,Use actual signup yield or label attribution unknown,DRAFT_NOT_EXECUTED
+2026-10-30,Asia/Singapore,linkedin,Prepare revised problem post using verified audience questions,post-drafts.md: LinkedIn problem,Owner approves publication; no invented social proof,DRAFT_NOT_EXECUTED
+2026-10-31,Asia/Singapore,creative,Prepare second video with one actual supported workflow,post-drafts.md: storyboard,Verified capture or clearly labeled illustration,DRAFT_NOT_EXECUTED
+2026-11-01,Asia/Singapore,partners,Update internal partner briefs based on real publication fit,post-drafts.md: partner proposal,No outbound messages or emails,DRAFT_NOT_EXECUTED
+2026-11-02,Asia/Singapore,community,Prepare a useful shortcut FAQ follow-up in an allowed existing discussion,post-drafts.md: community,Relevant permissioned discussion only,DRAFT_NOT_EXECUTED
+2026-11-03,Asia/Singapore,x_threads,Prepare permissions/availability reminder; link to live waitlist,post-drafts.md: availability,Owner approves publication,DRAFT_NOT_EXECUTED
+2026-11-04,Asia/Singapore,measurement,Check remaining signup gap; compute required daily pace from observed storage,weekly-scorecard.csv,No extrapolation from form success events,DRAFT_NOT_EXECUTED
+2026-11-05,Asia/Singapore,linkedin,Prepare practical guide recap and honest waitlist invitation,post-drafts.md: why another switcher,Owner approves publication,DRAFT_NOT_EXECUTED
+2026-11-06,Asia/Singapore,community,Prepare final helpful workflow answer; no false last-chance urgency,post-drafts.md: community,Owner approves publication; rules respected,DRAFT_NOT_EXECUTED
+2026-11-07,Asia/Singapore,measurement,Close 30-day window; export net-new unique stored signup total and exclusions,weekly-scorecard.csv,Report observed count even when target missed,DRAFT_NOT_EXECUTED
+2026-11-08,Asia/Singapore,report,Final report; source/deployment identity; actual signup total and separate traffic,post-drafts.md: final progress,No result published or sent without authorization,DRAFT_NOT_EXECUTED

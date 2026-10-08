@@ -139,8 +139,8 @@ export default function CmdTabVsAltTabPage() {
           <Button href="/evidence" variant="secondary">
             Inspect CmdTab evidence
           </Button>
-          <Button href="/trial" variant="ghost">
-            Test CmdTab in your workflow
+          <Button href="/waitlist" variant="ghost">
+            Join the free waitlist
           </Button>
         </div>
       </SectionShell>

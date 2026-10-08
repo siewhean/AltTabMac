@@ -157,6 +157,19 @@ def parse_html(body: str) -> ParsedPage:
     return parser
 
 
+def collect_faq_nodes(value: Any) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    if isinstance(value, dict):
+        if value.get("@type") == "FAQPage":
+            result.append(value)
+        for child in value.values():
+            result.extend(collect_faq_nodes(child))
+    elif isinstance(value, list):
+        for child in value:
+            result.extend(collect_faq_nodes(child))
+    return result
+
+
 def collect_schema_types(value: Any) -> set[str]:
     result: set[str] = set()
     if isinstance(value, dict):
@@ -260,6 +273,17 @@ for path in route_paths:
         except json.JSONDecodeError as error:
             fail(f"{path}: invalid JSON-LD: {error}")
     schema_types = collect_schema_types(schema_values)
+    normalized_visible = " ".join(" ".join(page.visible_text).split())
+    for faq in collect_faq_nodes(schema_values):
+        for question in faq.get("mainEntity", []):
+            name = " ".join(str(question.get("name", "")).split())
+            answer = " ".join(str(question.get("acceptedAnswer", {}).get("text", "")).split())
+            if not name or not answer or name not in normalized_visible or answer not in normalized_visible:
+                fail(f"{path}: FAQ structured data must match rendered questions and answers: {name!r}")
+    if "Offer" in schema_types or "AggregateOffer" in schema_types:
+        fail(f"{path}: unavailable commerce must not publish Offer structured data")
+    if any(urllib.parse.urlsplit(href).path in {"/buy", "/trial"} for href in page.links):
+        fail(f"{path}: public acquisition links must point to /waitlist")
     if path == "/":
         for required_type in ("Person", "Organization", "WebSite", "SoftwareApplication"):
             if required_type not in schema_types:

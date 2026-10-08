@@ -109,13 +109,6 @@ export async function upsertWaitlistSubmission(input: {
   await ensureSchema();
   const sql = getSql();
   const normalizedEmail = input.email.trim().toLowerCase();
-  const [existing] = await sql<Pick<WaitlistRow, "id">[]>`
-    select id
-    from waitlist_signups
-    where email = ${normalizedEmail}
-    limit 1
-  `;
-
   const [row] = await sql<WaitlistRow[]>`
     insert into waitlist_signups (
       id,
@@ -136,21 +129,16 @@ export async function upsertWaitlistSubmission(input: {
       ${"stored"},
       ${null}
     )
-    on conflict (email) do update set
-      name = excluded.name,
-      source = excluded.source,
-      metadata = excluded.metadata,
-      request_id = excluded.request_id,
-      notification_status = 'stored',
-      notification_error = null,
-      updated_at = now()
+    on conflict (email) do nothing
     returning *
   `;
 
-  return {
-    submission: mapRow(row),
-    alreadyRegistered: Boolean(existing),
-  } satisfies WaitlistUpsertResult;
+  if (row) return { submission: mapRow(row), alreadyRegistered: false } satisfies WaitlistUpsertResult;
+  const [existing] = await sql<WaitlistRow[]>`
+    select * from waitlist_signups where email = ${normalizedEmail} limit 1
+  `;
+  if (!existing) throw new Error("Waitlist enrollment could not be persisted.");
+  return { submission: mapRow(existing), alreadyRegistered: true } satisfies WaitlistUpsertResult;
 }
 
 export async function updateWaitlistNotificationStatus(

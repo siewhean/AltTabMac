@@ -10,12 +10,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/api/"],
+        disallow: ["/api/", "/dashboard/"],
       },
       {
         userAgent: "OAI-SearchBot",
         allow: "/",
-        disallow: ["/api/"],
+        disallow: ["/api/", "/dashboard/"],
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

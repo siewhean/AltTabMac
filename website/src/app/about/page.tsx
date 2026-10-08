@@ -77,7 +77,7 @@ export default function AboutPage() {
               Product behavior, compatibility, permissions, telemetry, trial terms, purchase information, privacy, security, and support should be verified against the dedicated pages linked from this site rather than inferred from a promotional screenshot.
             </p>
             <p className="mt-4 text-sm leading-7 text-subdued">
-              Contact: <a className="text-cyan underline underline-offset-4 hover:text-text" href={`mailto:${siteConfig.contactEmail}`}>{siteConfig.contactEmail}</a>
+              Contact: <a className="text-cyan underline underline-offset-4 hover:text-text" href={siteConfig.contactPath}>Contact CmdTab</a>
             </p>
           </article>
         </div>
