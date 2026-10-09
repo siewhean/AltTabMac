@@ -105,6 +105,28 @@ test("admin mutations require the exact trusted origin", () => {
   assert.equal(isSameOriginAdminMutation(allowed, "https://cmdtab.net"), true);
   assert.equal(isSameOriginAdminMutation(crossSite, "https://cmdtab.net"), false);
   assert.equal(isSameOriginAdminMutation(missing, "https://cmdtab.net"), false);
+
+  // A deployment alias matching only the request URL is trusted in
+  // development, never in production.
+  const alias = () =>
+    new Request("https://cmdtab-git-x.vercel.app/dashboard/logout", {
+      method: "POST",
+      headers: {
+        origin: "https://cmdtab-git-x.vercel.app",
+        "sec-fetch-site": "same-origin",
+      },
+    });
+  const env = process.env as Record<string, string | undefined>;
+  const previous = env.NODE_ENV;
+  try {
+    env.NODE_ENV = "development";
+    assert.equal(isSameOriginAdminMutation(alias(), "https://cmdtab.net"), true);
+    env.NODE_ENV = "production";
+    assert.equal(isSameOriginAdminMutation(alias(), "https://cmdtab.net"), false);
+    assert.equal(isSameOriginAdminMutation(allowed, "https://cmdtab.net"), true);
+  } finally {
+    env.NODE_ENV = previous;
+  }
 });
 
 test("production never enables the shared-password fallback", () => {
