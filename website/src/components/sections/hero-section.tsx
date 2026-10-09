@@ -68,7 +68,7 @@ export function HeroSection() {
               {heroContent.title}
             </h1>
             <p className="mt-6 max-w-[34rem] text-pretty text-lg leading-8 text-muted sm:text-xl sm:leading-9">
-              CmdTab is a standalone macOS window switcher, separate from Apple’s built-in Command-Tab. Find the exact window with previews, search, and quick actions. It’s in private preview; join the waitlist and we’ll email you when trial access is ready.
+              CmdTab is a standalone native macOS window-switcher app, separate from Apple’s built-in Command-Tab shortcut. Find the exact window with previews, search, and quick actions. It’s in private preview; join the waitlist and we’ll email you when trial access is ready.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">

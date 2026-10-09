@@ -44,6 +44,23 @@ jobs:
     name: Website Security, SEO, GEO, and browser QA
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Disposable database for the analytics ingestion and rate-limit
+    # contracts exercised by the browser checks. Only the production server
+    # step receives DATABASE_URL; the build and source gates run without it.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cmdtab
+          POSTGRES_PASSWORD: cmdtab-ci
+          POSTGRES_DB: cmdtab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cmdtab -d cmdtab_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
@@ -70,6 +87,8 @@ jobs:
       - name: Build production website
         run: npx next build --webpack
       - name: Start production server
+        env:
+          DATABASE_URL: postgres://cmdtab:cmdtab-ci@127.0.0.1:5432/cmdtab_ci
         run: |
           npm run start -- --hostname 127.0.0.1 --port 3000 > /tmp/cmdtab-next.log 2>&1 &
           echo $! > /tmp/cmdtab-next.pid
@@ -128,6 +147,18 @@ jobs:
           echo "sha=${GITHUB_SHA}"
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Swift Testing-compatible Xcode on macOS 14
+        # The macOS 14 runner's default Xcode has no Swift Testing module.
+        if: matrix.runner == 'macos-14'
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
+          test -d "$DEVELOPER_DIR"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          xcodebuild -version
+          swift --version
+
       - name: Verify pre-fix model evidence
         run: |
           python3 scripts/qa/switcher_mru_visibility_model_check.py > /tmp/switcher-model.json

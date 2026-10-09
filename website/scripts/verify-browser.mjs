@@ -423,6 +423,18 @@ try {
       let seriousAxeViolations = [];
       if (profile.motionCheck) {
         await client.send("Runtime.evaluate", { expression: axeSource });
+        // Measure the settled page users see: entrance fades (MotionReveal)
+        // are mid-opacity on slower runners and produce false contrast results.
+        // Looping media animations never finish, so wait at most two seconds.
+        await client.send("Runtime.evaluate", {
+          expression: `Promise.race([
+            Promise.all(document.getAnimations()
+              .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+              .map((animation) => animation.finished.catch(() => undefined))),
+            new Promise((done) => setTimeout(done, 2000)),
+          ])`,
+          awaitPromise: true,
+        });
         const axeEvaluation = await client.send("Runtime.evaluate", {
           expression: `axe.run(document, { resultTypes: ['violations'] }).then(({ violations }) =>
             violations
@@ -544,8 +556,10 @@ try {
           fail(`${profile.name} ${path}: autoplay product video is missing`);
         } else {
           const firstVideo = result.videos[0];
-          if (!firstVideo.muted || firstVideo.loop || !firstVideo.playsInline || firstVideo.autoplayMode !== "one-shot") {
-            fail(`${profile.name} ${path}: first video is not configured for silent one-shot inline autoplay`);
+          // The homepage hero overview loops by design; showcase media plays once.
+          const expectedMode = path === "/" ? "loop" : "one-shot";
+          if (!firstVideo.muted || firstVideo.loop !== (expectedMode === "loop") || !firstVideo.playsInline || firstVideo.autoplayMode !== expectedMode) {
+            fail(`${profile.name} ${path}: first video is not configured for silent ${expectedMode} inline autoplay`);
           }
           if (firstVideo.duration === null || firstVideo.duration > 5.05) {
             fail(`${profile.name} ${path}: first autoplay video exceeds five seconds`);
@@ -898,8 +912,9 @@ try {
     media: "screen",
     features: [{ name: "prefers-reduced-motion", value: "no-preference" }],
   });
+  // One-shot playback is the showcase contract; the homepage hero loops.
   let loaded = client.waitFor("Page.loadEventFired");
-  await client.send("Page.navigate", { url: `${baseUrl}/` });
+  await client.send("Page.navigate", { url: `${baseUrl}/showcase` });
   await loaded;
   await sleep(900);
   const oneShotSetup = await client.send("Runtime.evaluate", {

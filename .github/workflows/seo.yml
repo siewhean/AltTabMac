@@ -23,6 +23,23 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    # Disposable database for the analytics ingestion and rate-limit
+    # contracts exercised by the browser checks. Only the production server
+    # step receives DATABASE_URL; the build and source gates run without it.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cmdtab
+          POSTGRES_PASSWORD: cmdtab-ci
+          POSTGRES_DB: cmdtab_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cmdtab -d cmdtab_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
@@ -54,6 +71,8 @@ jobs:
         run: npx next build --webpack
 
       - name: Start production server
+        env:
+          DATABASE_URL: postgres://cmdtab:cmdtab-ci@127.0.0.1:5432/cmdtab_ci
         run: |
           npm run start -- --hostname 127.0.0.1 --port 3000 > /tmp/cmdtab-next.log 2>&1 &
           echo $! > /tmp/cmdtab-next.pid
