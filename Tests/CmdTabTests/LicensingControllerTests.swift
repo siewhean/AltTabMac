@@ -1271,6 +1271,23 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertNil(deviceEntitlementStore.value)
     }
 
+    func testActivationLinkPrefillsCodeWithoutContactingServer() {
+        let materials = makeSigningMaterials()
+        let server = MockCmdTabServerClient()
+        let controller = makeController(
+            serverClient: server,
+            publicKeyBase64: materials.publicKeyBase64
+        )
+        let code = "CMDTAB-ACT-\(String(repeating: "p", count: 43))"
+
+        controller.prefillActivationCode(code)
+
+        XCTAssertEqual(controller.enteredLicenseKey, code)
+        XCTAssertTrue(server.activationCalls.isEmpty)
+        XCTAssertEqual(controller.licenseMessage?.tone, .warning)
+        XCTAssertFalse(controller.hasUnlockedAccess && controller.currentLicenseID != nil)
+    }
+
     private func makeController(
         trialStore: TrialStartDateStore = MemoryTrialStartDateStore(),
         trialClaimStore: TrialClaimStore = MemoryTrialClaimStore(),

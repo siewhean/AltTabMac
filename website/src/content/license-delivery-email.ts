@@ -32,7 +32,7 @@ export const licenseDeliveryEmailContent = {
   subject: "Your CmdTab activation code",
   preview: "Your CmdTab purchase is confirmed and your activation code is ready.",
   bullets: [
-    "Open the one-click activation link on a Mac with CmdTab installed.",
+    "Open the activation link on a Mac with CmdTab installed, then click Activate.",
     "Activation authorizes this Mac for permanent offline use.",
     "You can activate up to three personally owned Macs and deactivate one to free its slot.",
   ],
@@ -61,7 +61,7 @@ export function renderLicenseDeliveryEmail(input: LicenseDeliveryEmailInput) {
     greeting,
     productLine,
     "",
-    "One-click activation:",
+    "Activation link (opens CmdTab, then click Activate):",
     oneClickActivationUrl,
     "",
     "Activation code (manual fallback):",
