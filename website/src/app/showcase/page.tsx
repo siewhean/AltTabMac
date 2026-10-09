@@ -77,7 +77,7 @@ export default function ShowcasePage() {
           role="region"
           aria-label="CmdTab showcase modes and actions"
           tabIndex={0}
-          className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0"
+          className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0"
         >
           {assets.map((asset) => (
             <article
@@ -91,7 +91,7 @@ export default function ShowcasePage() {
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted">{asset.description}</p>
                 <Link
                   href={detailLinks[asset.id]}
-                  className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-cyan transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+                  className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-cyan transition-colors hover:text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60"
                 >
                   View details →
                 </Link>

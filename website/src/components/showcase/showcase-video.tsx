@@ -106,7 +106,7 @@ export function ShowcaseVideo({
 
         {showOverlay ? (
           <>
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/78 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-linear-to-t/srgb from-black/78 to-transparent" />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 sm:p-5">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan">{asset.eyebrow}</p>
               <p className="mt-1 truncate text-sm font-medium text-white sm:text-base">{asset.title}</p>

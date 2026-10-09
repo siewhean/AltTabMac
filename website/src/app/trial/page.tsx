@@ -77,7 +77,7 @@ export default function TrialPage() {
 
             <div className="mt-6 pt-4 border-t border-white/8 flex items-center justify-between">
               <span className="text-xs text-muted">Have a license key already?</span>
-              <Button href="/buy" variant="secondary" className="text-xs" {...analyticsAttributes("trial_page_buy_click", "trial_page")}>
+              <Button href="/buy" variant="secondary" className="text-xs!" {...analyticsAttributes("trial_page_buy_click", "trial_page")}>
                 Review pricing
               </Button>
             </div>
@@ -88,7 +88,7 @@ export default function TrialPage() {
                   href={release.dmgURL}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full text-xs"
+                  className="w-full text-xs!"
                   {...analyticsAttributes("trial_page_download_click", "trial_page")}
                 >
                   Download CmdTab {release.version} (.dmg)

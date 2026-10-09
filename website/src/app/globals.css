@@ -1,108 +1,306 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/*
+  Tailwind CSS 4. Class scanning is limited to src/ TypeScript files, matching
+  the former tailwind.config.ts `content` glob (automatic detection would also
+  scan scripts/, tests/ and docs).
+*/
+@import "tailwindcss" source(none);
+@source "../**/*.{ts,tsx}";
 
+/*
+  Tailwind 3 only accepted opacity modifiers and durations from its theme
+  scale (/5, /10, /15 ... and 75/100/150/200/300ms), so these classes in src/
+  generated no CSS and the elements rendered with the defaults (gray-200
+  borders, no gradient overlay, 150ms transitions). Tailwind 4 accepts any
+  value and would start applying them, changing the live design site-wide.
+  They are blocked here to keep this migration visually neutral. Delete this
+  block (and review the visual change) to adopt the authored values. While it
+  exists, these exact class names do nothing.
+*/
+@source not inline("{,lg:,hover:,focus:}border-white/{6,8,12,14,18}");
+@source not inline("divide-white/8");
+@source not inline("{,focus:}bg-white/{6,8}");
+@source not inline("bg-cyan/12");
+@source not inline("bg-rose-400/8");
+@source not inline("border-amber-300/18");
+@source not inline("border-cyan/18");
+@source not inline("from-black/78");
+@source not inline("from-white/8");
+@source not inline("duration-250");
+
+@theme {
+  /*
+    Tailwind 3 `theme.extend.colors` replaced the default `cyan` and `violet`
+    scales with single values, so `violet-400` etc. generated nothing. Clear
+    the v4 scales so those class names keep rendering exactly as before.
+  */
+  --color-cyan-*: initial;
+  --color-violet-*: initial;
+
+  --color-ink: #05070c;
+  --color-panel: #0b1220;
+  --color-shell: #111a2b;
+  --color-line: #18243a;
+  --color-text: #eaf1ff;
+  --color-muted: #a8b5cc;
+  --color-subdued: #6f7d95;
+  --color-accent: #4ea1ff;
+  --color-cyan: #69d6ff;
+  --color-violet: #8e7cff;
+  --color-success: #7ee7c8;
+
+  /*
+    Tailwind 4 ships its default palette in OKLCH. Pin the default-palette
+    shades this site uses to their Tailwind 3 sRGB values so colors do not
+    shift.
+  */
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-emerald-100: #d1fae5;
+  --color-emerald-200: #a7f3d0;
+  --color-emerald-300: #6ee7b7;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-rose-100: #ffe4e6;
+  --color-rose-200: #fecdd3;
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+  --color-slate-950: #020617;
+  --color-indigo-400: #818cf8;
+  --color-orange-400: #fb923c;
+  --color-sky-400: #38bdf8;
+  --color-gray-200: #e5e7eb;
+  --color-gray-400: #9ca3af;
+
+  --shadow-halo: 0 30px 80px rgba(78, 161, 255, 0.16);
+  /*
+    In Tailwind 3, `shadow-panel` matched both this shadow and the `panel`
+    color, so the shadow actually rendered in #0b1220. Keep that rendering.
+  */
+  --shadow-panel: 0 32px 80px #0b1220;
+
+  --radius-panel: 28px;
+
+  --font-sans:
+    "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:
+    "SF Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@utility bg-grid-fade {
+  background-image:
+    linear-gradient(to right, rgba(24, 36, 58, 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(24, 36, 58, 0.45) 1px, transparent 1px);
+}
+
+/* Tailwind 3 preflight defaults that Tailwind 4 changed. */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/*
+  `--radius-*` is a Tailwind 4 theme namespace (rounded-sm/md/lg), so the
+  surface radii use their own prefix.
+*/
 :root {
   color-scheme: dark;
-  --radius-sm: 18px;
-  --radius-md: 24px;
-  --radius-lg: 32px;
-  --radius-pill: 999px;
+  --surface-radius-sm: 18px;
+  --surface-radius-md: 24px;
+  --surface-radius-lg: 32px;
+  --surface-radius-pill: 999px;
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-* {
-  box-sizing: border-box;
+/*
+  Element rules live in the base layer: unlayered CSS would override every
+  Tailwind utility (e.g. `a { color: inherit }` beating `text-cyan`).
+*/
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top right, rgba(105, 214, 255, 0.08), transparent 24%),
+      linear-gradient(180deg, #05070c 0%, #08111d 52%, #060913 100%);
+    color: #eaf1ff;
+    font-family:
+      "SF Pro Display",
+      "SF Pro Text",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, rgba(24, 36, 58, 0.28) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(24, 36, 58, 0.24) 1px, transparent 1px);
+    background-size: 96px 96px;
+    mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 82%);
+    opacity: 0.45;
+    z-index: -1;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  ::selection {
+    background: rgba(78, 161, 255, 0.32);
+    color: #f8fbff;
+  }
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/*
+  Custom classes live in the components layer so responsive and state
+  variants (`sm:text-[...]`, `hover:...`) still override them, as they did in
+  Tailwind 3 where variants were emitted after this stylesheet's custom CSS.
+  Unlayered, they would beat every utility.
+*/
+@layer components {
+  .hero-enter {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.985);
+    animation: hero-fade-up 900ms var(--ease-standard) forwards;
+    animation-delay: var(--enter-delay, 0ms);
+  }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at top right, rgba(105, 214, 255, 0.08), transparent 24%),
-    linear-gradient(180deg, #05070c 0%, #08111d 52%, #060913 100%);
-  color: #eaf1ff;
-  font-family:
-    "SF Pro Display",
-    "SF Pro Text",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  text-rendering: optimizeLegibility;
-  overflow-x: hidden;
-  position: relative;
-}
+  .motion-reveal {
+    opacity: 0;
+    transition:
+      opacity 720ms var(--ease-standard),
+      transform 720ms var(--ease-standard);
+    transition-delay: var(--motion-delay, 0ms);
+    will-change: opacity, transform;
+  }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(24, 36, 58, 0.28) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(24, 36, 58, 0.24) 1px, transparent 1px);
-  background-size: 96px 96px;
-  mask-image: linear-gradient(180deg, rgba(255, 255, 255, 0.5), transparent 82%);
-  opacity: 0.45;
-  z-index: -1;
-}
+  .motion-reveal--up {
+    transform: translate3d(0, 28px, 0);
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  .motion-reveal--left {
+    transform: translate3d(-30px, 0, 0);
+  }
 
-img {
-  display: block;
-  max-width: 100%;
-}
+  .motion-reveal--right {
+    transform: translate3d(30px, 0, 0);
+  }
 
-::selection {
-  background: rgba(78, 161, 255, 0.32);
-  color: #f8fbff;
-}
+  .motion-reveal--scale {
+    transform: translate3d(0, 18px, 0) scale(0.975);
+  }
 
-.hero-enter {
-  opacity: 0;
-  transform: translate3d(0, 24px, 0) scale(0.985);
-  animation: hero-fade-up 900ms var(--ease-standard) forwards;
-  animation-delay: var(--enter-delay, 0ms);
-}
+  .motion-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 
-.motion-reveal {
-  opacity: 0;
-  transition:
-    opacity 720ms var(--ease-standard),
-    transform 720ms var(--ease-standard);
-  transition-delay: var(--motion-delay, 0ms);
-  will-change: opacity, transform;
-}
+  .surface-panel {
+    border-radius: var(--surface-radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 32px 80px rgba(5, 7, 12, 0.42);
+    backdrop-filter: blur(20px);
+  }
 
-.motion-reveal--up {
-  transform: translate3d(0, 28px, 0);
-}
+  .surface-muted {
+    border-radius: var(--surface-radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+  }
 
-.motion-reveal--left {
-  transform: translate3d(-30px, 0, 0);
-}
+  .type-eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
 
-.motion-reveal--right {
-  transform: translate3d(30px, 0, 0);
-}
+  .type-section-title {
+    text-wrap: balance;
+    font-size: clamp(2rem, 3vw, 2.8rem);
+    font-weight: 500;
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+  }
 
-.motion-reveal--scale {
-  transform: translate3d(0, 18px, 0) scale(0.975);
-}
+  .type-body {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
 
-.motion-reveal[data-visible="true"] {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
+  .type-body-lg {
+    font-size: 1.0625rem;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 767px) {
+    .hero-enter {
+      opacity: 1;
+      transform: none;
+      animation: none;
+    }
+
+    .motion-reveal,
+    .motion-reveal--up,
+    .motion-reveal--left,
+    .motion-reveal--right,
+    .motion-reveal--scale,
+    .motion-reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-enter,
+    .motion-reveal {
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
 }
 
 @keyframes hero-fade-up {
@@ -117,66 +315,9 @@ img {
   }
 }
 
-.surface-panel {
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 32px 80px rgba(5, 7, 12, 0.42);
-  backdrop-filter: blur(20px);
-}
-
-.surface-muted {
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.type-eyebrow {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-}
-
-.type-section-title {
-  text-wrap: balance;
-  font-size: clamp(2rem, 3vw, 2.8rem);
-  font-weight: 500;
-  line-height: 0.98;
-  letter-spacing: -0.05em;
-}
-
-.type-body {
-  font-size: 1rem;
-  line-height: 1.75;
-}
-
-.type-body-lg {
-  font-size: 1.0625rem;
-  line-height: 1.7;
-}
-
 @media (max-width: 767px) {
   html {
     scroll-behavior: auto;
-  }
-
-  .hero-enter {
-    opacity: 1;
-    transform: none;
-    animation: none;
-  }
-
-  .motion-reveal,
-  .motion-reveal--up,
-  .motion-reveal--left,
-  .motion-reveal--right,
-  .motion-reveal--scale,
-  .motion-reveal[data-visible="true"] {
-    opacity: 1;
-    transform: none;
-    transition: none;
   }
 }
 
@@ -192,12 +333,6 @@ img {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
-  }
-
-  .hero-enter,
-  .motion-reveal {
-    opacity: 1 !important;
-    transform: none !important;
   }
 
   body::before {

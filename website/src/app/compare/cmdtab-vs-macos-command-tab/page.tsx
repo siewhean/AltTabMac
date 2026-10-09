@@ -92,7 +92,7 @@ export default function CmdTabVsMacOSPage() {
           aria-label="Comparison of macOS Cmd+Tab and CmdTab"
           aria-describedby="comparison-scroll-hint"
           tabIndex={0}
-          className="overflow-x-auto rounded-[24px] border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+          className="overflow-x-auto rounded-[24px] border border-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60"
         >
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
             <thead className="bg-white/[0.05] text-text">

@@ -42,7 +42,7 @@ export function SiteHeader() {
         ))}
       </nav>
 
-      <Button href="/trial" variant="secondary" className="hidden lg:inline-flex">
+      <Button href="/trial" variant="secondary" className="max-lg:hidden">
         Join the waitlist
       </Button>
       <MobileNavigation />

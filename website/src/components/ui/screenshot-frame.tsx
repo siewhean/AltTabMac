@@ -17,8 +17,8 @@ export function ScreenshotFrame({
 
   return (
     <figure className={`group ${className}`}>
-      <div className="surface-panel relative overflow-hidden bg-panel/70 transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5">
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-white/8 to-transparent" />
+      <div className="surface-panel relative overflow-hidden transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5">
+        <div className="absolute inset-x-0 top-0 h-24 bg-linear-to-b/srgb from-white/8 to-transparent" />
         <img
           src={asset.src}
           alt={asset.alt}
