@@ -90,7 +90,15 @@ enumeration-safe; fulfillment uses a retryable outbox; partial refunds preserve
 access; and authoritative full-refund or revocation states persist as hashed
 tombstones. The migration is idempotent and local real-PostgreSQL concurrency
 evidence covers three successful devices, fourth-device rejection, immediate
-deactivation, and subsequent activation. Live Lemon Squeezy, email-provider,
+deactivation, and subsequent activation. Automated licensing coverage
+(2026-10-10, `npm run test:licensing`, part of `test:unit`): route handlers for
+activate, renew, deactivate, devices, recovery, trial start, and the Lemon
+Squeezy webhook run in-process with faked stores, signers, and rate limiters;
+store SQL for the deactivation cap, renewal lookup, and trial hardware
+rebinding runs against a disposable local Postgres only when
+`CMDTAB_TEST_DATABASE_URL` is set (skipped otherwise). Recovery now answers
+generically when credential rotation or outbox enqueue fails, which previously
+returned 400 only for emails with a purchase. Live Lemon Squeezy, email-provider,
 KMS, and production-database execution remain external release gates.
 
 Commerce launch is one explicit boundary. Scheduled and manually invoked
