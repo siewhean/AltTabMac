@@ -47,6 +47,10 @@ assert.match(purchaseTests, /duplicate delivered webhook remains idempotent/);
 assert.match(purchaseTests, /email provider failure stays queued/);
 assert.match(purchaseTests, /entitlement persistence failure stops/);
 
+const reminderRoute = read("src/app/api/trial/reminder/route.ts");
+assert.match(reminderRoute, /isAuthorizedInternalWorker\(\s*request,\s*optionalStrongInternalSecret\(process\.env\.CRON_SECRET\)/);
+assert.doesNotMatch(reminderRoute, /if \(!secret\) return true/, "trial reminder must fail closed without CRON_SECRET");
+
 const outboxRoute = read("src/app/api/internal/license-outbox/route.ts");
 assert.match(outboxRoute, /export async function GET\(request: Request\)/);
 assert.match(outboxRoute, /process\.env\.CRON_SECRET/);

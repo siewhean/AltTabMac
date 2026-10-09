@@ -44,7 +44,7 @@ export default function AboutPage() {
         breadcrumbs={breadcrumbs}
         eyebrow="About"
         title="CmdTab is built to make individual Mac windows easier to reach"
-        description="The product focuses on the shortest reliable path to the exact app window a user intended to open. It is developed by Siew Hean and documented publicly through this site and repository."
+        description="The product focuses on the shortest reliable path to the exact app window a user intended to open. It is developed by Siew Hean and documented publicly on this site."
         className="pt-14"
       >
         <div className="mb-8">
@@ -60,12 +60,9 @@ export default function AboutPage() {
           <article className="surface-panel p-7">
             <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Developer and official sources</h2>
             <p className="mt-4 text-base leading-8 text-muted">
-              Siew Hean develops CmdTab. This website is the canonical public source for product information, while the GitHub repository is the source for implementation history, automated tests, and current project metadata.
+              Siew Hean develops CmdTab. This website is the canonical public source for product information, release notes, and current project metadata.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="secondary">
-                View repository
-              </Button>
               <Button href={productFacts.developerProfile} target="_blank" rel="noreferrer" variant="ghost">
                 Developer profile
               </Button>

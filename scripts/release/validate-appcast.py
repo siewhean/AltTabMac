@@ -38,10 +38,10 @@ def main() -> None:
         raise SystemExit("appcast must contain exactly one item for the manifest build")
     item = matching[0]
     channel = manifest.get("channel")
-    if channel == "stable" and item.find(f"{{{SPARKLE}}}channel") is not None:
-        raise SystemExit("stable update item must use Sparkle's default channel")
-    if channel == "beta" and item.findtext(f"{{{SPARKLE}}}channel") != "beta":
-        raise SystemExit("beta update item must use Sparkle's beta channel")
+    # Each channel has its own feed URL; a named Sparkle channel would hide
+    # the item from clients, which never declare allowedChannels(for:).
+    if item.find(f"{{{SPARKLE}}}channel") is not None:
+        raise SystemExit(f"{channel} update item must use Sparkle's default channel")
     if channel not in {"beta", "stable"}:
         raise SystemExit("appcast manifest channel must be beta or stable")
     enclosure = item.find("enclosure")

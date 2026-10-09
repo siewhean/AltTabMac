@@ -139,7 +139,7 @@ export default function WindowSwitcherFeaturePage() {
       <SectionShell
         eyebrow="Behavior reference"
         title="The important details are explicit"
-        description="These rules are also protected by automated regression tests in the public repository."
+        description="These rules are also protected by automated regression tests."
         className="pt-0"
       >
         <div
@@ -193,9 +193,6 @@ export default function WindowSwitcherFeaturePage() {
           <Button href="/trial" variant="secondary">Join the waitlist</Button>
           <Button href="/compare/cmdtab-vs-alttab" variant="secondary">
             Compare CmdTab with AltTab
-          </Button>
-          <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="ghost">
-            Review the source
           </Button>
         </div>
       </SectionShell>

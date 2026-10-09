@@ -17,7 +17,6 @@ export const productFacts = {
   updateEntitlement: "All CmdTab 1.x updates",
   refundPolicy: "14-day full refund",
   reviewedAt: "2026-07-22",
-  sourceRepository: "https://github.com/siewhean/AltTabMac",
   developerProfile: "https://github.com/siewhean",
   permissions: [
     {

@@ -50,9 +50,6 @@ export default function PrivacyPage() {
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={productFacts.reviewedAt} />
-          <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="ghost">
-            Review current implementation
-          </Button>
         </div>
         <div className="space-y-10">
           <AnalyticsPrivacyControls />

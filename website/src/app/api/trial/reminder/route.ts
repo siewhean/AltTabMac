@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { renderTrialReminderEmail } from "@/content/trial-email";
-import { getServerEnv, getSiteUrl } from "@/lib/env";
+import { getServerEnv, getSiteUrl, optionalStrongInternalSecret } from "@/lib/env";
+import { isAuthorizedInternalWorker } from "@/lib/internal-worker-auth";
 import {
   listTrialClaimsDueForReminder,
   markTrialReminderSent,
@@ -11,12 +12,14 @@ import { getResendClient } from "@/lib/resend";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Vercel Cron sends CRON_SECRET as a Bearer token. A missing, weak, or
+// placeholder secret rejects every request instead of opening the endpoint,
+// and the comparison is constant-time (same contract as the license outbox).
 function isAuthorized(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret) return true;
-
-  const header = request.headers.get("authorization");
-  return header === `Bearer ${secret}`;
+  return isAuthorizedInternalWorker(
+    request,
+    optionalStrongInternalSecret(process.env.CRON_SECRET),
+  );
 }
 
 export async function GET(request: Request) {

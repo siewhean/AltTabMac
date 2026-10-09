@@ -96,9 +96,6 @@ export default function ChangelogPage() {
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={productFacts.reviewedAt} />
-          <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="ghost">
-            Review commit history
-          </Button>
         </div>
         <section className="surface-panel mb-6 p-7" aria-labelledby="stable-release-heading">
           <p className="type-eyebrow text-cyan">Stable release</p>

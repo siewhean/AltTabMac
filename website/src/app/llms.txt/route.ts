@@ -23,7 +23,6 @@ export async function GET() {
 - Minimum system: ${productFacts.minimumMacOS}
 - Trial: ${productFacts.trialLength}
 - License: ${productFacts.licenseModel}
-- Source: ${productFacts.sourceRepository}
 - Product facts reviewed: ${productFacts.reviewedAt}
 
 ## HD product showcase

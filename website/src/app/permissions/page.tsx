@@ -99,9 +99,6 @@ export default function PermissionsPage() {
         </div>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button href="/privacy">Read the complete privacy disclosure</Button>
-          <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="secondary">
-            Verify the implementation
-          </Button>
         </div>
       </SectionShell>
 

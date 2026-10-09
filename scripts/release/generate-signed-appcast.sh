@@ -45,9 +45,11 @@ GENERATE_ARGUMENTS=(
   --maximum-versions 3
   "${TEMP_ROOT}"
 )
-if [[ "${CHANNEL}" == "beta" ]]; then
-  GENERATE_ARGUMENTS+=(--channel beta)
-elif [[ "${CHANNEL}" != "stable" ]]; then
+# Beta and stable publish separate feeds (releases/beta/appcast.xml and
+# releases/appcast.xml), so items use Sparkle's default channel. A
+# <sparkle:channel> tag would hide every item from clients, because the app
+# never opts into named channels via allowedChannels(for:).
+if [[ "${CHANNEL}" != "beta" && "${CHANNEL}" != "stable" ]]; then
   echo "Manifest channel must be beta or stable." >&2
   exit 1
 fi

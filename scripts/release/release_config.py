@@ -147,54 +147,79 @@ def plist_for(
     trial_keyring = trial_public_keyring_from_environment() if include_environment_key else None
     if trial_keyring is not None:
         plist["CmdTabTrialPublicKeyring"] = trial_keyring
+    # Paid activations return CMDTAB2 entitlements the app can only verify
+    # with the embedded license keyring; without it every activation would
+    # consume a server device slot and then fail locally with unknownKey.
+    license_keyring = license_public_keyring_from_environment() if include_environment_key else None
+    if license_keyring is not None:
+        plist["CmdTabLicensePublicKeyring"] = license_keyring
+    elif include_environment_key and config["commerceEnabled"]:
+        raise SystemExit(
+            "commerceEnabled requires CMDTAB_LICENSE_PUBLIC_KEYRING_JSON and "
+            "CMDTAB_LICENSE_SIGNING_KID so paid entitlements can be verified"
+        )
     return plist
 
 
-def validate_trial_public_keyring(raw: str, signing_kid: str) -> dict[str, str]:
-    """Accept only a non-empty public P-256 keyring containing the active kid."""
+def validate_public_keyring(raw: str, signing_kid: str, kind: str) -> dict[str, str]:
+    """Accept only a non-empty public P-256 keyring containing the active kid.
+
+    `kind` is "TRIAL" or "LICENSE" and names the environment variables.
+    """
+    keyring_var = f"CMDTAB_{kind}_PUBLIC_KEYRING_JSON"
+    kid_var = f"CMDTAB_{kind}_SIGNING_KID"
     if not KEY_ID_PATTERN.fullmatch(signing_kid):
-        raise SystemExit("CMDTAB_TRIAL_SIGNING_KID must be a valid key identifier")
+        raise SystemExit(f"{kid_var} must be a valid key identifier")
     try:
         decoded = json.loads(raw)
     except json.JSONDecodeError as error:
-        raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must be a JSON object") from error
+        raise SystemExit(f"{keyring_var} must be a JSON object") from error
     if not isinstance(decoded, dict) or not decoded:
-        raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must be a non-empty JSON object")
+        raise SystemExit(f"{keyring_var} must be a non-empty JSON object")
 
     keyring: dict[str, str] = {}
     for kid, encoded_key in decoded.items():
         if not isinstance(kid, str) or not KEY_ID_PATTERN.fullmatch(kid):
-            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains an invalid key identifier")
+            raise SystemExit(f"{keyring_var} contains an invalid key identifier")
         if not isinstance(encoded_key, str):
-            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains a non-string key")
+            raise SystemExit(f"{keyring_var} contains a non-string key")
         try:
             key = base64.b64decode(encoded_key, validate=True)
         except ValueError as error:
-            raise SystemExit("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON contains invalid base64") from error
+            raise SystemExit(f"{keyring_var} contains invalid base64") from error
         if (
             base64.b64encode(key).decode("ascii") != encoded_key
             or len(key) != P256_SPKI_LENGTH
             or not key.startswith(P256_SPKI_PREFIX)
         ):
-            raise SystemExit(
-                "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must contain canonical P-256 SPKI public keys"
-            )
+            raise SystemExit(f"{keyring_var} must contain canonical P-256 SPKI public keys")
         keyring[kid] = encoded_key
     if signing_kid not in keyring:
-        raise SystemExit(
-            "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must contain CMDTAB_TRIAL_SIGNING_KID"
-        )
+        raise SystemExit(f"{keyring_var} must contain {kid_var}")
     return keyring
 
 
-def trial_public_keyring_from_environment() -> dict[str, str] | None:
-    raw = os.environ.get("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON", "").strip()
+def validate_trial_public_keyring(raw: str, signing_kid: str) -> dict[str, str]:
+    return validate_public_keyring(raw, signing_kid, "TRIAL")
+
+
+def public_keyring_from_environment(kind: str) -> dict[str, str] | None:
+    raw = os.environ.get(f"CMDTAB_{kind}_PUBLIC_KEYRING_JSON", "").strip()
     if not raw:
         return None
-    return validate_trial_public_keyring(
+    return validate_public_keyring(
         raw,
-        os.environ.get("CMDTAB_TRIAL_SIGNING_KID", "").strip(),
+        os.environ.get(f"CMDTAB_{kind}_SIGNING_KID", "").strip(),
+        kind,
     )
+
+
+def trial_public_keyring_from_environment() -> dict[str, str] | None:
+    return public_keyring_from_environment("TRIAL")
+
+
+def license_public_keyring_from_environment() -> dict[str, str] | None:
+    return public_keyring_from_environment("LICENSE")
 
 
 def render(config: dict[str, Any], output: Path) -> None:
