@@ -17,6 +17,12 @@ final class FocusedWindowHistoryObserver {
             .fromOpaque(refcon)
             .takeUnretainedValue()
         instance.scheduleReconcile(pid: pid, attempt: 0, newGeneration: true)
+        // Lets the switcher refresh its cached frontmost identity off the main
+        // thread so opening it never needs a synchronous AX walk.
+        NotificationCenter.default.post(
+            name: AppSwitcher.frontmostFocusDidChangeNotification,
+            object: nil
+        )
     }
 
     private let history: SwitcherHistoryStore

@@ -72,6 +72,9 @@ final class AppSwitcher: NSObject {
     // blocks on a pending thumbnail capture — it returns stale data instantly
     // and the UI updates when onItemsChanged fires.
     private let buildQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Build", qos: .userInitiated)
+    /// Serial queue for frontmost-window AX walks kept off the main thread.
+    private let frontmostQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Frontmost", qos: .userInitiated)
+    let frontmostCache = FrontmostIdentityCache()
     private var _cachedItems: [SwitcherItem] = []
     private var previewCache: [String: PreviewCacheEntry] = [:]
     private let cacheLock = NSLock()
@@ -131,6 +134,11 @@ final class AppSwitcher: NSObject {
             self, selector: #selector(preferencesChanged),
             name: SwitcherPreferences.didChangeNotification, object: nil
         )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(frontmostFocusChanged),
+            name: Self.frontmostFocusDidChangeNotification, object: nil
+        )
+        refreshFrontmostIdentityInBackground()
 
         // Warm cache asynchronously. Do NOT wait — getItems() will return whatever
         // is currently cached (empty on first call, but refreshCacheIfNeeded will
@@ -149,10 +157,16 @@ final class AppSwitcher: NSObject {
         }
 
         noteObservedActivation(for: app)
+        refreshFrontmostIdentityInBackground()
         warmCache(force: true)
     }
 
-    @objc private func workspaceChanged() { warmCache(force: true) }
+    @objc private func frontmostFocusChanged() { refreshFrontmostIdentityInBackground() }
+
+    @objc private func workspaceChanged() {
+        refreshFrontmostIdentityInBackground()
+        warmCache(force: true)
+    }
     @objc private func preferencesChanged() { warmCache(force: true) }
 
     private func noteObservedActivation(for app: NSRunningApplication, attempt: Int = 0) {
@@ -172,11 +186,17 @@ final class AppSwitcher: NSObject {
                 return
             }
 
-            let identity = self.currentFrontmostIdentity(for: frontmost) ?? fallbackIdentity
-            self.history.noteActivation(identity)
+            // The AX walk runs off the main thread; history is thread-safe.
+            self.frontmostQueue.async { [weak self] in
+                guard let self else { return }
+                let identity = self.currentFrontmostIdentity(for: frontmost) ?? fallbackIdentity
+                self.history.noteActivation(identity)
 
-            if case .appFallback = identity, attempt < self.observedActivationRetryLimit {
-                self.noteObservedActivation(for: frontmost, attempt: attempt + 1)
+                if case .appFallback = identity, attempt < self.observedActivationRetryLimit {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.noteObservedActivation(for: frontmost, attempt: attempt + 1)
+                    }
+                }
             }
         }
     }
@@ -349,11 +369,42 @@ final class AppSwitcher: NSObject {
         return snapshot
     }
 
+    static let frontmostFocusDidChangeNotification = Notification.Name(
+        "CmdTab.AppSwitcher.frontmostFocusDidChange"
+    )
+
+    /// Identity of the frontmost window. Opening the switcher calls this
+    /// several times; the answer comes from a cache refreshed off the main
+    /// thread on every activation and focus change, because computing it walks
+    /// the frontmost app over synchronous Accessibility IPC. The cache is used
+    /// only when it is for the current frontmost process and no newer focus
+    /// event is still being processed; otherwise the exact synchronous lookup
+    /// runs, so a stale identity can never mark the wrong window as current.
     func currentFrontmostIdentity() -> SwitcherHistoryIdentity? {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.activationPolicy == .regular,
               app.bundleIdentifier != Bundle.main.bundleIdentifier else { return nil }
+        if let cached = frontmostCache.validIdentity(for: app.processIdentifier) {
+            return cached.identity
+        }
         return currentFrontmostIdentity(for: app)
+    }
+
+    /// Recomputes the frontmost identity on a background queue.
+    func refreshFrontmostIdentityInBackground() {
+        let generation = frontmostCache.beginRefresh()
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.activationPolicy == .regular,
+              app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        frontmostQueue.async { [weak self] in
+            guard let self else { return }
+            let identity = self.currentFrontmostIdentity(for: app)
+            self.frontmostCache.finishRefresh(
+                generation: generation,
+                pid: app.processIdentifier,
+                identity: identity
+            )
+        }
     }
 
     @discardableResult
