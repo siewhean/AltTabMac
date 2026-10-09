@@ -136,10 +136,12 @@ export async function upsertWaitlistSubmission(input: {
       ${"stored"},
       ${null}
     )
+    -- Repeat signups keep first-touch attribution: the original source and
+    -- metadata are never overwritten, and a missing name never erases one.
     on conflict (email) do update set
-      name = excluded.name,
-      source = excluded.source,
-      metadata = excluded.metadata,
+      name = coalesce(excluded.name, waitlist_signups.name),
+      source = coalesce(waitlist_signups.source, excluded.source),
+      metadata = coalesce(waitlist_signups.metadata, excluded.metadata),
       request_id = excluded.request_id,
       notification_status = 'stored',
       notification_error = null,
