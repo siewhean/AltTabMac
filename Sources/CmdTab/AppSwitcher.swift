@@ -859,16 +859,18 @@ final class AppSwitcher: NSObject {
             }
         }
 
-        return screenFrame(containing: CGRect(origin: NSEvent.mouseLocation, size: .zero))
+        return screenFrame(
+            containing: CGRect(origin: DisplayGeometry.mouseLocationInCG(), size: .zero)
+        )
     }
 
+    /// Window bounds are CG global coordinates, so match them against CG
+    /// display bounds (not AppKit `NSScreen` frames) and return CG bounds.
     private func screenFrame(containing rect: CGRect) -> CGRect? {
-        let point = NSPoint(x: rect.midX, y: rect.midY)
-        if let containing = NSScreen.screens.first(where: { $0.frame.contains(point) }) {
-            return containing.frame
-        }
-
-        return NSScreen.screens.first(where: { $0.frame.intersects(rect) })?.frame
+        DisplayGeometry.screenFrame(
+            containing: rect,
+            displayBounds: DisplayGeometry.activeDisplayBounds()
+        )
     }
 
     // MARK: - Identity helpers
