@@ -139,13 +139,9 @@ def main() -> None:
         "HotkeyStateModels.swift",
     )
 
-    package = read("Package.swift")
-    for literal in (
-        'exclude: [',
-        '"HotkeyManager.swift"',
-        "ProfileHotkeyManager",
-    ):
-        require(package, literal, "Package.swift")
+    # The retired permissive legacy router is deleted, not merely excluded.
+    if (ROOT / "Sources/CmdTab/HotkeyManager.swift").exists():
+        fail("the retired legacy HotkeyManager.swift must not return")
 
     hot_swap_policy = read("Sources/CmdTab/AlternateTriggerProductionPolicy.swift")
     for literal in (

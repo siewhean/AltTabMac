@@ -18,13 +18,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle")
             ],
-            path: "Sources/CmdTab",
-            exclude: [
-                // The production app uses ProfileHotkeyManager. Shared state
-                // models now live in HotkeyStateModels.swift so the retired
-                // legacy router cannot reintroduce permissive modifier taps.
-                "HotkeyManager.swift"
-            ]
+            path: "Sources/CmdTab"
         ),
         .testTarget(
             name: "CmdTabTests",

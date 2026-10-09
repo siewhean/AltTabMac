@@ -9,11 +9,11 @@ final class PaletteSearchTests: XCTestCase {
             makeItem(windowTitle: "Slack", appName: "Slack", appID: "com.tinyspeck.slackmacgap", identity: .appWindow(pid: 303, windowID: 3)),
         ]
 
-        let ssResults = SwitcherWindowController.paletteFilteredItems(items, query: "ss").map(\.subtitle)
+        let ssResults = PaletteSearch.rankedItems(items, query: "ss").map(\.subtitle)
         XCTAssertEqual(ssResults.first, "System Settings")
         XCTAssertTrue(ssResults.contains("Safari"))
 
-        let slResults = SwitcherWindowController.paletteFilteredItems(items, query: "sl").map(\.subtitle)
+        let slResults = PaletteSearch.rankedItems(items, query: "sl").map(\.subtitle)
         XCTAssertEqual(slResults.first, "Slack")
     }
 
@@ -32,7 +32,7 @@ final class PaletteSearchTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems([mimestream, codex], query: "codex").map(\.subtitle),
+            PaletteSearch.rankedItems([mimestream, codex], query: "codex").map(\.subtitle),
             ["OpenAI Codex"]
         )
     }
@@ -52,7 +52,7 @@ final class PaletteSearchTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems([antiGravity, notebook], query: "AntiGravity").first?.subtitle,
+            PaletteSearch.rankedItems([antiGravity, notebook], query: "AntiGravity").first?.subtitle,
             "Anti Gravity Agent"
         )
     }
@@ -72,7 +72,7 @@ final class PaletteSearchTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems([chrome, chat], query: "ch").map(\.subtitle),
+            PaletteSearch.rankedItems([chrome, chat], query: "ch").map(\.subtitle),
             ["Google Chrome", "Chat"]
         )
     }
@@ -91,7 +91,7 @@ final class PaletteSearchTests: XCTestCase {
             identity: .appWindow(pid: 202, windowID: 2)
         )
 
-        let remembered = SwitcherWindowController.paletteFilteredItems(
+        let remembered = PaletteSearch.rankedItems(
             [chrome, chat],
             query: "ch",
             rememberedStableKey: chat.historyIdentity.stableKey

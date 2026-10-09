@@ -228,23 +228,23 @@ final class SwitcherOrderingTests: XCTestCase {
         ]
 
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "calendar").first?.title,
+            PaletteSearch.rankedItems(items, query: "calendar").first?.title,
             "Calendar"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "system").first?.title,
+            PaletteSearch.rankedItems(items, query: "system").first?.title,
             "System Settings"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "settings").first?.title,
+            PaletteSearch.rankedItems(items, query: "settings").first?.title,
             "System Settings"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "notes").first?.title,
+            PaletteSearch.rankedItems(items, query: "notes").first?.title,
             "Notes"
         )
         XCTAssertEqual(
-            SwitcherWindowController.paletteFilteredItems(items, query: "").map(\.title),
+            PaletteSearch.rankedItems(items, query: "").map(\.title),
             items.map(\.title)
         )
     }
