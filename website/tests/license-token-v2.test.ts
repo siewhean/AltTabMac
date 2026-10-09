@@ -247,6 +247,46 @@ test("trial KMS configuration and signer have no paid-license dependency", () =>
   });
   assert.equal(getTrialTokenSigner(trialOnly).kid, "trial-2026-01");
   assert.throws(() => loadCmdTabKmsSigningConfiguration(trialOnly));
+  // Per-kind loaders still refuse a shared key or kid when both are present.
+  assert.throws(() =>
+    loadTrialKmsSigningConfiguration({
+      ...trialOnly,
+      CMDTAB_LICENSE_KMS_KEY_ID: "trial-key",
+    }),
+  );
+  assert.throws(() =>
+    loadTrialKmsSigningConfiguration({
+      ...trialOnly,
+      CMDTAB_LICENSE_SIGNING_KID: "trial-2026-01",
+    }),
+  );
+});
+
+test("KMS signer refuses keys that do not match the published keyring", async () => {
+  const kms = signingMaterials();
+  const other = signingMaterials();
+  const client: AwsKmsP256Client = {
+    async sign() {
+      return { Signature: new Uint8Array([1]) };
+    },
+    async getPublicKey() {
+      return {
+        PublicKey: kms.publicKeyDer,
+        KeyUsage: "SIGN_VERIFY",
+        SigningAlgorithms: [AWS_KMS_P256_SIGNING_ALGORITHM],
+      };
+    },
+  };
+  const matching = new AwsKmsP256Signer(
+    "license-kid", "key", client, kms.publicKeyDer.toString("base64"),
+  );
+  assert.deepEqual(await matching.getPublicKeyDer(), kms.publicKeyDer);
+  const mismatched = new AwsKmsP256Signer(
+    "license-kid", "key", client, other.publicKeyDer.toString("base64"),
+  );
+  await assert.rejects(mismatched.sign(Buffer.from("x")), /does not match/);
+  const unpublished = new AwsKmsP256Signer("license-kid", "key", client, null);
+  await assert.rejects(unpublished.sign(Buffer.from("x")), /No published public key/);
 });
 
 test("local route signer and public keyrings are explicit and hermetic", async () => {

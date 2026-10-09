@@ -121,6 +121,17 @@ function loadKmsSignerConfiguration(
   if (!validKid(configuration.key.kid)) {
     throw new Error("Signing kid contains unsupported characters.");
   }
+  // Trial issuance must not depend on paid configuration, but when both are
+  // configured they must never share a key or kid.
+  const otherPrefix = kind === "trial" ? "CMDTAB_LICENSE" : "CMDTAB_TRIAL";
+  const otherKeyId = env[`${otherPrefix}_KMS_KEY_ID`]?.trim();
+  const otherKid = env[`${otherPrefix}_SIGNING_KID`]?.trim();
+  if (
+    (otherKeyId && otherKeyId === configuration.key.keyId) ||
+    (otherKid && otherKid === configuration.key.kid)
+  ) {
+    throw new Error("Trial and license signing keys and kids must be separate.");
+  }
   return configuration;
 }
 
@@ -203,10 +214,16 @@ export function loadTrialPublicKeyring(
 export class AwsKmsP256Signer implements P256TokenSigner {
   private validatedPublicKeyDer?: Promise<Buffer>;
 
+  /**
+   * `publishedPublicKeyDerBase64` is the keyring entry the app will verify
+   * with: a string is compared before the first signature, `null` means it is
+   * required but missing (signing fails closed), `undefined` skips the check.
+   */
   constructor(
     readonly kid: string,
     private readonly keyId: string,
     private readonly client: AwsKmsP256Client,
+    private readonly publishedPublicKeyDerBase64?: string | null,
   ) {}
 
   async sign(message: Buffer) {
@@ -248,6 +265,17 @@ export class AwsKmsP256Signer implements P256TokenSigner {
       publicKey.asymmetricKeyDetails?.namedCurve !== "prime256v1"
     ) {
       throw new Error("AWS KMS key must use the P-256 curve.");
+    }
+    if (this.publishedPublicKeyDerBase64 === null) {
+      throw new Error(`No published public key for signing kid ${this.kid}.`);
+    }
+    if (
+      this.publishedPublicKeyDerBase64 !== undefined &&
+      !publicKeyDer.equals(Buffer.from(this.publishedPublicKeyDerBase64, "base64"))
+    ) {
+      throw new Error(
+        `AWS KMS public key does not match the published keyring entry for ${this.kid}.`,
+      );
     }
     return publicKeyDer;
   }
@@ -308,10 +336,23 @@ function getTokenSigner(
   const configuration = kind === "trial"
     ? loadTrialKmsSigningConfiguration(env)
     : loadLicenseKmsSigningConfiguration(env);
+  const keyringName =
+    kind === "trial"
+      ? "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON"
+      : "CMDTAB_LICENSE_PUBLIC_KEYRING_JSON";
+  const keyringJson = env[keyringName]?.trim();
+  // Never sign with a key the shipped app cannot verify: production requires
+  // the KMS key to match its published keyring entry.
+  const published = keyringJson
+    ? (parsePublicKeyring(keyringJson, keyringName)[configuration.key.kid] ?? null)
+    : env.VERCEL_ENV === "production"
+      ? null
+      : undefined;
   return new AwsKmsP256Signer(
     configuration.key.kid,
     configuration.key.keyId,
     productionKmsClient(configuration, env),
+    published,
   );
 }
 

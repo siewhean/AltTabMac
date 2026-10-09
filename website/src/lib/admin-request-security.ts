@@ -25,7 +25,12 @@ export function isSameOriginAdminMutation(
   const expectedUrlOrigin = normalizedOrigin(request.url);
   const expectedConfiguredOrigin = trustedOrigin ? normalizedOrigin(trustedOrigin) : null;
 
-  const matchesUrl = Boolean(expectedUrlOrigin && normalizedReqOrigin === expectedUrlOrigin);
+  // The request's own origin is only a convenience for local development. In
+  // production a deployment also answers on aliases (e.g. *.vercel.app), so
+  // only the configured canonical origin is trusted.
+  const matchesUrl =
+    process.env.NODE_ENV !== "production" &&
+    Boolean(expectedUrlOrigin && normalizedReqOrigin === expectedUrlOrigin);
   const matchesConfigured = Boolean(
     expectedConfiguredOrigin && normalizedReqOrigin === expectedConfiguredOrigin,
   );
