@@ -1,6 +1,6 @@
 # CmdTab
 
-**Current status (2026-10-10).** `main` is at `7d0c9ef5` (merge of PR #69). PRs #63–#69 merged on 2026-10-09; results below are each PR's own reported checks, not re-run for this note:
+**Current status (2026-10-10).** Covers `main` through `7d0c9ef5` (merge of PR #69); later merges are not summarized here. PRs #63–#69 merged on 2026-10-09; results below are each PR's own reported checks, not re-run for this note:
 
 - #63 prerenders 33 marketing routes for CDN caching. Static pages use a static CSP (`'self'` plus `'unsafe-inline'` scripts); `/dashboard` keeps the per-request nonce policy.
 - #64 adds a waitlist privacy notice and HMAC-signed one-click unsubscribe (RFC 8058 headers; GET never deletes).
