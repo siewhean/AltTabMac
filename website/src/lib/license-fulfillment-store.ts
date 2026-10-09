@@ -119,6 +119,13 @@ async function ensureSchema() {
       add column if not exists license_lookup_hash text,
       add column if not exists email_lookup_hash text
       , add column if not exists activation_credential_hash text
+      , add column if not exists credential_generation integer not null default 0
+  `;
+  // Activation codes are derived on demand (deriveActivationCredential); drop
+  // any plaintext codes or legacy tokens persisted by earlier releases.
+  await sql`
+    update license_fulfillments set license_token = '', updated_at = now()
+    where license_token <> ''
   `;
 
   schemaReady = true;
@@ -236,7 +243,13 @@ export async function createOrGetLicenseFulfillment(input: {
         order_lookup_hash = coalesce(license_fulfillments.order_lookup_hash, excluded.order_lookup_hash),
         license_lookup_hash = coalesce(license_fulfillments.license_lookup_hash, excluded.license_lookup_hash),
         email_lookup_hash = coalesce(license_fulfillments.email_lookup_hash, excluded.email_lookup_hash),
-        activation_credential_hash = coalesce(license_fulfillments.activation_credential_hash, excluded.activation_credential_hash),
+        -- Until delivery, the derived code in the outgoing email must match the
+        -- stored hash; afterwards keep whatever the customer already holds.
+        activation_credential_hash = case
+          when license_fulfillments.delivery_status = 'delivered'
+            then coalesce(license_fulfillments.activation_credential_hash, excluded.activation_credential_hash)
+          else excluded.activation_credential_hash
+        end,
         purchaser_name = coalesce(license_fulfillments.purchaser_name, excluded.purchaser_name),
         product_name = coalesce(license_fulfillments.product_name, excluded.product_name),
         variant_name = coalesce(license_fulfillments.variant_name, excluded.variant_name),

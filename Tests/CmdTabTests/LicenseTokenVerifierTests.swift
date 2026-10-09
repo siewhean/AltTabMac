@@ -6,31 +6,51 @@ import XCTest
 final class LicenseTokenVerifierTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    func testV2PaidLicenseVerifiesOfflineWithoutExpiry() throws {
+    func testV2PaidLicenseIsAThirtyDayRenewableLease() throws {
         let key = P256.Signing.PrivateKey()
+        let issuedAt = Int64(now.timeIntervalSince1970)
         let payload = makeV2Payload(
             kid: "license-2026-01",
             typ: .license,
             bindingType: .activation,
             bindingValue: "activation-secret",
-            issuedAt: Int64(now.timeIntervalSince1970),
-            expiresAt: nil
+            issuedAt: issuedAt,
+            expiresAt: issuedAt + LicenseTokenVerifier.licenseLeaseSeconds
         )
         let token = try signV2(payload, with: key)
         let verifier = makeVerifier(kid: payload.kid, key: key)
-
-        let result = try verifier.verify(
-            token,
-            context: LicenseTokenVerificationContext(
+        func context(daysLater: Double, allowExpired: Bool = false) -> LicenseTokenVerificationContext {
+            LicenseTokenVerificationContext(
                 expectedType: .license,
                 expectedBinding: (.activation, "activation-secret"),
-                now: now.addingTimeInterval(10 * 365 * 24 * 60 * 60)
+                now: now.addingTimeInterval(daysLater * 24 * 60 * 60),
+                allowExpired: allowExpired
             )
+        }
+
+        XCTAssertEqual(try verifier.verify(token, context: context(daysLater: 29)), .tokenV2(payload))
+        XCTAssertThrowsError(try verifier.verify(token, context: context(daysLater: 30))) {
+            XCTAssertEqual($0 as? LicenseTokenVerificationError, .expired)
+        }
+        // Renewal may authenticate a lapsed lease; it never grants access.
+        XCTAssertEqual(
+            try verifier.verify(token, context: context(daysLater: 400, allowExpired: true)),
+            .tokenV2(payload)
         )
 
-        XCTAssertEqual(result, .tokenV2(payload))
-        XCTAssertEqual(payload.updates, "1.x")
-        XCTAssertNil(payload.exp)
+        let perpetual = makeV2Payload(
+            kid: "license-2026-01",
+            typ: .license,
+            bindingType: .activation,
+            bindingValue: "activation-secret",
+            issuedAt: issuedAt,
+            expiresAt: nil
+        )
+        XCTAssertThrowsError(
+            try verifier.verify(try signV2(perpetual, with: key), context: context(daysLater: 1))
+        ) {
+            XCTAssertEqual($0 as? LicenseTokenVerificationError, .invalidClaims)
+        }
     }
 
     func testV2TrialRequiresExactFourteenDayExpiryAndInstallBinding() throws {

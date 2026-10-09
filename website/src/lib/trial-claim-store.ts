@@ -6,6 +6,7 @@ type TrialClaimRow = {
   id: string;
   email: string;
   install_id: string;
+  hardware_id?: string | null;
   app_version: string | null;
   os_version: string | null;
   started_at: string;
@@ -70,7 +71,12 @@ async function ensureSchema() {
 
   await sql`
     alter table trial_claims
-    add column if not exists reminder_sent_at timestamptz
+    add column if not exists reminder_sent_at timestamptz,
+    add column if not exists hardware_id text
+  `;
+  await sql`
+    create unique index if not exists trial_claims_hardware_idx
+    on trial_claims (hardware_id) where hardware_id is not null
   `;
 
   schemaReady = true;
@@ -95,6 +101,7 @@ function mapRow(row: TrialClaimRow): TrialClaim {
 export async function createOrGetTrialClaim(input: {
   email: string;
   installId: string;
+  hardwareId?: string;
   appVersion?: string;
   osVersion?: string;
   trialLengthDays: number;
@@ -105,6 +112,7 @@ export async function createOrGetTrialClaim(input: {
   const now = input.now ?? new Date();
   const normalizedEmail = input.email.trim().toLowerCase();
   const installId = input.installId.trim();
+  const hardwareId = input.hardwareId?.trim() || null;
 
   const [existingByEmail] = await sql<TrialClaimRow[]>`
     select *
@@ -119,7 +127,43 @@ export async function createOrGetTrialClaim(input: {
     limit 1
   `;
 
+  // A Mac that already had a trial keeps that trial's original dates even
+  // after its Keychain identity is reset: rebind the claim to the new install.
+  if (hardwareId) {
+    const [existingByHardware] = await sql<TrialClaimRow[]>`
+      select *
+      from trial_claims
+      where hardware_id = ${hardwareId}
+      limit 1
+    `;
+    if (existingByHardware) {
+      if (existingByHardware.install_id === installId) {
+        return { kind: "existing", claim: mapRow(existingByHardware) };
+      }
+      if (existingByInstall) {
+        return {
+          kind: "blocked",
+          reason: "install_already_registered",
+          claim: mapRow(existingByInstall),
+        };
+      }
+      const [rebound] = await sql<TrialClaimRow[]>`
+        update trial_claims
+        set install_id = ${installId}, updated_at = now()
+        where id = ${existingByHardware.id}
+        returning *
+      `;
+      return { kind: "existing", claim: mapRow(rebound) };
+    }
+  }
+
   if (existingByEmail && existingByEmail.install_id === installId) {
+    if (hardwareId && !existingByEmail.hardware_id) {
+      await sql`
+        update trial_claims set hardware_id = ${hardwareId}, updated_at = now()
+        where id = ${existingByEmail.id} and hardware_id is null
+      `;
+    }
     return { kind: "existing", claim: mapRow(existingByEmail) };
   }
 
@@ -147,6 +191,7 @@ export async function createOrGetTrialClaim(input: {
       id,
       email,
       install_id,
+      hardware_id,
       app_version,
       os_version,
       started_at,
@@ -156,6 +201,7 @@ export async function createOrGetTrialClaim(input: {
       ${randomUUID()},
       ${normalizedEmail},
       ${installId},
+      ${hardwareId},
       ${input.appVersion?.trim() || null},
       ${input.osVersion?.trim() || null},
       ${startedAt},

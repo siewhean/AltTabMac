@@ -35,7 +35,7 @@ function signingMaterials() {
   };
 }
 
-test("token v2 hashes identifiers, binds activation, and remains offline-valid", async () => {
+test("token v2 hashes identifiers, binds activation, and is a 30-day renewable lease", async () => {
   const materials = signingMaterials();
   const signer = new LocalPemP256Signer("license-2026-01", materials.privateKeyPem);
   const issued = await issueCmdTabTokenV2({
@@ -51,7 +51,7 @@ test("token v2 hashes identifiers, binds activation, and remains offline-valid",
   assert.equal(issued.payload.aud, "cmdtab");
   assert.equal(issued.payload.typ, "license");
   assert.equal(issued.payload.updates, "1.x");
-  assert.equal(issued.payload.exp, undefined);
+  assert.equal(issued.payload.exp, issued.payload.iat + 30 * 24 * 60 * 60);
   assert.equal(issued.payload.sub.length, 64);
   assert.equal(issued.payload.order.length, 64);
   assert.equal(issued.token.includes("Owner@Example.com"), false);
@@ -62,10 +62,29 @@ test("token v2 hashes identifiers, binds activation, and remains offline-valid",
     keyring: { [signer.kid]: materials.publicKeyDer },
     expectedType: "license",
     expectedBinding: { typ: "activation", value: "device-secret" },
-    now: new Date("2036-07-27T00:00:00Z"),
+    now: new Date("2026-08-25T00:00:00Z"),
   });
   assert.equal(verified?.tokenVersion, 2);
   assert.equal(verified?.kind, "license");
+  const lapsed = {
+    token: issued.token,
+    keyring: { [signer.kid]: materials.publicKeyDer },
+    expectedType: "license" as const,
+    expectedBinding: { typ: "activation" as const, value: "device-secret" },
+    now: new Date("2026-08-26T00:00:01Z"),
+  };
+  assert.equal(verifyCmdTabTokenV2(lapsed), null, "a lapsed lease grants nothing");
+  const { exp: _omitted, ...perpetual } = issued.payload;
+  assert.equal(
+    validateCmdTabTokenV2Payload(perpetual),
+    null,
+    "perpetual paid tokens are no longer accepted",
+  );
+  assert.equal(
+    verifyCmdTabTokenV2({ ...lapsed, allowExpired: true })?.kind,
+    "license",
+    "renewal may still authenticate a lapsed lease",
+  );
   assert.equal(
     verifyCmdTabTokenV2({
       token: issued.token,
