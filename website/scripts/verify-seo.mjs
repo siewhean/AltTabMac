@@ -181,6 +181,11 @@ assert.ok(appVersion && appBuild && minimumSystem, "could not read packaged app 
 assert.match(productFacts, new RegExp(`currentVersion:\\s*"${appVersion.replaceAll(".", "\\.")}"`), "public version must match Info.plist");
 assert.match(productFacts, new RegExp(`buildNumber:\\s*"${appBuild}"`), "public build must match Info.plist");
 assert.match(productFacts, new RegExp(`macOS ${minimumSystem.replaceAll(".", "\\.")}`), "public minimum macOS must match Info.plist");
+const faqMinimums = [...faq.matchAll(/macOS (\d+\.\d+)/g)].map((match) => match[1]);
+assert.ok(faqMinimums.length > 0, "FAQ must state the minimum macOS version");
+for (const version of faqMinimums) {
+  assert.equal(version, minimumSystem, `FAQ macOS ${version} must match Info.plist minimum ${minimumSystem}`);
+}
 
 const evidence = read("src/content/evidence.ts");
 const evidencePage = read("src/app/evidence/page.tsx");
