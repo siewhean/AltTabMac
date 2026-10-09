@@ -1,36 +1,33 @@
 # CmdTab
 
-Current implementation (2026-09-27): complete inventory publication, minimized-window inclusion for this installation’s global/standard profiles, explicit preview states, identity-validated saved previews, and bounded thumbnail/recovery storage are implemented. **343 XCTest + 2 Swift Testing tests pass**; independent scoped QA reports zero unresolved P0/P1/P2 findings. The verified universal local build is installed at `/Users/Siew Hean/Applications/CmdTab.app` (executable SHA256 `53ac23c2c8b55ab14227daa7734f56803376f7746a3a9308d3e26d37056c3100`). Launch-at-login was disabled on the repository copy and enabled on this persistent copy. Final permission authorization currently awaits the user’s Touch ID/password; identical-binary restart and live all-window acceptance are **not yet verified**. This host now runs macOS27.2 (26B5091g), so prior26.6 geometry results are historical. Ad-hoc signatures change on rebuild; no certificate-backed signing identity is installed, so future-build permission continuity is not established. See [current evidence](tasks/window-coverage-2026-09-27.md).
+**Current status (2026-10-10).** `main` is at `7d0c9ef5` (merge of PR #69). PRs #63–#69 merged on 2026-10-09; results below are each PR's own reported checks, not re-run for this note:
 
-Historical device results follow; they do not describe the newly installed build.
+- #63 prerenders 33 marketing routes for CDN caching. Static pages use a static CSP (`'self'` plus `'unsafe-inline'` scripts); `/dashboard` keeps the per-request nonce policy.
+- #64 adds a waitlist privacy notice and HMAC-signed one-click unsubscribe (RFC 8058 headers; GET never deletes).
+- #65 hardens licensing (audit H1–H3, M3): paid `CMDTAB2` tokens are a 30-day lease renewed via `/api/license/renew`; release builds accept `CMDTAB1` only as online-activation input; one trial per Mac via a salted hardware hash; activation codes are stored only as hashes.
+- #66 keys rate-limit fingerprints with HMAC, adds image `Cache-Control`, skips placeholder trial-reminder addresses, and discloses the Mac name sent on activation.
+- #67 makes `cmdtab://activate` links prefill the code; nothing changes until the user clicks **Activate** (audit L2).
+- #68 accepts admin mutations only from the configured origin in production (L1) and enforces trial/license KMS key separation plus a published-keyring match before signing (L3).
+- #69 matches windows to displays in Core Graphics coordinates (`DisplayGeometry.swift`) for the current-display filter and selected-window backdrop.
 
-Latest device follow-up (2026-09-25): user-authorized Accessibility grant and removal/re-add of the stale CmdTab Screen Recording entry succeeded. Exact running bundle `/tmp/CmdTab-switcher-QA-20260925.app`, PID17971, reports both permissions **Ready**. Diagnostics: **8 exact windows, 10 app fallbacks, 8 previews, 0 unavailable exact-window previews**. Live practice showed 18 entries; the prior extra Calendar and Chrome helper cards were absent. Minimized-window inclusion remains off; app-only fallbacks intentionally have icons. macOS Quit & Reopen briefly opened another same-identifier checkout; it was stopped and the verified bundle explicitly relaunched.
+Latest reported Swift result: 425 tests pass and `swift build -c release` passes (PR #69). Outstanding, not verified here:
 
-The AppKit geometry fault is **not resolved**: runtime debugging found the native screen-sharing indicator returning `(-1,-1)`, which AppKit applies as a frame size. The same six faults reproduced in a plain AppKit window with no CmdTab/SwiftUI code on macOS26.6 (25G70). Native toolbar and resizable-window probes did not fix it and were discarded. No production workaround or log suppression was added. See [minimal reproduction](Tests/Fixtures/AppKitSharingGeometry/README.md). Overall error-free runtime acceptance remains unmet despite restored permissions and successful current-window previews.
+- Deploy prerequisites named by the PRs: `WAITLIST_UNSUBSCRIBE_SECRET` (#64) and `REQUEST_FINGERPRINT_SECRET` (#66) in Vercel Production. Per #68, production has no KMS signing configuration and still holds `CMDTAB_LICENSE_PRIVATE_KEY_PEM`, which must be removed when KMS is configured.
+- Paid licensing needs an app release that contains #65; older builds reject leased tokens. Commerce remains disabled (`commerceEnabled: false`).
+- Device acceptance requires the user: #69 is not yet checked on real multi-display hardware, and the dedicated-thread event-tap build installed at `~/Applications/CmdTab.app` launches but its live tap behaviour awaits a permission re-grant ([tasks/todo.md](tasks/todo.md), Step 1b). Developer ID signing and notarization remain release gates (see [Production-readiness plan](#production-readiness-plan)).
 
-Latest correction (2026-09-25): unified base/catalog AX eligibility for minimized dialog windows; refresh stale AX inspections immediately before each process’s contiguous CG candidate group while preserving original window order; schedule two bounded thumbnail recovery retries, excluding permission denial and stale process generations. Final source passed **317 XCTest + 2 Swift Testing tests**; independent scoped QA found no unresolved P0/P1/P2 issues. Universal ad-hoc package verification passed. Running corrected local build: `/tmp/CmdTab-switcher-QA-20260925.app` (PID 2386 at launch). At initial launch both permissions were Required; the later authorized follow-up above supersedes that blocker. AppKit screen-sharing-indicator geometry faults also persist. Before replacement, live inspection confirmed minimized-window inclusion was off; Telegram, Reminders and Antigravity had minimized main windows, so their app-only icon entries were expected under that setting. See [current verification](tasks/switcher-remediation-2026-09-25.md). Earlier device results below refer to older builds.
+Last updated: 2026-10-10
+Active task: none in progress in the repository. Next steps are the user-run device checks and deploy configuration above. Earlier device results are condensed in [Device acceptance history](#device-acceptance-history).
 
-Latest device result (2026-09-23): removing the QA Screen Recording permission entry, re-adding `/tmp/CmdTab-thumbnail-final-QA-20260920.app`, and using Quit & Reopen restored authorization. User authenticated the removal. PID 25401 matches the final artifact (4/4 checksums); both permissions report Ready, with 12 previews / 6 unavailable, 18 exact windows / 2 fallbacks. Real thumbnails were visually confirmed for Finder, Arc, Calendar, GitHub Desktop, VS Code and ChatGPT. Remaining icon-only tiles, a Chrome address-bar-suggestion surface, and an extra icon-only Cisco entry still require investigation. Cisco's captured main window and connection dialog are distinct windows, not identical duplicates. Current-process capture-denial logs are absent, but AppKit negative-geometry faults persist. Full device acceptance remains incomplete. Older failed permission attempts below are historical.
-
-Permission retry (2026-09-22): with user authorization, toggled the final QA app's Screen Recording switch off/on and used macOS Quit & Reopen. New PID 73343 runs the same final QA bundle, but refreshed in-app diagnostics still report Screen Recording Required and 0 previewed / 24 unavailable (24 exact, 4 fallbacks); System Settings confirms its toggle is on. This retry did not resolve live acceptance. Removing/re-adding the permission entry has not been performed; repeated-app exact-window validation remains outstanding.
-
-Latest device check: the user-opened final QA bundle (PID 61492) matches all four artifact checksums, but live acceptance **FAILS**. In-app diagnostics report Accessibility Ready, Screen Recording Required, 23 exact windows / 4 fallbacks and 0 previews / 23 unavailable. ScreenCaptureKit logs error -3801 (authorization declined), despite the QA app's System Settings recording toggle showing on. The switcher was reproduced through setup practice: all visible cards were icon-only, with repeated app labels including WhatsApp, Messages, Arc and Cisco. Whether each repeated label represents a legitimate separate window or a spurious surface is not yet established. Current-process AppKit negative-geometry faults were also observed. No permissions were changed; permission reconciliation/relaunch and exact-window duplicate investigation remain required.
-
-Last updated: 2026-09-25
-Active task: AltTab-informed thumbnail recovery integration. Cached frames no longer suppress fresh recovery or renew their capture timestamps. Recovery validates the owning process, preserves image proportions, and uses macOS 26 screenshot capture for ordinary windows and sample buffers for fullscreen windows. Initial AX fullscreen metadata and explicit phase-one recovery suppression avoid wrong-route and unnecessary capture requests. Earlier macOS versions retain the existing recovery API. Upstream behavior was independently implemented, not copied from GPL source. See [audit and verification](tasks/alttab-thumbnail-audit-2026-09-17.md).
-
-Historical verification (2026-09-20): The then-final source passed 308 XCTest tests plus 2 Swift Testing tests, including six new preview-recovery regressions, using Xcode-beta on macOS 26.6. Independent review reports zero unresolved P0/P1/P2 issues in the scoped changes. Existing compiler deprecation warnings remain. Live thumbnail freshness, permissions and cross-Space/fullscreen capture have not been verified for this patch; the running app has not been replaced or relaunched. Previous September 15 permission and Settings negative-geometry findings remain historical evidence, not current runtime results: [previous implementation evidence](tasks/switcher-discovery-implementation-2026-09-15.md).
-
-Historical package (2026-09-20): The thumbnail QA package passed universal arm64/x86_64 bundle and ad-hoc signature verification: `/tmp/CmdTab-thumbnail-final-QA-20260920.app`. This separate local test artifact has not replaced the running app and is not a signed/notarized release.
-
-The P-1 source-of-truth audit is recorded in
+P-1 audit (2026-09-09):
+The source-of-truth audit is recorded in
 [`tasks/audit-repository-identity-2026-09-09.md`](tasks/audit-repository-identity-2026-09-09.md).
 Private AX identity, SkyLight capture, and exact-focus calls are centralized in
 one status-bearing capability provider. Its unavailable exact-focus path is
 recorded as application-only fallback rather than exact MRU success; the
 macOS 14/15 canary procedure remains physical-only evidence.
-It confirms that the active worktree is dirty and behind `origin/main`, so it
-is not a release candidate. Candidate evidence now must bind a clean requested
+It recorded that the then-active worktree was dirty and behind `origin/main`,
+so it was not a release candidate. Candidate evidence now must bind a clean requested
 SHA, branch, release-config hash, artifact hash, command results, and host
 identity. Fresh-user beta entitlement remains blocked until trial-only signing,
 OIDC deployment identity, and the beta trial public keyring are provisioned and
@@ -38,7 +35,7 @@ verified. Public beta explicitly disables commerce presentation; existing
 verified paid entitlements remain honored. Deterministic release CI also runs
 the beta-trial readiness regressions whenever their verifier or KMS source
 changes. The regenerated public-beta matrix labels only repository evidence as
-`PASS (source)`; the current dirty, behind-upstream worktree is explicitly a
+`PASS (source)`; the then-current dirty, behind-upstream worktree is explicitly a
 failed release-candidate row. GitHub has no CmdTab workflow result for that
 candidate SHA, so unrelated successful runs are not represented as CI evidence.
 This host also has no Developer ID identity or CmdTab notary profile, so release
@@ -249,6 +246,17 @@ The permanent SEO workflow also starts the compiled server and runs rendered, we
 Hosted GitHub Actions currently may be rejected before a runner executes because the account has no available Actions capacity. A rejected job has no steps or logs and is not a source failure, but it is also not a CI pass. Any temporary waiver must identify that limitation explicitly and retain executable Vercel or local evidence for the affected commands.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
+
+## Device acceptance history
+
+Superseded status notes, newest first. They describe earlier local builds, not current `main`; full detail is in the linked evidence.
+
+- 2026-09-30 to 2026-10-04: local dirty-tree fixes with retained logs, not release certification: [Finder ghost windows and floating permission setup](docs/qa/evidence/window-permissions-2026-09-30/README.md), [interception fix](docs/qa/evidence/interception-fix-2026-09-30/README.md), [Settings appearing during shortcuts](docs/qa/evidence/settings-shortcut-2026-10-04/README.md).
+- 2026-09-27: complete inventory publication, minimized-window inclusion for this installation's global/standard profiles, explicit preview states and bounded thumbnail storage; 343 XCTest + 2 Swift Testing passed and scoped QA reported no P0/P1/P2. A universal local build was installed at `/Users/Siew Hean/Applications/CmdTab.app` (executable SHA256 `53ac23c2c8b55ab14227daa7734f56803376f7746a3a9308d3e26d37056c3100`); permission authorization was pending and identical-binary restart and live all-window acceptance were **not verified**. The host moved to macOS 27.2 (26B5091g), so 26.6 geometry results are historical. Ad-hoc signatures change on rebuild, so permission continuity across builds is not established. [Evidence](tasks/window-coverage-2026-09-27.md). Observed duplicate-helper and hidden-window cases passed on a later local build: [duplicate windows](tasks/duplicate-windows-2026-09-27.md).
+- 2026-09-25 follow-up: after user-authorized permission changes, `/tmp/CmdTab-switcher-QA-20260925.app` (PID 17971) reported both permissions Ready: 8 exact windows, 10 app fallbacks, 8 previews, 0 unavailable; the extra Calendar and Chrome helper cards were absent. The AppKit geometry fault is **not resolved**: the native screen-sharing indicator returns `(-1,-1)` as a frame size, and the same six faults reproduce in a plain AppKit window without CmdTab on macOS 26.6. No production workaround was added. [Minimal reproduction](Tests/Fixtures/AppKitSharingGeometry/README.md).
+- 2026-09-25 correction: unified minimized-dialog AX eligibility, stale-AX refresh per process group, and two bounded thumbnail recovery retries; 317 XCTest + 2 Swift Testing; universal ad-hoc package verified. [Verification](tasks/switcher-remediation-2026-09-25.md).
+- 2026-09-22 to 09-23: toggling Screen Recording off/on did not restore capture (PID 73343, 0 previews / 24 unavailable); removing and re-adding the entry did (PID 25401, 4/4 checksums, 12 previews / 6 unavailable). Remaining then: icon-only tiles, a Chrome address-bar surface, an extra Cisco entry and AppKit geometry faults. An earlier final-QA check (PID 61492) **failed** live acceptance with Screen Recording Required and ScreenCaptureKit error -3801.
+- 2026-09-17 to 09-20: AltTab-informed thumbnail recovery, independently implemented rather than copied from GPL source; 308 XCTest + 2 Swift Testing on macOS 26.6. `/tmp/CmdTab-thumbnail-final-QA-20260920.app` was a local ad-hoc test artifact, not a signed or notarized release. [Audit](tasks/alttab-thumbnail-audit-2026-09-17.md); [2026-09-15 evidence](tasks/switcher-discovery-implementation-2026-09-15.md).
 
 ## Remaining signed-app acceptance boundary
 
