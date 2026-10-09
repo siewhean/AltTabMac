@@ -316,13 +316,13 @@ final class ProductionProfileEditorModel: ObservableObject {
     func resetDurableMRU() {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Reset durable window history?"
-        alert.informativeText = "This clears restored MRU order only. Profiles, settings, licensing, and current-session order remain intact."
+        alert.messageText = "Reset saved window order?"
+        alert.informativeText = "This forgets the window order CmdTab remembers between launches. Profiles, settings, licensing, and the current session's order are unchanged."
         alert.addButton(withTitle: "Reset")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         SwitcherHistoryStore.shared.resetDurableHistory()
-        statusMessage = "Durable MRU reset."
+        statusMessage = "Saved window order reset."
     }
 
     func setApplicationFilterIdentifiers(_ values: Set<String>) {
@@ -587,7 +587,7 @@ struct ProductionProfilePreferencesView: View {
                 Button("Import…", action: model.importProfiles)
                 Button("Export…", action: model.exportProfiles)
                 Button("Reset Profiles…", role: .destructive, action: model.resetProfiles)
-                Button("Reset Durable MRU…", role: .destructive, action: model.resetDurableMRU)
+                Button("Reset Saved Window Order…", role: .destructive, action: model.resetDurableMRU)
                 Spacer()
             }
             .padding(8)
@@ -819,7 +819,7 @@ private struct ProductionApplicationPicker: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Choose Applications")
                         .font(.title2.weight(.semibold))
-                    Text("The selected bundle identifiers are stored in this profile.")
+                    Text("These apps are saved in this profile.")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()

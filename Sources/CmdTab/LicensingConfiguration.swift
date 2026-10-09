@@ -20,6 +20,14 @@ enum LicensingConfiguration {
     static let licenseDevicesAPIURL = URL(string: "https://cmdtab.net/api/license/devices")!
     static let licenseRenewalAPIURL = URL(string: "https://cmdtab.net/api/license/renew")!
 
+    /// What to do after a trial ends. Without commerce there is no way to buy
+    /// or enter a license in this build, so point to the waitlist instead.
+    static var trialEndedNextStep: String {
+        commerceEnabled
+            ? "Buy CmdTab or enter a valid license to keep using the switcher."
+            : "Join the waitlist at cmdtab.net to hear when CmdTab is available."
+    }
+
     static var commerceEnabled: Bool {
         commerceEnabled(
             infoValue: Bundle.main.object(forInfoDictionaryKey: "CmdTabCommerceEnabled")
