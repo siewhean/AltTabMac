@@ -34,6 +34,7 @@ export const privacyContent = {
       title: "Trial and licensing information",
       body: [
         "Starting a trial sends the email address provided by the user together with the install identifier, app version, and macOS version so the trial period can be registered and enforced.",
+        "Activating a license sends a hashed device identifier and the Mac's name (as set in System Settings) so the license holder can recognise and manage their activated Macs. The name is shown only to someone holding that license's activation code.",
         "Purchase, receipt, billing, and license-portal information may be processed by the hosted commerce provider. CmdTab stores the operational records required to fulfil licenses and handle support requests.",
         "Trial registration, purchase, download, licensing, fulfilment, fraud prevention, refunds, and support are essential product operations. They remain available when optional analytics are declined and are not switched on or off by the analytics controls.",
       ],
