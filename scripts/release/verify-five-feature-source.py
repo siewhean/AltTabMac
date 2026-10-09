@@ -259,7 +259,8 @@ def main() -> None:
             "profileStore.match",
             "ShortcutRecordingState.shared.isRecording",
             "SecureInputMonitor.isEnabled",
-            "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+            "licensingGate.allowsShortcut()",
+            "tapThread.runLoop",
             "configurationFreeze.begin",
             "configurationFreeze.end",
             "tapDisabledByTimeout",
@@ -365,12 +366,10 @@ def main() -> None:
     require_all(
         ROOT / "Sources" / "CmdTab" / "ProductionSwitcherVisuals.swift",
         (
-            "SwitcherItemStateBadges",
             "ProductionClassicGridView",
             "ProductionCommandPaletteView",
             "ProductionRadialMenuView",
             "Workspace precision is degraded",
-            "Other Space",
             "Hidden Set",
         ),
     )

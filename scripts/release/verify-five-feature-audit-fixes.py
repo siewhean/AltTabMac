@@ -50,12 +50,11 @@ def parse_swift(relative: str) -> None:
 def main() -> None:
     timing = read("Sources/CmdTab/ProfileHotkeyTimingState.swift")
     for literal in (
-        "ShortcutChordTimingState",
         "PhysicalModifierChordTimingState",
+        "PhysicalModifierDeviceFlags",
+        "EventTimestampClock",
+        "registerAdditionalAdvance",
         "simultaneousChordKeys",
-        "noteInterveningKeyDown",
-        "commandWasInterrupted",
-        "optionWasInterrupted",
         "ProfileHotkeyTimingPolicy",
         "revealDelay: 0.20",
         "startedAtUptime",
@@ -68,16 +67,21 @@ def main() -> None:
     ):
         require(timing, literal, "ProfileHotkeyTimingState.swift")
     reject(timing, "revealDelay: 0.10", "ProfileHotkeyTimingState.swift")
+    # Command-Tab is accepted like the native switcher; the 160 ms chord gate
+    # swallowed legitimate presses and must not return.
+    reject(timing, "struct ShortcutChordTimingState", "ProfileHotkeyTimingState.swift")
 
     hotkeys = read("Sources/CmdTab/ProfileHotkeyManager.swift")
     for literal in (
         "ProfileHotkeyTimingState()",
-        "ShortcutChordTimingState()",
         "PhysicalModifierChordTimingState()",
-        "shortcutChordTimingState.accepts",
-        "shortcutChordTimingState.noteInterveningKeyDown()",
         "physicalChordTimingState.accepts",
-        "Ignored delayed or interrupted shortcut chord",
+        "registerAdditionalAdvance",
+        "EventTapRunLoopThread",
+        "tapThread.runLoop",
+        "inputMirror.state",
+        "stateLock",
+        "passUnretained(event)",
         "Ignored delayed Hot Swap modifier chord",
         "isProtectedApplicationCommand",
         "handlePassThroughKeyDown",
@@ -92,11 +96,20 @@ def main() -> None:
         "swallowedKeyCodes.remove(keyCode) != nil",
         "ShortcutRecordingState.shared.isRecording",
         "SecureInputMonitor.isEnabled",
-        "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+        "licensingGate.allowsShortcut()",
         "tapDisabledByTimeout",
         "scheduleInstallRetry",
     ):
         require(hotkeys, literal, "ProfileHotkeyManager.swift")
+    # The tap runs off the main thread: no main-actor licensing call, no
+    # retained pass-through (it leaked every event), no chord gate.
+    for forbidden in (
+        "passRetained(event)",
+        "LicensingController.shared.should",
+        "shortcutChordTimingState",
+        "CFRunLoopGetMain()",
+    ):
+        reject(hotkeys, forbidden, "ProfileHotkeyManager.swift")
     reject(
         hotkeys,
         "case .holdPrimaryModifier:\n            activeHoldMatch = match",
@@ -184,17 +197,15 @@ def main() -> None:
         "SwitcherPreviewPermissionState",
         "denialConfirmationInterval: TimeInterval = 1.0",
         "SwitcherPreviewContinuityStore",
-        "exactKeyMaximumAge: TimeInterval = 120",
+        "byteLimit = 128 * 1_024 * 1_024",
         "identityMaximumAge: TimeInterval = 600",
-        "entriesByExactKey",
-        "entriesByIdentity",
+        "private static var entries: [String: Entry]",
+        "identityWindows",
         "identityKey:",
         "captureAccessAllowed",
         "CGPreflightScreenCaptureAccess",
         "launchDate",
         "ReliableWindowPreviewRecovery.schedule",
-        "entriesByExactKey.removeValue(forKey: key)",
-        "entriesByIdentity.removeValue(forKey: identityKey)",
         "previewCacheKey != nil, kind == .appWindow",
     ):
         require(item, literal, "SwitcherItem.swift")
@@ -206,8 +217,9 @@ def main() -> None:
         "SCShareableContent.getExcludingDesktopWindows",
         "SCContentFilter(desktopIndependentWindow:",
         "SCScreenshotManager.captureImage",
-        "inFlightIdentityKeys",
-        "retryAfterByIdentityKey",
+        "PreviewRecoveryRequestState",
+        "entry.inFlight",
+        "entry.retryAfter",
         "didRecoverPreviewNotification",
         "SwitcherPreviewContinuityStore.resolve",
     ):
@@ -316,10 +328,9 @@ def main() -> None:
             "testRepeatedHiddenKeyDownDoesNotRescheduleDeadline",
             "testLateDeadlineStillUsesOriginalTrigger",
             "testReplacingVisibleProfileTransfersReleaseOwnership",
-            "Holding Command and pressing Tab later must not switch",
+            "testDeliberateTabsBeforeQuickReleaseAdvanceTheCommit",
             "A delayed Hot Swap modifier chord must not activate",
-            "Command-V or any unrelated key must disarm",
-            "A fresh deliberate Command-Tab chord must work",
+            "Fast Command-Tab-Tab must land on the second item",
         ),
         "Tests/CmdTabTests/ProductionHotSwapPolicyTests.swift": (
             "testProductionModesExposeImmediateCommandDoubleTapsAndSideMatchedChords",
