@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ZodError } from "zod";
 
 import {
+  LicenseApiError,
   licenseApiErrorResponse,
   licenseJson,
   readBoundedJson,
@@ -89,15 +90,18 @@ export async function POST(request: Request) {
         400,
       );
     }
-    const response = licenseApiErrorResponse(error);
-    console.error("[CmdTab Website] license recovery enqueue failed", error);
-    // Do not disclose whether a purchase or database record exists.
-    if (response.status >= 500) {
-      return licenseJson(
-        { ...genericRecoveryResponse, requestId: randomUUID() },
-        202,
-      );
+    // Malformed request bodies are rejected before any lookup, so their
+    // errors cannot depend on whether a purchase exists.
+    if (error instanceof LicenseApiError && error.status < 500) {
+      return licenseApiErrorResponse(error);
     }
-    return response;
+    console.error("[CmdTab Website] license recovery enqueue failed", error);
+    // Store failures can occur only after a purchase was found (credential
+    // rotation, outbox enqueue), so answer generically: do not disclose
+    // whether a purchase or database record exists.
+    return licenseJson(
+      { ...genericRecoveryResponse, requestId: randomUUID() },
+      202,
+    );
   }
 }
