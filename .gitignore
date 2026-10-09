@@ -36,3 +36,13 @@ release-artifacts/
 *.swp
 *.swo
 *~
+
+# Local AI agent, analysis, and interpreter caches
+.claude/
+.claude-flow/
+graphify-out/
+__pycache__/
+*.pyc
+
+# Local website build copies (never served)
+website/public/_build/
