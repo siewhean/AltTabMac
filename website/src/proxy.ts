@@ -9,7 +9,10 @@ import {
   refreshedAdminSessionClaims,
   validateAdminSessionToken,
 } from "@/lib/admin-session-token";
-import { contentSecurityPolicy } from "@/lib/content-security-policy";
+import {
+  contentSecurityPolicy,
+  staticContentSecurityPolicy,
+} from "@/lib/content-security-policy";
 
 const PUBLIC_DASHBOARD_PATHS = new Set([
   "/dashboard/login",
@@ -49,16 +52,22 @@ function redirectToLogin(request: NextRequest, policy: string) {
 }
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  // Marketing pages and APIs are statically prerendered or render no user
+  // data: they get the static policy and stay CDN-cacheable. Only the
+  // authenticated dashboard is rendered per request under a strict nonce.
+  if (!pathname.startsWith("/dashboard")) {
+    return responseWithSecurityHeaders(
+      NextResponse.next(),
+      staticContentSecurityPolicy(),
+    );
+  }
+
   const nonce = btoa(crypto.randomUUID());
   const policy = contentSecurityPolicy(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
-
-  const { pathname } = request.nextUrl;
-  if (!pathname.startsWith("/dashboard")) {
-    return nextResponse(requestHeaders, policy);
-  }
   if (PUBLIC_DASHBOARD_PATHS.has(pathname)) {
     return nextResponse(requestHeaders, policy);
   }

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { constantTimeEqual } from "../src/lib/constant-time.js";
-import { contentSecurityPolicy } from "../src/lib/content-security-policy.js";
+import {
+  contentSecurityPolicy,
+  staticContentSecurityPolicy,
+} from "../src/lib/content-security-policy.js";
 import { escapeCsvCell } from "../src/lib/csv.js";
 import { demoNavigationDirection } from "../src/lib/demo-keyboard-navigation.js";
 import { optionalStrongInternalSecret } from "../src/lib/env.js";
@@ -79,6 +82,16 @@ test("development CSP allows eval only for the framework toolchain", () => {
   assert.match(policy, /script-src[^;]*'unsafe-eval'/);
   assert.doesNotMatch(policy, /script-src[^;]*'unsafe-inline'/);
   assert.match(policy, /connect-src 'self' ws: wss:/);
+});
+
+test("static marketing CSP allows same-origin and inline hydration scripts only", () => {
+  const policy = staticContentSecurityPolicy(true);
+  assert.match(policy, /script-src 'self' 'unsafe-inline'(;|$)/);
+  assert.doesNotMatch(policy, /script-src[^;]*'unsafe-eval'/);
+  assert.doesNotMatch(policy, /script-src[^;]*(https?:|\*)/);
+  assert.match(policy, /frame-ancestors 'none'/);
+  assert.match(policy, /object-src 'none'/);
+  assert.match(policy, /form-action 'self'/);
 });
 
 test("CSP rejects attacker-controlled nonce characters", () => {
