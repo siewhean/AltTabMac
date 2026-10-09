@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { getServerEnv } from "@/lib/env";
+import { getServerEnv, isCommerceLaunchEnabled } from "@/lib/env";
 import {
   IngestRequestError,
   readBoundedText,
@@ -43,6 +43,19 @@ function json(body: Record<string, unknown>, status = 200) {
 
 export async function POST(request: Request) {
   const requestId = randomUUID();
+
+  if (!isCommerceLaunchEnabled()) {
+    return json(
+      {
+        ok: false,
+        code: "commerce_disabled",
+        message: "Commerce webhook fulfillment is not enabled.",
+        requestId,
+      },
+      503,
+    );
+  }
+
   const env = getServerEnv();
 
   if (
