@@ -49,7 +49,9 @@ final class MenuBarController {
             withTimeInterval: 6 * 60 * 60,
             repeats: true
         ) { [weak self] _ in
-            Task { @MainActor in
+            // Re-capture weakly: older Swift compilers reject a captured
+            // `var` (weak self) inside concurrently-executing code.
+            Task { @MainActor [weak self] in
                 await self?.refreshLicenseAuthorization()
             }
         }

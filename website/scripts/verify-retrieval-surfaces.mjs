@@ -23,7 +23,7 @@ assert.match(home, /\/showcase\/overview-poster\.webp/, "rendered SoftwareApplic
 assert.doesNotMatch(home, /"(?:memoryRequirements|processorRequirements)":/, "rendered schema contains unproved memory or processor requirements");
 
 const expectedRoutes = new Map([
-  ["/showcase", /See CmdTab move, search, and reflow/i],
+  ["/showcase", /CmdTab in motion/i],
   ["/features/classic-grid", /A visual Mac window switcher for choosing one exact window/i],
   ["/features/command-palette", /Search open Mac windows by app name or window text/i],
   ["/features/radial-menu", /A circular Mac window switcher for directional selection/i],
@@ -63,8 +63,10 @@ for (const expected of [
 }
 assert.ok(!llms.includes("/showcase/classic-grid.mp4"), "/llms.txt advertises a nonexistent Classic Grid MP4");
 assert.ok(!llms.includes("/showcase/command-palette.mp4"), "/llms.txt advertises a nonexistent Command Palette MP4");
-assert.match(llms, /authentic production SwiftUI\/AppKit Radial Menu render/i, "/llms.txt must identify the authentic production render");
-assert.match(llms, /deterministic product composites/i, "/llms.txt must identify composite media");
+// Every maintained showcase item is a labelled deterministic composite; no
+// item may be described as a desktop recording or production render.
+assert.match(llms, /deterministic product composite/i, "/llms.txt must identify composite media");
+assert.doesNotMatch(llms, /authentic production .*render/i, "/llms.txt must not describe composite media as a production render");
 assert.match(llms, /not AI-generated/i, "/llms.txt must preserve the AI-generation boundary");
 assert.match(llms, /not claimed as an AI-search requirement/i, "/llms.txt must state the consolidated helper limitation");
 
@@ -75,10 +77,9 @@ assert.match(fullResponse.headers.get("x-robots-tag") || "", /noindex/i, "/llms-
 for (const expected of [
   "non-standard convenience export",
   "canonical HTML as authoritative",
-  "Real product images and short videos",
   "Are the showcase screenshots and videos AI-generated?",
   "controlled fixture windows",
-  "deterministic product composites",
+  "deterministic HD product composite generated from vector source",
   "No processor architecture, Universal Binary status, memory footprint",
   "Does CmdTab use ScreenCaptureKit?",
   "should not be described that way",
