@@ -5,6 +5,8 @@ type ApplicantEmailInput = {
   email: string;
   variant: ApplicantEmailVariant;
   siteUrl: string;
+  /** Signed unsubscribe link; omitted when no unsubscribe secret is configured. */
+  unsubscribeUrl?: string;
 };
 
 function firstName(name?: string) {
@@ -27,11 +29,11 @@ export const waitlistEmailContent = {
     heading: "CmdTab private beta waitlist submission",
   },
   applicant: {
-    onPageMessage: {
-      new: "You’re on the list. We’ll email you when the next beta opens and when trial access is ready.",
-      existing:
-        "You were already on the list. We kept your place and will still email you about beta access and trial updates.",
-    },
+    // One message for new and existing signups, so the form never reveals
+    // whether an address is already on the list. The email itself (sent only
+    // to that address) says which case applies.
+    onPageMessage:
+      "Thanks, you’re on the list. Check your inbox for a confirmation, and we’ll email you when the next beta opens.",
     subject(input: ApplicantEmailInput) {
       return input.variant === "new"
         ? "You’re on the CmdTab beta list"
@@ -91,6 +93,7 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
     `CmdTab: ${input.siteUrl}`,
     "",
     waitlistEmailContent.applicant.footer,
+    ...(input.unsubscribeUrl ? ["", `Unsubscribe: ${input.unsubscribeUrl}`] : []),
   ].join("\n");
 
   const html = `
@@ -136,7 +139,11 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
           </div>
         </div>
         <p style="margin:16px 0 0;text-align:center;font-size:12px;line-height:1.7;color:#657189;">
-          You’re receiving this because you joined the CmdTab beta list.
+          You’re receiving this because you joined the CmdTab beta list.${
+            input.unsubscribeUrl
+              ? ` <a href="${escapeHtml(input.unsubscribeUrl)}" style="color:#8A97B0;text-decoration:underline;">Unsubscribe</a>`
+              : ""
+          }
         </p>
       </div>
     </div>

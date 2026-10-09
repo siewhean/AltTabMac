@@ -143,4 +143,17 @@ assert.doesNotMatch(
   "marketing pages must stay statically prerendered and CDN-cacheable",
 );
 
+// Mail scanners prefetch links: GET may only render a confirmation form, and
+// POST must verify the signed token before deleting anything.
+const unsubscribeRoute = read("src/app/api/waitlist/unsubscribe/route.ts");
+const getHandler = unsubscribeRoute.slice(
+  unsubscribeRoute.indexOf("export async function GET"),
+  unsubscribeRoute.indexOf("export async function POST"),
+);
+assert.doesNotMatch(getHandler, /deleteWaitlistSignup/, "unsubscribe GET must not delete");
+assert.match(unsubscribeRoute, /verifyWaitlistUnsubscribeToken\(tokenFrom\(request\), secret\)/);
+const unsubscribeLib = read("src/lib/waitlist-unsubscribe.ts");
+assert.match(unsubscribeLib, /timingSafeEqual/);
+assert.match(unsubscribeLib, /optionalStrongInternalSecret\(process\.env\.WAITLIST_UNSUBSCRIBE_SECRET\)/);
+
 console.log("API security source verification passed");
