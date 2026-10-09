@@ -1,6 +1,6 @@
 export const commerceContent = {
   eyebrow: "Launch path",
-  title: "Try CmdTab for 14 days. Buy once if it sticks.",
+  title: "Find the window. Get back to work.",
   summary:
     "CmdTab is US$12 once for one person, up to three personally owned Macs, and every 1.x update.",
   trialLength: "14-day trial",

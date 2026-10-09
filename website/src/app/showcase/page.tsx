@@ -104,12 +104,12 @@ export default function ShowcasePage() {
       <SectionShell className="pt-4 sm:pt-6">
         <div className="flex flex-col gap-5 border-t border-white/8 pt-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-3xl font-medium tracking-[-0.05em] text-text">Try it on your own desktop.</h2>
-            <p className="mt-2 text-sm leading-6 text-muted">The full behavior is easiest to judge with your real windows.</p>
+            <h2 className="text-3xl font-medium tracking-[-0.05em] text-text">See CmdTab in your own workflow.</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">CmdTab is in private preview. Join the waitlist for trial access when it opens.</p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             <Button href="/trial" className="w-full sm:w-auto">
-              Start the trial
+              Join the waitlist
             </Button>
             <Button href="/evidence" variant="secondary" className="w-full sm:w-auto">
               Review evidence

@@ -6,6 +6,296 @@ import XCTest
 
 @MainActor
 final class LicensingControllerTests: XCTestCase {
+    func testDeniedShortcutDoesNotOpenLicensingButExplicitActionStillDoes() {
+        let controller = makeController(publicKeyBase64: makeSigningMaterials().publicKeyBase64)
+        var presentations = 0
+        XCTAssertFalse(controller.ensureUsageAllowed(presentLicensing: false) { presentations += 1 })
+        XCTAssertEqual(presentations, 0)
+        XCTAssertFalse(controller.ensureUsageAllowed { presentations += 1 })
+        XCTAssertEqual(presentations, 1)
+    }
+
+    func testEventTapShortcutDoesNotReadStoresAndCoalescesRefresh() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var uptime: TimeInterval = 100
+        let licenseStore = MemoryLicenseKeyStore()
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            licenseStore: licenseStore,
+            currentDate: { now },
+            currentUptime: { uptime },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        let initialReads = licenseStore.silentLoadCount
+        for _ in 0..<50 {
+            XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        }
+        XCTAssertEqual(licenseStore.silentLoadCount, initialReads)
+
+        uptime += 6
+        for _ in 0..<50 {
+            XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        }
+        XCTAssertEqual(licenseStore.silentLoadCount, initialReads,
+                       "An event callback must not synchronously refresh licensing")
+        let refreshed = expectation(description: "Coalesced licensing refresh")
+        DispatchQueue.main.async {
+            XCTAssertEqual(licenseStore.silentLoadCount, initialReads + 1)
+            refreshed.fulfill()
+        }
+        wait(for: [refreshed], timeout: 1)
+    }
+
+    func testEventTapShortcutKeepsLastVerifiedStatusPastRefreshInterval() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var uptime: TimeInterval = 100
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            currentDate: { now }, currentUptime: { uptime },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        uptime += 30
+        XCTAssertTrue(
+            controller.shouldHandleEventTapShortcut(),
+            "An old snapshot is not a revocation; Command-Tab must keep working while it refreshes."
+        )
+        controller.refreshStatus()
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+    }
+
+    func testEventTapLicensingRefreshesWhileIdleWithoutAKeyboardEvent() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let licenseStore = MemoryLicenseKeyStore()
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            licenseStore: licenseStore,
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        let initialReads = licenseStore.silentLoadCount
+        let refreshed = expectation(description: "Idle entitlement revalidation")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.1) {
+            XCTAssertEqual(licenseStore.silentLoadCount, initialReads + 1)
+            XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+            refreshed.fulfill()
+        }
+        wait(for: [refreshed], timeout: 6)
+    }
+
+    func testEventTapShortcutKeepsAccessAndRefreshesAfterMonotonicClockReset() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var uptime: TimeInterval = 100
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            currentDate: { now }, currentUptime: { uptime },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        uptime = 0
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        let refreshed = expectation(description: "Refresh after uptime reset")
+        DispatchQueue.main.async {
+            XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+            refreshed.fulfill()
+        }
+        wait(for: [refreshed], timeout: 1)
+    }
+
+    func testPendingSecurityReadKeepsLastVerifiedStatus() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        BoundedKeychainReadRegistry.began()
+        defer {
+            BoundedKeychainReadRegistry.finished()
+            BoundedKeychainReadRegistry.validationCompletedIfIdle()
+        }
+        XCTAssertTrue(
+            controller.shouldHandleEventTapShortcut(),
+            "A slow securityd read is unknown, not a revocation, and must not swallow Command-Tab."
+        )
+        controller.refreshStatus()
+        XCTAssertFalse(
+            controller.status.requiresTrialRegistration,
+            "A refresh that cannot complete must keep the last verified status."
+        )
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+    }
+
+    func testEventTapGateAnswersFromTheTapThreadWithoutTouchingTheMainActor() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var uptime: TimeInterval = 100
+        let licenseStore = MemoryLicenseKeyStore()
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: now
+            )),
+            licenseStore: licenseStore,
+            currentDate: { now }, currentUptime: { uptime },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        let gate = controller.eventTapGate
+        let initialReads = licenseStore.silentLoadCount
+        uptime += 6
+        let answered = expectation(description: "Background gate answer")
+        DispatchQueue.global(qos: .userInteractive).async {
+            XCTAssertFalse(Thread.isMainThread)
+            XCTAssertTrue(gate.allowsShortcut(), "A verified trial is honoured off the main thread.")
+            answered.fulfill()
+        }
+        wait(for: [answered], timeout: 1)
+        let refreshed = expectation(description: "Stale snapshot revalidates on main")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            XCTAssertEqual(licenseStore.silentLoadCount, initialReads + 1)
+            refreshed.fulfill()
+        }
+        wait(for: [refreshed], timeout: 1)
+    }
+
+    func testEventTapShortcutChecksTrialDeadlineAndClockRollbackImmediately() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "event-tap", startedAt: startedAt
+            )),
+            currentDate: { now }, currentUptime: { 100 },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertTrue(controller.shouldHandleEventTapShortcut())
+        now = startedAt.addingTimeInterval(14 * 24 * 60 * 60)
+        XCTAssertFalse(controller.shouldHandleEventTapShortcut())
+        now = startedAt.addingTimeInterval(-24 * 60 * 60)
+        XCTAssertFalse(controller.shouldHandleEventTapShortcut())
+    }
+
+    func testTimedOutSilentKeychainReadStaysSingleFlightAndFailsClosed() {
+        let gate = BoundedSilentKeychainRead<String>()
+        let release = DispatchSemaphore(value: 0)
+        let began = expectation(description: "Lookup started")
+        let completed = expectation(description: "Lookup completed")
+        let observer = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { _ in completed.fulfill() }
+        defer { NotificationCenter.default.removeObserver(observer); release.signal() }
+        let start = Date()
+        XCTAssertNil(gate.load(timeout: 0.02) {
+            began.fulfill()
+            release.wait()
+            return "signed-token"
+        })
+        XCTAssertLessThan(Date().timeIntervalSince(start), 0.25)
+        wait(for: [began], timeout: 1)
+        XCTAssertTrue(BoundedKeychainReadRegistry.hasPendingReads)
+        XCTAssertNil(gate.load(timeout: 0.02) {
+            XCTFail("A blocked Keychain read must not start a second worker")
+            return nil
+        })
+        release.signal()
+        wait(for: [completed], timeout: 1)
+        XCTAssertFalse(BoundedKeychainReadRegistry.hasPendingReads)
+        XCTAssertEqual(gate.load(timeout: 0.02) { nil }, "signed-token")
+    }
+
+    func testUnknownPaidEntitlementIsNotDeleted() {
+        let store = MemoryDeviceLicenseEntitlementStore()
+        _ = makeController(
+            deviceEntitlementStore: store,
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertEqual(store.clearCount, 0)
+    }
+
+    func testCompletedMissingKeychainItemDoesNotRetriggerOnRefresh() {
+        let gate = BoundedSilentKeychainRead<String>()
+        let completed = expectation(description: "Missing lookup completed")
+        let observer = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { _ in completed.fulfill() }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        var attempts = 0
+        XCTAssertNil(gate.load(timeout: 0.2, cacheDuration: 10) {
+            attempts += 1
+            return nil
+        })
+        wait(for: [completed], timeout: 1)
+        XCTAssertNil(gate.load(timeout: 0.2, cacheDuration: 10) {
+            attempts += 1
+            return nil
+        })
+        XCTAssertEqual(attempts, 1, "A completion recheck must consume the cached miss")
+    }
+
+    func testSlowSequentialKeychainReadsRetainEarlierResultUntilValidationCompletes() {
+        BoundedKeychainReadRegistry.validationCompletedIfIdle()
+        let first = BoundedSilentKeychainRead<String>()
+        let second = BoundedSilentKeychainRead<String>()
+        let secondRelease = DispatchSemaphore(value: 0)
+        defer {
+            secondRelease.signal()
+            BoundedKeychainReadRegistry.validationCompletedIfIdle()
+        }
+        let firstCompleted = expectation(description: "First read completed")
+        let firstObserver = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { _ in firstCompleted.fulfill() }
+        XCTAssertEqual(first.load(timeout: 0.2, cacheDuration: 0.01) { "paid-token" }, "paid-token")
+        wait(for: [firstCompleted], timeout: 1)
+        NotificationCenter.default.removeObserver(firstObserver)
+
+        let secondCompleted = expectation(description: "Later read completed")
+        let secondObserver = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { _ in secondCompleted.fulfill() }
+        defer { NotificationCenter.default.removeObserver(secondObserver) }
+        XCTAssertNil(second.load(timeout: 0.01, cacheDuration: 0.01) {
+            secondRelease.wait()
+            return "trial-claim"
+        })
+        Thread.sleep(forTimeInterval: 0.04) // Longer than either result's normal cache lifetime.
+        XCTAssertEqual(first.load(timeout: 0.01, cacheDuration: 0.01) {
+            XCTFail("Validation must reuse the completed first read")
+            return nil
+        }, "paid-token")
+        secondRelease.signal()
+        wait(for: [secondCompleted], timeout: 1)
+        XCTAssertEqual(second.load(timeout: 0.01, cacheDuration: 0.01) { nil }, "trial-claim")
+        XCTAssertEqual(first.load(timeout: 0.01, cacheDuration: 0.01) {
+            XCTFail("The first read must remain valid until the full pass finishes")
+            return nil
+        }, "paid-token")
+        BoundedKeychainReadRegistry.validationCompletedIfIdle()
+        XCTAssertFalse(BoundedKeychainReadRegistry.hasPendingReads)
+    }
+
+    func testCommerceCapabilityDefaultsClosedAndAcceptsOnlyBooleanBundleMetadata() {
+        XCTAssertFalse(LicensingConfiguration.commerceEnabled(infoValue: nil))
+        XCTAssertFalse(LicensingConfiguration.commerceEnabled(infoValue: "true"))
+        XCTAssertTrue(LicensingConfiguration.commerceEnabled(infoValue: true))
+    }
+
     func testTrialClaimParsesFractionalAndWholeSecondISO8601WithoutChangingWireStrings() {
         let fractionalStart = "2026-07-27T12:34:56.123Z"
         let fractionalEnd = "2026-08-10T12:34:56.123Z"
@@ -997,6 +1287,7 @@ final class LicensingControllerTests: XCTestCase {
         licenseV2PublicKeysDERBase64: [String: String] = [:],
         serverClient: CmdTabServerClient = MockCmdTabServerClient(),
         currentDate: @escaping () -> Date = Date.init,
+        currentUptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         publicKeyBase64: String,
         developerSettings: DeveloperSettings? = nil
     ) -> LicensingController {
@@ -1015,8 +1306,9 @@ final class LicensingControllerTests: XCTestCase {
             licenseV2PublicKeysDERBase64: licenseV2PublicKeysDERBase64,
             serverClient: serverClient,
             currentDate: currentDate,
+            currentUptime: currentUptime,
             publicKeyDERBase64: publicKeyBase64,
-            developerSettings: developerSettings ?? DeveloperSettings(
+            debugCompatibility: developerSettings ?? DeveloperSettings(
                 defaults: UserDefaults(suiteName: UUID().uuidString)!,
                 keyPrefix: UUID().uuidString
             )
@@ -1184,6 +1476,7 @@ private final class MemoryLicenseKeyStore: LicenseKeyStore {
 private final class MemoryDeviceLicenseEntitlementStore:
     DeviceLicenseEntitlementStore {
     var value: String?
+    var clearCount = 0
 
     func loadEntitlement() -> String? {
         value
@@ -1194,6 +1487,7 @@ private final class MemoryDeviceLicenseEntitlementStore:
     }
 
     func clearEntitlement() throws {
+        clearCount += 1
         value = nil
     }
 }

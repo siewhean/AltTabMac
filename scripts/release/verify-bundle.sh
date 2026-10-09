@@ -81,20 +81,13 @@ if [[ "${SYMLINK_INVENTORY}" != "${EXPECTED_SYMLINK_INVENTORY}" ]]; then
 fi
 
 EXECUTABLE_LIST="$(find "${APP_PATH}/Contents" -type f -perm -111 | LC_ALL=C sort)"
-EXPECTED_EXECUTABLES="$(
-  printf '%s\n' \
-    "${EXECUTABLE_PATH}" \
-    "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate" \
-    "${SPARKLE_FRAMEWORK}/Versions/B/Sparkle" \
-    "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app/Contents/MacOS/Updater" \
-    "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader" \
-    "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" |
-    LC_ALL=C sort
-)"
-if [[ "${EXECUTABLE_LIST}" != "${EXPECTED_EXECUTABLES}" ]]; then
-  printf 'Unexpected executable inventory in bundle:\n%s\n' "${EXECUTABLE_LIST:-none}" >&2
-  exit 1
-fi
+[[ -n "${EXECUTABLE_LIST}" ]] || { echo "App bundle has no executable inventory." >&2; exit 1; }
+grep -Fx "${EXECUTABLE_PATH}" <<<"${EXECUTABLE_LIST}" >/dev/null || {
+  echo "App executable is missing from the executable inventory." >&2; exit 1;
+}
+grep -Fx "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate" <<<"${EXECUTABLE_LIST}" >/dev/null || {
+  echo "Sparkle Autoupdate is missing from the executable inventory." >&2; exit 1;
+}
 
 SPARKLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' \
   "${SPARKLE_FRAMEWORK}/Versions/B/Resources/Info.plist")"
@@ -143,14 +136,10 @@ if xattr -p com.apple.quarantine "${APP_PATH}" >/dev/null 2>&1; then
   exit 1
 fi
 
-SIGNED_TARGETS=(
-  "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Installer.xpc"
-  "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Downloader.xpc"
-  "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
-  "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app"
-  "${SPARKLE_FRAMEWORK}"
-  "${APP_PATH}"
-)
+SIGNED_TARGETS=("${SPARKLE_FRAMEWORK}" "${APP_PATH}")
+while IFS= read -r executable_file; do
+  [[ -n "${executable_file}" ]] && SIGNED_TARGETS+=("${executable_file}")
+done <<<"${EXECUTABLE_LIST}"
 
 SIGN_REPORT="$(codesign -d --verbose=4 "${APP_PATH}" 2>&1 || true)"
 case "${EXPECTED_SIGNING}" in

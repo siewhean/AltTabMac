@@ -23,8 +23,8 @@
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "videoBytes": 367883,
-      "videoSha256": "d12d3fdfb83f8a4550d8165f837616a160ce1a29859625ea752d4fafc131b0a3"
+      "videoBytes": 349967,
+      "videoSha256": "75221f7397e1e6acbcf7d4a1cbaaaa99e0e2b0494987fa98ef3fb4cc12b36fdd"
     },
     {
       "id": "classic-grid",
@@ -82,13 +82,13 @@
       "sourceType": "deterministic-product-composite",
       "sourceLabel": "HD deterministic product composite",
       "hasAudio": false,
-      "posterBytes": 68170,
-      "posterSha256": "96933edad2bf31941568cce23ea65e9f5eb6acd3d1285de0c318293cae9a8db3",
+      "posterBytes": 60646,
+      "posterSha256": "b4e764fb92abbc51c1e17be44d835094a4ee660953278053a14b3a13b65d935c",
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "videoBytes": 140452,
-      "videoSha256": "26c5d4f4fd1992fb7efdeac170d26584d4d6ec1b138da36b15e04cadddc9ff8c"
+      "videoBytes": 125340,
+      "videoSha256": "628e6502e4f5ee561e77e259a4b59aa9e5fc0aaf6fead4134ed7de1656a9dc75"
     }
   ],
   "motionPolicy": "The homepage hero overview loops while visible. Showcase-page autoplay clips run once, last no more than five seconds, and remain static when reduced motion is requested."

@@ -27,8 +27,9 @@ The current candidate adds:
   delivery retry/outbox, and distinct partial/full refund and revocation state;
 - Auth0-compatible owner-only MFA dashboard sessions with idle/absolute limits,
   generation invalidation, CSRF checks, and audited actions;
-- Sparkle 2.9.2, a stable daily update controller, immutable release manifest,
-  signed appcast tooling, and Sparkle-aware nested packaging verification;
+- Sparkle 2.9.2, a typed beta/stable/development update configuration,
+  immutable release manifest, signed appcast tooling, and Sparkle-aware nested
+  packaging verification;
 - a single US$12 offer, terms/refund/device/update/recovery policies, immutable
   download gating, and deterministic showcase clips no longer than five
   seconds;
@@ -75,3 +76,15 @@ The following cannot be accepted from repository automation alone:
 No release branch or public download may be promoted until every applicable
 external item is evidenced. Unsupported hardware or unavailable credentials
 remain `NOT TESTED`, never inferred.
+
+# Public-beta blocker remediation — 2026-09-09
+
+The current candidate uses a typed `beta` release channel and the dedicated
+`https://cmdtab.net/releases/beta/appcast.xml` feed. Native palette input,
+activation-outcome accounting, signing/notarization guards, deterministic CI
+configuration validation, centralized status-bearing private-window capability
+providers, and physical-evidence procedures are repository complete. The
+macOS-14/15 private-capability canary is a physical receipt gate, not CI proof.
+The release remains **BLOCKED** until the exact candidate has hosted
+CI, authorized-Mac performance/soak and VoiceOver receipts, Developer ID
+signing/notarization/Gatekeeper proof, and a real signed beta N->N+1 update.

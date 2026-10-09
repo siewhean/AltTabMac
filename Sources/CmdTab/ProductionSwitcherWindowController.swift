@@ -1,5 +1,9 @@
 import AppKit
+import Combine
 import SwiftUI
+import os.log
+
+private let sessionInventoryLog = OSLog(subsystem: "CmdTab", category: "SessionInventory")
 
 private final class ProductionSwitcherPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -44,6 +48,31 @@ private final class ProductionSwitcherMirrorPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+/// A cold overlay may wait for complete membership, but must never become a
+/// deferred activation after the requesting gesture has ended.
+struct PendingSwitcherPresentation: Equatable {
+    let profileID: UUID
+    let reverse: Bool
+    let makeKey: Bool
+    let requiredModifier: HotkeyModifier?
+
+    func mayResume(heldModifiers: Set<HotkeyModifier>) -> Bool {
+        requiredModifier.map { heldModifiers.contains($0) } ?? true
+    }
+}
+
+struct PendingSwitcherPresentationState {
+    var pending: PendingSwitcherPresentation?
+
+    mutating func cancel() { pending = nil }
+
+    mutating func takeWhenReady(inventoryReady: Bool, heldModifiers: Set<HotkeyModifier>) -> PendingSwitcherPresentation? {
+        guard inventoryReady, let request = pending else { return nil }
+        pending = nil
+        return request.mayResume(heldModifiers: heldModifiers) ? request : nil
+    }
+}
+
 /// Profile-scoped production controller for the five-feature suite.
 ///
 /// It freezes one `SwitcherSessionConfiguration` for each session, preventing
@@ -51,6 +80,23 @@ private final class ProductionSwitcherMirrorPanel: NSPanel {
 /// membership is provided by `ProductionAppSwitcher`; presentation and input
 /// remain on the main thread.
 final class ProductionSwitcherWindowController: NSObject {
+    private var scrollSelectionTimingState = ScrollSelectionTimingState()
+    private var scrollPresentationStartedAt: TimeInterval = 0
+    private var localScrollMonitor: Any?
+
+    @discardableResult
+    func handleScrollSelection(_ event: NSEvent, receivedAt: TimeInterval? = nil) -> Bool {
+        guard isVisible else { return false }
+        let deliveredAt = ProcessInfo.processInfo.systemUptime
+        let input = ScrollSelectionInput(event: event, receivedAt: receivedAt ?? deliveredAt)
+        if let step = scrollSelectionTimingState.selectionStep(
+            input, deliveredAt: deliveredAt, presentationStartedAt: scrollPresentationStartedAt
+        ) {
+            moveSelection(by: step)
+        }
+        return true
+    }
+
     private struct PendingItemSuppression {
         let target: SwitcherItemSuppressionTarget
         let expiresAtUptime: TimeInterval
@@ -72,13 +118,29 @@ final class ProductionSwitcherWindowController: NSObject {
     private let preferences = SwitcherPreferences.shared
     private let profileStore = SwitcherProfileStore.shared
 
+    /// Thread-safe copy of the state the keyboard event tap routes on.
+    let inputMirror = SwitcherInputMirror()
+    private var textInputObservers: [NSObjectProtocol] = []
+
+    private var pendingPresentationState = PendingSwitcherPresentationState() {
+        didSet { publishInputMirror() }
+    }
+    private var pendingPresentation: PendingSwitcherPresentation? {
+        get { pendingPresentationState.pending }
+        set { pendingPresentationState.pending = newValue }
+    }
+    var hasPendingPresentation: Bool { pendingPresentation != nil }
+
     private var session: SwitcherCycleSession?
-    private var activeConfiguration: SwitcherSessionConfiguration?
+    private var activeConfiguration: SwitcherSessionConfiguration? {
+        didSet { publishInputMirror() }
+    }
     private var paletteFullItemCount = 0
     private var mirroredPanels: [ObjectIdentifier: ProductionSwitcherMirrorPanel] = [:]
     private var pendingItemSuppressions: [PendingItemSuppression] = []
     private var activeFrontmostPID: pid_t = 0
     private var frontmostOverride: FrontmostOverrideState?
+    private var searchQueryObserver: AnyCancellable?
 
     var isVisible: Bool { viewModel.isVisible }
     var currentStyle: SwitcherStyle { activeConfiguration?.style ?? preferences.switcherStyle }
@@ -93,6 +155,19 @@ final class ProductionSwitcherWindowController: NSObject {
         buildPanel()
         buildBackdropPanel()
         wireDataSources()
+        observeTextInputFocus()
+        publishInputMirror()
+        viewModel.onPaletteInputCommand = { [weak self] command in
+            self?.handlePaletteInputCommand(command)
+        }
+        searchQueryObserver = viewModel.$searchQuery
+            .dropFirst()
+            .sink { [weak self] query in
+                guard let self,
+                      self.viewModel.isVisible,
+                      self.currentStyle == .commandPalette else { return }
+                self.updatePaletteFilter(query)
+            }
         _ = appSwitcher.primeCacheIfNeeded()
         appSwitcher.warmCache(force: true)
 
@@ -103,19 +178,57 @@ final class ProductionSwitcherWindowController: NSObject {
         }
     }
 
+    deinit {
+        if let localScrollMonitor { NSEvent.removeMonitor(localScrollMonitor) }
+    }
+
+    private func installLocalScrollMonitor() {
+        guard localScrollMonitor == nil else { return }
+        localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, self.isVisible, let window = event.window,
+                  window === self.panel || self.mirroredPanels.values.contains(where: { $0 === window }) else {
+                return event
+            }
+            // Intercept before SwiftUI's NSScrollView consumes the event. The
+            // global tap swallows its own packets, so they never reach here.
+            self.handleScrollSelection(event)
+            return nil
+        }
+    }
+
     // MARK: Public input API
 
-    func showOrAdvance(reverse: Bool = false, profileID: UUID? = nil) {
+    /// `additionalAdvances` replays trigger presses made before the session
+    /// existed, so a fast Command-Tab-Tab lands on the second item.
+    func showOrAdvance(reverse: Bool = false, profileID: UUID? = nil, additionalAdvances: [Bool] = []) {
+        SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
         let resolvedID = profileID ?? defaultProfileID()
         guard let resolvedID else { return }
 
         if !viewModel.isVisible || activeProfileID != resolvedID {
             if viewModel.isVisible { hidePanel() }
-            guard startSession(reverse: reverse, profileID: resolvedID) else { return }
+            guard startSession(reverse: reverse, profileID: resolvedID, pendingMakeKey: false) else { return }
+            additionalAdvances.forEach { advanceSelection(reverse: $0) }
             showPanel()
             return
         }
 
+        advanceSelection(reverse: reverse)
+    }
+
+    func commitTriggerSession(reverse: Bool = false, profileID: UUID? = nil, additionalAdvances: [Bool] = []) {
+        SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
+        // A released cold gesture must not activate when inventory arrives later.
+        if pendingPresentation != nil { hidePanel(); return }
+        guard let profileID = profileID ?? defaultProfileID(),
+              startSession(reverse: reverse, profileID: profileID) else {
+            return
+        }
+        additionalAdvances.forEach { advanceSelection(reverse: $0) }
+        commitCurrentSelection()
+    }
+
+    private func advanceSelection(reverse: Bool) {
         if currentStyle == .radialMenu {
             moveSelectionInRadialMenu(by: reverse ? -1 : 1)
         } else {
@@ -124,17 +237,9 @@ final class ProductionSwitcherWindowController: NSObject {
         }
     }
 
-    func commitTriggerSession(reverse: Bool = false, profileID: UUID? = nil) {
-        guard let profileID = profileID ?? defaultProfileID(),
-              startSession(reverse: reverse, profileID: profileID) else {
-            return
-        }
-        commitCurrentSelection()
-    }
-
     func showStandalone() {
         guard let profileID = defaultProfileID(),
-              startSession(reverse: false, profileID: profileID) else {
+              startSession(reverse: false, profileID: profileID, pendingMakeKey: true, allowsLicensingPresentation: true) else {
             return
         }
         showPanel(makeKey: true)
@@ -194,25 +299,6 @@ final class ProductionSwitcherWindowController: NSObject {
 
     func cancelAndHide() {
         hidePanel()
-    }
-
-    func appendSearchCharacter(_ character: String) {
-        guard !character.isEmpty else { return }
-        let query = viewModel.searchQuery + character
-        viewModel.searchQuery = query
-        if currentStyle == .commandPalette {
-            updatePaletteFilter(query)
-        }
-    }
-
-    func deleteSearchCharacter() {
-        var query = viewModel.searchQuery
-        guard !query.isEmpty else { return }
-        query.removeLast()
-        viewModel.searchQuery = query
-        if currentStyle == .commandPalette {
-            updatePaletteFilter(query)
-        }
     }
 
     func performQuickAction(_ action: SwitcherQuickAction) {
@@ -280,6 +366,10 @@ final class ProductionSwitcherWindowController: NSObject {
         appSwitcher.warmCache(force: true)
     }
 
+    func publishRecoveredPreview(windowID: CGWindowID) {
+        appSwitcher.publishRecoveredPreview(windowID: windowID)
+    }
+
     // MARK: Panel construction
 
     private func buildPanel() {
@@ -308,7 +398,7 @@ final class ProductionSwitcherWindowController: NSObject {
             self?.handlePanelKeyEvent(event) ?? false
         }
         panel.onScrollEvent = { [weak self] event in
-            self?.isVisible == true && event.hasPreciseScrollingDeltas
+            self?.handleScrollSelection(event) ?? false
         }
         panel.onRightMouseDown = { [weak self] in self?.showManagementMenu() }
         self.panel = panel
@@ -355,11 +445,20 @@ final class ProductionSwitcherWindowController: NSObject {
         profileStore.profilesSnapshot().first(where: \.isEnabled)?.id
     }
 
-    private func startSession(reverse: Bool, profileID: UUID) -> Bool {
+    private func startSession(reverse: Bool, profileID: UUID, pendingMakeKey: Bool? = nil, allowsLicensingPresentation: Bool = false) -> Bool {
+        pendingPresentation = nil
+        if !allowsLicensingPresentation {
+            SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
+        }
         let hasAccess = MainActor.assumeIsolated {
-            LicensingController.shared.ensureUsageAllowed(openLicensing: { [weak self] in
-                self?.onLicenseAccessRequired?()
-            })
+            // Shortcut sessions were authorized by the event tap's last-known-good
+            // check before their key was swallowed. A synchronous Keychain refresh
+            // here could abort the session and leave that keystroke unanswered.
+            allowsLicensingPresentation
+                ? LicensingController.shared.ensureUsageAllowed(presentLicensing: true, openLicensing: { [weak self] in
+                    self?.onLicenseAccessRequired?()
+                })
+                : LicensingController.shared.shouldHandleEventTapShortcut()
         }
         guard hasAccess,
               let configuration = profileStore.configuration(
@@ -370,11 +469,30 @@ final class ProductionSwitcherWindowController: NSObject {
         }
 
         activeConfiguration = configuration
+        let configurationChanged = appSwitcher.sessionConfiguration() != configuration
         appSwitcher.applySessionConfiguration(configuration)
+        // A window can open inside the already-frontmost app without any
+        // NSWorkspace activation event. Refresh once for each new presentation
+        // even if an earlier, pre-window snapshot is less than 0.8 s old.
+        // Applying a different profile already schedules that forced refresh.
+        if !configurationChanged {
+            appSwitcher.warmCache(force: true)
+        }
         refreshPanelContentRoots()
 
         let snapshot = items()
-        guard !snapshot.isEmpty else { return false }
+        guard !snapshot.isEmpty else {
+            if !appSwitcher.hasCompleteInventory, let makeKey = pendingMakeKey {
+                let profile = profileStore.profilesSnapshot().first { $0.id == profileID }
+                let shortcut = reverse ? (profile?.reverseShortcut ?? profile?.forwardShortcut) : profile?.forwardShortcut
+                let modifier = !makeKey && configuration.releaseBehavior == .holdPrimaryModifier
+                    ? shortcut?.modifiers.primaryReleaseModifier : nil
+                pendingPresentation = PendingSwitcherPresentation(
+                    profileID: profileID, reverse: reverse, makeKey: makeKey, requiredModifier: modifier
+                )
+            }
+            return false
+        }
         let currentFrontmost = currentFrontmostIdentity(availableItems: snapshot)
         guard let newSession = SwitcherCycleSession(
             mode: .app,
@@ -386,11 +504,75 @@ final class ProductionSwitcherWindowController: NSObject {
             return false
         }
         session = newSession
+        logSessionInventory(newSession.items)
         if currentStyle == .commandPalette {
             paletteFullItemCount = newSession.items.count
         }
         syncViewModelFromSession()
         return true
+    }
+
+    /// Logs the presented order without titles or paths, so membership,
+    /// preview, and recency faults can be read back with `log show`.
+    private func logSessionInventory(_ items: [SwitcherItem]) {
+        let lines = items.enumerated().map { index, item -> String in
+            let preview: String
+            switch item.previewState {
+            case .live: preview = "live"
+            case .cached: preview = "cached"
+            case .pending: preview = "pending"
+            case .permissionDenied: preview = "denied"
+            case .unavailable: preview = "unavailable"
+            case .applicationOnly: preview = "appOnly"
+            }
+            return "\(index) \(item.sourceAppIdentifier ?? "?") pid=\(item.ownerPID.map(String.init) ?? "-") " +
+                "wid=\(item.windowID.map(String.init) ?? "-") kind=\(item.kind) min=\(item.isMinimized) " +
+                "preview=\(preview) rank=\(history.rankSource(of: item.historyIdentity))"
+        }
+        // One entry per item: a single joined message is truncated by os_log.
+        let sessionID = UUID().uuidString.prefix(8)
+        os_log(.info, log: sessionInventoryLog, "Session %{public}@ inventory (%d)",
+               String(sessionID), items.count)
+        for line in lines {
+            os_log(.info, log: sessionInventoryLog, "Session %{public}@ %{public}@",
+                   String(sessionID), line)
+        }
+    }
+
+    private func publishInputMirror() {
+        let visible = viewModel.isVisible
+        let pending = hasPendingPresentation
+        let profileID = activeProfileID
+        let style = currentStyle
+        let trigger = preferences.alternateTrigger
+        inputMirror.update {
+            $0.isVisible = visible
+            $0.hasPendingPresentation = pending
+            $0.activeProfileID = profileID
+            $0.currentStyle = style
+            $0.alternateTrigger = trigger
+        }
+    }
+
+    /// The event tap thread cannot ask AppKit for the first responder. Window
+    /// updates run after every event CmdTab handles, so republishing there
+    /// keeps the text-input flag current whenever one of its fields gains or
+    /// loses focus.
+    private func observeTextInputFocus() {
+        let refresh: (Notification) -> Void = { [weak self] _ in
+            let responder = NSApp.isActive ? NSApp.keyWindow?.firstResponder : nil
+            let hasTextInput = responder is NSTextView || responder is NSTextField
+            guard self?.inputMirror.state.hasActiveTextInput != hasTextInput else { return }
+            self?.inputMirror.update { $0.hasActiveTextInput = hasTextInput }
+        }
+        textInputObservers = [
+            NotificationCenter.default.addObserver(
+                forName: NSWindow.didUpdateNotification, object: nil, queue: .main, using: refresh
+            ),
+            NotificationCenter.default.addObserver(
+                forName: NSApplication.didResignActiveNotification, object: nil, queue: .main, using: refresh
+            ),
+        ]
     }
 
     private func items() -> [SwitcherItem] {
@@ -405,7 +587,20 @@ final class ProductionSwitcherWindowController: NSObject {
 
     private func wireDataSources() {
         appSwitcher.onItemsChanged = { [weak self] _ in
-            DispatchQueue.main.async { self?.refreshVisibleItemsIfNeeded() }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if self.hasPendingPresentation, self.appSwitcher.hasCompleteInventory {
+                    let held = Set([HotkeyModifier.command, .option].filter { $0.isHeld(in: NSEvent.modifierFlags) })
+                    guard let request = self.pendingPresentationState.takeWhenReady(
+                        inventoryReady: true, heldModifiers: held
+                    ) else { self.hidePanel(); return }
+                    if self.startSession(reverse: request.reverse, profileID: request.profileID, allowsLicensingPresentation: request.makeKey) {
+                        self.showPanel(makeKey: request.makeKey)
+                    }
+                    return
+                }
+                self.refreshVisibleItemsIfNeeded()
+            }
         }
         appSwitcher.onActivationConfirmed = { [weak self] identity, pid in
             guard let self else { return }
@@ -443,6 +638,7 @@ final class ProductionSwitcherWindowController: NSObject {
     }
 
     private func handleConfigurationChange() {
+        publishInputMirror()
         guard let profileID = activeProfileID,
               let configuration = profileStore.configuration(
                 for: profileID,
@@ -571,17 +767,7 @@ final class ProductionSwitcherWindowController: NSObject {
             break
         }
 
-        if currentStyle == .commandPalette {
-            if event.keyCode == 51 {
-                deleteSearchCharacter()
-                return true
-            }
-            if let character = searchableCharacter(from: event) {
-                appendSearchCharacter(character)
-                return true
-            }
-            return false
-        }
+        if currentStyle == .commandPalette { return false }
 
         let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
         let commandHeld = flags.contains(.command)
@@ -598,17 +784,15 @@ final class ProductionSwitcherWindowController: NSObject {
         return true
     }
 
-    private func searchableCharacter(from event: NSEvent) -> String? {
-        let flags = event.modifierFlags.intersection([.command, .option, .control, .function])
-        guard !flags.contains(.option), !flags.contains(.control), !flags.contains(.function),
-              let characters = event.charactersIgnoringModifiers,
-              characters.count == 1,
-              let scalar = characters.unicodeScalars.first,
-              scalar.value >= 32,
-              scalar.value != 127 else {
-            return nil
+    private func handlePaletteInputCommand(_ command: PaletteInputCommand) {
+        guard viewModel.isVisible, currentStyle == .commandPalette else { return }
+        switch command {
+        case .cancel: cancelAndHide()
+        case .confirm: confirmAndHide()
+        case let .move(delta): moveSelection(by: delta)
+        case .moveUp: moveSelectionUp()
+        case .moveDown: moveSelectionDown()
         }
-        return String(scalar)
     }
 
     private func showManagementMenu() {
@@ -808,6 +992,10 @@ final class ProductionSwitcherWindowController: NSObject {
     // MARK: Presentation
 
     private func showPanel(makeKey: Bool = false) {
+        if !isVisible {
+            scrollSelectionTimingState.reset()
+            scrollPresentationStartedAt = ProcessInfo.processInfo.systemUptime
+        }
         if viewModel.items.isEmpty, var session {
             let refreshed = items()
             guard !refreshed.isEmpty else { return }
@@ -825,18 +1013,38 @@ final class ProductionSwitcherWindowController: NSObject {
         }
         updateBackdropPanelIfNeeded()
         updateMirroredPanelsIfNeeded(primaryScreen: targetScreen)
+        let requiresNativePaletteInput = currentStyle == .commandPalette
+        if requiresNativePaletteInput {
+            panel.styleMask.remove(.nonactivatingPanel)
+        }
         panel.alphaValue = 1
-        if makeKey { NSApp.activate(ignoringOtherApps: true) }
+        // Palette input needs app activation, which would otherwise raise a
+        // retained Settings window together with the switcher.
+        if !makeKey { SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows) }
+        if makeKey || requiresNativePaletteInput { NSApp.activate(ignoringOtherApps: true) }
         backdropPanel.orderFrontRegardless()
         panel.orderFrontRegardless()
         panel.makeKeyAndOrderFront(nil)
         viewModel.isVisible = true
+        publishInputMirror()
+        installLocalScrollMonitor()
+        if requiresNativePaletteInput {
+            viewModel.paletteSearchFocusToken &+= 1
+        }
     }
 
     private func hidePanel() {
+        if let localScrollMonitor {
+            NSEvent.removeMonitor(localScrollMonitor)
+            self.localScrollMonitor = nil
+        }
+        scrollSelectionTimingState.reset()
+        pendingPresentationState.cancel()
         viewModel.isVisible = false
+        publishInputMirror()
         panel.alphaValue = 0
         panel.orderOut(nil)
+        panel.styleMask.insert(.nonactivatingPanel)
         backdropPanel.orderOut(nil)
         tearDownMirroredPanels()
         session = nil

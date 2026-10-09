@@ -94,6 +94,22 @@ export default function SwitchWindowsGuidePage() {
             The built-in Command-Tab shortcut cycles applications, while Command-` cycles windows in the current application. Mission Control provides a visual overview. CmdTab is an optional third-party path when you want individual windows from different apps in one searchable recent-use sequence.
           </p>
         </div>
+        <div className="surface-panel mt-6 flex flex-col gap-5 p-7 sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-medium tracking-[-0.03em] text-text">
+              Need to find one exact window?
+            </h2>
+            <p className="mt-2 text-sm leading-7 text-muted">
+              CmdTab puts eligible windows in a searchable, recent-use list. It is in private preview; request access and we’ll email you when it opens.
+            </p>
+          </div>
+          <Button
+            href="/trial?utm_source=switch_guide&utm_medium=organic_search&utm_campaign=waitlist_1000_30d&utm_content=guide_intro_cta"
+            className="shrink-0"
+          >
+            Join the private-preview waitlist
+          </Button>
+        </div>
       </SectionShell>
 
       <SectionShell

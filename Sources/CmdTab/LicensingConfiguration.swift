@@ -19,6 +19,16 @@ enum LicensingConfiguration {
     static let licenseDeactivationAPIURL = URL(string: "https://cmdtab.net/api/license/deactivate")!
     static let licenseDevicesAPIURL = URL(string: "https://cmdtab.net/api/license/devices")!
 
+    static var commerceEnabled: Bool {
+        commerceEnabled(
+            infoValue: Bundle.main.object(forInfoDictionaryKey: "CmdTabCommerceEnabled")
+        )
+    }
+
+    static func commerceEnabled(infoValue: Any?) -> Bool {
+        infoValue as? Bool ?? false
+    }
+
     static var trialPublicKeyringDERBase64: [String: String] {
         if let keyring = Bundle.main.object(
             forInfoDictionaryKey: "CmdTabTrialPublicKeyring"

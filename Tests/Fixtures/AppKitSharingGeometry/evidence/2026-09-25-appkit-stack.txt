@@ -1,0 +1,77 @@
+PID25401; 21 width faults; 3 distinct AppKit stacks.
+
+Occurrences: 7
+_NSViewValidateGeometry (in AppKit) + 716
+NSViewValidateSize (in AppKit) + 32
+-[NSView setFrameSize:] (in AppKit) + 64
+-[NSThemeFrame _positionSharingIndicator] (in AppKit) + 60
+-[NSWindowSharingSessionRecipientIndicator invalidateIntrinsicContentSize] (in AppKit) + 84
+-[NSView _viewDidChangeAppearance:] (in AppKit) + 240
+-[NSView _setSuperview:] (in AppKit) + 1260
+-[NSView addSubview:] (in AppKit) + 160
+-[NSThemeFrame addTitlebarSubview:] (in AppKit) + 80
+-[NSThemeFrame _updateButtons] (in AppKit) + 2096
+-[NSWindow _updateButtonsForWindowSharingSession] (in AppKit) + 28
+-[NSWindow _setIsSelectivelyShared:] (in AppKit) + 428
+___windowSelectiveSharingStateChangedNotification_block_invoke (in AppKit) + 308
+_withUncaughtExceptionHandler (in AppKit) + 28
+_windowSelectiveSharingStateChangedNotification (in AppKit) + 112
+_DPSBlockUntilNextEventMatchingListInMode (in AppKit) + 228
+_DPSNextEvent (in AppKit) + 576
+-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:] (in AppKit) + 688
+-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:] (in AppKit) + 72
+-[NSApplication run] (in AppKit) + 368
+
+Occurrences: 7
+_NSViewValidateGeometry (in AppKit) + 716
+NSViewValidateSize (in AppKit) + 32
+-[NSView setFrameSize:] (in AppKit) + 64
+-[NSThemeFrame _positionSharingIndicator] (in AppKit) + 60
+-[NSWindowSharingSessionRecipientIndicator invalidateIntrinsicContentSize] (in AppKit) + 84
+_NSViewHierarchyDidChangeBackingProperties (in AppKit) + 236
+-[NSView addSubview:] (in AppKit) + 428
+-[NSThemeFrame addTitlebarSubview:] (in AppKit) + 80
+-[NSThemeFrame _updateButtons] (in AppKit) + 2096
+-[NSWindow _updateButtonsForWindowSharingSession] (in AppKit) + 28
+-[NSWindow _setIsSelectivelyShared:] (in AppKit) + 428
+___windowSelectiveSharingStateChangedNotification_block_invoke (in AppKit) + 308
+_withUncaughtExceptionHandler (in AppKit) + 28
+_windowSelectiveSharingStateChangedNotification (in AppKit) + 112
+_DPSBlockUntilNextEventMatchingListInMode (in AppKit) + 228
+_DPSNextEvent (in AppKit) + 576
+-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:] (in AppKit) + 688
+-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:] (in AppKit) + 72
+-[NSApplication run] (in AppKit) + 368
+
+Occurrences: 7
+_NSViewValidateGeometry (in AppKit) + 716
+NSViewValidateSize (in AppKit) + 32
+-[NSView setFrameSize:] (in AppKit) + 64
+-[NSThemeFrame _positionSharingIndicator] (in AppKit) + 60
+-[NSThemeFrame layout] (in AppKit) + 324
+0x000000018ed4d50c (in AppKit) + 28
+0x000000018ed4d534 (in AppKit) + 28
+0x000000018ed127a0 (in AppKit) + 1460
+0x000000018ed12dec (in AppKit) + 28
+___NSViewLayout_block_invoke (in AppKit) + 624
+NSPerformVisuallyAtomicChange (in AppKit) + 128
+_NSViewLayout (in AppKit) + 96
+__36-[NSView _layoutSubtreeWithOldSize:]_block_invoke (in AppKit) + 372
+NSPerformVisuallyAtomicChange (in AppKit) + 128
+-[NSView _layoutSubtreeWithOldSize:] (in AppKit) + 100
+__56-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:]_block_invoke (in AppKit) + 908
+NSPerformVisuallyAtomicChange (in AppKit) + 128
+-[NSView _layoutSubtreeIfNeededAndAllowTemporaryEngine:] (in AppKit) + 100
+NSPerformVisuallyAtomicChange (in AppKit) + 128
+-[NSView layoutSubtreeIfNeeded] (in AppKit) + 96
+-[NSWindow(NSConstraintBasedLayoutInternal) _layoutViewTree] (in AppKit) + 120
+-[NSWindow(NSConstraintBasedLayoutInternal) layoutIfNeeded] (in AppKit) + 240
+__NSWindowGetDisplayCycleObserverForLayout_block_invoke (in AppKit) + 364
+NSDisplayCycleObserverInvoke (in AppKit) + 168
+NSDisplayCycleFlush (in AppKit) + 656
+__62+[CATransaction(NSCATransaction) NS_setFlushesWithDisplayLink]_block_invoke (in AppKit) + 272
+_DPSBlockUntilNextEventMatchingListInMode (in AppKit) + 228
+_DPSNextEvent (in AppKit) + 576
+-[NSApplication(NSEventRouting) _nextEventMatchingEventMask:untilDate:inMode:dequeue:] (in AppKit) + 688
+-[NSApplication(NSEventRouting) nextEventMatchingMask:untilDate:inMode:dequeue:] (in AppKit) + 72
+-[NSApplication run] (in AppKit) + 368

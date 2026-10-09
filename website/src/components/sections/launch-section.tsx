@@ -27,10 +27,10 @@ export function LaunchSection() {
   const checkoutReady = Boolean(commerce.checkoutUrl);
   const trialReady = Boolean(release);
   const statusNote = checkoutReady && !trialReady
-    ? "Checkout is live. The trial button will switch on after the notarized trial build is published."
+    ? "Checkout is available. The trial download will appear after the signed build is published."
     : checkoutReady || trialReady
       ? "The launch section is live-configured from environment variables, so the site reflects your current hosted checkout and trial links."
-      : commerceContent.fallback;
+      : "CmdTab is in private preview. The trial download and checkout will appear after their release checks are complete.";
 
   return (
     <SectionShell
@@ -66,14 +66,21 @@ export function LaunchSection() {
 
           <article className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 shadow-panel backdrop-blur-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-              {commerceContent.trial.title}
+              {trialReady ? commerceContent.trial.title : "Private preview"}
             </p>
             <p className="mt-5 text-4xl font-medium tracking-[-0.06em] text-text">
-              {commerceContent.trialLength}
+              {trialReady ? commerceContent.trialLength : "Access not open yet"}
             </p>
-            <p className="mt-3 text-sm leading-6 text-muted">{commerceContent.trial.note}</p>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              {trialReady
+                ? commerceContent.trial.note
+                : "Join the waitlist and we’ll email you when trial access is ready."}
+            </p>
             <div className="mt-6 space-y-3">
-              {commerceContent.trial.points.map((point) => (
+              {(trialReady
+                ? commerceContent.trial.points
+                : ["No trial download is available yet.", "We’ll email you when access is ready.", "No payment is needed to request access."]
+              ).map((point) => (
                 <div key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
                   <span className="mt-2 h-2 w-2 rounded-full bg-success" />
                   <span>{point}</span>
@@ -97,7 +104,7 @@ export function LaunchSection() {
                   variant="secondary"
                   {...analyticsAttributes("launch_trial_fallback", "launch")}
                 >
-                  Trial details
+                  Join the waitlist
                 </Button>
               )}
             </div>

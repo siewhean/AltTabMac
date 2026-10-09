@@ -102,6 +102,12 @@ private struct PendingAlternateModifierTap: Equatable {
     let releasedAtUptime: TimeInterval
 }
 
+private struct ActiveAlternateChordPress: Equatable {
+    let keys: Set<PhysicalModifierTriggerKey>
+    let pressedAtUptime: TimeInterval
+    var wasInterrupted: Bool
+}
+
 /// Fail-closed production state for modifier-only Hot Swap gestures.
 ///
 /// A Command double tap is accepted only when both short taps complete within a
@@ -114,6 +120,7 @@ struct AlternateModifierTriggerState {
     static let maximumDoubleTapGap: TimeInterval = 0.25
 
     private var activePress: ActiveAlternateModifierPress?
+    private var activeChordPress: ActiveAlternateChordPress?
     private var pendingDoubleTap: PendingAlternateModifierTap?
     private var triggeredCombination: Set<PhysicalModifierTriggerKey>?
     private var pressedKeys = Set<PhysicalModifierTriggerKey>()
@@ -151,6 +158,7 @@ struct AlternateModifierTriggerState {
         case .doubleTap:
             triggeredCombination = nil
             chordWasInterrupted = false
+            activeChordPress = nil
             return handleDoubleTapChange(
                 key,
                 isDown: isDown,
@@ -164,7 +172,8 @@ struct AlternateModifierTriggerState {
             return handleChordChange(
                 key,
                 isDown: isDown,
-                mode: safeMode
+                mode: safeMode,
+                now: now
             )
         }
     }
@@ -177,6 +186,10 @@ struct AlternateModifierTriggerState {
         pendingDoubleTap = nil
         if !pressedKeys.isEmpty {
             chordWasInterrupted = true
+            if var activeChordPress {
+                activeChordPress.wasInterrupted = true
+                self.activeChordPress = activeChordPress
+            }
         }
     }
 
@@ -243,29 +256,52 @@ struct AlternateModifierTriggerState {
     private mutating func handleChordChange(
         _ key: PhysicalModifierTriggerKey,
         isDown: Bool,
-        mode: AlternateTriggerMode
+        mode: AlternateTriggerMode,
+        now: TimeInterval
     ) -> Bool {
         guard let monitoredKeys = mode.monitoredKeys,
               monitoredKeys.contains(key) else {
             if isDown {
                 chordWasInterrupted = true
+                if var activeChordPress {
+                    activeChordPress.wasInterrupted = true
+                    self.activeChordPress = activeChordPress
+                }
             }
             return false
         }
 
-        if !isDown {
-            if let triggeredCombination,
-               !triggeredCombination.isSubset(of: pressedKeys) {
-                self.triggeredCombination = nil
+        if isDown {
+            // When all monitored keys become pressed simultaneously without interruption,
+            // record the active chord press. Hot Swap only fires on key-up within maximumTapDuration.
+            if !chordWasInterrupted && pressedKeys == monitoredKeys {
+                activeChordPress = ActiveAlternateChordPress(
+                    keys: monitoredKeys,
+                    pressedAtUptime: now,
+                    wasInterrupted: false
+                )
             }
+            return false
+        }
+
+        // On key-up: verify the chord was held cleanly, not interrupted by any character keys
+        // (like C or V in Command-Option-C/V), and released within maximumTapDuration.
+        guard let chordPress = activeChordPress,
+              chordPress.keys == monitoredKeys else {
             if pressedKeys.isEmpty {
                 chordWasInterrupted = false
+                activeChordPress = nil
+                triggeredCombination = nil
             }
             return false
         }
+        activeChordPress = nil
 
-        guard !chordWasInterrupted,
-              pressedKeys == monitoredKeys else {
+        let pressDuration = now - chordPress.pressedAtUptime
+        guard !chordPress.wasInterrupted,
+              !chordWasInterrupted,
+              pressDuration >= 0,
+              pressDuration <= maximumTapDuration else {
             return false
         }
 
@@ -308,6 +344,7 @@ struct AlternateModifierTriggerState {
 
     private mutating func clearGestureState(keepPressedKeys: Bool) {
         activePress = nil
+        activeChordPress = nil
         pendingDoubleTap = nil
         triggeredCombination = nil
         chordWasInterrupted = false

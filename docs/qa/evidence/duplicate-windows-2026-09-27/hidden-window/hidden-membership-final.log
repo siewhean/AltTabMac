@@ -1,0 +1,278 @@
+Building for debugging...
+[Using on-disk description]
+[1 / 10]
+[2 / 11] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:902:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 900 | 
+ 901 |         app.unhide()
+ 902 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 903 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 904 |         _ = AXUIElementSetAttributeValue(
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[5 / 14] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:850:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 848 | 
+ 849 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 850 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 851 |         } else {
+ 852 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:856:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 854 |                let windows = value as? [AXUIElement],
+ 855 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 856 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 857 |             }
+ 858 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:993:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 991 |         app.unhide()
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 994 |             : [.activateIgnoringOtherApps]
+ 995 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:994:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 994 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 995 |         let didActivate = app.activate(options: options)
+ 996 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1695:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1693 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1694 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1695 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1696 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1697 |         guard prepared.width >= minW, prepared.height >= minH,
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[9 / 18] CmdTab
+[10 / 19] CmdTab-product
+[12 / 22] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:902:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 900 | 
+ 901 |         app.unhide()
+ 902 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 903 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 904 |         _ = AXUIElementSetAttributeValue(
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[14 / 23] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:850:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 848 | 
+ 849 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 850 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 851 |         } else {
+ 852 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:856:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 854 |                let windows = value as? [AXUIElement],
+ 855 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 856 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 857 |             }
+ 858 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:993:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 991 |         app.unhide()
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 994 |             : [.activateIgnoringOtherApps]
+ 995 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:994:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 994 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 995 |         let didActivate = app.activate(options: options)
+ 996 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1695:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1693 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1694 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1695 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1696 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1697 |         guard prepared.width >= minW, prepared.height >= minH,
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[19 / 25] CmdTab
+[21 / 25] CmdTabTests-product
+[24 / 26] CmdTabTests-product
+[26 / 26] CmdTabTests-product
+Build complete! (6.85 secs)
+Test Suite 'Selected tests' started at 2026-09-27 22:29:00.177.
+Test Suite 'CmdTabTests.xctest' started at 2026-09-27 22:29:00.178.
+Test Suite 'MembershipDiagnosticsTests' started at 2026-09-27 22:29:00.178.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testAXOmissionKeepsEligibleLayerOneAndTwoCandidates]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testAXOmissionKeepsEligibleLayerOneAndTwoCandidates]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testAXOmissionKeepsUntitledMinimumSizeCandidate]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testAXOmissionKeepsUntitledMinimumSizeCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testCompleteAXCatalogKeepsBothCandidatesAndCountsExactMatches]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testCompleteAXCatalogKeepsBothCandidatesAndCountsExactMatches]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testOnlyPositivelyMappedAXExclusionIsRejected]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testOnlyPositivelyMappedAXExclusionIsRejected]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testPartiallyUnavailableAXIDBridgeKeepsUnmappedCandidate]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testPartiallyUnavailableAXIDBridgeKeepsUnmappedCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testPreviewFailurePublishesTheCandidateAsUnavailable]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testPreviewFailurePublishesTheCandidateAsUnavailable]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testSilentAXOmissionKeepsUnknownCGCandidate]' started.
+Test Case '-[CmdTabTests.MembershipDiagnosticsTests testSilentAXOmissionKeepsUnknownCGCandidate]' passed (0.000 seconds).
+Test Suite 'MembershipDiagnosticsTests' passed at 2026-09-27 22:29:00.182.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'MinimizedPreviewRetentionTests' started at 2026-09-27 22:29:00.182.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testByteBudgetEvictsLeastRecentlyUsedAndDownscalesLargeCapture]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testByteBudgetEvictsLeastRecentlyUsedAndDownscalesLargeCapture]' passed (0.285 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testClosedWindowCannotBeResurrectedByInFlightCapture]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testClosedWindowCannotBeResurrectedByInFlightCapture]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testEnrichedLiveClonePreservesCaptureTimeAndCannotReplaceNewerRecovery]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testEnrichedLiveClonePreservesCaptureTimeAndCannotReplaceNewerRecovery]' passed (0.054 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testIncompleteEnumerationPreservesButCompleteClosurePurges]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testIncompleteEnumerationPreservesButCompleteClosurePurges]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testOlderCompleteSnapshotCannotEraseOrReplaceNewerIdentity]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testOlderCompleteSnapshotCannotEraseOrReplaceNewerIdentity]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testReplacementAndProcessGenerationPurgeEvenBeforeNormalExpiry]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testReplacementAndProcessGenerationPurgeEvenBeforeNormalExpiry]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testTerminationAndDenialPurgeRetainedFrames]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testTerminationAndDenialPurgeRetainedFrames]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testVerifiedMinimizedFrameSurvivesLongAbsenceWithOriginalCaptureDateAndNoBackdrop]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testVerifiedMinimizedFrameSurvivesLongAbsenceWithOriginalCaptureDateAndNoBackdrop]' passed (0.000 seconds).
+Test Suite 'MinimizedPreviewRetentionTests' passed at 2026-09-27 22:29:00.523.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.340 (0.341) seconds
+Test Suite 'ProductionMembershipPolicyTests' started at 2026-09-27 22:29:00.523.
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testDeduplicationKeepsFirstStableIdentity]' started.
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testDeduplicationKeepsFirstStableIdentity]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testExactWindowSuppressesFallbackForSameProcess]' started.
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testExactWindowSuppressesFallbackForSameProcess]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testFallbackRemainsWhenNoExactWindowExists]' started.
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testFallbackRemainsWhenNoExactWindowExists]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testPerAppLimitRetainsFrontmostExactWindow]' started.
+Test Case '-[CmdTabTests.ProductionMembershipPolicyTests testPerAppLimitRetainsFrontmostExactWindow]' passed (0.000 seconds).
+Test Suite 'ProductionMembershipPolicyTests' passed at 2026-09-27 22:29:00.524.
+	 Executed 4 tests, with 0 failures (0 unexpected) in 0.001 (0.001) seconds
+Test Suite 'ProductionWindowReconciliationTests' started at 2026-09-27 22:29:00.524.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests test24WindowsAcrossApplicationsPreserveSiblingsAndExplicitMinimizedProfile]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests test24WindowsAcrossApplicationsPreserveSiblingsAndExplicitMinimizedProfile]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testAXOmissionDoesNotRemoveEligibleCGSibling]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testAXOmissionDoesNotRemoveEligibleCGSibling]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedExactWindowSuppressesNewBaseFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedExactWindowSuppressesNewBaseFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedMergeRemovesFallbackWhenExactWindowArrives]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedMergeRemovesFallbackWhenExactWindowArrives]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdMinimizedSiblingsPublishWithoutFallbackOrPreviews]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdMinimizedSiblingsPublishWithoutFallbackOrPreviews]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdPublicationWaitsForWholeInventory]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdPublicationWaitsForWholeInventory]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteEmptyInventoryDoesNotReintroduceProvisionalWindows]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteEmptyInventoryDoesNotReintroduceProvisionalWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteInventoryPublishesAll24WindowsAndAsyncPreviewBeyondEight]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteInventoryPublishesAll24WindowsAndAsyncPreviewBeyondEight]' passed (0.006 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testEveryEligibleProcessGetsOneFallbackIncludingSharedBundleProcesses]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testEveryEligibleProcessGetsOneFallbackIncludingSharedBundleProcesses]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFallbackRetainsFactoryActivationClosure]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFallbackRetainsFactoryActivationClosure]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFilteredWindowIsNotReintroducedIntoEmptyOrFallbackSnapshot]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFilteredWindowIsNotReintroducedIntoEmptyOrFallbackSnapshot]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFinalFilteringReplacesOnlyMinimizedWindowWithApplicationFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFinalFilteringReplacesOnlyMinimizedWindowWithApplicationFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testGloballyExcludedProcessCannotReappearAsWindowOrFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testGloballyExcludedProcessCannotReappearAsWindowOrFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testIncludedMinimizedWindowSuppressesFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testIncludedMinimizedWindowSuppressesFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testLifecycleSnapshotDistinguishesIncompleteAndEmptyProcessInventories]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testLifecycleSnapshotDistinguishesIncompleteAndEmptyProcessInventories]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProfileDoesNotGainUnscopedFallbackOrUnknownWindow]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProfileDoesNotGainUnscopedFallbackOrUnknownWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProvisionalSnapshotCannotReintroduceUnscopedFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProvisionalSnapshotCannotReintroduceUnscopedFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testPositiveRoleRejectionReplacesWindowWithFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testPositiveRoleRejectionReplacesWindowWithFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testProfileExclusionAppliesToExactAndFallbackItems]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testProfileExclusionAppliesToExactAndFallbackItems]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testRealAsyncProductionPublicationUpdates24thWindow]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testRealAsyncProductionPublicationUpdates24thWindow]' passed (0.022 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testUnchangedInputRefreshesAfterMetadataAgeButNotOnImmediatePublication]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testUnchangedInputRefreshesAfterMetadataAgeButNotOnImmediatePublication]' passed (0.000 seconds).
+Test Suite 'ProductionWindowReconciliationTests' passed at 2026-09-27 22:29:00.556.
+	 Executed 21 tests, with 0 failures (0 unexpected) in 0.031 (0.032) seconds
+Test Suite 'SwitcherOrderingTests' started at 2026-09-27 22:29:00.556.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testChangedWindowIdentityDoesNotInheritAppLevelHistoryRank]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testChangedWindowIdentityDoesNotInheritAppLevelHistoryRank]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testCurrentFrontmostMovesToEndAndKeepsInterleavedOrder]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testCurrentFrontmostMovesToEndAndKeepsInterleavedOrder]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testEagerHistoryNoteSecondSessionSkipsJustActivatedApp]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testEagerHistoryNoteSecondSessionSkipsJustActivatedApp]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testFinderArcFinderPatternSelectsArcNotFinderAgain]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testFinderArcFinderPatternSelectsArcNotFinderAgain]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testInterleavedMRUOrderWithMultipleWindowsSameApp]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testInterleavedMRUOrderWithMultipleWindowsSameApp]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testLeadingWindowsFromCurrentAppStayInStrictRecencyOrder]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testLeadingWindowsFromCurrentAppStayInStrictRecencyOrder]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testNoHistoryFallbackPreservesOffsetOrderNotAppGrouping]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testNoHistoryFallbackPreservesOffsetOrderNotAppGrouping]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testOrderingDoesNotLimitRepeatedApplications]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testOrderingDoesNotLimitRepeatedApplications]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testPaletteFilteringMatchesAppName]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testPaletteFilteringMatchesAppName]' passed (0.004 seconds).
+Test Case '-[CmdTabTests.SwitcherOrderingTests testWindowTilesDoNotUseAppLevelFallbackThatGroupsRepeatedApps]' started.
+Test Case '-[CmdTabTests.SwitcherOrderingTests testWindowTilesDoNotUseAppLevelFallbackThatGroupsRepeatedApps]' passed (0.000 seconds).
+Test Suite 'SwitcherOrderingTests' passed at 2026-09-27 22:29:00.562.
+	 Executed 10 tests, with 0 failures (0 unexpected) in 0.006 (0.006) seconds
+Test Suite 'UnknownCGSurfaceMembershipTests' started at 2026-09-27 22:29:00.562.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testHiddenSurfacePolicyPreservesIncompleteAndExactAXWindows]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testHiddenSurfacePolicyPreservesIncompleteAndExactAXWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testInternallyHiddenTitledWindowIsExcludedDespiteHistoricalConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testInternallyHiddenTitledWindowIsExcludedDespiteHistoricalConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testLive500PointHelpersDoNotDuplicateVisibleAndMinimizedSiblings]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testLive500PointHelpersDoNotDuplicateVisibleAndMinimizedSiblings]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedHistorySurvivesOmissionAndClearsAfterRestoreOrPIDReuse]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedHistorySurvivesOmissionAndClearsAfterRestoreOrPIDReuse]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' passed (0.000 seconds).
+Test Suite 'UnknownCGSurfaceMembershipTests' passed at 2026-09-27 22:29:00.566.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-09-27 22:29:00.566.
+	 Executed 69 tests, with 0 failures (0 unexpected) in 0.383 (0.388) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 22:29:00.566.
+	 Executed 69 tests, with 0 failures (0 unexpected) in 0.383 (0.389) seconds

@@ -3,6 +3,7 @@ import Darwin
 import SwiftUI
 
 final class ProductionDiagnosticsWindowController: NSWindowController {
+    static let shared = ProductionDiagnosticsWindowController()
     private var retainedController: NSHostingController<ProductionDiagnosticsView>?
 
     init() {
@@ -35,19 +36,26 @@ struct ProductionDiagnosticsSnapshot: Equatable {
     let screenRecordingReady: Bool
     let secureInputActive: Bool
     let exactIdentity: CapabilityStatus
+    let privateCapture: CapabilityStatus
+    let privateFocus: CapabilityStatus
     let workspace: CapabilityStatus
     let enabledProfileCount: Int
     let profileValidationIssues: [String]
     let durableRecordCount: Int
     let durableHistoryLocation: String
+    let snapshotMetrics: SnapshotDiagnosticMetrics
+    let activationMetrics: ActivationOutcomeMetrics
 
     static func capture() -> ProductionDiagnosticsSnapshot {
         let profileStore = SwitcherProfileStore.shared
+        let privateCapabilities = PrivateWindowCapabilityDiagnostics.shared.snapshot()
         return ProductionDiagnosticsSnapshot(
             accessibilityReady: AXIsProcessTrusted(),
             screenRecordingReady: CGPreflightScreenCaptureAccess(),
             secureInputActive: SecureInputMonitor.isEnabled,
-            exactIdentity: AXWindowIdentityLookup.status,
+            exactIdentity: privateCapabilities.identity,
+            privateCapture: privateCapabilities.capture,
+            privateFocus: privateCapabilities.focus,
             workspace: StageManagerCapabilityPolicy.truthfulStatus(
                 WindowWorkspaceProvider.shared.status
             ),
@@ -56,7 +64,9 @@ struct ProductionDiagnosticsSnapshot: Equatable {
             durableRecordCount: DurableSwitcherHistoryStore.shared.snapshot().count,
             // Do not copy the user's account name or absolute home-directory
             // path into support reports.
-            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json"
+            durableHistoryLocation: "~/Library/Application Support/CmdTab/window-history-v1.json",
+            snapshotMetrics: SnapshotDiagnosticsTracker.shared.snapshot(),
+            activationMetrics: ActivationOutcomeTracker.shared.snapshot()
         )
     }
 
@@ -75,11 +85,41 @@ struct ProductionDiagnosticsSnapshot: Equatable {
         screenRecording=\(screenRecordingReady ? "ready" : "required")
         secureInput=\(secureInputActive ? "active" : "inactive")
         exactWindowIdentity=\(exactIdentity.level.rawValue):\(exactIdentity.reason ?? "ok")
+        privateCapture=\(privateCapture.level.rawValue):\(privateCapture.reason ?? "ok")
+        privateFocus=\(privateFocus.level.rawValue):\(privateFocus.reason ?? "ok")
         workspace=\(workspace.level.rawValue):\(workspace.reason ?? "ok")
         enabledProfiles=\(enabledProfileCount)
         profileValidation=\(profileIssues)
         durableRecords=\(durableRecordCount)
         durableHistoryLocation=\(durableHistoryLocation)
+        snapshotMetrics:
+          regularApplicationsDetected=\(snapshotMetrics.regularApplicationsDetected)
+          processesRepresented=\(snapshotMetrics.processesRepresented)
+          processesMissing=\(snapshotMetrics.processesMissing)
+          cgWindowsEnumerated=\(snapshotMetrics.cgWindowsEnumerated)
+          cgCandidateWindows=\(snapshotMetrics.cgCandidateWindows)
+          positivelyRejected=\(snapshotMetrics.positivelyRejectedWindows)
+          exactAXMatchedWindows=\(snapshotMetrics.exactAXMatchedWindows)
+          unknownAXIdentityWindows=\(snapshotMetrics.unknownAXIdentityWindows)
+          exactWindowsPublished=\(snapshotMetrics.exactWindowsPublished)
+          appFallbacksPublished=\(snapshotMetrics.appFallbacksPublished)
+          previewAvailable=\(snapshotMetrics.previewAvailable)
+          previewUnavailable=\(snapshotMetrics.previewUnavailable)
+          previewLive=\(snapshotMetrics.previewLive)
+          previewSaved=\(snapshotMetrics.previewSaved)
+          previewPending=\(snapshotMetrics.previewPending)
+          previewPermissionDenied=\(snapshotMetrics.previewPermissionDenied)
+          previewCaptureUnavailable=\(snapshotMetrics.previewCaptureUnavailable)
+          axIdentityFailures=\(snapshotMetrics.axIdentityFailures)
+          phase1Duration=\(String(format: "%.1f ms", snapshotMetrics.phase1Duration * 1000))
+          phase2Duration=\(String(format: "%.1f ms", snapshotMetrics.phase2Duration * 1000))
+        activationMetrics:
+          requested=\(activationMetrics.requested)
+          verified=\(activationMetrics.exactVerified)
+          fallback=\(activationMetrics.applicationFallbackUnverified)
+          disappeared=\(activationMetrics.targetDisappeared)
+          accessibilityUnavailable=\(activationMetrics.accessibilityUnavailable)
+          verificationFailure=\(activationMetrics.verificationFailure)
         """
     }
 }
@@ -105,6 +145,11 @@ struct ProductionDiagnosticsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     diagnosticRow(
+                        title: "Activation Outcomes",
+                        value: "\(snapshot.activationMetrics.requested) requested · \(snapshot.activationMetrics.exactVerified) exact · \(snapshot.activationMetrics.applicationFallbackUnverified) fallback · \(snapshot.activationMetrics.targetDisappeared) disappeared · \(snapshot.activationMetrics.verificationFailure) failed",
+                        level: snapshot.activationMetrics.verificationFailure == 0 ? .available : .degraded
+                    )
+                    diagnosticRow(
                         title: "Accessibility",
                         value: snapshot.accessibilityReady ? "Ready" : "Required",
                         level: snapshot.accessibilityReady ? .available : .unavailable
@@ -114,6 +159,14 @@ struct ProductionDiagnosticsView: View {
                         value: snapshot.screenRecordingReady ? "Ready" : "Required",
                         level: snapshot.screenRecordingReady ? .available : .degraded
                     )
+                    HStack {
+                        Button("Accessibility Settings…") {
+                            PermissionSetupWindowController.shared.show(for: .accessibility)
+                        }
+                        Button("Screen Recording Settings…") {
+                            PermissionSetupWindowController.shared.show(for: .screenRecording)
+                        }
+                    }
                     diagnosticRow(
                         title: "Secure Input",
                         value: snapshot.secureInputActive ? "Active — shortcuts bypassed" : "Inactive",
@@ -123,6 +176,16 @@ struct ProductionDiagnosticsView: View {
                         title: "Exact Window Identity",
                         value: statusText(snapshot.exactIdentity),
                         level: snapshot.exactIdentity.level
+                    )
+                    diagnosticRow(
+                        title: "Private Preview Capture",
+                        value: statusText(snapshot.privateCapture),
+                        level: snapshot.privateCapture.level
+                    )
+                    diagnosticRow(
+                        title: "Private Window Focus",
+                        value: statusText(snapshot.privateFocus),
+                        level: snapshot.privateFocus.level
                     )
                     diagnosticRow(
                         title: "Workspace Provider / Stage Manager",
@@ -139,6 +202,11 @@ struct ProductionDiagnosticsView: View {
                     diagnosticRow(
                         title: "Durable MRU",
                         value: "\(snapshot.durableRecordCount) privacy-minimised record\(snapshot.durableRecordCount == 1 ? "" : "s")",
+                        level: .available
+                    )
+                    diagnosticRow(
+                        title: "Window Snapshot Metrics",
+                        value: "\(snapshot.snapshotMetrics.exactWindowsPublished) exact · \(snapshot.snapshotMetrics.appFallbacksPublished) fallbacks · \(snapshot.snapshotMetrics.cgCandidateWindows)/\(snapshot.snapshotMetrics.cgWindowsEnumerated) CG candidates · \(snapshot.snapshotMetrics.previewLive) live · \(snapshot.snapshotMetrics.previewSaved) saved · \(snapshot.snapshotMetrics.previewPending) pending · \(snapshot.snapshotMetrics.previewPermissionDenied) denied · \(snapshot.snapshotMetrics.previewCaptureUnavailable) unavailable · p1: \(String(format: "%.1f", snapshot.snapshotMetrics.phase1Duration * 1000))ms",
                         level: .available
                     )
                     Text(snapshot.durableHistoryLocation)

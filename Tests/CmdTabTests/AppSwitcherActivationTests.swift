@@ -518,40 +518,42 @@ final class AppSwitcherActivationTests: XCTestCase {
         XCTAssertNotEqual(firstKey, secondKey, "Changing the window title should invalidate stale preview reuse")
     }
 
-    func testAllowedWindowIDDefaultsToTrueWhenNoAXFilterExists() {
-        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: nil))
-    }
-
-    func testAllowedWindowIDRejectsNonDisplayWindowIDs() {
-        XCTAssertTrue(AppSwitcher.isAllowedWindowID(77, allowedWindowIDs: [77, 88]))
-        XCTAssertFalse(AppSwitcher.isAllowedWindowID(99, allowedWindowIDs: [77, 88]))
-    }
-
-    func testResolvedAllowedWindowIDsPreservesDisplayWindowsAndIncludesPreferredWindow() {
-        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
-            displayWindowIDs: [11, 22],
-            preferredWindowIDs: [33]
+    func testFrontmostIdentityMembershipIncludesAXOmission() {
+        let inspection = AppSwitcher.AXAppInspection(
+            approvedIDs: [77],
+            positivelyDisallowedIDs: [],
+            identityFailures: 1
         )
 
-        XCTAssertEqual(resolved, [11, 22, 33])
-    }
-
-    func testResolvedAllowedWindowIDsFallsBackToPreferredWindowWhenDisplayFilterIsEmpty() {
-        let resolved = AppSwitcher.resolvedAllowedWindowIDs(
-            displayWindowIDs: [],
-            preferredWindowIDs: [77]
+        let decision = AppSwitcher.evaluateMembership(
+            windowID: 99,
+            inspection: inspection,
+            layer: 0,
+            hasTitle: true,
+            bounds: CGRect(x: 0, y: 0, width: 800, height: 600)
         )
 
-        XCTAssertEqual(resolved, [77])
+        XCTAssertTrue(decision.isIncluded)
+        XCTAssertTrue(decision.isUnknownIdentity)
     }
 
-    func testResolvedAllowedWindowIDsReturnsNilWhenNoEligibleWindowsExist() {
-        XCTAssertNil(
-            AppSwitcher.resolvedAllowedWindowIDs(
-                displayWindowIDs: [],
-                preferredWindowIDs: []
-            )
+    func testFrontmostIdentityMembershipRejectsOnlyPositiveAXExclusion() {
+        let inspection = AppSwitcher.AXAppInspection(
+            approvedIDs: [77],
+            positivelyDisallowedIDs: [99],
+            identityFailures: 0
         )
+
+        let decision = AppSwitcher.evaluateMembership(
+            windowID: 99,
+            inspection: inspection,
+            layer: 0,
+            hasTitle: true,
+            bounds: CGRect(x: 0, y: 0, width: 800, height: 600)
+        )
+
+        XCTAssertFalse(decision.isIncluded)
+        XCTAssertFalse(decision.isUnknownIdentity)
     }
 
     func testSwitcherDisplaySubroleRejectsFloatingPanels() {
@@ -589,6 +591,18 @@ final class AppSwitcherActivationTests: XCTestCase {
                 subrole: kAXStandardWindowSubrole as String,
                 parentRole: nil,
                 isMinimized: true
+            )
+        )
+    }
+
+    func testShouldAllowAXWindowAcceptsMinimizedWindowsWhenIncluded() {
+        XCTAssertTrue(
+            AppSwitcher.shouldAllowAXWindow(
+                role: kAXWindowRole as String,
+                subrole: kAXStandardWindowSubrole as String,
+                parentRole: nil,
+                isMinimized: true,
+                includeMinimized: true
             )
         )
     }

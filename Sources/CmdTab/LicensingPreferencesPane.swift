@@ -45,7 +45,7 @@ struct LicensingPreferencesPane: View {
     private var statusCard: some View {
         LicensingCard(
             title: "License Status",
-            subtitle: "CmdTab starts with a server-signed 14-day trial. Email is optional and is used only for reminders."
+            subtitle: "CmdTab includes a 14-day free trial. Email is optional and used only for expiration reminders."
         ) {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .center, spacing: 14) {
@@ -78,7 +78,7 @@ struct LicensingPreferencesPane: View {
                 HStack(spacing: 12) {
                     if case .licensed = controller.status {
                         EmptyView()
-                    } else {
+                    } else if LicensingConfiguration.commerceEnabled {
                         Button(action: controller.openBuyPage) {
                             Text("Buy CmdTab")
                                 .frame(maxWidth: .infinity)
@@ -105,10 +105,14 @@ struct LicensingPreferencesPane: View {
 
     private var accessCard: some View {
         LicensingCard(
-            title: controller.status.requiresTrialRegistration ? "Start your 14-day trial" : "Activate This Mac",
+            title: controller.status.requiresTrialRegistration
+                ? "Start your 14-day trial"
+                : (LicensingConfiguration.commerceEnabled ? "Activate This Mac" : "Beta Access"),
             subtitle: controller.status.requiresTrialRegistration
                 ? "Start on this Mac immediately. Add an email only when you want an expiry reminder."
-                : "Open the one-click link from your purchase email, or paste the activation credential below."
+                : (LicensingConfiguration.commerceEnabled
+                    ? "Open the one-click link from your purchase email, or paste the activation credential below."
+                    : "This beta accepts a verified trial entitlement. Paid activation is not available in this build.")
         ) {
             VStack(alignment: .leading, spacing: 12) {
                 if controller.status.requiresTrialRegistration {
@@ -150,6 +154,15 @@ struct LicensingPreferencesPane: View {
                     Divider().overlay(Color.white.opacity(0.08))
                 }
 
+                if LicensingConfiguration.commerceEnabled {
+                    purchaseActivationControls
+                }
+            }
+        }
+    }
+
+    private var purchaseActivationControls: some View {
+        Group {
                 Text("Purchase activation code")
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
@@ -199,7 +212,6 @@ struct LicensingPreferencesPane: View {
                     .controlSize(.large)
                     .disabled(controller.isManagingLicense)
                 }
-            }
         }
     }
 

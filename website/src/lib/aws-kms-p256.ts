@@ -36,6 +36,11 @@ export type CmdTabKmsSigningConfiguration = {
   license: AwsKmsSigningKeyConfiguration;
 };
 
+export type CmdTabKmsSignerConfiguration = {
+  region: string;
+  key: AwsKmsSigningKeyConfiguration;
+};
+
 export type CmdTabPublicKeyrings = {
   trial: Readonly<Record<string, string>>;
   license: Readonly<Record<string, string>>;
@@ -66,17 +71,16 @@ export function loadCmdTabKmsSigningConfiguration(
     );
   }
 
+  const trial = loadTrialKmsSigningConfiguration(env);
+  const license = loadLicenseKmsSigningConfiguration(env);
   const configuration: CmdTabKmsSigningConfiguration = {
-    region: required(env, "AWS_REGION"),
-    trial: {
-      keyId: required(env, "CMDTAB_TRIAL_KMS_KEY_ID"),
-      kid: required(env, "CMDTAB_TRIAL_SIGNING_KID"),
-    },
-    license: {
-      keyId: required(env, "CMDTAB_LICENSE_KMS_KEY_ID"),
-      kid: required(env, "CMDTAB_LICENSE_SIGNING_KID"),
-    },
+    region: trial.region,
+    trial: trial.key,
+    license: license.key,
   };
+  if (configuration.region !== license.region) {
+    throw new Error("Trial and license KMS signing regions must match.");
+  }
   if (
     !validKid(configuration.trial.kid) ||
     !validKid(configuration.license.kid)
@@ -90,6 +94,48 @@ export function loadCmdTabKmsSigningConfiguration(
     throw new Error("Trial and license signing keys and kids must be separate.");
   }
   return configuration;
+}
+
+function loadKmsSignerConfiguration(
+  env: SigningEnvironment,
+  kind: "trial" | "license",
+): CmdTabKmsSignerConfiguration {
+  const prefix = kind === "trial" ? "CMDTAB_TRIAL" : "CMDTAB_LICENSE";
+  if (
+    env.VERCEL_ENV === "production" &&
+    (env.CMDTAB_TRIAL_PRIVATE_KEY_PEM?.trim() ||
+      env.CMDTAB_LICENSE_PRIVATE_KEY_PEM?.trim())
+  ) {
+    throw new Error(
+      `Production ${kind} signing must use AWS KMS; exported PEM is forbidden.`,
+    );
+  }
+
+  const configuration: CmdTabKmsSignerConfiguration = {
+    region: required(env, "AWS_REGION"),
+    key: {
+      keyId: required(env, `${prefix}_KMS_KEY_ID`),
+      kid: required(env, `${prefix}_SIGNING_KID`),
+    },
+  };
+  if (!validKid(configuration.key.kid)) {
+    throw new Error("Signing kid contains unsupported characters.");
+  }
+  return configuration;
+}
+
+/** Trial issuance deliberately has no paid-license configuration dependency. */
+export function loadTrialKmsSigningConfiguration(
+  env: SigningEnvironment = process.env,
+): CmdTabKmsSignerConfiguration {
+  return loadKmsSignerConfiguration(env, "trial");
+}
+
+/** Paid issuance is isolated from the beta-trial path. */
+export function loadLicenseKmsSigningConfiguration(
+  env: SigningEnvironment = process.env,
+): CmdTabKmsSignerConfiguration {
+  return loadKmsSignerConfiguration(env, "license");
 }
 
 function parsePublicKeyring(value: string, name: string) {
@@ -143,6 +189,15 @@ export function loadCmdTabPublicKeyrings(
       "CMDTAB_LICENSE_PUBLIC_KEYRING_JSON",
     ),
   };
+}
+
+export function loadTrialPublicKeyring(
+  env: SigningEnvironment = process.env,
+): Readonly<Record<string, string>> {
+  return parsePublicKeyring(
+    required(env, "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON"),
+    "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON",
+  );
 }
 
 export class AwsKmsP256Signer implements P256TokenSigner {
@@ -217,7 +272,7 @@ class AwsSdkKmsP256Client implements AwsKmsP256Client {
 }
 
 function productionKmsClient(
-  configuration: CmdTabKmsSigningConfiguration,
+  configuration: CmdTabKmsSignerConfiguration,
   env: SigningEnvironment,
 ) {
   const webIdentityToken = required(env, "VERCEL_OIDC_TOKEN");
@@ -250,11 +305,12 @@ function getTokenSigner(
     return new LocalPemP256Signer(required(env, kidName), localPrivateKey);
   }
 
-  const configuration = loadCmdTabKmsSigningConfiguration(env);
-  const key = configuration[kind];
+  const configuration = kind === "trial"
+    ? loadTrialKmsSigningConfiguration(env)
+    : loadLicenseKmsSigningConfiguration(env);
   return new AwsKmsP256Signer(
-    key.kid,
-    key.keyId,
+    configuration.key.kid,
+    configuration.key.keyId,
     productionKmsClient(configuration, env),
   );
 }

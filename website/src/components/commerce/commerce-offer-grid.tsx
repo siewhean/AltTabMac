@@ -17,15 +17,15 @@ export function CommerceOfferGrid({ context }: CommerceOfferGridProps) {
     <div className="space-y-6">
       <MotionReveal direction="left" className="grid gap-6 md:grid-cols-2">
         <article className="surface-panel flex h-full flex-col p-6">
-          <p className="type-eyebrow text-cyan">Trial</p>
+          <p className="type-eyebrow text-cyan">{release ? "Trial" : "Private preview"}</p>
           <p className="mt-5 text-4xl font-medium tracking-[-0.06em] text-text">
-            {commerceContent.trialLength}
+            {release ? commerceContent.trialLength : "Private preview"}
           </p>
           <p className="mt-3 text-sm leading-6 text-muted">
-            Use the full app in real work before you decide.
+            {release ? "Use the full app in real work before you decide." : "Join the waitlist and we’ll email you when access opens."}
           </p>
           <ul className="mt-6 grow space-y-3">
-            {commerceContent.trial.points.map((point) => (
+            {(release ? commerceContent.trial.points : ["No download is available yet.", "No payment is needed to join.", "We’ll email you when access opens."]).map((point) => (
               <li key={point} className="flex items-start gap-3 text-sm leading-6 text-subdued">
                 <span className="mt-2 h-2 w-2 rounded-full bg-success" />
                 <span>{point}</span>

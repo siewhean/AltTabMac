@@ -1,3 +1,5 @@
+import { siteConfig } from "@/content/site";
+
 export const privacyContent = {
   intro:
     "This page explains what the CmdTab website and native app currently collect, which fields are transmitted, and how that information is used while you browse, start a trial, activate a license, or run the app.",
@@ -7,6 +9,7 @@ export const privacyContent = {
       body: [
         "Optional website analytics are off by default. CmdTab does not create its website visitor identifier or session identifier and does not load Vercel Web Analytics or Speed Insights until you accept.",
         "If accepted, the website records page path, referrer, event name and context, event timestamp, a locally generated visitor identifier, and a session identifier. Campaign parameters and a broad discovery-source label may be stored so traffic from search, ChatGPT, Copilot, Perplexity, Gemini, Claude, and other referrals can be measured without storing a search query.",
+        "If you accept optional analytics and then submit the waitlist form, the landing-page path and safe campaign labels (UTM source, medium, campaign, and content) may be stored with your waitlist request to measure which campaign links lead to requests. Those attribution fields are omitted when analytics consent is not accepted.",
         "You can decline or withdraw consent at any time using the controls on this page. Declining or withdrawing deletes the CmdTab website visitor and session identifiers stored in this browser and stops future optional analytics requests.",
       ],
     },
@@ -45,7 +48,7 @@ export const privacyContent = {
       body: [
         "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
         "Optional website analytics and native-app telemetry are retained while needed for the stated product and reliability purposes or until the associated record is deleted. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
-        "For access, correction, or deletion requests concerning CmdTab-held data, contact tohsh17@gmail.com and include enough information to locate the relevant trial, purchase, support request, or install record.",
+        `For access, correction, or deletion requests concerning CmdTab-held data, contact ${siteConfig.contactEmail} and include enough information to locate the relevant trial, purchase, support request, or install record.`,
       ],
     },
     {
@@ -58,7 +61,7 @@ export const privacyContent = {
     {
       title: "Security contact",
       body: [
-        "Report a suspected security issue in the website or app privately to tohsh17@gmail.com.",
+        `Report a suspected security issue in the website or app privately to ${siteConfig.contactEmail}.`,
         "CmdTab also publishes its disclosure policy at /.well-known/security.txt and on the Security page.",
       ],
     },

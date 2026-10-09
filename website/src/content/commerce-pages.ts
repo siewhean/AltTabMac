@@ -3,17 +3,17 @@ import { commerceContent } from "@/content/commerce";
 export const commercePageContent = {
   buy: {
     eyebrow: "Buy CmdTab",
-    title: "Trial first, then buy once.",
+    title: "Pricing and early access.",
     description:
-      "A short trial, a one-time purchase, and a clear help path after checkout.",
+      "Review the planned one-time license and join the waitlist while CmdTab remains in private preview.",
     process: [
       {
-        title: "Start the trial",
-        body: "Download the current build, enable the required permissions, and use it in real work.",
+        title: "Join the waitlist",
+        body: "We’ll email you when early access opens. No download is currently available.",
       },
       {
-        title: "Buy through hosted checkout",
-        body: "When you are ready, complete the one-time purchase through the hosted checkout.",
+        title: "Purchase when checkout opens",
+        body: "The one-time purchase will be available through hosted checkout when access opens.",
       },
       {
         title: "Use Help if needed",
@@ -27,12 +27,11 @@ export const commercePageContent = {
     ],
   },
   trial: {
-    eyebrow: "Free trial",
-    title: `${commerceContent.trialLength} before you decide.`,
+    eyebrow: "Early access",
+    title: "Find your next window faster.",
     description:
-      "Download the current build, enable the required permissions, and try CmdTab in real work.",
+      "Join the waitlist for an email when CmdTab early access opens.",
     checklist: [
-      "Download the current trial build.",
       "Enable Accessibility and Screen Recording in macOS.",
       "Use CmdTab in your normal app-switching workflow.",
     ],

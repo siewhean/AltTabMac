@@ -1,0 +1,99 @@
+Another instance of SwiftPM (PID: 45344) is already running using '/Users/Siew Hean/Documents/GitHub/CmdTab/.build', waiting until that process has finished execution...Building for debugging...
+[Using on-disk description]
+[2 / 5] CmdTab-product
+[3 / 6] CmdTab-product
+[5 / 9] CmdTab
+[6 / 10] CmdTab
+[12 / 17] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[13 / 18] CmdTab-product
+[15 / 19] CmdTab-product
+[17 / 22] CmdTab
+[19 / 23] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[20 / 24] CmdTab
+[22 / 25] CmdTab
+[23 / 27] CmdTabTests-product
+[25 / 29] CmdTabTests-product
+[31 / 33] CmdTabTests-product
+Build complete! (9.51 secs)
+Test Suite 'Selected tests' started at 2026-09-27 23:05:44.441.
+Test Suite 'CmdTabTests.xctest' started at 2026-09-27 23:05:44.442.
+Test Suite 'ScrollSelectionTimingStateTests' started at 2026-09-27 23:05:44.442.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testContinuedSwipeStepsNoMoreThanOncePerSecond]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testContinuedSwipeStepsNoMoreThanOncePerSecond]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testDelayedPacketsCannotReplaySeveralStepsTogether]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testDelayedPacketsCannotReplaySeveralStepsTogether]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testEndingAndCancellingDoNotMoveOrCarryDistance]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testEndingAndCancellingDoNotMoveOrCarryDistance]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testFreshSwipeRespondsBeforePreviousCooldownExpires]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testFreshSwipeRespondsBeforePreviousCooldownExpires]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testGlobalAdapterRetainsMomentumAndHorizontalDelta]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testGlobalAdapterRetainsMomentumAndHorizontalDelta]' passed (0.064 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testHorizontalSwipeUsesDominantAxisAndReversalsDiscardDistance]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testHorizontalSwipeUsesDominantAxisAndReversalsDiscardDistance]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testMomentumNeverMovesSelection]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testMomentumNeverMovesSelection]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testMouseWheelDetentsHaveNoTrackpadCooldown]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testMouseWheelDetentsHaveNoTrackpadCooldown]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testNativeTimestampOriginDoesNotAffectIngressPacing]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testNativeTimestampOriginDoesNotAffectIngressPacing]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testOldBeginningCannotResetPacingButFreshGestureCan]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testOldBeginningCannotResetPacingButFreshGestureCan]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testPreciseEventsWithoutPhasesRestartAfterIdle]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testPreciseEventsWithoutPhasesRestartAfterIdle]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testPriorPresentationPacketsCannotMoveReopenedSelector]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testPriorPresentationPacketsCannotMoveReopenedSelector]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testSessionResetClearsPartialSwipeAndCooldown]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testSessionResetClearsPartialSwipeAndCooldown]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testSmallPacketsNeedDeliberateSwipeDistance]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testSmallPacketsNeedDeliberateSwipeDistance]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testStaleOrDuplicateGestureBeginningsCannotResetCooldown]' started.
+Test Case '-[CmdTabTests.ScrollSelectionTimingStateTests testStaleOrDuplicateGestureBeginningsCannotResetCooldown]' passed (0.000 seconds).
+Test Suite 'ScrollSelectionTimingStateTests' passed at 2026-09-27 23:05:44.512.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.068 (0.070) seconds
+Test Suite 'SwitcherProfileSafetyTests_ProfileHotkeyTiming' started at 2026-09-27 23:05:44.512.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testAutorepeatIsIgnoredWhilePending]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testAutorepeatIsIgnoredWhilePending]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testCancelPreventsFollowUpCommit]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testCancelPreventsFollowUpCommit]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testHeldModifierRevealsMatchingProfile]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testHeldModifierRevealsMatchingProfile]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testLateDeadlineStillUsesOriginalTrigger]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testLateDeadlineStillUsesOriginalTrigger]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testOptionRepeatReschedulesFromLatestEventTimestamp]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testOptionRepeatReschedulesFromLatestEventTimestamp]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testQuickReleaseCommitsWithoutOverlay]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testQuickReleaseCommitsWithoutOverlay]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testRepeatedHiddenKeyDownDoesNotRescheduleDeadline]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testRepeatedHiddenKeyDownDoesNotRescheduleDeadline]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testReplacingVisibleProfileTransfersReleaseOwnership]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testReplacingVisibleProfileTransfersReleaseOwnership]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testReverseDirectionSurvivesQuickPath]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testReverseDirectionSurvivesQuickPath]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testVisibleMatchingProfileReleaseConfirms]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testVisibleMatchingProfileReleaseConfirms]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testVisibleRepeatRetainsReleaseOwnership]' started.
+Test Case '-[CmdTabTests.SwitcherProfileSafetyTests_ProfileHotkeyTiming testVisibleRepeatRetainsReleaseOwnership]' passed (0.000 seconds).
+Test Suite 'SwitcherProfileSafetyTests_ProfileHotkeyTiming' passed at 2026-09-27 23:05:44.514.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.002 (0.002) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-09-27 23:05:44.514.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 0.069 (0.072) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 23:05:44.514.
+	 Executed 26 tests, with 0 failures (0 unexpected) in 0.069 (0.073) seconds

@@ -227,6 +227,6 @@ export const faqItems = [
   {
     question: "Is CmdTab available now?",
     answer:
-      "CmdTab is in active release preparation. You can start the 14-day trial from the Trial page; the public download appears only when the signed and notarized release manifest is published.",
+      "CmdTab is in private preview. Join the waitlist on the Trial page and we’ll email you when access opens.",
   },
 ];

@@ -3,8 +3,9 @@ import SwiftUI
 
 // Never present the bare Stage Manager label "Hidden Set" as exact. Every
 // visible and accessibility surface uses the explicitly inferred labels below.
-private func productionAccessibilityState(for item: SwitcherItem) -> String {
+func productionAccessibilityState(for item: SwitcherItem) -> String {
     var values: [String] = []
+    if let preview = productionPreviewStateLabel(item.previewState) { values.append(preview) }
     if item.isMinimized { values.append("minimized") }
     if item.isFullscreen { values.append("fullscreen") }
     if let workspace = item.workspaceSnapshot {
@@ -21,62 +22,15 @@ private func productionAccessibilityState(for item: SwitcherItem) -> String {
     return values.isEmpty ? "normal window" : values.joined(separator: ", ")
 }
 
-/// Shared production-only presentation helpers for exact-window state.
-/// The legacy views remain unchanged for Phase 1 regression coverage; profile
-/// sessions use these variants so minimized/fullscreen/workspace state is never
-/// hidden from the user.
-struct SwitcherItemStateBadges: View {
-    let item: SwitcherItem
-    var compact = false
-
-    private var badges: [(String, String, Color)] {
-        var values: [(String, String, Color)] = []
-        if item.isMinimized {
-            values.append(("minus.square.fill", "Minimized", .orange))
-        }
-        if item.isFullscreen {
-            values.append(("arrow.up.left.and.arrow.down.right", "Fullscreen", .blue))
-        }
-        if let workspace = item.workspaceSnapshot {
-            if !workspace.memberships.isEmpty, !workspace.isOnCurrentManagedSpace {
-                values.append(("rectangle.stack.fill", "Other Space", .purple))
-            }
-            if StageManagerCapabilityPolicy.isEnabled(),
-               let label = StageManagerCapabilityPolicy.visibleLabel(
-                   for: workspace.stageManagerState
-               ) {
-                let image = workspace.stageManagerState == .hiddenSet
-                    ? "rectangle.stack.badge.minus"
-                    : "rectangle.stack.badge.plus"
-                values.append((image, label, .pink))
-            }
-        }
-        return values
-    }
-
-    var body: some View {
-        if !badges.isEmpty {
-            HStack(spacing: compact ? 3 : 5) {
-                ForEach(Array(badges.enumerated()), id: \.offset) { _, badge in
-                    HStack(spacing: compact ? 0 : 3) {
-                        Image(systemName: badge.0)
-                            .font(.system(size: compact ? 9 : 10, weight: .bold))
-                        if !compact {
-                            Text(badge.1)
-                                .font(.system(size: 9, weight: .semibold, design: .rounded))
-                        }
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, compact ? 5 : 7)
-                    .padding(.vertical, compact ? 3 : 4)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(badge.2.opacity(0.86))
-                    )
-                    .accessibilityLabel(badge.1)
-                }
-            }
-        }
+func productionPreviewStateLabel(_ state: SwitcherPreviewState) -> String? {
+    switch state {
+    case .applicationOnly: return "Application only"
+    case .pending: return "Loading preview"
+    case .permissionDenied: return "Screen Recording permission required"
+    case .unavailable: return "Preview unavailable"
+    case .cached(let capturedAt):
+        return "Saved preview, captured " + capturedAt.formatted(date: .abbreviated, time: .standard)
+    case .live: return nil
     }
 }
 
@@ -84,11 +38,9 @@ private struct WorkspaceCapabilityBanner: View {
     let status: CapabilityStatus
 
     var body: some View {
-        if status.level != .available {
+        if status.level == .failed {
             HStack(alignment: .top, spacing: 7) {
-                Image(systemName: status.level == .failed
-                      ? "exclamationmark.octagon.fill"
-                      : "exclamationmark.triangle.fill")
+                Image(systemName: "exclamationmark.octagon.fill")
                     .font(.system(size: 11, weight: .bold))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
@@ -175,7 +127,7 @@ struct ProductionClassicGridView: View {
                     .frame(width: 300, height: 100)
             } else {
                 ScrollViewReader { proxy in
-                    ScrollView(.vertical, showsIndicators: false) {
+                    ScrollView(.vertical, showsIndicators: true) {
                         let columns = Array(
                             repeating: GridItem(
                                 .fixed(viewModel.layout.cardWidth),
@@ -191,12 +143,8 @@ struct ProductionClassicGridView: View {
                                     mode: viewModel.mode,
                                     layout: viewModel.layout
                                 )
-                                .overlay(alignment: .topTrailing) {
-                                    SwitcherItemStateBadges(item: item, compact: true)
-                                        .padding(7)
-                                }
                                 .accessibilityValue(productionAccessibilityState(for: item))
-                                .id(index)
+                                .id(item.id)
                                 .transition(.switcherItemMutation)
                                 .onHover { hovering in
                                     viewModel.hoveredIndex = hovering ? index : nil
@@ -211,9 +159,11 @@ struct ProductionClassicGridView: View {
                         .padding(.vertical, viewModel.layout.outerPadding)
                     }
                     .frame(maxHeight: viewModel.layout.contentHeight)
+                    .scrollIndicatorsFlash(onAppear: true)
                     .onChange(of: selectedIndex) { index in
+                        guard viewModel.items.indices.contains(index) else { return }
                         withAnimation(.easeInOut(duration: 0.12)) {
-                            proxy.scrollTo(index, anchor: .center)
+                            proxy.scrollTo(viewModel.items[index].id, anchor: .center)
                         }
                     }
                 }
@@ -282,9 +232,12 @@ struct ProductionCommandPaletteView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.white.opacity(0.45))
-                    Text(viewModel.searchQuery.isEmpty ? "Type to filter…" : viewModel.searchQuery)
-                        .font(.system(size: 14, design: .monospaced))
-                        .foregroundStyle(viewModel.searchQuery.isEmpty ? .white.opacity(0.30) : .white)
+                    NativePaletteSearchField(
+                        text: $viewModel.searchQuery,
+                        focusToken: viewModel.paletteSearchFocusToken,
+                        command: { viewModel.onPaletteInputCommand?($0) }
+                    )
+                    .frame(height: 24)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if !viewModel.searchQuery.isEmpty {
                         Text("\(viewModel.items.count) result\(viewModel.items.count == 1 ? "" : "s")")
@@ -309,7 +262,7 @@ struct ProductionCommandPaletteView: View {
                             LazyVStack(spacing: 0) {
                                 ForEach(Array(viewModel.items.enumerated()), id: \.element.id) { index, item in
                                     ProductionPaletteRow(item: item, isSelected: index == selectedIndex)
-                                        .id(index)
+                                        .id(item.id)
                                         .onHover { hovering in
                                             viewModel.hoveredIndex = hovering ? index : nil
                                         }
@@ -317,12 +270,15 @@ struct ProductionCommandPaletteView: View {
                             }
                         }
                         .onChange(of: selectedIndex) { index in
+                            guard viewModel.items.indices.contains(index) else { return }
                             withAnimation(.easeInOut(duration: 0.10)) {
-                                proxy.scrollTo(index, anchor: .center)
+                                proxy.scrollTo(viewModel.items[index].id, anchor: .center)
                             }
                         }
                         .onChange(of: viewModel.searchQuery) { _ in
-                            proxy.scrollTo(0, anchor: .top)
+                            if let firstID = viewModel.items.first?.id {
+                                proxy.scrollTo(firstID, anchor: .top)
+                            }
                         }
                     }
                 }
@@ -375,7 +331,6 @@ private struct ProductionPaletteRow: View {
             }
 
             Spacer()
-            SwitcherItemStateBadges(item: item)
             if isSelected {
                 Image(systemName: "return")
                     .font(.system(size: 11, weight: .medium))
@@ -483,7 +438,6 @@ struct ProductionRadialMenuView: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .frame(maxWidth: 190)
-                SwitcherItemStateBadges(item: item)
             }
             if viewModel.items.count > RadialMenuViewportState.maxVisible {
                 Text("+\(viewModel.items.count - RadialMenuViewportState.maxVisible) more")
@@ -538,8 +492,6 @@ private struct ProductionRadialItem: View {
                 .frame(width: 42, height: 42)
                 .position(x: 35, y: 35)
 
-                SwitcherItemStateBadges(item: item, compact: true)
-                    .offset(x: 9, y: -8)
             }
             .frame(width: 84, height: 76)
             .scaleEffect(isSelected ? 1.16 : 1.0)

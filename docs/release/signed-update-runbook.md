@@ -1,6 +1,10 @@
 # Signed Update Runbook
 
-CmdTab uses Sparkle 2.9.2 on the default stable channel. The application keeps
+CmdTab uses Sparkle 2.9.2 with typed `development`, `beta`, and `stable`
+channels. The current public candidate is `beta`, which is pinned to
+`https://cmdtab.net/releases/beta/appcast.xml`; stable remains pinned to
+`https://cmdtab.net/releases/appcast.xml`, and development omits a production
+feed entirely. The application keeps
 one `SPUStandardUpdaterController` for its lifetime, uses Sparkle's standard
 second-launch consent prompt, and checks daily only after the user opts in.
 
@@ -43,7 +47,7 @@ The immutable DMG URL must include the exact 40-character source SHA and end in
   "https://releases.cmdtab.net/<source-sha>/CmdTab-1.0.0-1.dmg" \
   "<source-sha>" \
   dist/release/publication \
-  previous-stable.json
+  previous-beta.json
 ```
 
 The command verifies bytes and SHA-256, rejects an equal or lower build than the
@@ -53,19 +57,20 @@ the appcast against the manifest.
 Publish only in this order:
 
 1. Immutable notarized DMG.
-2. Copy the generated `stable.json` to the repository's
-   `release/stable.json`, rebuild and deploy the website, then verify that
-   `/releases/stable.json` is byte-for-byte equivalent and `/trial` links to
-   its immutable `dmgURL`. Until that file exists, both surfaces deliberately
-   expose no download.
-3. Publish `appcast.xml` last.
+2. Copy the generated channel manifest to its matching publication surface.
+   A beta candidate must remain beta-only; never publish its manifest or
+   appcast to stable paths.
+3. Publish `appcast.xml` to the channel-specific endpoint last. The generator
+   rejects beta entries without Sparkle's `beta` channel and stable entries
+   with one.
 
 Rollback never lowers a client build number. Rebuild reverted source as a newly
 signed, notarized release with a strictly higher `CFBundleVersion`.
 
 ## Required external evidence
 
-Before public promotion, retain the accepted notarization JSON, stapler
-validation, Gatekeeper output, manifest, DMG checksum, and successful
-N-to-N+1 installations on clean Apple Silicon and Intel Macs. Repository tests
-cannot substitute for those credentials, machines, or live update endpoints.
+Before public-beta promotion, retain the accepted notarization JSON, stapler
+validation, Gatekeeper output, source SHA, signing identity report, component
+and DMG checksums, manifest, and a real signed beta N-to-N+1 update receipt on
+clean Apple Silicon and Intel Macs. Repository tests cannot substitute for
+those credentials, machines, or live update endpoints.

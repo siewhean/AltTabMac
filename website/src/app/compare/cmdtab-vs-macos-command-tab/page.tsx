@@ -165,7 +165,7 @@ export default function CmdTabVsMacOSPage() {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button href="/features/window-switcher">Review exact CmdTab behavior</Button>
           <Button href="/trial" variant="secondary">
-            Test it in your own workflow
+            Join the waitlist
           </Button>
         </div>
       </SectionShell>

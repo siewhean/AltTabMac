@@ -230,20 +230,19 @@ def main() -> None:
 
     menu = read("Sources/CmdTab/MenuBarController.swift")
     for literal in (
-        "Show Minimized Windows",
-        "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
-        "Press a profile's modifier and key as one deliberate chord",
-        "AlternateTriggerMode.productionHotSwapModes",
-        "Command double tap completed within 250 ms",
-        "One Command or Option press does nothing",
+        "Settings…",
+        "Check for Beta Updates…",
+        "Diagnostics…",
+        "Setup Guide…",
+        "Quit CmdTab",
         "menu.popUp(",
     ):
         require(menu, literal, "MenuBarController.swift")
-    reject(
-        menu,
-        "Modifier-only single taps and double taps are disabled",
-        "MenuBarController.swift",
-    )
+    for removed_menu_control in (
+        "Show Minimized Windows",
+        "Reverse Cycle: ⇧⌘Tab or ⇧⌥Tab",
+    ):
+        reject(menu, removed_menu_control, "MenuBarController.swift")
 
     feedback = read(
         "docs/release/evidence/five-feature-suite/manual-feedback-regressions.md"

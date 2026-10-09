@@ -1,20 +1,9 @@
+import CoreGraphics
 import XCTest
 @testable import CmdTab
 
 final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     func testQuickReleaseCommitsWithoutOverlay() throws {
-        var chord = ShortcutChordTimingState()
-        chord.noteModifierChange(.command, isDown: true, at: 9.95)
-        XCTAssertTrue(
-            chord.accepts(primaryModifier: .command, keyDownAt: 10),
-            "A normal near-simultaneous Command-Tab chord must be accepted."
-        )
-        chord.noteModifierChange(.command, isDown: false, at: 10.01)
-        XCTAssertFalse(
-            chord.accepts(primaryModifier: .command, keyDownAt: 10.02),
-            "A shortcut cannot be accepted after its modifier has been released."
-        )
-
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
         assertScheduledReveal(
@@ -151,31 +140,6 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
     }
 
     func testCancelPreventsFollowUpCommit() {
-        var chord = ShortcutChordTimingState(maximumLeadInterval: 0.16)
-        chord.noteModifierChange(.command, isDown: true, at: 79)
-        XCTAssertFalse(
-            chord.accepts(primaryModifier: .command, keyDownAt: 79.17),
-            "Holding Command and pressing Tab later must not switch."
-        )
-        XCTAssertFalse(
-            chord.accepts(primaryModifier: .option, keyDownAt: 79.05),
-            "An unobserved primary modifier must fail closed."
-        )
-
-        chord.reset()
-        chord.noteModifierChange(.command, isDown: true, at: 79.2)
-        chord.noteInterveningKeyDown()
-        XCTAssertFalse(
-            chord.accepts(primaryModifier: .command, keyDownAt: 79.25),
-            "Command-V or any unrelated key must disarm the modifier gesture before a later release."
-        )
-        chord.noteModifierChange(.command, isDown: false, at: 79.3)
-        chord.noteModifierChange(.command, isDown: true, at: 79.4)
-        XCTAssertTrue(
-            chord.accepts(primaryModifier: .command, keyDownAt: 79.45),
-            "A fresh deliberate Command-Tab chord must work after the contaminated gesture ends."
-        )
-
         let match = makeMatch()
         var state = ProfileHotkeyTimingState()
         _ = state.registerHiddenTrigger(
@@ -302,6 +266,99 @@ final class SwitcherProfileSafetyTests_ProfileHotkeyTiming: XCTestCase {
         )
         XCTAssertEqual(state.pendingTrigger?.startedAtUptime, 110.05)
         XCTAssertEqual(state.pendingMatch?.reverse, true)
+    }
+
+    func testDeliberateTabsBeforeQuickReleaseAdvanceTheCommit() {
+        let match = makeMatch()
+        let reverse = ShortcutProfileMatch(
+            profileID: match.profileID,
+            reverse: true,
+            releaseBehavior: .holdPrimaryModifier,
+            primaryModifier: .command
+        )
+        var state = ProfileHotkeyTimingState()
+        _ = state.registerHiddenTrigger(match: match, startedAtUptime: 10, isRepeat: false)
+        state.registerAdditionalAdvance(match: match, isRepeat: false)
+        state.registerAdditionalAdvance(match: match, isRepeat: true)
+        state.registerAdditionalAdvance(match: makeMatch(), isRepeat: false)
+        state.registerAdditionalAdvance(match: reverse, isRepeat: false)
+
+        XCTAssertEqual(
+            state.handleModifierRelease(.command, switcherVisible: false, activeProfileID: nil),
+            .quickSwitch(match, additionalAdvances: [false, true]),
+            "Fast Command-Tab-Tab must land on the second item; key repeat and other profiles never advance."
+        )
+    }
+
+    func testEarlyAdvancesAreHandedToTheRevealExactlyOnce() {
+        let match = makeMatch()
+        var state = ProfileHotkeyTimingState()
+        _ = state.registerHiddenTrigger(match: match, startedAtUptime: 10, isRepeat: false)
+        state.registerAdditionalAdvance(match: match, isRepeat: false)
+
+        XCTAssertEqual(
+            state.handleRevealDeadline(now: 10.2, heldModifiers: [.command]),
+            .showOverlay(match, additionalAdvances: [false])
+        )
+        XCTAssertEqual(
+            state.handleModifierRelease(.command, switcherVisible: true, activeProfileID: match.profileID),
+            .confirmSelection(match),
+            "The revealed session keeps release ownership without replaying its early advances."
+        )
+    }
+
+    func testPhysicalModifierStateComesFromDeviceFlagBits() {
+        let leftCommand = PhysicalModifierDeviceFlags(
+            flags: CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x08)
+        )
+        XCTAssertTrue(leftCommand.isDown(.leftCommand))
+        XCTAssertFalse(leftCommand.isDown(.rightCommand))
+
+        let rightPair = PhysicalModifierDeviceFlags(
+            flags: CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue |
+                CGEventFlags.maskAlternate.rawValue | 0x10 | 0x40)
+        )
+        XCTAssertEqual(
+            [rightPair.leftCommand, rightPair.rightCommand, rightPair.leftOption, rightPair.rightOption],
+            [false, true, false, true]
+        )
+        XCTAssertFalse(
+            PhysicalModifierDeviceFlags(flags: []).isDown(.leftOption),
+            "Released modifiers read as up even if an earlier event was missed."
+        )
+    }
+
+    func testEventTimestampsConvertFromEitherUnitAndRejectImplausibleValues() {
+        let now: TimeInterval = 500
+        XCTAssertEqual(
+            EventTimestampClock.uptime(eventTimestamp: 0, now: now),
+            now,
+            "Synthesized events carry timestamp 0 and must not open a negative interval."
+        )
+        XCTAssertEqual(
+            EventTimestampClock.uptime(
+                eventTimestamp: 499_900_000_000, now: now,
+                timebaseNumerator: 125, timebaseDenominator: 3
+            ),
+            499.9, accuracy: 0.000_001
+        )
+        let machTicks = UInt64(499.9 * 1_000_000_000 * 3 / 125)
+        XCTAssertEqual(
+            EventTimestampClock.uptime(
+                eventTimestamp: machTicks, now: now,
+                timebaseNumerator: 125, timebaseDenominator: 3
+            ),
+            499.9, accuracy: 0.000_001,
+            "Mach absolute-time ticks are converted rather than compressed 41.7x."
+        )
+        XCTAssertEqual(
+            EventTimestampClock.uptime(
+                eventTimestamp: 900_000_000_000, now: now,
+                timebaseNumerator: 1, timebaseDenominator: 1
+            ),
+            now,
+            "A timestamp in the future falls back to the current uptime."
+        )
     }
 
     private func assertScheduledReveal(

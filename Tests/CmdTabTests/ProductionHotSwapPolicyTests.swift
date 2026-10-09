@@ -166,15 +166,50 @@ final class ProductionHotSwapPolicyTests: XCTestCase {
             now: 41.00
         ))
         chordTiming.noteModifierChange(.leftOption, isDown: true, at: 41.05)
-        let immediateChordStateAccepted = change(
+        // Key-down of second modifier records chord press without firing yet
+        XCTAssertFalse(change(
             &chord,
             key: .leftOption,
             isDown: true,
             mode: .leftOptionDoubleTap,
             now: 41.05
+        ))
+        // Hot Swap fires on key-up within maximumTapDuration
+        chordTiming.noteModifierChange(.leftOption, isDown: false, at: 41.15)
+        let immediateChordStateAccepted = change(
+            &chord,
+            key: .leftOption,
+            isDown: false,
+            mode: .leftOptionDoubleTap,
+            now: 41.15
         )
         XCTAssertTrue(immediateChordStateAccepted)
         XCTAssertTrue(chordTiming.accepts(keys: [.leftCommand, .leftOption]))
+
+        // Test that an intervening character key (such as C in Cmd+Opt+C) prevents Hot Swap
+        var interruptedChord = AlternateModifierTriggerState()
+        XCTAssertFalse(change(
+            &interruptedChord,
+            key: .leftCommand,
+            isDown: true,
+            mode: .leftOptionDoubleTap,
+            now: 45.00
+        ))
+        XCTAssertFalse(change(
+            &interruptedChord,
+            key: .leftOption,
+            isDown: true,
+            mode: .leftOptionDoubleTap,
+            now: 45.05
+        ))
+        interruptedChord.noteInterveningKeyDown(now: 45.10)
+        XCTAssertFalse(change(
+            &interruptedChord,
+            key: .leftOption,
+            isDown: false,
+            mode: .leftOptionDoubleTap,
+            now: 45.15
+        ), "Intervening key down (e.g. Cmd+Opt+C or Cmd+Opt+V) must disarm chord Hot Swap on release.")
 
         var delayedChord = AlternateModifierTriggerState()
         var delayedChordTiming = PhysicalModifierChordTimingState()
@@ -187,18 +222,24 @@ final class ProductionHotSwapPolicyTests: XCTestCase {
             now: 50.00
         ))
         delayedChordTiming.noteModifierChange(.leftOption, isDown: true, at: 50.30)
-        let delayedChordStateAccepted = change(
+        XCTAssertFalse(change(
             &delayedChord,
             key: .leftOption,
             isDown: true,
             mode: .leftOptionDoubleTap,
             now: 50.30
+        ))
+        delayedChordTiming.noteModifierChange(.leftOption, isDown: false, at: 50.35)
+        _ = change(
+            &delayedChord,
+            key: .leftOption,
+            isDown: false,
+            mode: .leftOptionDoubleTap,
+            now: 50.35
         )
-        XCTAssertTrue(delayedChordStateAccepted)
         XCTAssertFalse(delayedChordTiming.accepts(keys: [.leftCommand, .leftOption]))
         XCTAssertFalse(
-            delayedChordStateAccepted &&
-                delayedChordTiming.accepts(keys: [.leftCommand, .leftOption]),
+            delayedChordTiming.accepts(keys: [.leftCommand, .leftOption]),
             "A delayed Command+Option chord must not activate in production."
         )
     }

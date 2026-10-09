@@ -110,6 +110,113 @@ extension LicenseKeyStore {
     }
 }
 
+enum BoundedKeychainReadRegistry {
+    static let didCompleteNotification = Notification.Name(
+        "CmdTab.BoundedKeychainReadDidComplete"
+    )
+    private static let lock = NSLock()
+    private static var pending = 0
+    private static var validationInProgress = false
+
+    static var hasPendingReads: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return pending > 0
+    }
+
+    static var retainsCompletedReads: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return validationInProgress
+    }
+
+    static func began() {
+        lock.lock()
+        pending += 1
+        validationInProgress = true
+        lock.unlock()
+    }
+
+    static func validationCompletedIfIdle() {
+        lock.lock()
+        if pending == 0 { validationInProgress = false }
+        lock.unlock()
+    }
+
+    static func finished() {
+        lock.lock()
+        pending = max(0, pending - 1)
+        lock.unlock()
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: didCompleteNotification, object: nil)
+        }
+    }
+}
+
+/// A silent Keychain read can wait indefinitely for securityd after an ad-hoc
+/// signature change. Keep at most one request in flight and let the UI deny
+/// access while that request is unresolved. Completed results remain available
+/// throughout a validation pass, even if later Keychain reads are slow.
+final class BoundedSilentKeychainRead<Value> {
+    private let lock = NSLock()
+    private var inFlight = false
+    private var generation: UInt64 = 0
+    private var cached: (value: Value?, expiresAt: Date)?
+
+    func load(
+        timeout: TimeInterval = 0.05,
+        cacheDuration: TimeInterval = 1.0,
+        operation: @escaping () -> Value?
+    ) -> Value? {
+        lock.lock()
+        if let cached,
+           cached.expiresAt > Date() || BoundedKeychainReadRegistry.retainsCompletedReads {
+            lock.unlock()
+            return cached.value
+        }
+        guard !inFlight else {
+            lock.unlock()
+            return nil
+        }
+        inFlight = true
+        let requestGeneration = generation
+        let finished = DispatchSemaphore(value: 0)
+        BoundedKeychainReadRegistry.began()
+        lock.unlock()
+
+        DispatchQueue.global(qos: .utility).async { [self] in
+            let value = operation()
+            lock.lock()
+            if generation == requestGeneration {
+                cached = (value, Date().addingTimeInterval(cacheDuration))
+            }
+            inFlight = false
+            lock.unlock()
+            finished.signal()
+            BoundedKeychainReadRegistry.finished()
+        }
+
+        _ = finished.wait(timeout: .now() + timeout)
+        lock.lock()
+        let value: Value?
+        if let cached,
+           cached.expiresAt > Date() || BoundedKeychainReadRegistry.retainsCompletedReads {
+            value = cached.value
+        } else {
+            value = nil
+        }
+        lock.unlock()
+        return value
+    }
+
+    func invalidate() {
+        lock.lock()
+        generation &+= 1
+        cached = nil
+        lock.unlock()
+    }
+}
+
 protocol LicenseActivationMetadataStore {
     func loadActivationDate() -> Date?
     func saveActivationDate(_ date: Date)
@@ -177,6 +284,7 @@ final class KeychainTrialClaimStore: TrialClaimStore {
     private let account: String
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let silentRead = BoundedSilentKeychainRead<TrialClaimRecord>()
 
     init(
         service: String = "CmdTab.licensing.trialEntitlement",
@@ -187,6 +295,11 @@ final class KeychainTrialClaimStore: TrialClaimStore {
     }
 
     func loadClaim() -> TrialClaimRecord? {
+        guard Thread.isMainThread else { return loadClaimDirectly() }
+        return silentRead.load { [self] in loadClaimDirectly() }
+    }
+
+    private func loadClaimDirectly() -> TrialClaimRecord? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -218,6 +331,7 @@ final class KeychainTrialClaimStore: TrialClaimStore {
                 kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
         ]
         if SecItemUpdate(query as CFDictionary, attributes as CFDictionary) == errSecSuccess {
+            silentRead.invalidate()
             return
         }
         var addQuery = query
@@ -225,6 +339,7 @@ final class KeychainTrialClaimStore: TrialClaimStore {
         addQuery[kSecAttrAccessible as String] =
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         _ = SecItemAdd(addQuery as CFDictionary, nil)
+        silentRead.invalidate()
     }
 
     func clearClaim() {
@@ -234,11 +349,17 @@ final class KeychainTrialClaimStore: TrialClaimStore {
             kSecAttrAccount as String: account,
         ]
         _ = SecItemDelete(query as CFDictionary)
+        silentRead.invalidate()
     }
 }
 
 final class KeychainSecureTrialClockStore: SecureTrialClockStore {
-    private let store: KeychainLicenseKeyStore
+    private let store: LicenseKeyStore
+    private let persistenceQueue: DispatchQueue
+    private let stateLock = NSLock()
+    private var highWaterDate: Date?
+    private var generation: UInt64 = 0
+    private var pendingClears = 0
 
     init(
         service: String = "CmdTab.licensing.trialLastSeen",
@@ -249,24 +370,73 @@ final class KeychainSecureTrialClockStore: SecureTrialClockStore {
             account: account,
             accessibility: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         )
+        persistenceQueue = DispatchQueue(label: "CmdTab.secureTrialClock.persistence", qos: .utility)
+    }
+
+    init(store: LicenseKeyStore, persistenceQueue: DispatchQueue) {
+        self.store = store
+        self.persistenceQueue = persistenceQueue
     }
 
     func loadLastSeenDate() -> Date? {
-        guard let value = store.loadLicenseKeySilently(),
-              let interval = TimeInterval(value) else {
-            return nil
+        stateLock.lock()
+        let readGeneration = generation
+        if pendingClears > 0 {
+            let value = highWaterDate
+            stateLock.unlock()
+            return value
         }
-        return Date(timeIntervalSince1970: interval)
+        stateLock.unlock()
+
+        // Keep the existing bounded silent read: unresolved securityd reads
+        // still set the registry that makes licensing fail closed.
+        let persisted = persistedDate()
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        if readGeneration == generation, pendingClears == 0, let persisted {
+            highWaterDate = max(highWaterDate ?? persisted, persisted)
+        }
+        return highWaterDate
     }
 
     func saveLastSeenDate(_ value: Date) {
-        try? store.saveLicenseKey(
-            String(format: "%.3f", value.timeIntervalSince1970)
-        )
+        stateLock.lock()
+        let requested = max(highWaterDate ?? value, value)
+        highWaterDate = requested
+        let writeGeneration = generation
+        // Enqueue while holding the state lock so concurrent save/clear calls
+        // have the same order in memory and in persistent storage.
+        persistenceQueue.async { [self] in
+            let persisted = persistedDate()
+            let merged = max(requested, persisted ?? requested)
+            try? store.saveLicenseKey(String(format: "%.3f", merged.timeIntervalSince1970))
+            stateLock.lock()
+            if writeGeneration == generation {
+                highWaterDate = max(highWaterDate ?? merged, merged)
+            }
+            stateLock.unlock()
+        }
+        stateLock.unlock()
     }
 
     func clearLastSeenDate() {
-        try? store.clearLicenseKey()
+        stateLock.lock()
+        generation &+= 1
+        highWaterDate = nil
+        pendingClears += 1
+        persistenceQueue.async { [self] in
+            try? store.clearLicenseKey()
+            stateLock.lock()
+            pendingClears -= 1
+            stateLock.unlock()
+        }
+        stateLock.unlock()
+    }
+
+    private func persistedDate() -> Date? {
+        guard let value = store.loadLicenseKeySilently(),
+              let interval = TimeInterval(value), interval.isFinite else { return nil }
+        return Date(timeIntervalSince1970: interval)
     }
 }
 
@@ -358,6 +528,7 @@ final class UserDefaultsAppInstallIDStore: AppInstallIDStore {
 final class KeychainLicenseDeviceIdentityStore: LicenseDeviceIdentityStore {
     private let service: String
     private let account: String
+    private let silentRead = BoundedSilentKeychainRead<Data>()
 
     init(
         service: String = "CmdTab.licensing.deviceIdentity.v2",
@@ -368,6 +539,16 @@ final class KeychainLicenseDeviceIdentityStore: LicenseDeviceIdentityStore {
     }
 
     func loadOrCreateSecret() throws -> Data {
+        guard Thread.isMainThread else { return try loadOrCreateSecretDirectly() }
+        if let value = silentRead.load(operation: { [self] in
+            try? loadOrCreateSecretDirectly()
+        }) {
+            return value
+        }
+        throw LicenseKeyStoreError.unexpectedStatus(errSecInteractionNotAllowed)
+    }
+
+    private func loadOrCreateSecretDirectly() throws -> Data {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -398,7 +579,7 @@ final class KeychainLicenseDeviceIdentityStore: LicenseDeviceIdentityStore {
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         if addStatus == errSecDuplicateItem {
-            return try loadOrCreateSecret()
+            return try loadOrCreateSecretDirectly()
         }
         guard addStatus == errSecSuccess else {
             throw LicenseKeyStoreError.unexpectedStatus(addStatus)
@@ -470,6 +651,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
     private let service: String
     private let account: String
     private let accessibility: CFString?
+    private let silentRead = BoundedSilentKeychainRead<String>()
 
     init(
         service: String = "CmdTab.licensing.licenseKey",
@@ -486,7 +668,12 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
     }
 
     func loadLicenseKeySilently() -> String? {
-        loadLicenseKey(allowsAuthenticationUI: false)
+        guard Thread.isMainThread else {
+            return loadLicenseKey(allowsAuthenticationUI: false)
+        }
+        return silentRead.load { [self] in
+            loadLicenseKey(allowsAuthenticationUI: false)
+        }
     }
 
     private func loadLicenseKey(allowsAuthenticationUI: Bool) -> String? {
@@ -528,6 +715,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if updateStatus == errSecSuccess {
+            silentRead.invalidate()
             return
         }
 
@@ -543,6 +731,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
         guard addStatus == errSecSuccess else {
             throw LicenseKeyStoreError.unexpectedStatus(addStatus)
         }
+        silentRead.invalidate()
     }
 
     func clearLicenseKey() throws {
@@ -555,6 +744,7 @@ final class KeychainLicenseKeyStore: LicenseKeyStore {
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw LicenseKeyStoreError.unexpectedStatus(status)
         }
+        silentRead.invalidate()
     }
 }
 

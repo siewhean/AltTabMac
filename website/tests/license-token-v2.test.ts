@@ -8,6 +8,8 @@ import {
   getTrialTokenSigner,
   loadCmdTabKmsSigningConfiguration,
   loadCmdTabPublicKeyrings,
+  loadTrialKmsSigningConfiguration,
+  loadTrialPublicKeyring,
   type AwsKmsP256Client,
 } from "../src/lib/aws-kms-p256.js";
 import {
@@ -211,6 +213,23 @@ test("production config rejects PEM and requires separate trial/license keys", (
   );
 });
 
+test("trial KMS configuration and signer have no paid-license dependency", () => {
+  const trialOnly = {
+    VERCEL_ENV: "production",
+    AWS_REGION: "us-east-1",
+    AWS_ROLE_ARN: "arn:aws:iam::123456789012:role/cmdtab-trial",
+    VERCEL_OIDC_TOKEN: "trial-only-oidc-token",
+    CMDTAB_TRIAL_KMS_KEY_ID: "trial-key",
+    CMDTAB_TRIAL_SIGNING_KID: "trial-2026-01",
+  };
+  assert.deepEqual(loadTrialKmsSigningConfiguration(trialOnly), {
+    region: "us-east-1",
+    key: { keyId: "trial-key", kid: "trial-2026-01" },
+  });
+  assert.equal(getTrialTokenSigner(trialOnly).kid, "trial-2026-01");
+  assert.throws(() => loadCmdTabKmsSigningConfiguration(trialOnly));
+});
+
 test("local route signer and public keyrings are explicit and hermetic", async () => {
   const trial = signingMaterials();
   const license = signingMaterials();
@@ -231,6 +250,9 @@ test("local route signer and public keyrings are explicit and hermetic", async (
     license: { "license-local": license.publicKeyDer.toString("base64") },
   });
   assert.deepEqual(await signer.getPublicKeyDer(), trial.publicKeyDer);
+  assert.deepEqual(loadTrialPublicKeyring(env), {
+    "trial-local": trial.publicKeyDer.toString("base64"),
+  });
 });
 
 test("v1 paid licenses verify during migration", () => {

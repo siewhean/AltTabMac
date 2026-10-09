@@ -440,17 +440,8 @@ final class HotkeyManager {
             }
 
             if let switcher, switcher.isVisible {
-                if switcher.currentStyle == .commandPalette {
-                    if keyCode == 51 {
-                        dispatchToMain { switcher.deleteSearchCharacter() }
-                        return nil
-                    }
-
-                    if let searchableCharacter = Self.searchablePaletteCharacter(from: event) {
-                        dispatchToMain { switcher.appendSearchCharacter(searchableCharacter) }
-                        return nil
-                    }
-                }
+                // Native Command Palette input receives text directly. Never
+                // decode keyboard layouts or clipboard data in the event tap.
 
                 let controlHeld = event.flags.contains(.maskControl)
                 let acceptsBareQuickAction = switcher.currentStyle != .commandPalette &&
@@ -506,33 +497,6 @@ final class HotkeyManager {
         }
 
         return Unmanaged.passRetained(event)
-    }
-}
-
-private extension HotkeyManager {
-    static func searchablePaletteCharacter(from event: CGEvent) -> String? {
-        let flags = event.flags
-        guard !flags.contains(.maskAlternate),
-              !flags.contains(.maskControl) else {
-            return nil
-        }
-
-        var charCount: Int = 0
-        var charBuffer = [UniChar](repeating: 0, count: 4)
-        event.keyboardGetUnicodeString(
-            maxStringLength: 4,
-            actualStringLength: &charCount,
-            unicodeString: &charBuffer
-        )
-
-        guard charCount > 0,
-              let scalar = Unicode.Scalar(charBuffer[0]),
-              scalar.value >= 32,
-              scalar.value != 127 else {
-            return nil
-        }
-
-        return String(scalar)
     }
 }
 

@@ -1,0 +1,50 @@
+Building for debugging...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 10]
+[2 / 6] CmdTabTests-product
+[4 / 8] CmdTabTests-product
+[10 / 12] CmdTabTests-product
+[12 / 12] CmdTabTests-product
+Build complete! (3.42 secs)
+Test Suite 'Selected tests' started at 2026-09-27 17:40:12.471.
+Test Suite 'CmdTabTests.xctest' started at 2026-09-27 17:40:12.474.
+Test Suite 'UnknownCGSurfaceMembershipTests' started at 2026-09-27 17:40:12.474.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testLive500PointHelpersDoNotDuplicateVisibleAndMinimizedSiblings]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testLive500PointHelpersDoNotDuplicateVisibleAndMinimizedSiblings]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' passed (0.000 seconds).
+Test Suite 'UnknownCGSurfaceMembershipTests' passed at 2026-09-27 17:40:12.481.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.006 (0.007) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-09-27 17:40:12.481.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.006 (0.007) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 17:40:12.482.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 0.006 (0.011) seconds

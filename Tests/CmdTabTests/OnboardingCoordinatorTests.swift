@@ -210,7 +210,7 @@ final class OnboardingCoordinatorTests: XCTestCase {
             serverClient: OnboardingTestServerClient(),
             currentDate: { now },
             publicKeyDERBase64: "",
-            developerSettings: developerSettings
+            debugCompatibility: developerSettings
         )
         return OnboardingCoordinator(
             store: store,
