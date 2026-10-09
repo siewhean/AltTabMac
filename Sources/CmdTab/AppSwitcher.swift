@@ -310,7 +310,7 @@ final class AppSwitcher: NSObject {
     ) -> [SwitcherItem] {
         items.map { item in
             guard item.windowID == windowID else { return item }
-            return SwitcherItem(
+            return SwitcherPreviewResolver.item(
                 title: item.title,
                 subtitle: item.subtitle,
                 icon: item.icon,
@@ -611,7 +611,7 @@ final class AppSwitcher: NSObject {
                 return nil
             }
 
-            return SwitcherItem(
+            return SwitcherPreviewResolver.item(
                 title: candidate.windowTitle,
                 subtitle: candidate.appName,
                 icon: candidate.appIcon,

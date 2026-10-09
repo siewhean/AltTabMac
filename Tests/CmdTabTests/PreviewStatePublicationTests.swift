@@ -10,6 +10,34 @@ final class PreviewStatePublicationTests: XCTestCase {
         super.tearDown()
     }
 
+    func testPlainItemNeverReadsTheCacheOrAsksForPermission() {
+        let pid = ProcessInfo.processInfo.processIdentifier
+        let windowID: CGWindowID = 812_001
+        let identity = SwitcherHistoryIdentity.appWindow(pid: pid, windowID: windowID)
+        let identityKey = SwitcherItem.previewContinuityIdentityKey(
+            historyIdentity: identity, sourceAppIdentifier: nil
+        )
+        let cached = NSImage(size: NSSize(width: 160, height: 100))
+        _ = SwitcherPreviewContinuityStore.resolve(key: "pure", identityKey: identityKey,
+            preview: cached, backdrop: cached, captureAccessAllowed: true,
+            ownerPID: pid, windowID: windowID)
+
+        let plain = SwitcherItem(title: "Window", subtitle: "", icon: nil, previewImage: nil,
+            previewCaptureIsFresh: false, allowsPreviewRecovery: false, previewCacheKey: "pure",
+            historyIdentity: identity, activate: {})
+        XCTAssertNil(plain.previewImage, "A plain item must not read the continuity cache.")
+        XCTAssertEqual(plain.previewState, .unavailable)
+        XCTAssertEqual(plain.previewCacheKey, "pure")
+
+        var preflightCalls = 0
+        let resolved = SwitcherPreviewResolver.item(title: "Window", subtitle: "", icon: nil,
+            previewImage: nil, previewCaptureIsFresh: false, allowsPreviewRecovery: false,
+            previewCacheKey: "pure", historyIdentity: identity,
+            captureAccessPreflight: { preflightCalls += 1; return true }, activate: {})
+        XCTAssertTrue(resolved.previewImage === cached, "The resolver publishes the cached frame.")
+        XCTAssertEqual(preflightCalls, 1, "Only the resolver consults Screen Recording access.")
+    }
+
     func testRecoveredPreviewPublicationChangesOnlyMatchingWindowWithoutNewCapture() throws {
         let pid = ProcessInfo.processInfo.processIdentifier
         let firstID: CGWindowID = 811_001
@@ -21,12 +49,12 @@ final class PreviewStatePublicationTests: XCTestCase {
         )
         let old = NSImage(size: NSSize(width: 120, height: 90))
         let latest = NSImage(size: NSSize(width: 160, height: 100))
-        let first = SwitcherItem(title: "First", subtitle: "Fixture", icon: nil,
+        let first = SwitcherPreviewResolver.item(title: "First", subtitle: "Fixture", icon: nil,
             previewImage: old, allowsPreviewRecovery: false, previewCacheKey: "first",
-            historyIdentity: firstIdentity, activate: {})
-        let second = SwitcherItem(title: "Second", subtitle: "Fixture", icon: nil,
+            historyIdentity: firstIdentity, captureAccessPreflight: { true }, activate: {})
+        let second = SwitcherPreviewResolver.item(title: "Second", subtitle: "Fixture", icon: nil,
             previewImage: old, allowsPreviewRecovery: false, previewCacheKey: "second",
-            historyIdentity: secondIdentity, activate: {})
+            historyIdentity: secondIdentity, captureAccessPreflight: { true }, activate: {})
         _ = SwitcherPreviewContinuityStore.resolve(key: "first", identityKey: firstKey,
             preview: latest, backdrop: latest, captureAccessAllowed: true,
             ownerPID: pid, windowID: firstID)
@@ -105,9 +133,9 @@ final class PreviewStatePublicationTests: XCTestCase {
         let identity = SwitcherHistoryIdentity.appWindow(pid: pid, windowID: id)
         let identityKey = SwitcherItem.previewContinuityIdentityKey(historyIdentity: identity, sourceAppIdentifier: nil)
         let saved = NSImage(size: NSSize(width: 120, height: 90))
-        let initial = SwitcherItem(title: "Window", subtitle: "", icon: nil, previewImage: saved,
+        let initial = SwitcherPreviewResolver.item(title: "Window", subtitle: "", icon: nil, previewImage: saved,
                                   allowsPreviewRecovery: false, previewCacheKey: "slow-window",
-                                  historyIdentity: identity, activate: { XCTFail("Capture must not activate the app") })
+                                  historyIdentity: identity, captureAccessPreflight: { true }, activate: { XCTFail("Capture must not activate the app") })
         let context = try XCTUnwrap(CGContext(data: nil, width: 120, height: 90, bitsPerComponent: 8,
             bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
@@ -122,9 +150,9 @@ final class PreviewStatePublicationTests: XCTestCase {
             forName: ReliableWindowPreviewRecovery.didRecoverPreviewNotification, object: nil, queue: .main
         ) { notification in
             guard notification.userInfo?["windowID"] as? CGWindowID == id else { return }
-            finalItem = SwitcherItem(title: "Window", subtitle: "", icon: nil, previewImage: nil,
+            finalItem = SwitcherPreviewResolver.item(title: "Window", subtitle: "", icon: nil, previewImage: nil,
                 allowsPreviewRecovery: false, previewCacheKey: "slow-window", historyIdentity: identity,
-                activate: { XCTFail("Publication must not activate the app") })
+                captureAccessPreflight: { true }, activate: { XCTFail("Publication must not activate the app") })
             recovered.fulfill()
         }
         defer { NotificationCenter.default.removeObserver(observer) }
@@ -138,9 +166,9 @@ final class PreviewStatePublicationTests: XCTestCase {
                 let currentAttempt = attempts
                 lock.unlock()
                 if currentAttempt < 4 {
-                    let retained = SwitcherItem(title: "Window", subtitle: "", icon: nil, previewImage: nil,
+                    let retained = SwitcherPreviewResolver.item(title: "Window", subtitle: "", icon: nil, previewImage: nil,
                         allowsPreviewRecovery: false, previewCacheKey: "slow-window", historyIdentity: identity,
-                        activate: { XCTFail("Retry must not activate the app") })
+                        captureAccessPreflight: { true }, activate: { XCTFail("Retry must not activate the app") })
                     XCTAssertTrue(retained.previewImage === initial.previewImage)
                     completion(nil, nil)
                 } else {
@@ -187,10 +215,10 @@ final class PreviewStatePublicationTests: XCTestCase {
             kind: .appFallback, activate: {})
         func publishedItems() -> [SwitcherItem] {
             let candidates = ids.map { id in
-                SwitcherItem(title: "Window", subtitle: "", icon: nil, previewImage: nil,
+                SwitcherPreviewResolver.item(title: "Window", subtitle: "", icon: nil, previewImage: nil,
                     previewCaptureIsFresh: false, allowsPreviewRecovery: false, previewCacheKey: "key-\(id)",
                     historyIdentity: .appWindow(pid: pid, windowID: id), sourceAppIdentifier: bundle,
-                    isMinimized: true, activate: {})
+                    isMinimized: true, captureAccessPreflight: { true }, activate: {})
             }
             return ProductionMembershipFinalizer.items(candidates, fallbackItems: [fallback],
                 metadataByIdentity: [:], configuration: configuration, globalVisibility: .allSpaces,

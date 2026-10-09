@@ -107,28 +107,28 @@ final class PreviewRecoveryRefreshTests: XCTestCase {
         let identity = SwitcherHistoryIdentity.appWindow(pid: ProcessInfo.processInfo.processIdentifier, windowID: 0)
         let old = NSImage(size: NSSize(width: 120, height: 90))
         let fresh = NSImage(size: NSSize(width: 120, height: 90))
-        _ = SwitcherItem(
+        _ = SwitcherPreviewResolver.item(
             title: "Before", subtitle: "App", icon: nil, previewImage: old,
-            previewCacheKey: "before", historyIdentity: identity, activate: {}
+            previewCacheKey: "before", historyIdentity: identity, captureAccessPreflight: { true }, activate: {}
         )
-        _ = SwitcherItem(
+        _ = SwitcherPreviewResolver.item(
             title: "After", subtitle: "App", icon: nil, previewImage: fresh,
-            previewCacheKey: "after", historyIdentity: identity, activate: {}
+            previewCacheKey: "after", historyIdentity: identity, captureAccessPreflight: { true }, activate: {}
         )
         // This is the base-cache -> item -> enriched-clone path. Reused
         // non-nil images must remain distinguishable from a new capture.
-        let reused = SwitcherItem(
+        let reused = SwitcherPreviewResolver.item(
             title: "Before", subtitle: "App", icon: nil, previewImage: old,
             previewCaptureIsFresh: false, allowsPreviewRecovery: false, previewCacheKey: "before",
-            historyIdentity: identity, isFullscreen: true, activate: {}
+            historyIdentity: identity, isFullscreen: true, captureAccessPreflight: { true }, activate: {}
         )
-        let clone = SwitcherItem(
+        let clone = SwitcherPreviewResolver.item(
             title: reused.title, subtitle: reused.subtitle, icon: nil,
             previewImage: reused.previewImage,
             previewCaptureIsFresh: reused.previewCaptureIsFresh,
             allowsPreviewRecovery: reused.allowsPreviewRecovery,
             previewCacheKey: reused.previewCacheKey, historyIdentity: identity,
-            isFullscreen: reused.isFullscreen, activate: {}
+            isFullscreen: reused.isFullscreen, captureAccessPreflight: { true }, activate: {}
         )
         XCTAssertTrue(reused.previewImage === fresh)
         XCTAssertTrue(clone.previewImage === fresh)

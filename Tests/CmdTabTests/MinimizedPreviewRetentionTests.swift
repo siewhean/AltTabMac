@@ -28,19 +28,19 @@ final class MinimizedPreviewRetentionTests: XCTestCase {
     func testEnrichedLiveClonePreservesCaptureTimeAndCannotReplaceNewerRecovery() {
         let identity = SwitcherHistoryIdentity.appWindow(pid: ProcessInfo.processInfo.processIdentifier, windowID: 0)
         let capturedAt = Date().addingTimeInterval(-60)
-        let original = SwitcherItem(title: "Window", subtitle: "App", icon: nil,
+        let original = SwitcherPreviewResolver.item(title: "Window", subtitle: "App", icon: nil,
             previewImage: NSImage(size: NSSize(width: 120, height: 90)),
             previewCapturedAt: capturedAt, allowsPreviewRecovery: true,
-            previewCacheKey: "original", historyIdentity: identity, activate: {})
+            previewCacheKey: "original", historyIdentity: identity, captureAccessPreflight: { true }, activate: {})
         let metadata = snapshot(minimized: false).metadata(ownerPID: 101, windowID: 7)!
         let descriptor = LiveWindowHistoryDescriptor(identity: identity, bundleIdentifier: "fixture", title: "Window")
         let clone = ProductionAppSwitcher.clone(original, metadata: metadata, descriptor: descriptor, activation: {})
         XCTAssertEqual(clone.previewCapturedAt, capturedAt)
         XCTAssertFalse(clone.allowsPreviewRecovery, "The base item already owns any deferred recovery")
         let recovered = NSImage(size: NSSize(width: 150, height: 100))
-        let newer = SwitcherItem(title: "Window", subtitle: "App", icon: nil,
+        let newer = SwitcherPreviewResolver.item(title: "Window", subtitle: "App", icon: nil,
             previewImage: recovered, allowsPreviewRecovery: false,
-            previewCacheKey: "original", historyIdentity: identity, activate: {})
+            previewCacheKey: "original", historyIdentity: identity, captureAccessPreflight: { true }, activate: {})
         let staleClone = ProductionAppSwitcher.clone(original, metadata: metadata, descriptor: descriptor, activation: {})
         XCTAssertEqual(staleClone.previewCapturedAt, newer.previewCapturedAt)
         XCTAssertTrue(staleClone.previewImage === recovered)

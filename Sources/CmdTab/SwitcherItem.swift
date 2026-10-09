@@ -343,6 +343,9 @@ struct SwitcherItem: Identifiable {
     var ownerPID: pid_t? { historyIdentity.ownerPID }
     var windowID: CGWindowID? { historyIdentity.windowID }
 
+    /// A plain value: no permission checks, cache access, or capture
+    /// scheduling. Use `SwitcherPreviewResolver.item` to build an item whose
+    /// preview must be resolved against the continuity cache and recovery.
     init(
         title: String,
         subtitle: String,
@@ -363,62 +366,22 @@ struct SwitcherItem: Identifiable {
         isFullscreen: Bool = false,
         workspaceSnapshot: WindowWorkspaceSnapshot? = nil,
         historyDescriptor: LiveWindowHistoryDescriptor? = nil,
+        previewState: SwitcherPreviewState? = nil,
         activate: @escaping () -> Void
     ) {
         let resolvedDedupeKey = dedupeKey ?? historyIdentity.stableKey
-        let resolvedPreviewKey = previewCacheKey ?? historyIdentity.stableKey
-        let resolvedImages: SwitcherPreviewContinuityStore.ResolvedImages
-        var recoveryIdentityKey: String?
-        var effectiveCaptureAccess = true
-
-        if previewCacheKey != nil, kind == .appWindow {
-            let hasCurrentCapture = previewCaptureIsFresh && (previewImage != nil || backdropImage != nil)
-            let preflightGranted: Bool
-            if hasCurrentCapture {
-                preflightGranted = true
-            } else if #available(macOS 10.15, *) {
-                preflightGranted = CGPreflightScreenCaptureAccess()
-            } else {
-                preflightGranted = true
-            }
-            effectiveCaptureAccess = SwitcherPreviewPermissionState.effectiveAccess(
-                hasCurrentCapture: hasCurrentCapture,
-                preflightGranted: preflightGranted
-            )
-            let identityPreviewKey = Self.previewContinuityIdentityKey(
-                historyIdentity: historyIdentity,
-                sourceAppIdentifier: sourceAppIdentifier
-            )
-            recoveryIdentityKey = identityPreviewKey
-            resolvedImages = SwitcherPreviewContinuityStore.resolve(
-                key: resolvedPreviewKey,
-                identityKey: identityPreviewKey,
-                preview: previewCaptureIsFresh ? previewImage : nil,
-                backdrop: previewCaptureIsFresh ? backdropImage : nil,
-                captureAccessAllowed: effectiveCaptureAccess,
-                ownerPID: historyIdentity.ownerPID,
-                windowID: historyIdentity.windowID,
-                capturedAt: previewCapturedAt
-            )
-        } else {
-            resolvedImages = .init(
-                preview: previewImage,
-                backdrop: backdropImage
-            )
-        }
-
         self.id = resolvedDedupeKey
         self.title = title
         self.subtitle = subtitle
         self.icon = icon
-        self.previewImage = resolvedImages.preview
+        self.previewImage = previewImage
         self.previewCaptureIsFresh = previewCaptureIsFresh
-        self.previewCapturedAt = resolvedImages.capturedAt ?? previewCapturedAt
+        self.previewCapturedAt = previewCapturedAt
         self.allowsPreviewRecovery = allowsPreviewRecovery
-        self.backdropImage = resolvedImages.backdrop
+        self.backdropImage = backdropImage
         self.backdropFrame = backdropFrame
         self.backdropSourceScreenFrame = backdropSourceScreenFrame
-        self.previewCacheKey = resolvedPreviewKey
+        self.previewCacheKey = previewCacheKey ?? historyIdentity.stableKey
         self.sourceAppIdentifier = sourceAppIdentifier
         self.historyIdentity = historyIdentity
         self.kind = kind
@@ -428,32 +391,12 @@ struct SwitcherItem: Identifiable {
         self.workspaceSnapshot = workspaceSnapshot
         self.historyDescriptor = historyDescriptor
         self.activate = activate
-
-        // Continuity keeps the last useful frame visible while a fresh capture
-        // is requested. It must not suppress recovery for the cache's lifetime.
-        if allowsPreviewRecovery,
-           (!previewCaptureIsFresh || (previewImage == nil && backdropImage == nil)),
-           effectiveCaptureAccess,
-           let recoveryIdentityKey,
-           let windowID = historyIdentity.windowID,
-           let ownerPID = historyIdentity.ownerPID {
-            ReliableWindowPreviewRecovery.schedule(
-                windowID: windowID,
-                ownerPID: ownerPID,
-                isFullscreen: isFullscreen,
-                exactKey: resolvedPreviewKey,
-                identityKey: recoveryIdentityKey
-            )
-        }
-        if kind == .appFallback {
+        if let previewState {
+            self.previewState = previewState
+        } else if kind == .appFallback {
             self.previewState = .applicationOnly
-        } else if !effectiveCaptureAccess {
-            self.previewState = .permissionDenied
-        } else if resolvedImages.preview != nil {
-            self.previewState = previewCaptureIsFresh && previewImage != nil ? .live
-                : .cached(capturedAt: resolvedImages.capturedAt ?? Date())
-        } else if let recoveryIdentityKey {
-            self.previewState = ReliableWindowPreviewRecovery.previewState(identityKey: recoveryIdentityKey)
+        } else if previewImage != nil {
+            self.previewState = previewCaptureIsFresh ? .live : .cached(capturedAt: previewCapturedAt ?? Date())
         } else {
             self.previewState = .unavailable
         }
@@ -535,5 +478,132 @@ struct SwitcherItem: Identifiable {
             sourceAppIdentifier?.lowercased() ?? "",
             launchToken,
         ].joined(separator: "|")
+    }
+}
+
+// MARK: - Preview resolution
+
+/// Builds switcher items whose previews come from the continuity cache and
+/// background recovery. This is the only place item construction has side
+/// effects: it checks Screen Recording access, reads and updates
+/// `SwitcherPreviewContinuityStore`, and schedules
+/// `ReliableWindowPreviewRecovery`. Re-resolving an existing item (for
+/// example after a recovery notification) publishes the recovered frame.
+enum SwitcherPreviewResolver {
+    static func systemCaptureAccessPreflight() -> Bool {
+        if #available(macOS 10.15, *) {
+            return CGPreflightScreenCaptureAccess()
+        }
+        return true
+    }
+
+    static func item(
+        title: String,
+        subtitle: String,
+        icon: NSImage?,
+        previewImage: NSImage?,
+        previewCaptureIsFresh: Bool = true,
+        previewCapturedAt: Date? = nil,
+        allowsPreviewRecovery: Bool = true,
+        backdropImage: NSImage? = nil,
+        backdropFrame: CGRect? = nil,
+        backdropSourceScreenFrame: CGRect? = nil,
+        previewCacheKey: String? = nil,
+        historyIdentity: SwitcherHistoryIdentity,
+        sourceAppIdentifier: String? = nil,
+        kind: SwitcherItemKind = .appWindow,
+        dedupeKey: String? = nil,
+        isMinimized: Bool = false,
+        isFullscreen: Bool = false,
+        workspaceSnapshot: WindowWorkspaceSnapshot? = nil,
+        historyDescriptor: LiveWindowHistoryDescriptor? = nil,
+        captureAccessPreflight: () -> Bool = systemCaptureAccessPreflight,
+        activate: @escaping () -> Void
+    ) -> SwitcherItem {
+        let resolvedPreviewKey = previewCacheKey ?? historyIdentity.stableKey
+        let resolvedImages: SwitcherPreviewContinuityStore.ResolvedImages
+        var recoveryIdentityKey: String?
+        var effectiveCaptureAccess = true
+
+        if previewCacheKey != nil, kind == .appWindow {
+            let hasCurrentCapture = previewCaptureIsFresh && (previewImage != nil || backdropImage != nil)
+            let preflightGranted = hasCurrentCapture || captureAccessPreflight()
+            effectiveCaptureAccess = SwitcherPreviewPermissionState.effectiveAccess(
+                hasCurrentCapture: hasCurrentCapture,
+                preflightGranted: preflightGranted
+            )
+            let identityPreviewKey = SwitcherItem.previewContinuityIdentityKey(
+                historyIdentity: historyIdentity,
+                sourceAppIdentifier: sourceAppIdentifier
+            )
+            recoveryIdentityKey = identityPreviewKey
+            resolvedImages = SwitcherPreviewContinuityStore.resolve(
+                key: resolvedPreviewKey,
+                identityKey: identityPreviewKey,
+                preview: previewCaptureIsFresh ? previewImage : nil,
+                backdrop: previewCaptureIsFresh ? backdropImage : nil,
+                captureAccessAllowed: effectiveCaptureAccess,
+                ownerPID: historyIdentity.ownerPID,
+                windowID: historyIdentity.windowID,
+                capturedAt: previewCapturedAt
+            )
+        } else {
+            resolvedImages = .init(preview: previewImage, backdrop: backdropImage)
+        }
+
+        // Continuity keeps the last useful frame visible while a fresh capture
+        // is requested. It must not suppress recovery for the cache's lifetime.
+        if allowsPreviewRecovery,
+           (!previewCaptureIsFresh || (previewImage == nil && backdropImage == nil)),
+           effectiveCaptureAccess,
+           let recoveryIdentityKey,
+           let windowID = historyIdentity.windowID,
+           let ownerPID = historyIdentity.ownerPID {
+            ReliableWindowPreviewRecovery.schedule(
+                windowID: windowID,
+                ownerPID: ownerPID,
+                isFullscreen: isFullscreen,
+                exactKey: resolvedPreviewKey,
+                identityKey: recoveryIdentityKey
+            )
+        }
+
+        let previewState: SwitcherPreviewState
+        if kind == .appFallback {
+            previewState = .applicationOnly
+        } else if !effectiveCaptureAccess {
+            previewState = .permissionDenied
+        } else if resolvedImages.preview != nil {
+            previewState = previewCaptureIsFresh && previewImage != nil ? .live
+                : .cached(capturedAt: resolvedImages.capturedAt ?? Date())
+        } else if let recoveryIdentityKey {
+            previewState = ReliableWindowPreviewRecovery.previewState(identityKey: recoveryIdentityKey)
+        } else {
+            previewState = .unavailable
+        }
+
+        return SwitcherItem(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            previewImage: resolvedImages.preview,
+            previewCaptureIsFresh: previewCaptureIsFresh,
+            previewCapturedAt: resolvedImages.capturedAt ?? previewCapturedAt,
+            allowsPreviewRecovery: allowsPreviewRecovery,
+            backdropImage: resolvedImages.backdrop,
+            backdropFrame: backdropFrame,
+            backdropSourceScreenFrame: backdropSourceScreenFrame,
+            previewCacheKey: resolvedPreviewKey,
+            historyIdentity: historyIdentity,
+            sourceAppIdentifier: sourceAppIdentifier,
+            kind: kind,
+            dedupeKey: dedupeKey,
+            isMinimized: isMinimized,
+            isFullscreen: isFullscreen,
+            workspaceSnapshot: workspaceSnapshot,
+            historyDescriptor: historyDescriptor,
+            previewState: previewState,
+            activate: activate
+        )
     }
 }
