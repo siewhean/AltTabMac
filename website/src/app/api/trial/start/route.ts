@@ -24,6 +24,9 @@ const optionalEmailSchema = z.union([
 const payloadSchema = z.object({
   email: optionalEmailSchema,
   installId: z.string().trim().regex(/^[a-f0-9]{64}$/),
+  // Salted SHA-256 of the Mac's hardware UUID (computed on the Mac). It
+  // survives Keychain resets, so one Mac gets one trial.
+  hardwareId: z.string().trim().regex(/^[a-f0-9]{64}$/).optional(),
   appVersion: z.string().trim().max(80).optional(),
   osVersion: z.string().trim().max(80).optional(),
 });
@@ -85,6 +88,7 @@ export async function POST(request: Request) {
     const result = await createOrGetTrialClaim({
       email: claimSubject,
       installId: payload.installId,
+      hardwareId: payload.hardwareId,
       appVersion: payload.appVersion,
       osVersion: payload.osVersion,
       trialLengthDays: 14,

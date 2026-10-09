@@ -23,6 +23,13 @@ export const deactivateLicenseSchema = z
   })
   .strict();
 
+export const renewLicenseSchema = z
+  .object({
+    entitlementToken: z.string().trim().min(32).max(16_384),
+    deviceId: opaqueIdentifier,
+  })
+  .strict();
+
 export const recoverLicenseSchema = z
   .object({
     email: z.string().trim().email().max(320).transform((value) => value.toLowerCase()),
@@ -61,6 +68,25 @@ export const genericRecoveryResponse = {
   message:
     "If a matching CmdTab purchase exists, recovery instructions will be sent shortly.",
 } as const;
+
+/**
+ * Activation codes are derived, never stored: the database keeps only their
+ * lookup hash, so a database read does not reveal customers' codes. A retried
+ * webhook re-derives the same code; recovery bumps the generation to rotate it.
+ */
+export function deriveActivationCredential(
+  orderIdentifier: string,
+  generation: number,
+  pepper: string,
+) {
+  if (!Number.isSafeInteger(generation) || generation < 0) {
+    throw new Error("Activation credential generation must be a non-negative integer.");
+  }
+  const mac = createHmac("sha256", pepper)
+    .update(`cmdtab:activation-credential:v1\0${orderIdentifier.trim()}\0${generation}`)
+    .digest("base64url");
+  return `CMDTAB-ACT-${mac}`;
+}
 
 export function issuePurchaseActivationCredential() {
   return `CMDTAB-ACT-${randomBytes(32).toString("base64url")}`;

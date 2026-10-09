@@ -70,6 +70,8 @@ export async function POST(request: Request) {
       deviceId: payload.deviceId,
       deviceName: payload.deviceName,
       pepper,
+      entitlementOrderHash: entitlement.payload.order,
+      entitlementSubjectHash: entitlement.payload.sub,
     });
     if (result.kind === "slot_full") {
       return licenseJson(

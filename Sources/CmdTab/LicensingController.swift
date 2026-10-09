@@ -106,7 +106,9 @@ final class LicensingController: ObservableObject {
     private let telemetryReporter: AppTelemetryReporting?
     private let currentDate: () -> Date
     private let currentUptime: () -> TimeInterval
+    private let hardwareIdentifier: () -> String?
     private let publicKeyDERBase64: String
+    private var isRenewingLease = false
     private var keychainReadObserver: NSObjectProtocol?
     private var shortcutRefreshWorkItem: DispatchWorkItem?
     private var shortcutRefreshIsImmediate = false
@@ -143,6 +145,7 @@ final class LicensingController: ObservableObject {
         telemetryReporter: AppTelemetryReporting? = nil,
         currentDate: @escaping () -> Date = Date.init,
         currentUptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        hardwareIdentifier: @escaping () -> String? = HardwareIdentity.trialHardwareIdentifier,
         publicKeyDERBase64: String = LicensingConfiguration.publicKeyDERBase64,
         // This compatibility argument is inert in release builds; DEBUG alone
         // casts it to the internal scenario state used by tests.
@@ -169,6 +172,7 @@ final class LicensingController: ObservableObject {
         self.telemetryReporter = telemetryReporter
         self.currentDate = currentDate
         self.currentUptime = currentUptime
+        self.hardwareIdentifier = hardwareIdentifier
         self.eventTapGate = EventTapLicensingGate(
             refreshInterval: Self.shortcutRefreshInterval,
             clockRollbackTolerance: Self.clockRollbackTolerance,
@@ -363,7 +367,19 @@ final class LicensingController: ObservableObject {
             return
         }
         if let paidEntitlement {
-            if let verifiedPayload = try? validatePaidDeviceEntitlement(paidEntitlement) {
+            let verification = Result { try validatePaidDeviceEntitlement(paidEntitlement) }
+            if case .failure(LicenseTokenVerificationError.expired) = verification {
+                // A lapsed lease is genuine but no longer grants access. Keep
+                // it: renewal presents it to the server, which decides.
+                status = .unregistered
+                let renewalMessage = LicensingMessage(
+                    tone: .warning,
+                    text: "Connect to the internet so CmdTab can renew this Mac's license."
+                )
+                if licenseMessage != renewalMessage { licenseMessage = renewalMessage }
+                return
+            }
+            if case let .success(verifiedPayload) = verification {
                 guard !isRevoked(
                     payload: verifiedPayload,
                     entitlementToken: paidEntitlement
@@ -394,7 +410,11 @@ final class LicensingController: ObservableObject {
         guard !BoundedKeychainReadRegistry.hasPendingReads else {
             return
         }
-        if let storedToken,
+        // Release builds never unlock from a legacy CMDTAB1 key on its own: it
+        // is only an input to online activation, which returns a device-bound,
+        // leased entitlement.
+        if Self.legacyLicensesUnlockLocally,
+           let storedToken,
            let verifiedPayload = try? validateLicenseKey(normalizeToken(storedToken)) {
             guard !isLicenseRevoked(verifiedPayload.licenseID) else {
                 try? licenseStore.clearLicenseKey()
@@ -431,7 +451,10 @@ final class LicensingController: ObservableObject {
            ),
            let startedAt = claim.startedDate,
            let claimedEndsAt = claim.endsDate {
+            // Deleting the last-seen Keychain item must not disable rollback
+            // detection: the server time captured with the claim is a floor.
             let lastSeen = secureTrialClockStore.loadLastSeenDate()
+                ?? claim.validatedDate
             guard !BoundedKeychainReadRegistry.hasPendingReads else {
                 return
             }
@@ -493,6 +516,7 @@ final class LicensingController: ObservableObject {
             let claim = try await serverClient.startTrial(
                 email: normalizedEmail,
                 installID: try deviceIdentifier(),
+                hardwareID: hardwareIdentifier(),
                 appVersion: appVersion,
                 osVersion: osVersion
             )
@@ -692,8 +716,65 @@ final class LicensingController: ObservableObject {
                 refreshStatus()
                 return
             }
-            // Paid authorization remains available offline indefinitely.
-            // A transient listing failure must not change local access.
+            // A transient listing failure must not change local access; the
+            // paid lease still lapses on its own if renewal keeps failing.
+        }
+    }
+
+    /// Renews the 30-day paid lease while online. Renewal starts once the
+    /// lease is a day old, so a Mac that is online at least monthly never
+    /// lapses, and an expired lease can still be renewed.
+    func renewLicenseLeaseIfNeeded() async {
+        guard !isRenewingLease,
+              let entitlement = deviceEntitlementStore.loadEntitlement(),
+              let deviceID = try? deviceIdentifier(),
+              case let .tokenV2(payload)? = try? paidEntitlementVerifier.verify(
+                entitlement,
+                context: LicenseTokenVerificationContext(
+                    expectedType: .license,
+                    expectedBinding: (.activation, deviceID),
+                    now: currentDate(),
+                    allowExpired: true
+                )
+              ) else {
+            return
+        }
+        let leaseAge = currentDate().timeIntervalSince1970 - TimeInterval(payload.iat)
+        guard leaseAge >= Self.leaseRenewalAge else { return }
+
+        isRenewingLease = true
+        defer { isRenewingLease = false }
+        do {
+            let renewed = try await serverClient.renewLicense(
+                entitlementToken: entitlement,
+                deviceID: deviceID
+            )
+            _ = try validatePaidDeviceEntitlement(renewed)
+            try deviceEntitlementStore.saveEntitlement(renewed)
+            if licenseMessage?.tone == .warning { licenseMessage = nil }
+            refreshStatus()
+        } catch let error as CmdTabServerClientError {
+            switch error {
+            case .licenseRevoked:
+                try? revocationStore.saveRevocation(
+                    licenseID: licenseRevocationIdentifier(payload.order)
+                )
+                fallthrough
+            case .deviceInactive:
+                try? revocationStore.saveRevocation(
+                    licenseID: tokenRevocationIdentifier(entitlement)
+                )
+                try? deviceEntitlementStore.clearEntitlement()
+                try? licenseStore.clearLicenseKey()
+                payloadCacheStore.clearPayload()
+                licensedDevices = []
+                refreshStatus()
+            case .invalidResponse, .blocked:
+                // Transient: the current lease stays valid until it expires.
+                break
+            }
+        } catch {
+            // Network or validation failure: keep the current lease.
         }
     }
 
@@ -731,6 +812,13 @@ final class LicensingController: ObservableObject {
 
     @discardableResult
     func activateLicense(_ value: String) -> Bool {
+        guard Self.legacyLicensesUnlockLocally else {
+            licenseMessage = LicensingMessage(
+                tone: .error,
+                text: "Connect to the internet and activate this key from the License pane."
+            )
+            return false
+        }
         do {
             let normalized = normalizeToken(value)
             let payload = try validateLicenseKey(normalized)
@@ -899,6 +987,9 @@ final class LicensingController: ObservableObject {
             || revocationStore.isRevoked(
                 licenseID: tokenRevocationIdentifier(entitlementToken)
             )
+            || revocationStore.isRevoked(
+                licenseID: legacyTokenRevocationIdentifier(entitlementToken)
+            )
     }
 
     private func isLicenseRevoked(_ licenseID: String) -> Bool {
@@ -913,7 +1004,29 @@ final class LicensingController: ObservableObject {
         "license:\(licenseID)"
     }
 
+    /// Tombstones key on the signed claims, not the token bytes, so the same
+    /// entitlement re-saved with whitespace or with an alternative (malleable)
+    /// ECDSA signature encoding stays revoked.
     private func tokenRevocationIdentifier(_ token: String) -> String {
+        guard case let .tokenV2(payload)? = try? paidEntitlementVerifier.verify(
+            token,
+            context: LicenseTokenVerificationContext(
+                expectedType: .license,
+                now: currentDate(),
+                allowExpired: true
+            )
+        ) else {
+            return legacyTokenRevocationIdentifier(token)
+        }
+        let claims = "\(payload.order)|\(payload.binding.hash)|\(payload.iat)"
+        let digest = SHA256.hash(data: Data(claims.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        return "claims:\(digest)"
+    }
+
+    /// Byte-keyed form written by earlier releases; still honoured.
+    private func legacyTokenRevocationIdentifier(_ token: String) -> String {
         let digest = SHA256.hash(data: Data(token.utf8))
             .map { String(format: "%02x", $0) }
             .joined()
@@ -973,6 +1086,12 @@ final class LicensingController: ObservableObject {
         TimeInterval(LicensingConfiguration.trialLengthDays) * secondsPerDay
     private static let trialClaimSerializationTolerance: TimeInterval = 1
     private static let clockRollbackTolerance: TimeInterval = 5 * 60
+    private static let leaseRenewalAge: TimeInterval = 24 * 60 * 60
+    #if DEBUG
+    private static let legacyLicensesUnlockLocally = true
+    #else
+    private static let legacyLicensesUnlockLocally = false
+    #endif
 
     private static func visibleTrialEmail(_ claimEmail: String) -> String {
         claimEmail.hasSuffix(anonymousTrialEmailSuffix) ? "" : claimEmail
