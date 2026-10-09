@@ -65,7 +65,6 @@ CmdTab is a standalone native macOS window-switcher application. It is separate 
 - Trial: ${productFacts.trialLength}
 - License: ${productFacts.licenseModel}
 - Current personal-license price: ${productFacts.licensePrice}
-- Source repository: ${productFacts.sourceRepository}
 - Product facts reviewed: ${productFacts.reviewedAt}
 
 No processor architecture, Universal Binary status, memory footprint, reveal-latency benchmark, or thumbnail-render benchmark is asserted here because the current public evidence does not prove those claims.

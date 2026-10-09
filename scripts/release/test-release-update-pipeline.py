@@ -126,6 +126,38 @@ class ReleaseManifestTests(unittest.TestCase):
             release_config.validate_trial_public_keyring(
                 json.dumps({"trial-2026-01": "AA=="}), "trial-2026-01"
             )
+    def test_release_info_plist_injects_license_keyring_and_requires_it_for_commerce(self) -> None:
+        config = dict(release_config.load_config(ROOT / "release" / "ReleaseConfig.json"))
+        public_key = (
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ9FZZyw0trHoeLiL/uri6aLwr8R"
+            "hw9vNEGuI6afJqY9foeogoVNhQRZ4Hexv/fLhASKa4FKqaEflq3Uh6PIfDw=="
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "CMDTAB_LICENSE_SIGNING_KID": "license-2026-01",
+                "CMDTAB_LICENSE_PUBLIC_KEYRING_JSON": json.dumps(
+                    {"license-2026-01": public_key}
+                ),
+            },
+            clear=True,
+        ):
+            plist = release_config.plist_for(config)
+        self.assertEqual(
+            plist["CmdTabLicensePublicKeyring"], {"license-2026-01": public_key}
+        )
+
+        commerce = {**config, "commerceEnabled": True}
+        with patch.dict("os.environ", {}, clear=True):
+            with self.assertRaisesRegex(SystemExit, "commerceEnabled requires CMDTAB_LICENSE_PUBLIC_KEYRING_JSON"):
+                release_config.plist_for(commerce)
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertNotIn("CmdTabLicensePublicKeyring", release_config.plist_for(config))
+        with self.assertRaisesRegex(SystemExit, "must contain CMDTAB_LICENSE_SIGNING_KID"):
+            release_config.validate_public_keyring(
+                json.dumps({"license-old": public_key}), "license-2026-01", "LICENSE"
+            )
+
     def test_workflow_pin_parser_covers_step_shorthand_and_containers(self) -> None:
         pattern = verify_workflow_actions.USE_PATTERN
         self.assertEqual(
@@ -363,25 +395,30 @@ class ReleaseManifestTests(unittest.TestCase):
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("equal or lower", rejected.stderr)
 
-    def test_beta_appcast_requires_sparkle_beta_channel(self) -> None:
+    def test_beta_appcast_uses_default_sparkle_channel(self) -> None:
+        # Clients never declare allowedChannels(for:), so a named channel would
+        # hide the update; the beta feed URL already separates the channel.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest_path = root / "beta.json"
             beta_manifest = manifest(channel="beta")
             manifest_path.write_text(json.dumps(beta_manifest), encoding="utf-8")
             appcast_path = root / "appcast.xml"
-            appcast_path.write_text(
-                f'''<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><item>
-<sparkle:version>2</sparkle:version><sparkle:channel>beta</sparkle:channel>
+            command = ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"),
+                       str(appcast_path), str(manifest_path)]
+            for channel_tag, should_pass in (("", True), ("<sparkle:channel>beta</sparkle:channel>", False)):
+                appcast_path.write_text(
+                    f'''<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle"><channel><item>
+<sparkle:version>2</sparkle:version>{channel_tag}
 <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
 <enclosure url="{beta_manifest["dmgURL"]}" length="4" sparkle:edSignature="{'A' * 88}" />
 </item></channel></rss>''', encoding="utf-8")
-            result = subprocess.run(
-                ["python3", str(ROOT / "scripts" / "release" / "validate-appcast.py"), str(appcast_path), str(manifest_path)],
-                capture_output=True, text=True,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-
+                result = subprocess.run(command, capture_output=True, text=True)
+                if should_pass:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                else:
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("default channel", result.stderr)
 
 if __name__ == "__main__":
     unittest.main()

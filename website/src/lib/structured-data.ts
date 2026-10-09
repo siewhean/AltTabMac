@@ -59,7 +59,6 @@ function softwareApplicationEntity(siteUrl: string) {
     disambiguatingDescription:
       "CmdTab is a standalone macOS window-switcher application, not Apple’s built-in Command-Tab shortcut.",
     url: siteUrl,
-    sameAs: [productFacts.sourceRepository],
     applicationCategory: "UtilitiesApplication",
     applicationSubCategory: "Window switching utility",
     operatingSystem: productFacts.minimumMacOS,
@@ -109,7 +108,7 @@ export function createHomeStructuredData() {
         founder: {
           "@id": `${siteUrl}/#founder`,
         },
-        sameAs: [productFacts.sourceRepository, productFacts.developerProfile],
+        sameAs: [productFacts.developerProfile],
       },
       {
         "@type": "WebSite",

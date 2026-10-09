@@ -37,7 +37,7 @@ const disclosureSections = [
   {
     title: "Current scope",
     body: [
-      "In scope: the cmdtab.net website and APIs, dashboard authentication, analytics ingestion, trial registration, checkout and webhook handling, license generation and delivery, the native CmdTab app, update and release packaging, and the public repository configuration.",
+      "In scope: the cmdtab.net website and APIs, dashboard authentication, analytics ingestion, trial registration, checkout and webhook handling, license generation and delivery, the native CmdTab app, update and release packaging, and its source repository configuration.",
       "Third-party platforms such as Vercel, Resend, GitHub, and the configured commerce provider are governed by their own disclosure programs unless the issue is caused by CmdTab's integration or configuration.",
     ],
   },
@@ -99,9 +99,6 @@ export default function SecurityPage() {
 
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
             <Button href={`mailto:${productFacts.contactEmail}`}>Report privately</Button>
-            <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="secondary">
-              Review public source
-            </Button>
             <Button href="/privacy" variant="secondary">
               Read the privacy policy
             </Button>

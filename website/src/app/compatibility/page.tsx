@@ -48,9 +48,6 @@ export default function CompatibilityPage() {
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <LastReviewed date={productFacts.reviewedAt} />
-          <Button href={productFacts.sourceRepository} target="_blank" rel="noreferrer" variant="ghost">
-            Verify project metadata
-          </Button>
         </div>
         <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04]">
           <dl className="divide-y divide-white/8">
