@@ -576,7 +576,9 @@ final class ProductionSwitcherWindowController: NSObject {
     }
 
     private func items() -> [SwitcherItem] {
-        let raw = applyingPendingSuppressions(to: appSwitcher.getItems())
+        let raw = SwitcherMembershipPolicy.excludingApplicationOnlyItems(
+            applyingPendingSuppressions(to: appSwitcher.getItems())
+        )
         _ = appSwitcher.reconcileCurrentFrontmostHistory()
         return SwitcherOrdering.orderedItems(
             raw,

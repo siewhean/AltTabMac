@@ -164,6 +164,14 @@ final class SwitcherHistoryStore {
 }
 
 enum SwitcherMembershipPolicy {
+    /// The switcher lists windows, not applications. An app with no includable
+    /// window (for example Calendar after its window is closed, which keeps the
+    /// app running) is not shown. Application-only items are still produced
+    /// upstream because enrichment uses them to define eligible processes.
+    static func excludingApplicationOnlyItems(_ items: [SwitcherItem]) -> [SwitcherItem] {
+        items.filter { $0.kind != .appFallback }
+    }
+
     /// Removes duplicate identities and suppresses an app fallback whenever an
     /// exact window for the same process is present. The production AX synthesis
     /// path can discover windows that the original Core Graphics pass omitted;

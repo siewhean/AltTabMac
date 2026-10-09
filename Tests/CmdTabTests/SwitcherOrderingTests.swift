@@ -249,6 +249,21 @@ final class SwitcherOrderingTests: XCTestCase {
         )
     }
 
+    func testApplicationsWithoutWindowsAreNotListed() {
+        let window = makeItem(title: "Inbox", appID: "com.example.mail",
+                              identity: .appWindow(pid: 10, windowID: 1))
+        let windowless = SwitcherItem(
+            title: "Calendar", subtitle: "", icon: nil, previewImage: nil,
+            historyIdentity: .appFallback(bundleID: "com.apple.iCal", pid: 20),
+            sourceAppIdentifier: "com.apple.iCal", kind: .appFallback
+        ) {}
+        XCTAssertEqual(
+            SwitcherMembershipPolicy.excludingApplicationOnlyItems([window, windowless]).map(\.id),
+            [window.id],
+            "An app whose window was closed keeps running but has nothing to switch to."
+        )
+    }
+
     private func makeItem(title: String, appName: String? = nil, appID: String, identity: SwitcherHistoryIdentity) -> SwitcherItem {
         SwitcherItem(
             title: title,
