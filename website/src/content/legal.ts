@@ -14,6 +14,15 @@ export const privacyContent = {
       ],
     },
     {
+      title: "Beta waitlist",
+      body: [
+        "When you join the beta waitlist, CmdTab stores your email address, your name if you give one, the page you signed up from, a request identifier, the delivery status of the confirmation email, and when you signed up. If you accepted optional analytics, the landing-page path and campaign labels described above are stored as well.",
+        "The address is used only to email you about CmdTab beta access, trial availability, and launch. It is not sold or shared for anyone else's marketing. Emails are delivered through Resend, and the list is stored in CmdTab's database hosted through Vercel.",
+        "To limit abuse, short-lived hashed fingerprints derived from the submitted address and network request are kept temporarily for rate limiting. They expire automatically.",
+        "Every waitlist email includes an unsubscribe link. Unsubscribing deletes your waitlist record. Signups are otherwise kept until you unsubscribe, ask for deletion, or the beta list is no longer needed.",
+      ],
+    },
+    {
       title: "Native app telemetry",
       body: [
         "Optional native-app telemetry is off by default and can be enabled or disabled in CmdTab Settings. When enabled, the app sends an app-activation event and then an hourly heartbeat while it remains running. It also reports trial-start and license-activation events.",

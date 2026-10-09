@@ -175,6 +175,16 @@ export async function updateWaitlistNotificationStatus(
   return row ? mapRow(row) : null;
 }
 
+/** Removes a signup on the applicant's request (unsubscribe). Idempotent. */
+export async function deleteWaitlistSignup(email: string) {
+  await ensureSchema();
+  const sql = getSql();
+  await sql`
+    delete from waitlist_signups
+    where email = ${email.trim().toLowerCase()}
+  `;
+}
+
 export async function listWaitlistSubmissions(limit = 100) {
   await ensureSchema();
   const sql = getSql();

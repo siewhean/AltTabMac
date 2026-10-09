@@ -25,6 +25,7 @@ import {
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
+import { waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -169,11 +170,14 @@ async function sendApplicantConfirmationEmail(payload: {
 }) {
   const env = getServerEnv();
   const resend = getResendClient(env.resendApiKey);
+  const siteUrl = getSiteUrl();
+  const unsubscribeUrl = waitlistUnsubscribeUrl(siteUrl, payload.email);
   const message = renderApplicantWaitlistEmail({
     email: payload.email,
     name: payload.name,
-    siteUrl: getSiteUrl(),
+    siteUrl,
     variant: payload.alreadyRegistered ? "existing" : "new",
+    unsubscribeUrl,
   });
 
   return resend.emails.send({
@@ -183,6 +187,15 @@ async function sendApplicantConfirmationEmail(payload: {
     subject: message.subject,
     text: message.text,
     html: message.html,
+    // RFC 8058 one-click unsubscribe: mail clients show a native control.
+    ...(unsubscribeUrl
+      ? {
+          headers: {
+            "List-Unsubscribe": `<${unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        }
+      : {}),
   });
 }
 
@@ -400,9 +413,7 @@ export async function POST(request: Request) {
         return jsonResponse({
           ok: true,
           code: "waitlist_submitted",
-          message: alreadyRegistered
-            ? waitlistEmailContent.applicant.onPageMessage.existing
-            : waitlistEmailContent.applicant.onPageMessage.new,
+          message: waitlistEmailContent.applicant.onPageMessage,
           requestId,
           submittedAt: new Date().toISOString(),
           notificationDelivered: false,
@@ -430,9 +441,7 @@ export async function POST(request: Request) {
     return jsonResponse({
       ok: true,
       code: "waitlist_submitted",
-      message: alreadyRegistered
-        ? waitlistEmailContent.applicant.onPageMessage.existing
-        : waitlistEmailContent.applicant.onPageMessage.new,
+      message: waitlistEmailContent.applicant.onPageMessage,
       requestId,
       submittedAt: new Date().toISOString(),
       notificationDelivered: true,

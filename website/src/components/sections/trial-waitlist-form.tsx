@@ -157,8 +157,12 @@ export function TrialWaitlistForm() {
                 "Request Trial Access"
               )}
             </Button>
-            <p className="text-xs text-subdued">
-              We'll send you an email link the moment the trial build is ready for your Mac.
+            <p className="text-xs leading-5 text-muted">
+              We&apos;ll only email you about CmdTab&apos;s beta, trial, and launch. Every email has an
+              unsubscribe link.{" "}
+              <a href="/privacy" className="underline underline-offset-2 hover:text-text">
+                Privacy policy
+              </a>
             </p>
           </div>
 
