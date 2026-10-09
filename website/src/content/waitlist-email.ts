@@ -100,14 +100,11 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
         <div style="margin-bottom:18px;border:1px solid rgba(121,175,255,0.24);border-radius:999px;background:rgba(121,175,255,0.08);padding:10px 16px;color:#A9D2FF;font-size:12px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;text-align:center;">
           CmdTab private beta
         </div>
-        <div style="position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.08);border-radius:30px;background:linear-gradient(180deg,rgba(17,24,39,0.92) 0%,rgba(8,12,22,0.96) 100%);box-shadow:0 24px 80px rgba(0,0,0,0.34);">
-          <div style="position:absolute;inset:-80px auto auto -40px;width:220px;height:220px;border-radius:999px;background:radial-gradient(circle,rgba(111,211,255,0.22) 0%,rgba(111,211,255,0) 72%);"></div>
-          <div style="position:absolute;inset:auto -60px -110px auto;width:260px;height:260px;border-radius:999px;background:radial-gradient(circle,rgba(121,175,255,0.18) 0%,rgba(121,175,255,0) 75%);"></div>
-          <div style="position:relative;padding:34px 32px 30px;">
-            <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:18px;padding:10px 14px;border-radius:18px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);">
-              <div style="width:14px;height:14px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);"></div>
-              <span style="font-size:13px;font-weight:600;color:#E8EEF9;">CmdTab</span>
-            </div>
+        <!-- Email-safe layout: Gmail strips position, flex/grid, and gradients,
+             so the card uses solid colors and tables only. -->
+        <div style="border:1px solid #1C2433;border-radius:30px;background-color:#0E1421;">
+          <div style="padding:34px 32px 30px;">
+            <p style="margin:0 0 18px;font-size:13px;font-weight:600;color:#A9D2FF;">&#9679;&nbsp; CmdTab</p>
             <h1 style="margin:0 0 14px;font-size:34px;line-height:1.04;letter-spacing:-0.05em;color:#F7FAFF;">${safeSubject}</h1>
             <p style="margin:0 0 20px;font-size:16px;line-height:1.75;color:#D8E0EE;">${safeIntro}</p>
         ${body
@@ -118,21 +115,21 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
           .join("")}
             <div style="margin:28px 0 0;border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;">
               <p style="margin:0 0 14px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">What to expect</p>
-              <div style="display:grid;gap:10px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0 10px;">
                 ${waitlistEmailContent.applicant.bullets
                   .map(
                     (item) => `
-                      <div style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);">
-                        <div style="width:8px;height:8px;margin-top:7px;border-radius:999px;background:#79AFFF;flex:0 0 auto;"></div>
-                        <p style="margin:0;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(item)}</p>
-                      </div>
+                      <tr>
+                        <td width="22" valign="top" style="padding:12px 0 12px 14px;background-color:#131A28;border-radius:18px 0 0 18px;color:#79AFFF;font-size:14px;line-height:1.7;">&#9679;</td>
+                        <td style="padding:12px 14px 12px 6px;background-color:#131A28;border-radius:0 18px 18px 0;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(item)}</td>
+                      </tr>
                     `,
                   )
                   .join("")}
-              </div>
+              </table>
             </div>
             <div style="margin-top:26px;">
-              <a href="${safeSiteUrl}" style="display:inline-block;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#79AFFF 0%,#6FD3FF 100%);color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
+              <a href="${safeSiteUrl}" style="display:inline-block;padding:14px 20px;border-radius:999px;background-color:#79AFFF;color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
                 ${escapeHtml(waitlistEmailContent.applicant.ctaLabel)}
               </a>
             </div>
