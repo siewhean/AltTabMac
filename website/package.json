@@ -25,20 +25,21 @@
     "showcase:check": "npm run showcase:generate && node scripts/verify-showcase-media.mjs",
     "showcase:responses": "node scripts/verify-showcase-responses.mjs",
     "indexnow:submit": "node scripts/submit-indexnow.mjs",
-    "security:deps": "npm audit --audit-level=moderate",
-    "security:check": "npm run release:config-check && npm run commerce:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack"
+    "security:deps": "npm audit --omit=dev --audit-level=moderate",
+    "security:check": "npm run release:config-check && npm run commerce:readiness-check && npm run features:source-check && npm run test:unit && npm run analytics:privacy-check && npm run api:security-check && npm run security:deps && npm run seo:check && npm run typecheck && next build --webpack",
+    "security:deps:all": "npm audit --audit-level=moderate"
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.864.0",
     "@aws-sdk/credential-providers": "^3.864.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "16.2.11",
+    "next": "16.4.0",
     "postgres": "^3.4.8",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "resend": "6.18.0",
-    "sharp": "0.35.3",
+    "sharp": "0.35.5",
     "zod": "^4.1.5"
   },
   "devDependencies": {
@@ -48,13 +49,13 @@
     "autoprefixer": "^10.4.21",
     "axe-core": "4.12.1",
     "ffmpeg-static": "5.3.0",
-    "postcss": "8.5.21",
+    "postcss": "8.5.29",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "postcss": "8.5.21",
-    "sharp": "0.35.3",
+    "postcss": "8.5.29",
+    "sharp": "0.35.5",
     "svix": "1.98.0",
     "uuid": "11.1.1"
   }

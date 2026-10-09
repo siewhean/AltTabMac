@@ -43,5 +43,12 @@ jobs:
       - name: Dependency audit
         run: npm run security:deps
 
+      # Build tooling (Tailwind 3's watcher/glob chain) has advisories with no
+      # patched release. Report them on every run without blocking deploys;
+      # migrating to Tailwind 4 clears them.
+      - name: Full dependency audit (including dev tooling, informational)
+        continue-on-error: true
+        run: npm run security:deps:all
+
       - name: Typecheck and production build
         run: npm run security:check
