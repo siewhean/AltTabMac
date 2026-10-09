@@ -9,14 +9,16 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { commercePageContent } from "@/content/commerce-pages";
 import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
+import { getCommerceConfig } from "@/lib/commerce";
+import { getStableReleaseManifest } from "@/lib/stable-release";
 import {
   createBreadcrumbStructuredData,
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "Buy CmdTab: 14-day trial and one-time Mac license";
+const title = "CmdTab Pricing and Early Access";
 const description =
-  "Try CmdTab for 14 days, then buy one US$12 perpetual personal license for up to three personally owned Macs, with all 1.x updates and no subscription.";
+  "Review CmdTab pricing and join the early access waitlist. A one-time personal license will be available when purchase opens.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Buy", path: "/buy" as const },
@@ -30,6 +32,20 @@ export const metadata = createPageMetadata({
 });
 
 export default function BuyPage() {
+  const commerce = getCommerceConfig();
+  const release = getStableReleaseManifest();
+  const accessOpen = Boolean(commerce.checkoutUrl || release);
+  const process = accessOpen
+    ? [
+        { title: "Try CmdTab", body: release ? "Download the signed build, enable the required permissions, and use it in real work." : "Join the waitlist for an email when trial access opens." },
+        { title: "Buy through hosted checkout", body: commerce.checkoutUrl ? "Complete the one-time purchase through the hosted checkout." : "The one-time purchase will open when checkout is ready." },
+        { title: "Use Help if needed", body: "If you lose the receipt or need activation help later, use the Help page." },
+      ]
+    : commercePageContent.buy.process;
+  const availabilityDescription = accessOpen
+    ? "Review the current access and purchase options below. Join the waitlist to hear when trial access or checkout changes."
+    : "Sign up below and we’ll email you when early access opens. No trial download or purchase is currently available during the private preview.";
+
   return (
     <main>
       <JsonLd data={createBreadcrumbStructuredData(breadcrumbs)} />
@@ -65,7 +81,7 @@ export default function BuyPage() {
         id="waitlist"
         eyebrow="Early access"
         title="Join the CmdTab waitlist"
-        description="Sign up below to receive early preview access and an email notification as soon as the trial download or direct purchase opens for your Mac."
+        description={availabilityDescription}
         className="pt-0"
       >
         <MotionReveal className="surface-panel p-6 max-w-2xl">
@@ -76,11 +92,11 @@ export default function BuyPage() {
       <SectionShell
         eyebrow="How it works"
         title="Three clear steps"
-        description="Start the trial, buy if it earns a place in your workflow, and use Help if you need support later."
+        description="Join the waitlist, try CmdTab when access opens, and decide whether it belongs in your workflow."
         className="pt-0"
       >
         <div className="grid gap-6 lg:grid-cols-3">
-          {commercePageContent.buy.process.map((step, index) => (
+          {process.map((step, index) => (
             <MotionReveal key={step.title} direction="up" delay={index * 90} className="surface-panel p-6">
               <p className="type-eyebrow text-cyan">Step {index + 1}</p>
               <h2 className="mt-4 text-xl font-medium tracking-[-0.03em] text-text">

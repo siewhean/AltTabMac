@@ -4,9 +4,10 @@ import Darwin
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Responsive apps answer Accessibility requests in a few milliseconds.
+    static let accessibilityMessagingTimeout: Float = 0.25
 
     private var singletonLockFileDescriptor: Int32 = -1
-    private var shouldAllowTermination = false
     private var focusedWindowHistoryObserver: FocusedWindowHistoryObserver?
     private var screenTopologyObserver: ScreenTopologyObserver?
     private var licensingObserver: AnyCancellable?
@@ -22,12 +23,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !acquireSingletonLock() {
             activateExistingInstanceIfPossible()
-            shouldAllowTermination = true
             NSApp.terminate(nil)
             return
         }
 
         NSApp.setActivationPolicy(.accessory)
+
+        // Accessibility calls are synchronous IPC and run on the main thread,
+        // which also services the keyboard event tap. Against a hung app the
+        // ~6 s default timeout stalls typing system-wide until macOS disables
+        // the tap and native Command-Tab bleeds through. Setting the timeout on
+        // the system-wide element makes it the process-wide default; window
+        // membership already treats AX failure as missing enrichment.
+        AXUIElementSetMessagingTimeout(
+            AXUIElementCreateSystemWide(),
+            Self.accessibilityMessagingTimeout
+        )
 
         // Materialize and validate the profile document before installing the
         // event tap so the callback always reads one immutable valid snapshot.
@@ -172,14 +183,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func handleRecoveredWindowPreview(_ notification: Notification) {
-        // A deferred ScreenCaptureKit image was added to the exact in-memory
-        // continuity store. Refresh the current base/enriched snapshot so a visible
-        // Arc or Telegram tile can replace its placeholder without another trigger.
-        switcher?.refreshPreviewCache()
+        // The recovered exact frame is already in the continuity store. Publish
+        // that tile without triggering another whole-desktop capture pass.
+        guard let windowID = notification.userInfo?["windowID"] as? CGWindowID else { return }
+        switcher?.publishRecoveredPreview(windowID: windowID)
     }
 
     func requestTermination() {
-        shouldAllowTermination = true
         NSApp.terminate(nil)
     }
 
@@ -198,16 +208,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        shouldAllowTermination ? .terminateNow : .terminateCancel
+        .terminateNow
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if onboardingWindowController?.window?.isVisible == true {
-            onboardingWindowController?.window?.makeKeyAndOrderFront(nil)
-        } else {
-            preferencesWindowController?.show()
-        }
-        return true
+        // Reopen/activation can accompany switching. Only explicit menu actions
+        // may open Settings; suppress AppKit's automatic window ordering too.
+        return SettingsWindowVisibilityPolicy.handleReopen(onboardingWindow: onboardingWindowController?.window)
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

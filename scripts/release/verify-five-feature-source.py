@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 SOURCE_FILES = [
     "AXWindowCatalog.swift",
+    "PrivateWindowCapabilities.swift",
     "WindowWorkspaceProvider.swift",
     "SwitcherProfiles.swift",
     "SwitcherSessionConfigurationFreeze.swift",
@@ -46,6 +47,7 @@ TEST_FILES = [
     "FiveFeatureIntegrationTests.swift",
     "ProductionMembershipPolicyTests.swift",
     "ProductionVisualStateTests.swift",
+    "PrivateWindowCapabilityTests.swift",
 ]
 
 REQUIRED_FILES = [
@@ -148,15 +150,9 @@ def verify_swift_parse_when_available() -> None:
 
 
 def verify_entitlements() -> None:
-    values = []
-    for path in (
-        ROOT / "Resources" / "CmdTab.entitlements",
-        ROOT / "release" / "CmdTab.entitlements",
-    ):
-        with path.open("rb") as handle:
-            values.append(plistlib.load(handle))
-    if values[0] != values[1]:
-        fail("Resource and release entitlement baselines diverge")
+    with (ROOT / "Resources" / "CmdTab.entitlements").open("rb") as handle:
+        if plistlib.load(handle) != {}:
+            fail("The canonical release entitlements must remain empty")
 
 
 def main() -> None:
@@ -188,7 +184,8 @@ def main() -> None:
     require_all(
         ROOT / "Sources" / "CmdTab" / "AXWindowCatalog.swift",
         (
-            "_AXUIElementGetWindow",
+            "AXWindowIdentityLookup",
+            "SystemPrivateWindowCapabilityProvider.shared",
             "isMinimized",
             "isFullscreen",
             "documentURL",
@@ -196,6 +193,29 @@ def main() -> None:
             "WindowWorkspaceSnapshot",
             "includeMinimized",
         ),
+    )
+    private_capabilities = require_all(
+        ROOT / "Sources" / "CmdTab" / "PrivateWindowCapabilities.swift",
+        (
+            "protocol PrivateWindowCapabilityProviding",
+            "_AXUIElementGetWindow",
+            "CGSHWCaptureWindowList",
+            "_SLPSSetFrontProcessWithOptions",
+            "identityStatus",
+            "captureStatus",
+            "focusStatus",
+            "PrivateCapabilityResult",
+        ),
+    )
+    reject(
+        read(ROOT / "Sources" / "CmdTab" / "AppSwitcher.swift"),
+        "dlsym(",
+        "AppSwitcher.swift",
+    )
+    reject(
+        read(ROOT / "Sources" / "CmdTab" / "AppSwitcher.swift"),
+        "dlopen(",
+        "AppSwitcher.swift",
     )
     require_all(
         ROOT / "Sources" / "CmdTab" / "WindowWorkspaceProvider.swift",
@@ -239,7 +259,8 @@ def main() -> None:
             "profileStore.match",
             "ShortcutRecordingState.shared.isRecording",
             "SecureInputMonitor.isEnabled",
-            "LicensingController.shared.shouldHandleCustomSwitcherShortcut",
+            "licensingGate.allowsShortcut()",
+            "tapThread.runLoop",
             "configurationFreeze.begin",
             "configurationFreeze.end",
             "tapDisabledByTimeout",
@@ -345,12 +366,10 @@ def main() -> None:
     require_all(
         ROOT / "Sources" / "CmdTab" / "ProductionSwitcherVisuals.swift",
         (
-            "SwitcherItemStateBadges",
             "ProductionClassicGridView",
             "ProductionCommandPaletteView",
             "ProductionRadialMenuView",
             "Workspace precision is degraded",
-            "Other Space",
             "Hidden Set",
         ),
     )
@@ -360,8 +379,12 @@ def main() -> None:
             "ProductionClassicGridView",
             "ProductionCommandPaletteView",
             "ProductionRadialMenuView",
-            "Right-click for window actions",
         ),
+    )
+    reject(
+        read(ROOT / "Sources" / "CmdTab" / "ProfileSwitcherView.swift"),
+        "Right-click for window actions",
+        "ProfileSwitcherView.swift",
     )
 
     require_all(

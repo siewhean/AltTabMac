@@ -1,0 +1,7 @@
+Timestamp               Ty Process[PID:TID]
+2026-09-25 00:41:06.875 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: width is negative.
+2026-09-25 00:41:06.875 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: height is negative.
+2026-09-25 00:41:06.875 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: width is negative.
+2026-09-25 00:41:06.875 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: height is negative.
+2026-09-25 00:41:06.876 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: width is negative.
+2026-09-25 00:41:06.876 F  GeometryFixture[18696:e7becc] [com.apple.runtime-issues:AppKit] Invalid view geometry: height is negative.

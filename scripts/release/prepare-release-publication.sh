@@ -7,11 +7,19 @@ DMG_URL="${2:-}"
 SOURCE_SHA="${3:-}"
 OUTPUT_DIR="${4:-}"
 PREVIOUS_MANIFEST="${5:-}"
+EVIDENCE_RECEIPT="${6:-}"
 
-if [[ -z "${DMG_PATH}" || -z "${DMG_URL}" || -z "${SOURCE_SHA}" || -z "${OUTPUT_DIR}" ]]; then
-  echo "Usage: $0 CmdTab.dmg immutable-dmg-url 40-char-source-sha output-dir [previous-stable.json]" >&2
+if [[ -z "${DMG_PATH}" || -z "${DMG_URL}" || -z "${SOURCE_SHA}" || -z "${OUTPUT_DIR}" || -z "${EVIDENCE_RECEIPT}" ]]; then
+  echo "Usage: $0 CmdTab.dmg immutable-dmg-url 40-char-source-sha output-dir [previous-channel.json] candidate-evidence.json" >&2
   exit 2
 fi
+
+CURRENT_BRANCH="$(git -C "${ROOT_DIR}" branch --show-current)"
+python3 "${ROOT_DIR}/scripts/release/candidate-evidence.py" verify \
+  --candidate "${SOURCE_SHA}" \
+  --branch "${CURRENT_BRANCH}" \
+  --artifact "${DMG_PATH}" \
+  "${EVIDENCE_RECEIPT}"
 
 if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then
   CURRENT_SHA="$(git -C "${ROOT_DIR}" rev-parse HEAD)"
@@ -27,7 +35,12 @@ if [[ "${CMDTAB_ALLOW_TEST_SOURCE_SHA:-0}" != "1" ]]; then
   fi
 fi
 
-MANIFEST_PATH="${OUTPUT_DIR}/stable.json"
+CHANNEL="$(python3 "${ROOT_DIR}/scripts/release/release_config.py" get updateChannel)"
+if [[ "${CHANNEL}" != "beta" && "${CHANNEL}" != "stable" ]]; then
+  echo "Development configuration cannot prepare public update publication." >&2
+  exit 2
+fi
+MANIFEST_PATH="${OUTPUT_DIR}/${CHANNEL}.json"
 APPCAST_PATH="${OUTPUT_DIR}/appcast.xml"
 CREATE_ARGUMENTS=(
   create

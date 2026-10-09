@@ -1,0 +1,1 @@
+PASS synthetic CGEvent/NSEvent adapter: 5 gesture phases, 3 momentum phases, precise delta and timestamp preservation

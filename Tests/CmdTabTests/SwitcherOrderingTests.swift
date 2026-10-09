@@ -135,7 +135,7 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(ordered.map(\.title), ["Finder W1", "Arc", "Finder W2"])
     }
 
-    func testSingleVisibleTileCanUseAppLevelFallbackWhenWindowIdentityChanges() {
+    func testChangedWindowIdentityDoesNotInheritAppLevelHistoryRank() {
         let pdfGearCurrent = SwitcherHistoryIdentity.appWindow(pid: 707, windowID: 71)
         let notebookLMCurrent = SwitcherHistoryIdentity.appWindow(pid: 202, windowID: 21)
         let telegramCurrent = SwitcherHistoryIdentity.appWindow(pid: 303, windowID: 31)
@@ -161,7 +161,13 @@ final class SwitcherOrderingTests: XCTestCase {
             currentFrontmost: pdfGearCurrent
         )
 
-        XCTAssertEqual(ordered.map(\.title), ["NotebookLM", "Telegram", "PDFgear"])
+        // Stale window IDs cannot rank new exact windows through their owning app.
+        // Unranked windows retain input order, with the exact frontmost target last.
+        XCTAssertEqual(ordered.map(\.title), ["Telegram", "NotebookLM", "PDFgear"])
+        XCTAssertEqual(
+            ordered.map(\.historyIdentity),
+            [telegramCurrent, notebookLMCurrent, pdfGearCurrent]
+        )
     }
 
     /// Simulate Finder → Arc → Finder usage pattern.
@@ -240,6 +246,21 @@ final class SwitcherOrderingTests: XCTestCase {
         XCTAssertEqual(
             SwitcherWindowController.paletteFilteredItems(items, query: "").map(\.title),
             items.map(\.title)
+        )
+    }
+
+    func testApplicationsWithoutWindowsAreNotListed() {
+        let window = makeItem(title: "Inbox", appID: "com.example.mail",
+                              identity: .appWindow(pid: 10, windowID: 1))
+        let windowless = SwitcherItem(
+            title: "Calendar", subtitle: "", icon: nil, previewImage: nil,
+            historyIdentity: .appFallback(bundleID: "com.apple.iCal", pid: 20),
+            sourceAppIdentifier: "com.apple.iCal", kind: .appFallback
+        ) {}
+        XCTAssertEqual(
+            SwitcherMembershipPolicy.excludingApplicationOnlyItems([window, windowless]).map(\.id),
+            [window.id],
+            "An app whose window was closed keeps running but has nothing to switch to."
         )
     }
 

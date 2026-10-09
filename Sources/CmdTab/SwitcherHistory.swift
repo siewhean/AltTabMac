@@ -120,6 +120,16 @@ final class SwitcherHistoryStore {
         queue.sync { combinedEntriesLocked() }
     }
 
+    /// Diagnostic label for where an identity's rank comes from: an activation
+    /// observed in this process, a record restored from durable history, or none.
+    func rankSource(of identity: SwitcherHistoryIdentity) -> String {
+        queue.sync {
+            if let index = entries.firstIndex(of: identity) { return "session#\(index)" }
+            if let index = restoredEntries.firstIndex(of: identity) { return "restored#\(index)" }
+            return "none"
+        }
+    }
+
     func resetDurableHistory() {
         durableStore.reset()
         queue.sync {
@@ -154,6 +164,14 @@ final class SwitcherHistoryStore {
 }
 
 enum SwitcherMembershipPolicy {
+    /// The switcher lists windows, not applications. An app with no includable
+    /// window (for example Calendar after its window is closed, which keeps the
+    /// app running) is not shown. Application-only items are still produced
+    /// upstream because enrichment uses them to define eligible processes.
+    static func excludingApplicationOnlyItems(_ items: [SwitcherItem]) -> [SwitcherItem] {
+        items.filter { $0.kind != .appFallback }
+    }
+
     /// Removes duplicate identities and suppresses an app fallback whenever an
     /// exact window for the same process is present. The production AX synthesis
     /// path can discover windows that the original Core Graphics pass omitted;
@@ -283,10 +301,6 @@ enum SwitcherOrdering {
         let rankByIdentity = Dictionary(
             uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
         )
-        let visibleCountByPID = Dictionary(
-            grouping: items.compactMap(\.historyIdentity.ownerPID),
-            by: { $0 }
-        ).mapValues(\.count)
 
         func appRank(bundleID: String?, pid: Int32?) -> Int? {
             historyEntries.firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
@@ -295,11 +309,6 @@ enum SwitcherOrdering {
         func rank(for item: SwitcherItem) -> Int? {
             if let exact = rankByIdentity[item.historyIdentity] {
                 return exact
-            }
-            if item.kind == .appWindow,
-               let pid = item.historyIdentity.ownerPID,
-               visibleCountByPID[pid] == 1 {
-                return appRank(bundleID: item.sourceAppIdentifier, pid: pid)
             }
             if item.kind == .appFallback,
                let pid = item.historyIdentity.ownerPID {

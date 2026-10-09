@@ -73,10 +73,10 @@ final class SwitcherQuickActionShortcutTests: XCTestCase {
         )
     }
 
-    func testQuitShortcutClosesWindowTilesInsteadOfTerminatingWholeApp() {
+    func testQuitShortcutAlwaysTerminatesTheOwningApplication() {
         XCTAssertEqual(
             SwitcherQuickAction.quitApp.execution(for: .appWindow),
-            .closeWindow
+            .terminateApplication
         )
     }
 

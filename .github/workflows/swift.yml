@@ -12,6 +12,12 @@ on:
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
       - scripts/release/**
+      - scripts/performance/**
+      - Tests/Fixtures/PerformanceProbe/**
+      - website/src/lib/aws-kms-p256.ts
+      - website/scripts/verify-beta-trial-readiness.mjs
+      - website/tests/beta-trial-readiness.test.mjs
+      - docs/qa/private-capability-canary.*
       - scripts/qa/**
       - .github/workflows/swift.yml
   pull_request:
@@ -25,6 +31,12 @@ on:
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
       - scripts/release/**
+      - scripts/performance/**
+      - Tests/Fixtures/PerformanceProbe/**
+      - website/src/lib/aws-kms-p256.ts
+      - website/scripts/verify-beta-trial-readiness.mjs
+      - website/tests/beta-trial-readiness.test.mjs
+      - docs/qa/private-capability-canary.*
       - scripts/qa/**
       - .github/workflows/swift.yml
 
@@ -79,11 +91,36 @@ jobs:
       - name: Run complete Swift package test suite
         run: swift test --scratch-path /tmp/CmdTab-test-${{ matrix.runner }}
 
-      - name: Verify signed-update and release contracts
+      - name: Check patch hygiene
+        run: git diff --check
+
+  release-configuration:
+    name: Deterministic release configuration
+    runs-on: macos-14
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Validate release configuration without credentials
         run: |
           python3 scripts/release/release_config.py verify-repository
+          python3 scripts/release/verify-public-release-controls.py
           python3 scripts/release/test-release-update-pipeline.py
+          python3 scripts/release/test-private-capability-canary.py
+          python3 scripts/performance/test-performance-evidence.py
+          node --test website/tests/beta-trial-readiness.test.mjs
           bash -n scripts/release/*.sh
+          bash -n scripts/performance/*.sh
+
+      - name: Record non-hosted release boundary
+        run: |
+          echo "This job validates source and release configuration only."
+          echo "It does not validate Accessibility, Screen Recording, Secure Input,"
+          echo "private-capability canaries or physical macOS 14/15 acceptance,"
+          echo "event-tap/HID delivery, physical desktops, signed update installation,"
+          echo "notarization, Gatekeeper, performance, or soak acceptance."
 
       - name: Check patch hygiene
         run: git diff --check

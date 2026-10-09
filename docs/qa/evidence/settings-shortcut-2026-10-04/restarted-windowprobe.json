@@ -1,0 +1,54 @@
+{
+  "applications" : [
+    {
+      "accessibilityTrusted" : true,
+      "bundleIdentifier" : "net.cmdtab.CmdTab",
+      "exactWindowSymbolAvailable" : true,
+      "isFrontmostProcess" : false,
+      "localizedName" : "CmdTab",
+      "pid" : 17278,
+      "windows" : [
+        {
+          "accessibilityStateAvailable" : false,
+          "alpha" : 1,
+          "frame" : {
+            "height" : 788,
+            "width" : 720,
+            "x" : 388,
+            "y" : 66
+          },
+          "isFocused" : false,
+          "isFullscreen" : null,
+          "isMain" : false,
+          "isMinimized" : null,
+          "isOnScreen" : false,
+          "layer" : 0,
+          "subrole" : null,
+          "title" : "CmdTab Settings",
+          "windowID" : 18390
+        },
+        {
+          "accessibilityStateAvailable" : false,
+          "alpha" : 1,
+          "frame" : {
+            "height" : 638,
+            "width" : 680,
+            "x" : 408,
+            "y" : 111
+          },
+          "isFocused" : false,
+          "isFullscreen" : null,
+          "isMain" : false,
+          "isMinimized" : null,
+          "isOnScreen" : false,
+          "layer" : 0,
+          "subrole" : null,
+          "title" : "Set Up CmdTab",
+          "windowID" : 18391
+        }
+      ]
+    }
+  ],
+  "bundleIdentifier" : "net.cmdtab.CmdTab",
+  "capturedAt" : "2026-10-04T05:23:57Z"
+}

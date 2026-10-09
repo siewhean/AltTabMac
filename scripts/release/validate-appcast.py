@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate one stable signed Sparkle appcast against a release manifest."""
+"""Validate one signed Sparkle appcast against its beta or stable manifest."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlparse
+
+from release_manifest import validate_manifest
 
 SPARKLE = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 
@@ -20,6 +22,12 @@ def main() -> None:
     args = parser.parse_args()
 
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        raise SystemExit("release manifest root must be an object")
+    try:
+        validate_manifest(manifest)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
     root = ET.parse(args.appcast).getroot()
     items = root.findall("./channel/item")
     matching = [
@@ -29,8 +37,13 @@ def main() -> None:
     if len(matching) != 1:
         raise SystemExit("appcast must contain exactly one item for the manifest build")
     item = matching[0]
-    if item.find(f"{{{SPARKLE}}}channel") is not None:
+    channel = manifest.get("channel")
+    if channel == "stable" and item.find(f"{{{SPARKLE}}}channel") is not None:
         raise SystemExit("stable update item must use Sparkle's default channel")
+    if channel == "beta" and item.findtext(f"{{{SPARKLE}}}channel") != "beta":
+        raise SystemExit("beta update item must use Sparkle's beta channel")
+    if channel not in {"beta", "stable"}:
+        raise SystemExit("appcast manifest channel must be beta or stable")
     enclosure = item.find("enclosure")
     if enclosure is None:
         raise SystemExit("stable update item is missing an enclosure")
@@ -47,7 +60,7 @@ def main() -> None:
         raise SystemExit("equal or lower update builds are not eligible")
     if urlparse(manifest["dmgURL"]).scheme != "https":
         raise SystemExit("appcast enclosure URL must use HTTPS")
-    print("Signed stable appcast validation passed")
+    print(f"Signed {channel} appcast validation passed")
 
 
 if __name__ == "__main__":

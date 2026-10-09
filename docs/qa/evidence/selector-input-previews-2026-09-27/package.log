@@ -1,0 +1,407 @@
+Repository release identity verification passed
+Building CmdTab in /tmp/cmdtab-package.T2SOKj/swift-build (deterministic-linker=1 jobs=4 architectures=arm64,x86_64)
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (1.10s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.9.2 (1.77s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.9.2
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache (0.75s)
+Building for production...
+[Planning 1 / 38]
+[Planning deferred tasks]
+[13 / 22]
+[17 / 22]
+[18 / 23] CmdTab-product
+[23 / 102]
+[29 / 102]
+[32 / 102]
+[36 / 102]
+[41 / 102]
+[43 / 102]
+[49 / 102]
+[50 / 102]
+[52 / 102]
+[54 / 102]
+[59 / 102]
+[60 / 102]
+[62 / 102]
+[65 / 102]
+[66 / 102]
+[74 / 102]
+[80 / 102]
+[83 / 102]
+[85 / 102]
+[89 / 102]
+[94 / 102]
+[95 / 102]
+[97 / 102]
+[98 / 102] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:850:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 848 | 
+ 849 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 850 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 851 |         } else {
+ 852 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:856:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 854 |                let windows = value as? [AXUIElement],
+ 855 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 856 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 857 |             }
+ 858 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:993:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 991 |         app.unhide()
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 994 |             : [.activateIgnoringOtherApps]
+ 995 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:994:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 994 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 995 |         let didActivate = app.activate(options: options)
+ 996 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1695:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1693 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1694 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1695 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1696 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1697 |         guard prepared.width >= minW, prepared.height >= minH,
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift:89:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 87 |                         }
+ 88 |                         .frame(maxHeight: viewModel.layout.contentHeight)
+ 89 |                         .onChange(of: resolvedSelectedIndex) { idx in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 90 |                             withAnimation(.easeInOut(duration: 0.12)) {
+ 91 |                                 proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:111:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+109 |                         .id(paletteListIdentity)
+110 |                     }
+111 |                     .onChange(of: resolvedSelectedIndex) { idx in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+112 |                         withAnimation(.easeInOut(duration: 0.10)) {
+113 |                             proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:116:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+114 |                         }
+115 |                     }
+116 |                     .onChange(of: viewModel.searchQuery) { _ in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+117 |                         // Snap to top whenever the filter changes so the first result is visible.
+118 |                         proxy.scrollTo(0, anchor: .top)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift:32:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 30 |             }
+ 31 |         }
+ 32 |         .onChange(of: controller.status) { newStatus in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 33 |             let newSignature = statusSignature(for: newStatus)
+ 34 |             let wasLicensed = lastStatusSignature.hasPrefix("licensed:")
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:902:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 900 | 
+ 901 |         app.unhide()
+ 902 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 903 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 904 |         _ = AXUIElementSetAttributeValue(
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionProfilePreferences.swift:732:46: warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+728 |         guard !isLoading else { return }
+729 |         isLoading = true
+730 |         DispatchQueue.global(qos: .userInitiated).async {
+    |                                                         |- note: 'self' implicitly strongly captured here
+    |                                                         `- note: add 'self' as a capture list item to silence
+731 |             let discovered = Self.discoverApplications()
+732 |             DispatchQueue.main.async { [weak self] in
+    |                                              |- warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+    |                                              `- note: explicitly assign the capture list item to silence
+733 |                 MainActor.assumeIsolated {
+734 |                     self?.options = discovered
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:231:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+229 |                     .frame(maxHeight: viewModel.layout.contentHeight)
+230 |                     .scrollIndicatorsFlash(onAppear: true)
+231 |                     .onChange(of: selectedIndex) { index in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+232 |                         withAnimation(.easeInOut(duration: 0.12)) {
+233 |                             proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:339:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+337 |                             }
+338 |                         }
+339 |                         .onChange(of: selectedIndex) { index in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+340 |                             withAnimation(.easeInOut(duration: 0.10)) {
+341 |                                 proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:344:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+342 |                             }
+343 |                         }
+344 |                         .onChange(of: viewModel.searchQuery) { _ in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+345 |                             proxy.scrollTo(0, anchor: .top)
+346 |                         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherView.swift:69:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 67 |             featureHints.presentHint(for: preferences.switcherStyle)
+ 68 |         }
+ 69 |         .onChange(of: preferences.switcherStyle) { style in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 70 |             featureHints.presentHint(for: style)
+ 71 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#ImplicitStrongCapture]: <https://docs.swift.org/compiler/documentation/diagnostics/implicit-strong-capture>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[100 / 102] CmdTab-product
+[101 / 102] CmdTab-product
+Build complete! (42.49 secs)
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (16.01s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.9.2 (16.12s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.9.2
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache (0.77s)
+Building for production...
+[Planning 1 / 38]
+[Planning deferred tasks]
+[13 / 22]
+[17 / 22]
+[18 / 23] CmdTab-product
+[24 / 102]
+[30 / 102]
+[32 / 102]
+[39 / 102]
+[42 / 102]
+[43 / 102]
+[47 / 102]
+[49 / 102]
+[52 / 102]
+[55 / 102]
+[60 / 102]
+[63 / 102]
+[65 / 102]
+[66 / 102]
+[71 / 102]
+[75 / 102]
+[81 / 102]
+[84 / 102]
+[85 / 102]
+[89 / 102]
+[94 / 102]
+[95 / 102]
+[97 / 102]
+[98 / 102] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:850:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 848 | 
+ 849 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 850 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 851 |         } else {
+ 852 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:856:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 854 |                let windows = value as? [AXUIElement],
+ 855 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 856 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 857 |             }
+ 858 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:993:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 991 |         app.unhide()
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 994 |             : [.activateIgnoringOtherApps]
+ 995 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:994:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 992 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 993 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 994 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 995 |         let didActivate = app.activate(options: options)
+ 996 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1695:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1693 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1694 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1695 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1696 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1697 |         guard prepared.width >= minW, prepared.height >= minH,
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift:89:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 87 |                         }
+ 88 |                         .frame(maxHeight: viewModel.layout.contentHeight)
+ 89 |                         .onChange(of: resolvedSelectedIndex) { idx in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 90 |                             withAnimation(.easeInOut(duration: 0.12)) {
+ 91 |                                 proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:111:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+109 |                         .id(paletteListIdentity)
+110 |                     }
+111 |                     .onChange(of: resolvedSelectedIndex) { idx in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+112 |                         withAnimation(.easeInOut(duration: 0.10)) {
+113 |                             proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:116:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+114 |                         }
+115 |                     }
+116 |                     .onChange(of: viewModel.searchQuery) { _ in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+117 |                         // Snap to top whenever the filter changes so the first result is visible.
+118 |                         proxy.scrollTo(0, anchor: .top)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift:32:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 30 |             }
+ 31 |         }
+ 32 |         .onChange(of: controller.status) { newStatus in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 33 |             let newSignature = statusSignature(for: newStatus)
+ 34 |             let wasLicensed = lastStatusSignature.hasPrefix("licensed:")
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:902:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 900 | 
+ 901 |         app.unhide()
+ 902 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 903 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 904 |         _ = AXUIElementSetAttributeValue(
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionProfilePreferences.swift:732:46: warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+728 |         guard !isLoading else { return }
+729 |         isLoading = true
+730 |         DispatchQueue.global(qos: .userInitiated).async {
+    |                                                         |- note: 'self' implicitly strongly captured here
+    |                                                         `- note: add 'self' as a capture list item to silence
+731 |             let discovered = Self.discoverApplications()
+732 |             DispatchQueue.main.async { [weak self] in
+    |                                              |- warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+    |                                              `- note: explicitly assign the capture list item to silence
+733 |                 MainActor.assumeIsolated {
+734 |                     self?.options = discovered
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:231:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+229 |                     .frame(maxHeight: viewModel.layout.contentHeight)
+230 |                     .scrollIndicatorsFlash(onAppear: true)
+231 |                     .onChange(of: selectedIndex) { index in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+232 |                         withAnimation(.easeInOut(duration: 0.12)) {
+233 |                             proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:339:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+337 |                             }
+338 |                         }
+339 |                         .onChange(of: selectedIndex) { index in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+340 |                             withAnimation(.easeInOut(duration: 0.10)) {
+341 |                                 proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:344:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+342 |                             }
+343 |                         }
+344 |                         .onChange(of: viewModel.searchQuery) { _ in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+345 |                             proxy.scrollTo(0, anchor: .top)
+346 |                         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherView.swift:69:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 67 |             featureHints.presentHint(for: preferences.switcherStyle)
+ 68 |         }
+ 69 |         .onChange(of: preferences.switcherStyle) { style in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 70 |             featureHints.presentHint(for: style)
+ 71 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#ImplicitStrongCapture]: <https://docs.swift.org/compiler/documentation/diagnostics/implicit-strong-capture>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[100 / 102] CmdTab-product
+[101 / 102] CmdTab-product
+Build complete! (41.31 secs)
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc: replacing existing signature
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc: replacing existing signature
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app: replacing existing signature
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate: replacing existing signature
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework: replacing existing signature
+/tmp/cmdtab-package.T2SOKj/CmdTab.app: replacing existing signature
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/.
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/.
+/tmp/cmdtab-package.T2SOKj/CmdTab.app: valid on disk
+/tmp/cmdtab-package.T2SOKj/CmdTab.app: satisfies its Designated Requirement
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework: valid on disk
+/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework: satisfies its Designated Requirement
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/.
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Autoupdate
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--prepared:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/Updater.app
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Installer.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/XPCServices/Downloader.xpc
+--validated:/private/tmp/cmdtab-package.T2SOKj/CmdTab.app/Contents/Frameworks/Sparkle.framework/Versions/Current/.
+/tmp/cmdtab-package.T2SOKj/CmdTab.app: valid on disk
+/tmp/cmdtab-package.T2SOKj/CmdTab.app: satisfies its Designated Requirement
+Bundle verification passed
+  app: /tmp/cmdtab-package.T2SOKj/CmdTab.app
+  identifier: net.cmdtab.CmdTab
+  version: 1.0.0 (1)
+  architectures: x86_64 arm64
+  signing: ad-hoc
+Packaged /tmp/CmdTab-selector-input-previews.app
+Manifest /tmp/CmdTab-selector-input-previews.manifest.json
+Checksums /tmp/CmdTab-selector-input-previews.sha256
+Architecture policy universal-arm64-x86_64
+Package mode local-qa

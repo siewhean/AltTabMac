@@ -54,12 +54,15 @@ mkdir -p "${OUTPUT_DIR}" "${EVIDENCE_DIR}"
 rm -f "${ZIP_PATH}" "${DMG_PATH}" "${DMG_PATH}.sha256" "${DMG_RW_PATH}"
 
 CMDTAB_OUTPUT_APP="${APP_PATH}" \
+CMDTAB_PACKAGE_MODE=release \
 CMDTAB_SIGNING_IDENTITY="${SIGNING_IDENTITY}" \
 CMDTAB_SPARKLE_PUBLIC_ED_KEY="${CMDTAB_SPARKLE_PUBLIC_ED_KEY}" \
+CMDTAB_NOTARY_PROFILE="${NOTARY_PROFILE}" \
 CMDTAB_BUILD_ARCHITECTURES="arm64,x86_64" \
 CMDTAB_EXPECTED_ARCHITECTURES="arm64,x86_64" \
   "${ROOT_DIR}/scripts/release/package-app.sh"
 
+git -C "${ROOT_DIR}" rev-parse HEAD > "${EVIDENCE_DIR}/source-sha.txt"
 # Notarize and staple the application before sealing it into the user-facing DMG.
 ditto -c -k --keepParent "${APP_PATH}" "${ZIP_PATH}"
 xcrun notarytool submit "${ZIP_PATH}" \
@@ -69,8 +72,10 @@ xcrun notarytool submit "${ZIP_PATH}" \
   tee "${EVIDENCE_DIR}/app-notary.json"
 python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data.get("status") == "Accepted", data' \
   "${EVIDENCE_DIR}/app-notary.json"
-xcrun stapler staple "${APP_PATH}"
-xcrun stapler validate "${APP_PATH}"
+xcrun stapler staple "${APP_PATH}" | tee "${EVIDENCE_DIR}/app-staple.txt"
+xcrun stapler validate "${APP_PATH}" | tee "${EVIDENCE_DIR}/app-stapler-validate.txt"
+codesign -dvvv --entitlements :- "${APP_PATH}" 2>&1 | tee "${EVIDENCE_DIR}/app-signature.txt"
+shasum -a 256 "${APP_PATH}/Contents/Info.plist" "${APP_PATH}/Contents/MacOS/CmdTab" > "${EVIDENCE_DIR}/app-components.sha256"
 
 # Build a deterministic Finder-facing drag-to-Applications layout. The background
 # is generated from source so release assembly does not depend on an unreviewed
@@ -155,10 +160,10 @@ xcrun notarytool submit "${DMG_PATH}" \
   tee "${EVIDENCE_DIR}/dmg-notary.json"
 python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); assert data.get("status") == "Accepted", data' \
   "${EVIDENCE_DIR}/dmg-notary.json"
-xcrun stapler staple "${DMG_PATH}"
-xcrun stapler validate "${DMG_PATH}"
+xcrun stapler staple "${DMG_PATH}" | tee "${EVIDENCE_DIR}/dmg-staple.txt"
+xcrun stapler validate "${DMG_PATH}" | tee "${EVIDENCE_DIR}/dmg-stapler-validate.txt"
 
-codesign --verify --deep --strict --verbose=2 "${APP_PATH}"
+codesign --verify --deep --strict --verbose=2 "${APP_PATH}" 2>&1 | tee "${EVIDENCE_DIR}/app-codesign-verify.txt"
 spctl --assess --type execute --verbose=4 "${APP_PATH}" 2>&1 |
   tee "${EVIDENCE_DIR}/gatekeeper-app.txt"
 spctl --assess --type open --context context:primary-signature --verbose=4 "${DMG_PATH}" 2>&1 |

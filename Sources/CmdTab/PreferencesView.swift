@@ -8,7 +8,9 @@ struct PreferencesView: View {
     let onApplySwitcherStyle: (SwitcherStyle) -> Void
     let onOpenOnboarding: () -> Void
     @StateObject private var licensingController = LicensingController.shared
+    #if DEBUG
     @StateObject private var developerSettings = DeveloperSettings.shared
+    #endif
     @StateObject private var telemetryPreferences = TelemetryPreferences.shared
     @State private var selectedPane: PreferencesPaneSelection
     @StateObject private var appExclusionCatalog = AppExclusionCatalog()
@@ -21,7 +23,7 @@ struct PreferencesView: View {
         onRefreshPreviews: @escaping () -> Void,
         onApplySwitcherStyle: @escaping (SwitcherStyle) -> Void,
         onOpenOnboarding: @escaping () -> Void = {},
-        initialPane: PreferencesPaneSelection = .general
+        initialPane: PreferencesPaneSelection = .appearance
     ) {
         self.preferences = preferences
         self.onOpenApplications = onOpenApplications
@@ -141,26 +143,29 @@ struct PreferencesView: View {
     @ViewBuilder
     private var paneContent: some View {
         switch selectedPane {
-        case .general:
+        case .appearance:
             appearanceSection
-            triggerSection
-            feedbackSection
-        case .switcher:
+        case .windows:
             switcherSection
         case .shortcuts:
+            triggerSection
             shortcutsSection
+        case .general:
+            startupSection
+            updatesSection
+            privacySection
+            permissionsSection
+            diagnosticsSection
+            feedbackSection
         case .licensing:
             LicensingPreferencesPane(controller: licensingController)
+        #if DEBUG
         case .developer:
             DeveloperPreferencesPane(
                 settings: developerSettings,
                 licensingController: licensingController
             )
-        case .system:
-            startupSection
-            updatesSection
-            privacySection
-            permissionsSection
+        #endif
         }
     }
 
@@ -228,7 +233,7 @@ struct PreferencesView: View {
     private var privacySection: some View {
         SettingsCard(
             title: "Privacy",
-            subtitle: "Usage telemetry is optional and disabled by default."
+            subtitle: "Usage telemetry is optional and disabled by default. Search history memory is stored locally."
         ) {
             SettingsToggleRow(
                 title: "Share Usage Telemetry",
@@ -243,18 +248,28 @@ struct PreferencesView: View {
                     }
                 )
             )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsButtonRow(
+                title: "Clear Search History",
+                subtitle: "Erase locally remembered command palette search ranking memory.",
+                buttonTitle: "Clear Search History"
+            ) {
+                SearchMemoryStore.shared.clearMemory()
+            }
         }
     }
 
     private var updatesSection: some View {
         SettingsCard(
-            title: "Updates",
-            subtitle: "CmdTab checks the stable channel daily after you grant Sparkle permission."
+            title: "Beta Updates",
+            subtitle: "CmdTab checks the beta update channel daily after you grant Sparkle permission."
         ) {
             SettingsButtonRow(
-                title: "Check for Updates",
+                title: "Check for Beta Updates",
                 subtitle: UpdaterController.shared.isConfigured
-                    ? "Look for a newer signed CmdTab release now."
+                    ? "Look for a newer signed CmdTab beta release now."
                     : "Unavailable in this local QA build because no release signing key is embedded.",
                 buttonTitle: "Check Now"
             ) {
@@ -290,6 +305,14 @@ struct PreferencesView: View {
                 subtitle: "Choose where the switcher should appear when multiple displays are connected.",
                 selection: $preferences.displayPlacement,
                 options: SwitcherDisplayPreference.allCases.map { ($0, $0.title) }
+            )
+
+            Divider().overlay(Color.white.opacity(0.08))
+
+            SettingsToggleRow(
+                title: "Show Minimized Windows",
+                subtitle: "Include minimized windows in the switcher and restore them when activated.",
+                isOn: $preferences.includeMinimizedWindows
             )
 
             Divider().overlay(Color.white.opacity(0.08))
@@ -402,15 +425,21 @@ struct PreferencesView: View {
 
             ForEach(SwitcherQuickAction.allCases, id: \.rawValue) { action in
                 ShortcutRow(shortcut: action.shortcut, detail: "\(action.title) on the selected item")
-                if action != SwitcherQuickAction.allCases.last {
-                    Divider().overlay(Color.white.opacity(0.08))
-                }
+                Divider().overlay(Color.white.opacity(0.08))
+            }
+
+            SettingsButtonRow(
+                title: "Advanced Profiles",
+                subtitle: "Configure independent shortcut profiles with custom triggers, styles, filters, and display behaviors.",
+                buttonTitle: "Manage Profiles…"
+            ) {
+                ProductionProfilePreferencesWindowController.shared.show()
             }
         }
     }
 
     private var permissionsSection: some View {
-        SettingsCard(title: "Permissions", subtitle: "CmdTab depends on Accessibility and Screen Recording.") {
+        SettingsCard(title: "Permissions", subtitle: "Accessibility is required to switch windows. Screen Recording is optional for window thumbnails.") {
             SettingsButtonRow(
                 title: "Setup Guide",
                 subtitle: "Review why CmdTab requests each permission and run the first-switch practice again.",
@@ -434,28 +463,36 @@ struct PreferencesView: View {
 
             SettingsButtonRow(
                 title: "Open Accessibility Settings",
-                subtitle: "Required for intercepting the global shortcut.",
+                subtitle: "Required for intercepting the global shortcut and switching windows.",
                 buttonTitle: "Open"
             ) {
-                openSystemSettingsPane("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+                PermissionSetupWindowController.shared.show(for: .accessibility)
             }
 
             Divider().overlay(Color.white.opacity(0.08))
 
             SettingsButtonRow(
                 title: "Open Screen Recording Settings",
-                subtitle: "Required for live thumbnails of application windows.",
+                subtitle: "Optional. Lets CmdTab show window thumbnails. Switching still works without it using app icons and text.",
                 buttonTitle: "Open"
             ) {
-                openSystemSettingsPane("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
+                PermissionSetupWindowController.shared.show(for: .screenRecording)
             }
         }
     }
 
-    private func openSystemSettingsPane(_ rawValue: String) {
-        guard let url = URL(string: rawValue) else { return }
-        NSWorkspace.shared.open(url)
+    private var diagnosticsSection: some View {
+        SettingsCard(title: "Diagnostics", subtitle: "Inspect system capabilities, window discovery metrics, and support logs.") {
+            SettingsButtonRow(
+                title: "Diagnostics Window",
+                subtitle: "View capability states, exact window identity logs, durable history status, and copy sanitized support reports.",
+                buttonTitle: "Open Diagnostics…"
+            ) {
+                ProductionDiagnosticsWindowController.shared.show()
+            }
+        }
     }
+
 
     private var selectedExcludedApps: [AppExclusionOption] {
         appExclusionCatalog.selectedOptions(for: preferences.excludedAppEntries)
@@ -1107,17 +1144,10 @@ private struct AppExclusionPickerSheet: View {
                                         .foregroundColor(.white.opacity(0.35))
                                 }
 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(app.displayName)
-                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-
-                                    Text(app.bundleIdentifier)
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundColor(.white.opacity(0.40))
-                                        .lineLimit(1)
-                                }
+                                Text(app.displayName)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
 
                                 Spacer()
 

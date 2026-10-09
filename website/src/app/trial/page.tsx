@@ -16,9 +16,9 @@ import {
   createWebPageStructuredData,
 } from "@/lib/structured-data";
 
-const title = "CmdTab 14-Day Trial — Join the Mac Waitlist";
+const title = "CmdTab Early Access Waitlist";
 const description =
-  "Sign up for the CmdTab 14-day macOS trial waitlist. Enter your email to receive early access and be notified when the trial download is available for your Mac.";
+  "Join the CmdTab early access waitlist for a faster, more visual way to switch between Mac windows. We’ll email you when access opens.";
 const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Trial", path: "/trial" as const },
@@ -28,7 +28,7 @@ export const metadata = createPageMetadata({
   title,
   description,
   path: "/trial",
-  imageAlt: "Join the CmdTab 14-day macOS trial waitlist",
+  imageAlt: "Join the CmdTab early access waitlist",
 });
 
 export default function TrialPage() {
@@ -50,8 +50,8 @@ export default function TrialPage() {
         headingAs="h1"
         breadcrumbs={breadcrumbs}
         eyebrow={commercePageContent.trial.eyebrow}
-        title="Get early trial access for your Mac"
-        description="CmdTab is currently in private preview. Sign up for the waitlist below to receive an email notification as soon as the trial download is ready."
+        title={release ? "Get early access to CmdTab" : "Join the CmdTab waitlist"}
+        description={release ? "Download the current build and try CmdTab in your daily Mac workflow." : "CmdTab is in private preview. Join the waitlist and we’ll email you when access opens."}
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -62,9 +62,9 @@ export default function TrialPage() {
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <MotionReveal direction="left" className="surface-panel p-6">
-            <p className="type-eyebrow text-cyan">Trial checklist &amp; features</p>
+            <p className="type-eyebrow text-cyan">{release ? "Trial checklist & features" : "What you’ll get"}</p>
             <div className="mt-5 space-y-4">
-              {commercePageContent.trial.checklist.map((item) => (
+              {(release ? commercePageContent.trial.checklist.slice(1) : ["A visual, keyboard-first way to switch between Mac windows.", "An email when private preview access opens.", "No payment required to join the waitlist."]).map((item) => (
                 <div key={item} className="flex items-start gap-3 text-sm leading-7 text-muted">
                   <span aria-hidden="true" className="mt-2 h-2 w-2 rounded-full bg-success" />
                   <span>{item}</span>
@@ -101,10 +101,10 @@ export default function TrialPage() {
           </MotionReveal>
 
           <MotionReveal direction="right" delay={120} className="surface-panel p-6">
-            <p className="type-eyebrow text-cyan">Join the Trial Waitlist</p>
+            <p className="type-eyebrow text-cyan">Join the waitlist</p>
             <div className="mt-3 mb-5 space-y-2 text-sm leading-6 text-muted">
               <p>
-                Sign up with your email to receive early access. We will notify you directly as soon as your trial download is ready.
+                Sign up with your email and we’ll notify you when early access opens.
               </p>
             </div>
 

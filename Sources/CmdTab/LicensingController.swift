@@ -77,7 +77,11 @@ enum LicenseValidationError: LocalizedError, Equatable {
 final class LicensingController: ObservableObject {
     static let shared = LicensingController(telemetryReporter: AppTelemetryReporter.shared)
 
-    @Published private(set) var status: LicensingStatus
+    @Published private(set) var status: LicensingStatus {
+        didSet { publishEventTapGate() }
+    }
+    /// Thread-safe licensing snapshot for the keyboard event tap thread.
+    nonisolated let eventTapGate: EventTapLicensingGate
     @Published var enteredLicenseKey = ""
     @Published var enteredTrialEmail = ""
     @Published private(set) var isStartingTrial = false
@@ -101,8 +105,21 @@ final class LicensingController: ObservableObject {
     private let serverClient: CmdTabServerClient
     private let telemetryReporter: AppTelemetryReporting?
     private let currentDate: () -> Date
+    private let currentUptime: () -> TimeInterval
     private let publicKeyDERBase64: String
+    private var keychainReadObserver: NSObjectProtocol?
+    private var shortcutRefreshWorkItem: DispatchWorkItem?
+    private var shortcutRefreshIsImmediate = false
+    private var shortcutValidatedAt: Date? {
+        didSet { publishEventTapGate() }
+    }
+    private var shortcutValidatedUptime: TimeInterval? {
+        didSet { publishEventTapGate() }
+    }
+    private static let shortcutRefreshInterval: TimeInterval = 5
+    #if DEBUG
     private let developerSettings: DeveloperSettings
+    #endif
     private let iso8601 = ISO8601DateFormatter()
 
     init(
@@ -125,8 +142,11 @@ final class LicensingController: ObservableObject {
         serverClient: CmdTabServerClient = LiveCmdTabServerClient(),
         telemetryReporter: AppTelemetryReporting? = nil,
         currentDate: @escaping () -> Date = Date.init,
+        currentUptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
         publicKeyDERBase64: String = LicensingConfiguration.publicKeyDERBase64,
-        developerSettings: DeveloperSettings? = nil
+        // This compatibility argument is inert in release builds; DEBUG alone
+        // casts it to the internal scenario state used by tests.
+        debugCompatibility: Any? = nil
     ) {
         self.trialStore = trialStore
         self.trialClaimStore = trialClaimStore
@@ -148,12 +168,50 @@ final class LicensingController: ObservableObject {
         self.serverClient = serverClient
         self.telemetryReporter = telemetryReporter
         self.currentDate = currentDate
+        self.currentUptime = currentUptime
+        self.eventTapGate = EventTapLicensingGate(
+            refreshInterval: Self.shortcutRefreshInterval,
+            clockRollbackTolerance: Self.clockRollbackTolerance,
+            currentDate: currentDate,
+            currentUptime: currentUptime
+        )
         self.publicKeyDERBase64 = publicKeyDERBase64
-        self.developerSettings = developerSettings ?? .shared
+        #if DEBUG
+        self.developerSettings = (debugCompatibility as? DeveloperSettings) ?? .shared
+        #endif
 
         self.status = .unregistered
 
+        keychainReadObserver = NotificationCenter.default.addObserver(
+            forName: BoundedKeychainReadRegistry.didCompleteNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshStatus() }
+        }
+
+        // The gate may be asked from the event tap thread; revalidation always
+        // runs on the main actor. On main, schedule directly so the refresh
+        // still coalesces onto the next main-queue turn.
+        eventTapGate.setRefreshHandler { [weak self] in
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.scheduleShortcutRefresh() }
+            } else {
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { self?.scheduleShortcutRefresh() }
+                }
+            }
+        }
+
         refreshStatus()
+        publishEventTapGate()
+    }
+
+    deinit {
+        shortcutRefreshWorkItem?.cancel()
+        if let keychainReadObserver {
+            NotificationCenter.default.removeObserver(keychainReadObserver)
+        }
     }
 
     var hasUnlockedAccess: Bool {
@@ -163,6 +221,47 @@ final class LicensingController: ObservableObject {
     func shouldHandleCustomSwitcherShortcut() -> Bool {
         refreshStatus()
         return !status.isExpired && !status.requiresTrialRegistration
+    }
+
+    /// Event taps must never wait for securityd or verify a signed token. Use
+    /// the last status verified in this process and coalesce revalidation onto
+    /// the main queue after the callback has returned. A stale snapshot or a
+    /// pending Keychain read is not a revocation: definitive results (expiry,
+    /// revocation, an invalid token) replace the status when they complete,
+    /// and trial expiry and clock rollback are checked against `now` here.
+    func shouldHandleEventTapShortcut() -> Bool {
+        eventTapGate.allowsShortcut()
+    }
+
+    /// Mirrors the verified status into the thread-safe gate read by the
+    /// event tap thread.
+    private func publishEventTapGate() {
+        let entitlement: EventTapLicensingGate.Entitlement
+        switch status {
+        case .licensed: entitlement = .licensed
+        case let .activeTrial(_, endsAt, _): entitlement = .trial(endsAt: endsAt)
+        case .unregistered, .expired: entitlement = .none
+        }
+        eventTapGate.update(EventTapLicensingGate.Snapshot(
+            entitlement: entitlement,
+            validatedAt: shortcutValidatedAt,
+            validatedUptime: shortcutValidatedUptime
+        ))
+    }
+
+    private func scheduleShortcutRefresh(after delay: TimeInterval = 0) {
+        if shortcutRefreshWorkItem != nil {
+            guard delay == 0, !shortcutRefreshIsImmediate else { return }
+            shortcutRefreshWorkItem?.cancel()
+        }
+        shortcutRefreshIsImmediate = delay == 0
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.shortcutRefreshWorkItem = nil
+            self.refreshStatus()
+        }
+        shortcutRefreshWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     var licenseSummaryTitle: String {
@@ -236,38 +335,74 @@ final class LicensingController: ObservableObject {
     }
 
     func refreshStatus() {
+        defer {
+            BoundedKeychainReadRegistry.validationCompletedIfIdle()
+            // A pending read keeps the last verified snapshot; only a
+            // completed pass may replace it.
+            if !BoundedKeychainReadRegistry.hasPendingReads {
+                shortcutValidatedAt = currentDate()
+                shortcutValidatedUptime = currentUptime()
+            }
+            // Keep an authorized snapshot fresh during idle time, so the first
+            // shortcut after a pause does not fall back merely due to its age.
+            if hasUnlockedAccess {
+                scheduleShortcutRefresh(after: Self.shortcutRefreshInterval)
+            }
+        }
         let now = currentDate()
 
-        if let paidEntitlement = deviceEntitlementStore.loadEntitlement(),
-           let verifiedPayload = try? validatePaidDeviceEntitlement(
-            paidEntitlement
-           ) {
-            guard !isRevoked(
-                payload: verifiedPayload,
-                entitlementToken: paidEntitlement
-            ) else {
-                try? deviceEntitlementStore.clearEntitlement()
-                try? licenseStore.clearLicenseKey()
-                payloadCacheStore.clearPayload()
-                status = .unregistered
+        // A timed-out securityd read is unknown: never proof of an entitlement
+        // or of a revocation. Keep the last verified status until it resolves,
+        // so a slow Keychain cannot turn Command-Tab off mid-session.
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            return
+        }
+
+        let paidEntitlement = deviceEntitlementStore.loadEntitlement()
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            return
+        }
+        if let paidEntitlement {
+            if let verifiedPayload = try? validatePaidDeviceEntitlement(paidEntitlement) {
+                guard !isRevoked(
+                    payload: verifiedPayload,
+                    entitlementToken: paidEntitlement
+                ) else {
+                    try? deviceEntitlementStore.clearEntitlement()
+                    try? licenseStore.clearLicenseKey()
+                    payloadCacheStore.clearPayload()
+                    status = .unregistered
+                    return
+                }
+                guard !BoundedKeychainReadRegistry.hasPendingReads else {
+                    return
+                }
+                payloadCacheStore.savePayload(verifiedPayload)
+                status = .licensed(
+                    payload: verifiedPayload,
+                    activatedAt: activationMetadataStore.loadActivationDate()
+                )
                 return
             }
-            payloadCacheStore.savePayload(verifiedPayload)
-            status = .licensed(
-                payload: verifiedPayload,
-                activatedAt: activationMetadataStore.loadActivationDate()
-            )
-            return
-        } else {
+            // A missing or temporarily unavailable Keychain read is not proof
+            // that a stored paid entitlement is invalid. Clear only a token
+            // that was actually returned and failed signature validation.
             try? deviceEntitlementStore.clearEntitlement()
         }
 
-        if let storedToken = licenseStore.loadLicenseKeySilently(),
+        let storedToken = licenseStore.loadLicenseKeySilently()
+        guard !BoundedKeychainReadRegistry.hasPendingReads else {
+            return
+        }
+        if let storedToken,
            let verifiedPayload = try? validateLicenseKey(normalizeToken(storedToken)) {
             guard !isLicenseRevoked(verifiedPayload.licenseID) else {
                 try? licenseStore.clearLicenseKey()
                 payloadCacheStore.clearPayload()
                 status = .unregistered
+                return
+            }
+            guard !BoundedKeychainReadRegistry.hasPendingReads else {
                 return
             }
             payloadCacheStore.savePayload(verifiedPayload)
@@ -281,10 +416,12 @@ final class LicensingController: ObservableObject {
         // grant paid access without re-verifying the signed Keychain token.
         payloadCacheStore.clearPayload()
 
+        #if DEBUG
         if let overrideStatus = developerOverrideStatus(now: now) {
             status = overrideStatus
             return
         }
+        #endif
 
         if let claim = trialClaimStore.loadClaim(),
            let trialInstallBinding = try? deviceIdentifier(),
@@ -294,7 +431,11 @@ final class LicensingController: ObservableObject {
            ),
            let startedAt = claim.startedDate,
            let claimedEndsAt = claim.endsDate {
-            if let lastSeen = secureTrialClockStore.loadLastSeenDate(),
+            let lastSeen = secureTrialClockStore.loadLastSeenDate()
+            guard !BoundedKeychainReadRegistry.hasPendingReads else {
+                return
+            }
+            if let lastSeen,
                now.addingTimeInterval(Self.clockRollbackTolerance) < lastSeen {
                 enteredTrialEmail = Self.visibleTrialEmail(claim.email)
                 status = .unregistered
@@ -447,9 +588,11 @@ final class LicensingController: ObservableObject {
             enteredLicenseKey = ""
         }
 
+        #if DEBUG
         if developerSettings.releaseChannel == .test {
             developerSettings.licensingScenario = .live
         }
+        #endif
 
         refreshStatus()
         trialMessage = LicensingMessage(
@@ -594,9 +737,11 @@ final class LicensingController: ObservableObject {
             try licenseStore.saveLicenseKey(normalized)
             activationMetadataStore.saveActivationDate(currentDate())
             payloadCacheStore.savePayload(payload)
+            #if DEBUG
             if developerSettings.releaseChannel == .test {
                 developerSettings.licensingScenario = .live
             }
+            #endif
             enteredLicenseKey = normalized
             status = .licensed(payload: payload, activatedAt: activationMetadataStore.loadActivationDate())
             licenseMessage = LicensingMessage(
@@ -627,7 +772,7 @@ final class LicensingController: ObservableObject {
     }
 
     @discardableResult
-    func ensureUsageAllowed(openLicensing: () -> Void) -> Bool {
+    func ensureUsageAllowed(presentLicensing: Bool = true, openLicensing: () -> Void) -> Bool {
         refreshStatus()
         guard !status.isExpired, !status.requiresTrialRegistration else {
             if status.requiresTrialRegistration {
@@ -641,7 +786,7 @@ final class LicensingController: ObservableObject {
                     text: "The trial ended. Buy CmdTab or enter a valid license to keep using the switcher."
                 )
             }
-            openLicensing()
+            if presentLicensing { openLicensing() }
             return false
         }
         return true
@@ -775,6 +920,7 @@ final class LicensingController: ObservableObject {
         return "token:\(digest)"
     }
 
+    #if DEBUG
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
         guard developerSettings.releaseChannel == .test else { return nil }
 
@@ -819,6 +965,7 @@ final class LicensingController: ObservableObject {
             )
         }
     }
+    #endif
 
     private static let anonymousTrialEmailSuffix = "@trial.cmdtab.invalid"
     private static let secondsPerDay: TimeInterval = 24 * 60 * 60

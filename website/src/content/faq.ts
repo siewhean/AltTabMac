@@ -77,7 +77,7 @@ export const faqItems = [
   {
     question: "Is there a free trial?",
     answer:
-      "Yes. The current commercial path offers a 14-day trial so users can test CmdTab in their normal workflow before purchasing.",
+      "CmdTab is currently in private preview, so a public trial download is not available yet. Join the waitlist and we’ll email you when access opens.",
   },
   {
     question: "Is CmdTab a subscription?",

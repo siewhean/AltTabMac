@@ -1,78 +1,62 @@
+import CoreGraphics
 import Foundation
 
-/// A hidden shortcut is accepted only when its primary modifier and key arrive as
-/// one deliberate chord. Holding Command or Option first and pressing the key
-/// later is swallowed without switching, which prevents accidental activations
-/// and native-switcher bleed-through.
-struct ShortcutChordTimingState {
-    static let defaultMaximumLeadInterval: TimeInterval = 0.16
+/// Side-specific modifier state decoded from the device-dependent bits that
+/// every keyboard `CGEvent` carries (IOKit `NX_DEVICE*KEYMASK`).
+struct PhysicalModifierDeviceFlags: Equatable {
+    let leftCommand: Bool
+    let rightCommand: Bool
+    let leftOption: Bool
+    let rightOption: Bool
 
-    private let maximumLeadInterval: TimeInterval
-    private var commandDownAt: TimeInterval?
-    private var optionDownAt: TimeInterval?
-    private var commandWasInterrupted = false
-    private var optionWasInterrupted = false
-
-    init(
-        maximumLeadInterval: TimeInterval = Self.defaultMaximumLeadInterval
-    ) {
-        self.maximumLeadInterval = maximumLeadInterval
+    init(flags: CGEventFlags) {
+        let raw = flags.rawValue
+        leftCommand = raw & 0x08 != 0
+        rightCommand = raw & 0x10 != 0
+        leftOption = raw & 0x20 != 0
+        rightOption = raw & 0x40 != 0
     }
 
-    mutating func noteModifierChange(
-        _ modifier: HotkeyModifier,
-        isDown: Bool,
-        at uptime: TimeInterval
-    ) {
-        switch modifier {
-        case .command:
-            commandDownAt = isDown ? uptime : nil
-            commandWasInterrupted = false
-        case .option:
-            optionDownAt = isDown ? uptime : nil
-            optionWasInterrupted = false
+    func isDown(_ key: PhysicalModifierTriggerKey) -> Bool {
+        switch key {
+        case .leftCommand: return leftCommand
+        case .rightCommand: return rightCommand
+        case .leftOption: return leftOption
+        case .rightOption: return rightOption
         }
     }
+}
 
-    /// Any ordinary key pressed while Command or Option is held contaminates that
-    /// modifier gesture. This is the critical pass-through rule for sequences such
-    /// as Command-Tab followed by Command-V: Paste must never complete a stale
-    /// switcher trigger when the modifier is released.
-    mutating func noteInterveningKeyDown() {
-        if commandDownAt != nil {
-            commandWasInterrupted = true
+/// Converts a `CGEvent` timestamp into the `systemUptime` clock used for every
+/// deadline. The value is documented as nanoseconds since startup, but it may
+/// be reported in mach absolute-time ticks, and synthesized events carry 0.
+/// The unit that lands closest to `now` (and not in the future) wins; an
+/// implausible value falls back to `now` so deadlines never collapse or stretch.
+enum EventTimestampClock {
+    static let plausibleAge: TimeInterval = 5
+    static let futureTolerance: TimeInterval = 0.05
+
+    static func uptime(
+        eventTimestamp: UInt64,
+        now: TimeInterval,
+        timebaseNumerator: UInt32 = machTimebase.numer,
+        timebaseDenominator: UInt32 = machTimebase.denom
+    ) -> TimeInterval {
+        guard eventTimestamp > 0, timebaseDenominator > 0 else { return now }
+        let nanoseconds = TimeInterval(eventTimestamp) / 1_000_000_000
+        let machTicks = nanoseconds * TimeInterval(timebaseNumerator) /
+            TimeInterval(timebaseDenominator)
+        let plausible = [nanoseconds, machTicks].filter {
+            $0 <= now + futureTolerance && now - $0 <= plausibleAge
         }
-        if optionDownAt != nil {
-            optionWasInterrupted = true
-        }
+        return plausible.min { abs(now - $0) < abs(now - $1) }.map { min($0, now) } ?? now
     }
 
-    func accepts(
-        primaryModifier: HotkeyModifier?,
-        keyDownAt uptime: TimeInterval
-    ) -> Bool {
-        guard let primaryModifier else { return true }
-        let modifierDownAt: TimeInterval?
-        let wasInterrupted: Bool
-        switch primaryModifier {
-        case .command:
-            modifierDownAt = commandDownAt
-            wasInterrupted = commandWasInterrupted
-        case .option:
-            modifierDownAt = optionDownAt
-            wasInterrupted = optionWasInterrupted
-        }
-        guard let modifierDownAt, !wasInterrupted else { return false }
-        let lead = uptime - modifierDownAt
-        return lead >= 0 && lead <= maximumLeadInterval
-    }
-
-    mutating func reset() {
-        commandDownAt = nil
-        optionDownAt = nil
-        commandWasInterrupted = false
-        optionWasInterrupted = false
-    }
+    static let machTimebase: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
 }
 
 /// Physical modifier chords used by Hot Swap must also be pressed together. The
@@ -86,6 +70,10 @@ struct PhysicalModifierChordTimingState {
     private var rightCommandDownAt: TimeInterval?
     private var leftOptionDownAt: TimeInterval?
     private var rightOptionDownAt: TimeInterval?
+    private var leftCommandRecentDownAt: TimeInterval?
+    private var rightCommandRecentDownAt: TimeInterval?
+    private var leftOptionRecentDownAt: TimeInterval?
+    private var rightOptionRecentDownAt: TimeInterval?
 
     init(
         maximumSeparation: TimeInterval = Self.defaultMaximumSeparation
@@ -101,17 +89,28 @@ struct PhysicalModifierChordTimingState {
         switch key {
         case .leftCommand:
             leftCommandDownAt = isDown ? uptime : nil
+            if isDown { leftCommandRecentDownAt = uptime }
         case .rightCommand:
             rightCommandDownAt = isDown ? uptime : nil
+            if isDown { rightCommandRecentDownAt = uptime }
         case .leftOption:
             leftOptionDownAt = isDown ? uptime : nil
+            if isDown { leftOptionRecentDownAt = uptime }
         case .rightOption:
             rightOptionDownAt = isDown ? uptime : nil
+            if isDown { rightOptionRecentDownAt = uptime }
+        }
+
+        if leftCommandDownAt == nil && rightCommandDownAt == nil && leftOptionDownAt == nil && rightOptionDownAt == nil {
+            leftCommandRecentDownAt = nil
+            rightCommandRecentDownAt = nil
+            leftOptionRecentDownAt = nil
+            rightOptionRecentDownAt = nil
         }
     }
 
     func accepts(keys: [PhysicalModifierTriggerKey]) -> Bool {
-        let times = keys.compactMap(downAt)
+        let times = keys.compactMap { downAt(for: $0) ?? recentDownAt(for: $0) }
         guard times.count == keys.count,
               let earliest = times.min(),
               let latest = times.max() else {
@@ -125,6 +124,10 @@ struct PhysicalModifierChordTimingState {
         rightCommandDownAt = nil
         leftOptionDownAt = nil
         rightOptionDownAt = nil
+        leftCommandRecentDownAt = nil
+        rightCommandRecentDownAt = nil
+        leftOptionRecentDownAt = nil
+        rightOptionRecentDownAt = nil
     }
 
     private func downAt(
@@ -139,6 +142,21 @@ struct PhysicalModifierChordTimingState {
             return leftOptionDownAt
         case .rightOption:
             return rightOptionDownAt
+        }
+    }
+
+    private func recentDownAt(
+        for key: PhysicalModifierTriggerKey
+    ) -> TimeInterval? {
+        switch key {
+        case .leftCommand:
+            return leftCommandRecentDownAt
+        case .rightCommand:
+            return rightCommandRecentDownAt
+        case .leftOption:
+            return leftOptionRecentDownAt
+        case .rightOption:
+            return rightOptionRecentDownAt
         }
     }
 }
@@ -200,6 +218,9 @@ struct PendingProfileHotkeyTrigger: Equatable {
     let match: ShortcutProfileMatch
     let startedAtUptime: TimeInterval
     let policy: ProfileHotkeyTimingPolicy
+    /// Directions (`true` = reverse) of deliberate extra trigger presses made
+    /// before the session started, applied in order once it exists.
+    var additionalAdvances: [Bool] = []
 
     init(match: ShortcutProfileMatch, startedAtUptime: TimeInterval) {
         self.match = match
@@ -231,8 +252,8 @@ struct PendingProfileHotkeyTrigger: Equatable {
 
 enum ProfileHotkeyTimingAction: Equatable {
     case scheduleReveal(atUptime: TimeInterval)
-    case showOverlay(ShortcutProfileMatch)
-    case quickSwitch(ShortcutProfileMatch)
+    case showOverlay(ShortcutProfileMatch, additionalAdvances: [Bool] = [])
+    case quickSwitch(ShortcutProfileMatch, additionalAdvances: [Bool] = [])
     case confirmSelection(ShortcutProfileMatch)
 }
 
@@ -269,6 +290,19 @@ struct ProfileHotkeyTimingState {
         return .scheduleReveal(atUptime: trigger.revealAtUptime)
     }
 
+    /// Records a further press of the pending profile's shortcut before the
+    /// session exists. Key repeat and other profiles never advance.
+    mutating func registerAdditionalAdvance(
+        match: ShortcutProfileMatch,
+        isRepeat: Bool
+    ) {
+        guard !isRepeat,
+              pendingTrigger?.match.profileID == match.profileID else {
+            return
+        }
+        pendingTrigger?.additionalAdvances.append(match.reverse)
+    }
+
     /// Establishes release ownership for a profile that replaces an already
     /// visible session. No reveal timer is needed because the controller is
     /// switching visible profile surfaces immediately.
@@ -301,7 +335,13 @@ struct ProfileHotkeyTimingState {
             pendingTrigger = nil
             return hiddenReleaseAction(for: trigger)
         }
-        return .showOverlay(trigger.match)
+        // The trigger keeps release ownership after the reveal; its early
+        // advances are handed over exactly once.
+        pendingTrigger?.additionalAdvances = []
+        return .showOverlay(
+            trigger.match,
+            additionalAdvances: trigger.additionalAdvances
+        )
     }
 
     mutating func handleModifierRelease(
@@ -332,7 +372,10 @@ struct ProfileHotkeyTimingState {
         case .none:
             return nil
         case .quickSwitch:
-            return .quickSwitch(trigger.match)
+            return .quickSwitch(
+                trigger.match,
+                additionalAdvances: trigger.additionalAdvances
+            )
         }
     }
 }

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
 import { createPageMetadata } from "@/lib/seo";
+import { getStableReleaseManifest } from "@/lib/stable-release";
 
 export const metadata = createPageMetadata({
   title: "CmdTab purchase confirmed",
@@ -32,6 +33,7 @@ const steps = [
 ] as const;
 
 export default function ThankYouPage() {
+  const release = getStableReleaseManifest();
   return (
     <main>
       <SiteHeader />
@@ -55,7 +57,9 @@ export default function ThankYouPage() {
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <Button href="/trial">Download CmdTab</Button>
+          {release ? (
+            <Button href={release.dmgURL} target="_blank" rel="noreferrer">Download CmdTab {release.version}</Button>
+          ) : null}
           <Button href="/help" variant="secondary">
             Activation help
           </Button>

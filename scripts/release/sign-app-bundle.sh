@@ -53,12 +53,30 @@ sign_nested() {
   codesign "${arguments[@]}" "${target}"
 }
 
-# Sparkle's documented manual distribution order. Do not use --deep for signing:
-# each nested service keeps only its own reviewed metadata.
-sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Installer.xpc"
-sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/XPCServices/Downloader.xpc" 1
-sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
-sign_nested "${SPARKLE_FRAMEWORK}/Versions/B/Updater.app"
+# Sign every discovered nested code container leaf-first. Sparkle changes its
+# framework layout between releases; deriving the inventory ensures a new helper
+# cannot silently escape signing or verification.
+NESTED_CONTAINERS="$(
+  find "${SPARKLE_FRAMEWORK}/Versions" -type d \( -name '*.xpc' -o -name '*.app' \) -print |
+    awk '{ print length($0), $0 }' | LC_ALL=C sort -rn | cut -d' ' -f2-
+)"
+[[ -n "${NESTED_CONTAINERS}" ]] || {
+  echo "Sparkle framework has no nested code containers." >&2
+  exit 1
+}
+while IFS= read -r nested_container; do
+  [[ -n "${nested_container}" ]] || continue
+  # Downloader currently carries Sparkle's reviewed helper entitlement.
+  if [[ "${nested_container}" == */Downloader.xpc ]]; then
+    sign_nested "${nested_container}" 1
+  else
+    sign_nested "${nested_container}"
+  fi
+done <<<"${NESTED_CONTAINERS}"
+
+AUTUPDATE_PATH="${SPARKLE_FRAMEWORK}/Versions/B/Autoupdate"
+[[ -x "${AUTUPDATE_PATH}" ]] || { echo "Missing Sparkle Autoupdate executable." >&2; exit 1; }
+sign_nested "${AUTUPDATE_PATH}"
 sign_nested "${SPARKLE_FRAMEWORK}"
 
 APP_SIGNING_ARGUMENTS=(

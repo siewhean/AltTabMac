@@ -1,0 +1,114 @@
+Building for debugging...
+[Using on-disk description]
+[3 / 13] CmdTab
+[9 / 19] CmdTab
+[9 / 19] CmdTab-product
+[17 / 26] CmdTab
+[17 / 26] CmdTab-product
+[20 / 21] CmdTabTests-product
+Build complete! (3.65 secs)
+Test Suite 'Selected tests' started at 2026-10-04 13:20:17.036.
+Test Suite 'CmdTabTests.xctest' started at 2026-10-04 13:20:17.038.
+Test Suite 'LicensingControllerTests' started at 2026-10-04 13:20:17.038.
+Test Case '-[CmdTabTests.LicensingControllerTests testActivatingRealLicenseInTestModeSwitchesScenarioToLive]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testActivatingRealLicenseInTestModeSwitchesScenarioToLive]' passed (0.008 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testActiveTrialStillHandlesCustomSwitcherShortcut]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testActiveTrialStillHandlesCustomSwitcherShortcut]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testAuthoritativeRevocationCreatesPersistentTombstoneButTransientFailuresDoNot]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testAuthoritativeRevocationCreatesPersistentTombstoneButTransientFailuresDoNot]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testCachedPayloadCannotGrantPaidAccessWithoutSignedKeychainToken]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testCachedPayloadCannotGrantPaidAccessWithoutSignedKeychainToken]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testClockRollbackCannotLowerSecureTimeDuringOnlineRevalidation]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testClockRollbackCannotLowerSecureTimeDuringOnlineRevalidation]' passed (0.004 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testCommerceCapabilityDefaultsClosedAndAcceptsOnlyBooleanBundleMetadata]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testCommerceCapabilityDefaultsClosedAndAcceptsOnlyBooleanBundleMetadata]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testCompletedMissingKeychainItemDoesNotRetriggerOnRefresh]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testCompletedMissingKeychainItemDoesNotRetriggerOnRefresh]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testDeniedShortcutDoesNotOpenLicensingButExplicitActionStillDoes]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testDeniedShortcutDoesNotOpenLicensingButExplicitActionStillDoes]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testDeveloperExpiredTrialOverrideInTestChannel]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testDeveloperExpiredTrialOverrideInTestChannel]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testDeveloperSimulatedLicenseOverrideInTestChannel]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testDeveloperSimulatedLicenseOverrideInTestChannel]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEarlyServerClaimIsRejectedAndCleared]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEarlyServerClaimIsRejectedAndCleared]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapLicensingRefreshesWhileIdleWithoutAKeyboardEvent]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapLicensingRefreshesWhileIdleWithoutAKeyboardEvent]' passed (5.195 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutChecksTrialDeadlineAndClockRollbackImmediately]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutChecksTrialDeadlineAndClockRollbackImmediately]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutDoesNotReadStoresAndCoalescesRefresh]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutDoesNotReadStoresAndCoalescesRefresh]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRefreshesAfterMonotonicClockResets]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRefreshesAfterMonotonicClockResets]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRejectsExpiredSnapshotUntilRevalidated]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRejectsExpiredSnapshotUntilRevalidated]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRejectsPendingSecurityRead]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testEventTapShortcutRejectsPendingSecurityRead]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testExactFourteenDayServerClaimUsesUTCMilestonesAndStopsClaimingShortcutAtExpiry]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testExactFourteenDayServerClaimUsesUTCMilestonesAndStopsClaimingShortcutAtExpiry]' passed (0.015 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testExpiredTrialBlocksAccess]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testExpiredTrialBlocksAccess]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testInvalidLicenseIsRejected]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testInvalidLicenseIsRejected]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testNewPurchaseActivationCredentialCannotUnlockLocally]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testNewPurchaseActivationCredentialCannotUnlockLocally]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testOnlineActivationRegistersHashedKeychainDeviceBeforeSavingLicense]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testOnlineActivationRegistersHashedKeychainDeviceBeforeSavingLicense]' passed (0.006 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testOverlongServerClaimIsRejectedAndCleared]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testOverlongServerClaimIsRejectedAndCleared]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testPassiveRefreshChecksKeychainForSignedPaidEntitlement]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testPassiveRefreshChecksKeychainForSignedPaidEntitlement]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testRemoteDeactivationWithEmptyDeviceListRevokesRetainedToken]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testRemoteDeactivationWithEmptyDeviceListRevokesRetainedToken]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testRevocationFallbackSurvivesKeychainFailureAndStoreRecreation]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testRevocationFallbackSurvivesKeychainFailureAndStoreRecreation]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testSignedInstallBoundTrialAuthenticatesAndTamperingFailsClosed]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testSignedInstallBoundTrialAuthenticatesAndTamperingFailsClosed]' passed (0.008 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testSignedLicenseActivatesApp]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testSignedLicenseActivatesApp]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testSlowSequentialKeychainReadsRetainEarlierResultUntilValidationCompletes]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testSlowSequentialKeychainReadsRetainEarlierResultUntilValidationCompletes]' passed (0.058 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStableChannelIgnoresDeveloperScenarioOverride]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStableChannelIgnoresDeveloperScenarioOverride]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationAcceptsJavaScriptFractionalTimestampClaim]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationAcceptsJavaScriptFractionalTimestampClaim]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationActivatesTrialState]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationActivatesTrialState]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationRejectsEarlyServerClaim]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationRejectsEarlyServerClaim]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationRejectsOverlongServerClaim]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationRejectsOverlongServerClaim]' passed (0.003 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationShowsBlockedMessage]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testStartTrialRegistrationShowsBlockedMessage]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testTimedOutSilentKeychainReadStaysSingleFlightAndFailsClosed]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testTimedOutSilentKeychainReadStaysSingleFlightAndFailsClosed]' passed (0.024 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testTrialClaimParsesFractionalAndWholeSecondISO8601WithoutChangingWireStrings]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testTrialClaimParsesFractionalAndWholeSecondISO8601WithoutChangingWireStrings]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testTrialWarningAppearsOnlyDuringFinalThreeDaysAndAtExpiry]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testTrialWarningAppearsOnlyDuringFinalThreeDaysAndAtExpiry]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testUnknownPaidEntitlementIsNotDeleted]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testUnknownPaidEntitlementIsNotDeleted]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testUnregisteredWithoutServerTrialClaim]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testUnregisteredWithoutServerTrialClaim]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.LicensingControllerTests testVerifiedKeychainLicenseWinsOverDeveloperOverride]' started.
+Test Case '-[CmdTabTests.LicensingControllerTests testVerifiedKeychainLicenseWinsOverDeveloperOverride]' passed (0.003 seconds).
+Test Suite 'LicensingControllerTests' passed at 2026-10-04 13:20:22.444.
+	 Executed 41 tests, with 0 failures (0 unexpected) in 5.402 (5.406) seconds
+Test Suite 'PreferencesWindowLayoutTests' started at 2026-10-04 13:20:22.444.
+Test Case '-[CmdTabTests.PreferencesWindowLayoutTests testSettingsKeepsNativeTitlebarAndExplicitContentGeometry]' started.
+Test Case '-[CmdTabTests.PreferencesWindowLayoutTests testSettingsKeepsNativeTitlebarAndExplicitContentGeometry]' passed (0.241 seconds).
+Test Suite 'PreferencesWindowLayoutTests' passed at 2026-10-04 13:20:22.685.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.241 (0.241) seconds
+Test Suite 'SettingsShortcutVisibilityTests' started at 2026-10-04 13:20:22.686.
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testHidingSettingsPreservesDraftAndUnrelatedWindows]' started.
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testHidingSettingsPreservesDraftAndUnrelatedWindows]' passed (0.065 seconds).
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testProductionShortcutHidesSettingsBeforeInventoryOrAuthorization]' started.
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testProductionShortcutHidesSettingsBeforeInventoryOrAuthorization]' passed (1.021 seconds).
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testReopenDoesNotOpenSettings]' started.
+Test Case '-[CmdTabTests.SettingsShortcutVisibilityTests testReopenDoesNotOpenSettings]' passed (0.058 seconds).
+Test Suite 'SettingsShortcutVisibilityTests' passed at 2026-10-04 13:20:23.830.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 1.144 (1.145) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-10-04 13:20:23.830.
+	 Executed 45 tests, with 0 failures (0 unexpected) in 6.788 (6.793) seconds
+Test Suite 'Selected tests' passed at 2026-10-04 13:20:23.830.
+	 Executed 45 tests, with 0 failures (0 unexpected) in 6.788 (6.794) seconds

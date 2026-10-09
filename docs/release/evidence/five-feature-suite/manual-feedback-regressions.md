@@ -4,8 +4,8 @@ This document turns observed tester feedback into explicit acceptance criteria. 
 
 ## Shortcut timing and quick switching
 
-- A deliberate Command-Tab or Option-Tab chord must be accepted when the primary modifier and Tab key-down arrive within 160 ms.
-- Holding Command or Option first and pressing Tab later must be swallowed without switching and without allowing Apple’s native switcher to appear.
+- Like native Command-Tab, every Command-Tab or Option-Tab key-down must start a CmdTab session, however long the modifier was held first and whatever keys (for example Command-C) preceded it. Apple’s native switcher must not appear. (Revised 2026-10-09: the earlier 160 ms chord requirement swallowed legitimate presses and was the main cause of intermittent interception.)
+- Additional Tab presses made before the overlay is revealed must advance the selection; key repeat must not.
 - Optional Hot Swap accepts either a same-side Command double tap completed within 250 ms or a side-matched Command-plus-Option chord with no more than 160 ms between the two modifier key-downs.
 - A single Command press and a single Option press must do nothing. Two Command taps whose release-to-release gap exceeds 250 ms must do nothing, including the reported sequence with a delay of several seconds.
 - A quick accepted Command-Tab or Option-Tab chord released before 200 ms must commit without showing or flashing the CmdTab overlay.

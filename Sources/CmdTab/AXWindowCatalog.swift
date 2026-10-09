@@ -32,7 +32,20 @@ struct AXWindowMetadata {
 
 struct AXWindowCatalogSnapshot {
     let byPID: [pid_t: [CGWindowID: AXWindowMetadata]]
+    /// Processes for which Accessibility returned a complete `AXWindows` list.
+    /// A process is absent when its window list could not be read at all.
+    let enumeratedPIDs: Set<pid_t>
+    /// Processes that exposed at least one AX window whose WindowServer ID could
+    /// not be resolved. Their Core Graphics candidates must remain fail-open.
+    let unresolvedIdentityPIDs: Set<pid_t>
     let capability: CapabilityStatus
+    var processGenerations: [pid_t: Date] = [:]
+    var observedAtByPID: [pid_t: Date] = [:]
+    var elementsByPID: [pid_t: [CGWindowID: AXUIElement]] = [:]
+
+    var completeIdentityPIDs: Set<pid_t> {
+        enumeratedPIDs.subtracting(unresolvedIdentityPIDs)
+    }
 
     func metadata(ownerPID: pid_t, windowID: CGWindowID) -> AXWindowMetadata? {
         byPID[ownerPID]?[windowID]
@@ -44,31 +57,14 @@ struct AXWindowCatalogSnapshot {
 }
 
 enum AXWindowIdentityLookup {
-    private typealias GetWindowFn = @convention(c) (
-        AXUIElement,
-        UnsafeMutablePointer<CGWindowID>
-    ) -> Int32
-
-    private static let resolved: GetWindowFn? = {
-        guard let symbol = dlsym(
-            UnsafeMutableRawPointer(bitPattern: -2),
-            "_AXUIElementGetWindow"
-        ) else {
-            return nil
-        }
-        return unsafeBitCast(symbol, to: GetWindowFn.self)
-    }()
+    private static let provider = SystemPrivateWindowCapabilityProvider.shared
 
     static var status: CapabilityStatus {
-        resolved == nil
-            ? .unavailable("_AXUIElementGetWindow is unavailable; exact AX-window identity cannot be resolved.")
-            : .available
+        provider.identityStatus
     }
 
     static func windowID(for element: AXUIElement) -> CGWindowID? {
-        guard let resolved else { return nil }
-        var windowID: CGWindowID = 0
-        guard resolved(element, &windowID) == 0, windowID != 0 else {
+        guard case let .success(windowID) = provider.windowID(for: element) else {
             return nil
         }
         return windowID
@@ -105,19 +101,30 @@ final class AXWindowCatalog {
     }
 
     func snapshot(for applications: [NSRunningApplication]) -> AXWindowCatalogSnapshot {
+        let generations = Dictionary(uniqueKeysWithValues: applications.compactMap { app in
+            app.launchDate.map { (app.processIdentifier, $0) }
+        })
         guard AXIsProcessTrusted() else {
             return AXWindowCatalogSnapshot(
                 byPID: [:],
-                capability: .unavailable("Accessibility permission is required for exact window metadata.")
+                enumeratedPIDs: [],
+                unresolvedIdentityPIDs: [],
+                capability: .unavailable("Accessibility permission is required for exact window metadata."),
+                processGenerations: generations
             )
         }
 
         workspaceProvider.refresh()
         var byPID: [pid_t: [CGWindowID: AXWindowMetadata]] = [:]
         byPID.reserveCapacity(applications.count)
+        var elementsByPID: [pid_t: [CGWindowID: AXUIElement]] = [:]
+        var observedAtByPID: [pid_t: Date] = [:]
+        var enumeratedPIDs = Set<pid_t>()
+        var unresolvedIdentityPIDs = Set<pid_t>()
 
         for application in applications {
             let pid = application.processIdentifier
+            observedAtByPID[pid] = Date()
             let axApplication = AXUIElementCreateApplication(pid)
             var value: CFTypeRef?
             guard AXUIElementCopyAttributeValue(
@@ -128,15 +135,19 @@ final class AXWindowCatalog {
             let windows = value as? [AXUIElement] else {
                 continue
             }
+            enumeratedPIDs.insert(pid)
 
             var metadataByID: [CGWindowID: AXWindowMetadata] = [:]
             metadataByID.reserveCapacity(windows.count)
 
             for window in windows {
+                let role = stringValue(of: kAXRoleAttribute as CFString, on: window)
+                guard Self.shouldResolveWindowIdentity(role: role) else { continue }
                 guard let windowID = AXWindowIdentityLookup.windowID(for: window) else {
+                    unresolvedIdentityPIDs.insert(pid)
                     continue
                 }
-                let role = stringValue(of: kAXRoleAttribute as CFString, on: window)
+                elementsByPID[pid, default: [:]][windowID] = window
                 let subrole = stringValue(of: kAXSubroleAttribute as CFString, on: window)
                 let parentRole = parentRole(of: window)
                 let minimized = boolValue(of: kAXMinimizedAttribute as CFString, on: window) ?? false
@@ -185,7 +196,22 @@ final class AXWindowCatalog {
             capability = workspaceStatus
         }
 
-        return AXWindowCatalogSnapshot(byPID: byPID, capability: capability)
+        return AXWindowCatalogSnapshot(
+            byPID: byPID,
+            enumeratedPIDs: enumeratedPIDs,
+            unresolvedIdentityPIDs: unresolvedIdentityPIDs,
+            capability: capability,
+            processGenerations: generations,
+            observedAtByPID: observedAtByPID,
+            elementsByPID: elementsByPID
+        )
+    }
+
+    /// Some applications include their desktop scroll area in AXWindows.
+    /// Its absent CG ID is not a failed window identity and must not disable
+    /// classification of actual window surfaces. An unreadable role stays unknown.
+    static func shouldResolveWindowIdentity(role: String?) -> Bool {
+        role == nil || role == (kAXWindowRole as String)
     }
 
     static func isEligible(

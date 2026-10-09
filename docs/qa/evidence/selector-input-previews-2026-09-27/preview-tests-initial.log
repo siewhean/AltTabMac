@@ -1,0 +1,79 @@
+Building for debugging...
+[Using on-disk description]
+[1 / 5] CmdTab
+[2 / 6] CmdTabTests-product
+[4 / 8] CmdTabTests-product
+[9 / 11] CmdTabTests-product
+Build complete! (2.38 secs)
+Test Suite 'Selected tests' started at 2026-09-27 23:03:53.532.
+Test Suite 'CmdTabTests.xctest' started at 2026-09-27 23:03:53.533.
+Test Suite 'MinimizedPreviewRetentionTests' started at 2026-09-27 23:03:53.533.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testByteBudgetEvictsLeastRecentlyUsedAndDownscalesLargeCapture]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testByteBudgetEvictsLeastRecentlyUsedAndDownscalesLargeCapture]' passed (0.098 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testClosedWindowCannotBeResurrectedByInFlightCapture]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testClosedWindowCannotBeResurrectedByInFlightCapture]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testEnrichedLiveClonePreservesCaptureTimeAndCannotReplaceNewerRecovery]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testEnrichedLiveClonePreservesCaptureTimeAndCannotReplaceNewerRecovery]' passed (0.058 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testIncompleteEnumerationPreservesButCompleteClosurePurges]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testIncompleteEnumerationPreservesButCompleteClosurePurges]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testOlderCompleteSnapshotCannotEraseOrReplaceNewerIdentity]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testOlderCompleteSnapshotCannotEraseOrReplaceNewerIdentity]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testReplacementAndProcessGenerationPurgeEvenBeforeNormalExpiry]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testReplacementAndProcessGenerationPurgeEvenBeforeNormalExpiry]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testTerminationAndDenialPurgeRetainedFrames]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testTerminationAndDenialPurgeRetainedFrames]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testVerifiedMinimizedFrameSurvivesLongAbsenceWithOriginalCaptureDateAndNoBackdrop]' started.
+Test Case '-[CmdTabTests.MinimizedPreviewRetentionTests testVerifiedMinimizedFrameSurvivesLongAbsenceWithOriginalCaptureDateAndNoBackdrop]' passed (0.000 seconds).
+Test Suite 'MinimizedPreviewRetentionTests' passed at 2026-09-27 23:03:53.691.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.158 (0.158) seconds
+Test Suite 'PreviewContinuitySafetyTests' started at 2026-09-27 23:03:53.691.
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testExactMetadataKeyCannotCrossProcessGeneration]' started.
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testExactMetadataKeyCannotCrossProcessGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testIdentityContinuityIsLongLivedButNeverCrossesWindowOrProcessGeneration]' started.
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testIdentityContinuityIsLongLivedButNeverCrossesWindowOrProcessGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testPermissionDenialRequiresStableFalseSignalAndSuccessfulAccessResetsIt]' started.
+Test Case '-[CmdTabTests.PreviewContinuitySafetyTests testPermissionDenialRequiresStableFalseSignalAndSuccessfulAccessResetsIt]' passed (0.000 seconds).
+Test Suite 'PreviewContinuitySafetyTests' passed at 2026-09-27 23:03:53.692.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.000 (0.001) seconds
+Test Suite 'PreviewRecoveryRefreshTests' started at 2026-09-27 23:03:53.692.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testCaptureDimensionsPreserveWideAndPortraitAspectRatios]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testCaptureDimensionsPreserveWideAndPortraitAspectRatios]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testModernCaptureUsesSampleBuffersOnlyForFullscreenWindows]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testModernCaptureUsesSampleBuffersOnlyForFullscreenWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testNewerIdentityFrameWinsOverStaleExactMetadataFrame]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testNewerIdentityFrameWinsOverStaleExactMetadataFrame]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testNewLifecycleTokenResetsFailureAndStaleCancellationCannotRemoveNewRequest]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testNewLifecycleTokenResetsFailureAndStaleCancellationCannotRemoveNewRequest]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testPermissionDenialDoesNotRequestAutonomousCaptureRetry]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testPermissionDenialDoesNotRequestAutonomousCaptureRetry]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testRecoveryRejectsRecycledOrUnknownOwnerGeneration]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testRecoveryRejectsRecycledOrUnknownOwnerGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testRepeatedFailuresBackOffAndSuccessResetsFailureCount]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testRepeatedFailuresBackOffAndSuccessResetsFailureCount]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testReusedItemImageDoesNotOverwriteNewerRecoveredFrame]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testReusedItemImageDoesNotOverwriteNewerRecoveredFrame]' passed (0.028 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testSettledRecoveryMetadataIsBoundedWithoutEvictingActiveRequest]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testSettledRecoveryMetadataIsBoundedWithoutEvictingActiveRequest]' passed (0.061 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testSuccessfulCaptureDeduplicatesNotificationRefreshButAllowsLaterRefresh]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testSuccessfulCaptureDeduplicatesNotificationRefreshButAllowsLaterRefresh]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testTransientFailureRetriesAcrossSlowWindowRenderingThenStops]' started.
+Test Case '-[CmdTabTests.PreviewRecoveryRefreshTests testTransientFailureRetriesAcrossSlowWindowRenderingThenStops]' passed (0.000 seconds).
+Test Suite 'PreviewRecoveryRefreshTests' passed at 2026-09-27 23:03:53.784.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 0.091 (0.092) seconds
+Test Suite 'PreviewStatePublicationTests' started at 2026-09-27 23:03:53.784.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testApplicationFallbackIsNeverAnnouncedAsNormalWindow]' started.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testApplicationFallbackIsNeverAnnouncedAsNormalWindow]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testFailureStatesLeavePendingAfterBoundedRetries]' started.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testFailureStatesLeavePendingAfterBoundedRetries]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testSlowBackgroundWindowRecoversWithoutActivationAndKeepsSavedFrameWhileRetrying]' started.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testSlowBackgroundWindowRecoversWithoutActivationAndKeepsSavedFrameWhileRetrying]' passed (1.683 seconds).
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testTerminalFailuresPublishWithoutSuccessAndPermissionDenialDoesNotRetry]' started.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testTerminalFailuresPublishWithoutSuccessAndPermissionDenialDoesNotRetry]' passed (3.632 seconds).
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testTwentyFourAsynchronousRecoveriesPublishBeyondFirstEight]' started.
+Test Case '-[CmdTabTests.PreviewStatePublicationTests testTwentyFourAsynchronousRecoveriesPublishBeyondFirstEight]' passed (8.634 seconds).
+Test Suite 'PreviewStatePublicationTests' passed at 2026-09-27 23:04:07.733.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 13.949 (13.950) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-09-27 23:04:07.733.
+	 Executed 27 tests, with 0 failures (0 unexpected) in 14.198 (14.201) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 23:04:07.733.
+	 Executed 27 tests, with 0 failures (0 unexpected) in 14.198 (14.201) seconds

@@ -74,7 +74,7 @@ struct ClassicGridView: View {
                                         mode: viewModel.mode,
                                         layout: viewModel.layout
                                     )
-                                    .id(idx)
+                                    .id(item.id)
                                     .transition(.switcherItemMutation)
                                     .onHover { hovering in
                                         viewModel.hoveredIndex = hovering ? idx : nil
@@ -87,8 +87,9 @@ struct ClassicGridView: View {
                         }
                         .frame(maxHeight: viewModel.layout.contentHeight)
                         .onChange(of: resolvedSelectedIndex) { idx in
+                            guard viewModel.items.indices.contains(idx) else { return }
                             withAnimation(.easeInOut(duration: 0.12)) {
-                                proxy.scrollTo(idx, anchor: .center)
+                                proxy.scrollTo(viewModel.items[idx].id, anchor: .center)
                             }
                         }
                     }
@@ -136,7 +137,7 @@ struct ClassicItemCardView: View {
                         .interpolation(.high)
                         .frame(width: 20, height: 20)
                 }
-                Text(item.title)
+                Text(windowLabel)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular, design: .rounded))
                     .foregroundColor(.white.opacity(isSelected ? 1.0 : 0.75))
                     .lineLimit(1)
@@ -150,6 +151,15 @@ struct ClassicItemCardView: View {
         .contentShape(Rectangle())
         .scaleEffect(isSelected ? 1.04 : 1.0)
         .animation(.spring(response: 0.16, dampingFraction: 0.78), value: isSelected)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(windowLabel)
+        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : [.isButton])
+    }
+
+    private var windowLabel: String {
+        guard !item.subtitle.isEmpty, item.subtitle != item.title else { return item.title }
+        return "\(item.subtitle) · \(item.title)"
     }
 
     @ViewBuilder
@@ -191,38 +201,38 @@ struct ClassicItemCardView: View {
                 endPoint: .bottomTrailing
             )
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(width: 46, height: 10)
-                    Capsule()
-                        .fill(Color.white.opacity(0.12))
-                        .frame(width: 84, height: 10)
-                    Spacer(minLength: 0)
-                }
-
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
-                    .frame(height: max(48, layout.thumbnailHeight * 0.42))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                    )
-
-                HStack(spacing: 8) {
-                    ForEach(0..<3, id: \.self) { _ in
-                        Capsule()
-                            .fill(Color.white.opacity(0.14))
-                            .frame(height: 8)
+            VStack(spacing: 6) {
+                Group {
+                    if let icon = item.icon {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .interpolation(.high)
+                            .aspectRatio(contentMode: .fit)
+                    } else {
+                        Image(systemName: "app.fill")
+                            .font(.system(size: 32))
+                            .foregroundColor(.white.opacity(0.35))
                     }
                 }
+                .frame(
+                    width: min(48, layout.thumbnailHeight * 0.40),
+                    height: min(48, layout.thumbnailHeight * 0.40)
+                )
+                .shadow(color: Color.black.opacity(0.30), radius: 6, x: 0, y: 3)
+
+                if item.isMinimized {
+                    Text("Minimized")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.45))
+                        .lineLimit(1)
+                }
             }
-            .padding(14)
         }
+        .frame(width: layout.cardWidth, height: layout.thumbnailHeight)
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(Color.white.opacity(0.05), lineWidth: 1)
         )
+        .accessibilityLabel(item.isMinimized ? "Minimized window \(item.title)" : item.title)
     }
 }

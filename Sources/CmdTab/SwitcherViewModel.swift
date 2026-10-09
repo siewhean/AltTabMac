@@ -1,6 +1,14 @@
 import Foundation
 import AppKit
 
+enum PaletteInputCommand {
+    case cancel
+    case confirm
+    case move(Int)
+    case moveUp
+    case moveDown
+}
+
 /// Central observable state for the switcher overlay.
 final class SwitcherViewModel: ObservableObject {
     @Published var items: [SwitcherItem] = []
@@ -16,11 +24,12 @@ final class SwitcherViewModel: ObservableObject {
     /// to determine which card was clicked — eliminates fragile coordinate math.
     @Published var hoveredIndex: Int?
 
-    /// Live search query for the Command Palette style.
-    /// Printable characters typed while the palette is visible are forwarded
-    /// here by HotkeyManager; SwitcherWindowController filters `items` accordingly.
-    /// Cleared automatically when the overlay is dismissed.
+    /// Live query owned by the native Command Palette search field.
     @Published var searchQuery: String = ""
+    /// Incremented when a newly presented Command Palette must restore native
+    /// first-responder focus after SwiftUI rebuilds its hosting hierarchy.
+    @Published var paletteSearchFocusToken: UInt = 0
+    var onPaletteInputCommand: ((PaletteInputCommand) -> Void)?
     @Published var radialViewportState = RadialMenuViewportState()
 
     var resolvedSelectedIndex: Int? {

@@ -1,0 +1,540 @@
+Fetching https://github.com/sparkle-project/Sparkle from cache
+Fetched https://github.com/sparkle-project/Sparkle from cache (2.26s)
+Computing version for https://github.com/sparkle-project/Sparkle
+Computed https://github.com/sparkle-project/Sparkle at 2.9.2 (3.22s)
+Creating working copy for https://github.com/sparkle-project/Sparkle
+Working copy of https://github.com/sparkle-project/Sparkle resolved at 2.9.2
+Fetching binary artifact https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache
+Fetched https://github.com/sparkle-project/Sparkle/releases/download/2.9.2/Sparkle-for-Swift-Package-Manager.zip from cache (0.71s)
+Building for debugging...
+[Pre-planning 1 / 97]
+[Planning deferred tasks]
+[13 / 64]
+[14 / 64]
+[36 / 64]
+[38 / 66] CmdTab
+[43 / 170]
+[50 / 170]
+[55 / 170]
+[60 / 170]
+[62 / 170]
+[68 / 170]
+[69 / 170]
+[71 / 170]
+[74 / 170]
+[79 / 170]
+[82 / 170]
+[84 / 170]
+[85 / 170]
+[92 / 170]
+[97 / 170]
+[101 / 170]
+[104 / 170]
+[107 / 170]
+[108 / 170]
+[113 / 170]
+[114 / 170]
+[116 / 170]
+[120 / 170] CmdTab-product
+[124 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherView.swift:69:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 67 |             featureHints.presentHint(for: preferences.switcherStyle)
+ 68 |         }
+ 69 |         .onChange(of: preferences.switcherStyle) { style in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 70 |             featureHints.presentHint(for: style)
+ 71 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[132 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift:32:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 30 |             }
+ 31 |         }
+ 32 |         .onChange(of: controller.status) { newStatus in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 33 |             let newSignature = statusSignature(for: newStatus)
+ 34 |             let wasLicensed = lastStatusSignature.hasPrefix("licensed:")
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift:24:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 22 |             licensingController.refreshStatus()
+ 23 |         }
+ 24 |         .onChange(of: settings.releaseChannel) { _ in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 25 |             licensingController.refreshStatus()
+ 26 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift:27:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 25 |             licensingController.refreshStatus()
+ 26 |         }
+ 27 |         .onChange(of: settings.licensingScenario) { _ in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 28 |             licensingController.refreshStatus()
+ 29 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[134 / 170] CmdTab-product
+[135 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift:89:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 87 |                         }
+ 88 |                         .frame(maxHeight: viewModel.layout.contentHeight)
+ 89 |                         .onChange(of: resolvedSelectedIndex) { idx in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 90 |                             withAnimation(.easeInOut(duration: 0.12)) {
+ 91 |                                 proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:111:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+109 |                         .id(paletteListIdentity)
+110 |                     }
+111 |                     .onChange(of: resolvedSelectedIndex) { idx in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+112 |                         withAnimation(.easeInOut(duration: 0.10)) {
+113 |                             proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:116:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+114 |                         }
+115 |                     }
+116 |                     .onChange(of: viewModel.searchQuery) { _ in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+117 |                         // Snap to top whenever the filter changes so the first result is visible.
+118 |                         proxy.scrollTo(0, anchor: .top)
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[136 / 170] CmdTab-product
+[137 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/SwitcherView.swift:69:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 67 |             featureHints.presentHint(for: preferences.switcherStyle)
+ 68 |         }
+ 69 |         .onChange(of: preferences.switcherStyle) { style in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 70 |             featureHints.presentHint(for: style)
+ 71 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[138 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:901:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 899 | 
+ 900 |         app.unhide()
+ 901 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 902 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 903 |         _ = AXUIElementSetAttributeValue(
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionProfilePreferences.swift:732:46: warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+728 |         guard !isLoading else { return }
+729 |         isLoading = true
+730 |         DispatchQueue.global(qos: .userInitiated).async {
+    |                                                         |- note: 'self' implicitly strongly captured here
+    |                                                         `- note: add 'self' as a capture list item to silence
+731 |             let discovered = Self.discoverApplications()
+732 |             DispatchQueue.main.async { [weak self] in
+    |                                              |- warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+    |                                              `- note: explicitly assign the capture list item to silence
+733 |                 MainActor.assumeIsolated {
+734 |                     self?.options = discovered
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:235:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+233 |                     .frame(maxHeight: viewModel.layout.contentHeight)
+234 |                     .scrollIndicatorsFlash(onAppear: true)
+235 |                     .onChange(of: selectedIndex) { index in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+236 |                         withAnimation(.easeInOut(duration: 0.12)) {
+237 |                             proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:343:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+341 |                             }
+342 |                         }
+343 |                         .onChange(of: selectedIndex) { index in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+344 |                             withAnimation(.easeInOut(duration: 0.10)) {
+345 |                                 proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:348:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+346 |                             }
+347 |                         }
+348 |                         .onChange(of: viewModel.searchQuery) { _ in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+349 |                             proxy.scrollTo(0, anchor: .top)
+350 |                         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#ImplicitStrongCapture]: <https://docs.swift.org/compiler/documentation/diagnostics/implicit-strong-capture>
+[139 / 170] CmdTab
+[140 / 170] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:838:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 836 | 
+ 837 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 838 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 839 |         } else {
+ 840 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:844:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 842 |                let windows = value as? [AXUIElement],
+ 843 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 844 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 845 |             }
+ 846 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:981:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 979 |         app.unhide()
+ 980 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 981 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 982 |             : [.activateIgnoringOtherApps]
+ 983 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:982:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 980 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 981 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 982 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 983 |         let didActivate = app.activate(options: options)
+ 984 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1650:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1648 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1649 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1650 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1651 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1652 |         guard prepared.width >= minW, prepared.height >= minH,
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[141 / 170] CmdTab
+[141 / 170] CmdTab-product
+[142 / 170] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ClassicGridView.swift:89:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 87 |                         }
+ 88 |                         .frame(maxHeight: viewModel.layout.contentHeight)
+ 89 |                         .onChange(of: resolvedSelectedIndex) { idx in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 90 |                             withAnimation(.easeInOut(duration: 0.12)) {
+ 91 |                                 proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:111:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+109 |                         .id(paletteListIdentity)
+110 |                     }
+111 |                     .onChange(of: resolvedSelectedIndex) { idx in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+112 |                         withAnimation(.easeInOut(duration: 0.10)) {
+113 |                             proxy.scrollTo(idx, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/CommandPaletteView.swift:116:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+114 |                         }
+115 |                     }
+116 |                     .onChange(of: viewModel.searchQuery) { _ in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+117 |                         // Snap to top whenever the filter changes so the first result is visible.
+118 |                         proxy.scrollTo(0, anchor: .top)
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[145 / 170] CmdTab
+[146 / 170] CmdTabTests-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppDelegate.swift:165:51: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+163 |             .filter { $0.processIdentifier != currentProcessIdentifier }
+164 | 
+165 |         otherInstances.first?.activate(options: [.activateIgnoringOtherApps])
+    |                                                   `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+166 |     }
+167 | 
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:838:13: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 836 | 
+ 837 |         if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
+ 838 |             raiseWindow(preferred, ownerPID: app.processIdentifier)
+     |             `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 839 |         } else {
+ 840 |             var value: CFTypeRef?
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:844:17: warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 842 |                let windows = value as? [AXUIElement],
+ 843 |                let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
+ 844 |                 raiseWindow(target, ownerPID: app.processIdentifier)
+     |                 `- warning: result of call to 'raiseWindow(_:ownerPID:)' is unused [#NoUsage]
+ 845 |             }
+ 846 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:981:38: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 979 |         app.unhide()
+ 980 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 981 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+     |                                      `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 982 |             : [.activateIgnoringOtherApps]
+ 983 |         let didActivate = app.activate(options: options)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:982:17: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 980 |         let options: NSApplication.ActivationOptions = activateAllWindows
+ 981 |             ? [.activateAllWindows, .activateIgnoringOtherApps]
+ 982 |             : [.activateIgnoringOtherApps]
+     |                 `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 983 |         let didActivate = app.activate(options: options)
+ 984 |         let axApp = AXUIElementCreateApplication(app.processIdentifier)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/AppSwitcher.swift:1650:29: warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1648 |     private func cgCapture(_ rect: CGRect, _ listOption: CGWindowListOption, _ wid: CGWindowID,
+1649 |                            _ imageOption: CGWindowImageOption, minW: Int, minH: Int) -> NSImage? {
+1650 |         guard let cgImage = CGWindowListCreateImage(rect, listOption, wid, imageOption) else { return nil }
+     |                             `- warning: 'CGWindowListCreateImage' was deprecated in macOS 14.0: Please use ScreenCaptureKit instead. [#DeprecatedDeclaration]
+1651 |         let prepared = Self.presentationPreparedWindowCapture(cgImage)
+1652 |         guard prepared.width >= minW, prepared.height >= minH,
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#NoUsage]: <https://docs.swift.org/compiler/documentation/diagnostics/no-usage>
+[147 / 170] CmdTab-product
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/LicensingPreferencesPane.swift:32:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 30 |             }
+ 31 |         }
+ 32 |         .onChange(of: controller.status) { newStatus in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 33 |             let newSignature = statusSignature(for: newStatus)
+ 34 |             let wasLicensed = lastStatusSignature.hasPrefix("licensed:")
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[149 / 170] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift:24:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 22 |             licensingController.refreshStatus()
+ 23 |         }
+ 24 |         .onChange(of: settings.releaseChannel) { _ in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 25 |             licensingController.refreshStatus()
+ 26 |         }
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/DeveloperPreferencesPane.swift:27:10: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 25 |             licensingController.refreshStatus()
+ 26 |         }
+ 27 |         .onChange(of: settings.licensingScenario) { _ in
+    |          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+ 28 |             licensingController.refreshStatus()
+ 29 |         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[150 / 170] CmdTab
+[151 / 170] CmdTab
+[155 / 170] CmdTab
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionAppSwitcher.swift:901:37: warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 899 | 
+ 900 |         app.unhide()
+ 901 |         _ = app.activate(options: [.activateIgnoringOtherApps])
+     |                                     `- warning: 'activateIgnoringOtherApps' was deprecated in macOS 14.0: ignoringOtherApps is deprecated in macOS 14 and will have no effect. [#DeprecatedDeclaration]
+ 902 |         let axApp = AXUIElementCreateApplication(metadata.ownerPID)
+ 903 |         _ = AXUIElementSetAttributeValue(
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionProfilePreferences.swift:732:46: warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+728 |         guard !isLoading else { return }
+729 |         isLoading = true
+730 |         DispatchQueue.global(qos: .userInitiated).async {
+    |                                                         |- note: 'self' implicitly strongly captured here
+    |                                                         `- note: add 'self' as a capture list item to silence
+731 |             let discovered = Self.discoverApplications()
+732 |             DispatchQueue.main.async { [weak self] in
+    |                                              |- warning: 'weak' ownership of capture 'self' differs from implicitly-captured strong reference in outer scope [#ImplicitStrongCapture]
+    |                                              `- note: explicitly assign the capture list item to silence
+733 |                 MainActor.assumeIsolated {
+734 |                     self?.options = discovered
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:235:22: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+233 |                     .frame(maxHeight: viewModel.layout.contentHeight)
+234 |                     .scrollIndicatorsFlash(onAppear: true)
+235 |                     .onChange(of: selectedIndex) { index in
+    |                      `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+236 |                         withAnimation(.easeInOut(duration: 0.12)) {
+237 |                             proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:343:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+341 |                             }
+342 |                         }
+343 |                         .onChange(of: selectedIndex) { index in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+344 |                             withAnimation(.easeInOut(duration: 0.10)) {
+345 |                                 proxy.scrollTo(index, anchor: .center)
+
+/Users/Siew Hean/Documents/GitHub/CmdTab/Sources/CmdTab/ProductionSwitcherVisuals.swift:348:26: warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+346 |                             }
+347 |                         }
+348 |                         .onChange(of: viewModel.searchQuery) { _ in
+    |                          `- warning: 'onChange(of:perform:)' was deprecated in macOS 14.0: Use `onChange` with a two or zero parameter action closure instead. [#DeprecatedDeclaration]
+349 |                             proxy.scrollTo(0, anchor: .top)
+350 |                         }
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[#ImplicitStrongCapture]: <https://docs.swift.org/compiler/documentation/diagnostics/implicit-strong-capture>
+[160 / 171] CmdTabTests-product
+[162 / 190]
+[164 / 190]
+[165 / 190]
+[166 / 190]
+[171 / 190] CmdTabTests-product
+[174 / 190] CmdTabTests-product
+[181 / 190] CmdTabTests-product
+[183 / 190] CmdTabTests-product
+[184 / 190] AllIncludingTests
+[184 / 190] CmdTabTests-product
+[186 / 190] CmdTabTests-product
+[188 / 190] CmdTabTests-product
+Build complete! (28.73 secs)
+Test Suite 'Selected tests' started at 2026-09-27 17:37:23.567.
+Test Suite 'CmdTabTests.xctest' started at 2026-09-27 17:37:23.571.
+Test Suite 'AppSwitcherActivationTests' started at 2026-09-27 17:37:23.571.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testDeduplicateCandidateProbesCollapsesDuplicateEntriesForSameWindowID]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testDeduplicateCandidateProbesPreservesDistinctWindowIDs]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testDeduplicateCandidateProbesPreservesDistinctWindowIDs]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testEmptyItemsReturnsEmpty]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testEmptyItemsReturnsEmpty]' passed (0.006 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFallbackAppIsDroppedWhenTheSameProcessAlreadyHasAWindow]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFallbackAppIsDroppedWhenTheSameProcessAlreadyHasAWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFallbackAppsRemainDistinctForProcessesSharingABundleIdentifier]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFallbackAppsRemainDistinctForProcessesSharingABundleIdentifier]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFinderArcFinderHistoryHasNoDuplicates]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFinderArcFinderHistoryHasNoDuplicates]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFinderArcFinderOrderingSelectsArcFirst]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFinderArcFinderOrderingSelectsArcFirst]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIdentityMembershipIncludesAXOmission]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIdentityMembershipIncludesAXOmission]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIdentityMembershipRejectsOnlyPositiveAXExclusion]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIdentityMembershipRejectsOnlyPositiveAXExclusion]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIsNeverAtIndexZero]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testFrontmostIsNeverAtIndexZero]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testMultipleWindowsSameAppUsesCorrectFrontmostWindow]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testMultipleWindowsSameAppUsesCorrectFrontmostWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testNoteActivationMovesPreviousEntryToFront]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testNoteActivationMovesPreviousEntryToFront]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testNoteActivationSameIdentityTwiceKeepsItAtRankZero]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testNoteActivationSameIdentityTwiceKeepsItAtRankZero]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testOwnerPIDReturnsCorrectValueForAppFallback]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testOwnerPIDReturnsCorrectValueForAppFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testOwnerPIDReturnsCorrectValueForAppWindow]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testOwnerPIDReturnsCorrectValueForAppWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPIDBasedMatchingWorksAcrossWindowIDChanges]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPIDBasedMatchingWorksAcrossWindowIDChanges]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationSafeWindowCaptureCropsTopAndSideFringe]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationSafeWindowCaptureCropsTopAndSideFringe]' passed (0.118 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationUsefulWindowCaptureKeepsDarkImageWithVisibleContent]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationUsefulWindowCaptureKeepsDarkImageWithVisibleContent]' passed (0.005 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationUsefulWindowCaptureRejectsSolidBlackImage]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPresentationUsefulWindowCaptureRejectsSolidBlackImage]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPreviewCacheKeyChangesWhenWindowMetadataChanges]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPreviewCacheKeyChangesWhenWindowMetadataChanges]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPreviewlessWindowTilesRemainVisibleInEveryCachePhase]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testPreviewlessWindowTilesRemainVisibleInEveryCachePhase]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testQuickRePressAfterEagerHistoryNoteOffersCorrectApp]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testQuickRePressAfterEagerHistoryNoteOffersCorrectApp]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSecondSwitchNeverLandsOnSameApp]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSecondSwitchNeverLandsOnSameApp]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowAcceptsMinimizedWindowsWhenIncluded]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowAcceptsMinimizedWindowsWhenIncluded]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsChildWindows]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsChildWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsMinimizedWindows]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsMinimizedWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsMissingSubroleForSwitcherDisplay]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testShouldAllowAXWindowRejectsMissingSubroleForSwitcherDisplay]' passed (0.002 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSingleAppResultsInOneItem]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSingleAppResultsInOneItem]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSwitcherDisplaySubroleRejectsFloatingPanels]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testSwitcherDisplaySubroleRejectsFloatingPanels]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testThreeConsecutiveSwitchesAlternateCorrectly]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testThreeConsecutiveSwitchesAlternateCorrectly]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testThreeDistinctAppsInSequenceOffersCorrectOrder]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testThreeDistinctAppsInSequenceOffersCorrectOrder]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testTrimmedWindowCaptureRemovesTransparentBorder]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testTrimmedWindowCaptureRemovesTransparentBorder]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testWithoutSuppressionWrongWindowGetsGrouped]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testWithoutSuppressionWrongWindowGetsGrouped]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testWithSuppressionOnlyCorrectWindowNoted]' started.
+Test Case '-[CmdTabTests.AppSwitcherActivationTests testWithSuppressionOnlyCorrectWindowNoted]' passed (0.000 seconds).
+Test Suite 'AppSwitcherActivationTests' passed at 2026-09-27 17:37:23.715.
+	 Executed 34 tests, with 0 failures (0 unexpected) in 0.141 (0.145) seconds
+Test Suite 'ProductionWindowReconciliationTests' started at 2026-09-27 17:37:23.715.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests test24WindowsAcrossApplicationsPreserveSiblingsAndExplicitMinimizedProfile]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests test24WindowsAcrossApplicationsPreserveSiblingsAndExplicitMinimizedProfile]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testAXOmissionDoesNotRemoveEligibleCGSibling]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testAXOmissionDoesNotRemoveEligibleCGSibling]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedExactWindowSuppressesNewBaseFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedExactWindowSuppressesNewBaseFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedMergeRemovesFallbackWhenExactWindowArrives]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCachedMergeRemovesFallbackWhenExactWindowArrives]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdMinimizedSiblingsPublishWithoutFallbackOrPreviews]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdMinimizedSiblingsPublishWithoutFallbackOrPreviews]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdPublicationWaitsForWholeInventory]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testColdPublicationWaitsForWholeInventory]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteEmptyInventoryDoesNotReintroduceProvisionalWindows]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteEmptyInventoryDoesNotReintroduceProvisionalWindows]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteInventoryPublishesAll24WindowsAndAsyncPreviewBeyondEight]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testCompleteInventoryPublishesAll24WindowsAndAsyncPreviewBeyondEight]' passed (0.010 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testEveryEligibleProcessGetsOneFallbackIncludingSharedBundleProcesses]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testEveryEligibleProcessGetsOneFallbackIncludingSharedBundleProcesses]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFallbackRetainsFactoryActivationClosure]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFallbackRetainsFactoryActivationClosure]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFilteredWindowIsNotReintroducedIntoEmptyOrFallbackSnapshot]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFilteredWindowIsNotReintroducedIntoEmptyOrFallbackSnapshot]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFinalFilteringReplacesOnlyMinimizedWindowWithApplicationFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testFinalFilteringReplacesOnlyMinimizedWindowWithApplicationFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testGloballyExcludedProcessCannotReappearAsWindowOrFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testGloballyExcludedProcessCannotReappearAsWindowOrFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testIncludedMinimizedWindowSuppressesFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testIncludedMinimizedWindowSuppressesFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testLifecycleSnapshotDistinguishesIncompleteAndEmptyProcessInventories]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testLifecycleSnapshotDistinguishesIncompleteAndEmptyProcessInventories]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProfileDoesNotGainUnscopedFallbackOrUnknownWindow]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProfileDoesNotGainUnscopedFallbackOrUnknownWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProvisionalSnapshotCannotReintroduceUnscopedFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testNarrowProvisionalSnapshotCannotReintroduceUnscopedFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testPositiveRoleRejectionReplacesWindowWithFallback]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testPositiveRoleRejectionReplacesWindowWithFallback]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testProfileExclusionAppliesToExactAndFallbackItems]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testProfileExclusionAppliesToExactAndFallbackItems]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testRealAsyncProductionPublicationUpdates24thWindow]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testRealAsyncProductionPublicationUpdates24thWindow]' passed (0.070 seconds).
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testUnchangedInputRefreshesAfterMetadataAgeButNotOnImmediatePublication]' started.
+Test Case '-[CmdTabTests.ProductionWindowReconciliationTests testUnchangedInputRefreshesAfterMetadataAgeButNotOnImmediatePublication]' passed (0.000 seconds).
+Test Suite 'ProductionWindowReconciliationTests' passed at 2026-09-27 17:37:23.800.
+	 Executed 21 tests, with 0 failures (0 unexpected) in 0.083 (0.085) seconds
+Test Suite 'UnknownCGSurfaceMembershipTests' started at 2026-09-27 17:37:23.800.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testClosedWindowsAndTerminatedProcessesLoseConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testConfirmationSurvivesAXOmissionOnlyForSameLiveProcessGeneration]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testDeniedFailedIncompleteOrUnresolvedAXPreservesCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testExactAXAndPreviouslyConfirmedWindowsArePreserved]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testFailedRefreshDoesNotRelabelOldEvidenceAsFresh]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedDialogSiblingClassifiesHelperWithoutPublishingMinimizedWindow]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedSiblingEvidenceDoesNotOverrideUnknownWindowSafeguards]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMinimizedStandardSiblingStillExcludesUnnamedOffscreenHelpers]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testMissingCGTitleIsNotConfusedWithExplicitlyEmptyTitle]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testNoApprovedSiblingAndExpiredCatalogPreserveCandidate]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testPositiveRejectionStillWinsOverHistoricalConfirmation]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawClassificationFeedsFinalPublicationWithoutExtraTile]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testRawUnnamedOffscreenSurfaceWithCompleteFreshAXSiblingIsExcluded]' passed (0.000 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testSlowSiblingDoesNotDisableHelperPolicyForEarlierApplication]' passed (0.001 seconds).
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' started.
+Test Case '-[CmdTabTests.UnknownCGSurfaceMembershipTests testVisibleUntitledAndOffspaceTitledWindowsArePreserved]' passed (0.000 seconds).
+Test Suite 'UnknownCGSurfaceMembershipTests' passed at 2026-09-27 17:37:23.804.
+	 Executed 15 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'CmdTabTests.xctest' passed at 2026-09-27 17:37:23.804.
+	 Executed 70 tests, with 0 failures (0 unexpected) in 0.228 (0.233) seconds
+Test Suite 'Selected tests' passed at 2026-09-27 17:37:23.804.
+	 Executed 70 tests, with 0 failures (0 unexpected) in 0.228 (0.236) seconds

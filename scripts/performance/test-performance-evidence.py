@@ -22,20 +22,24 @@ SOURCE_SHA = "a" * 40
 def measurement(index: int, *, rss: int = 100_000_000) -> dict:
     return {
         "index": index,
-        "revealMilliseconds": 250.0,
+        "revealMilliseconds": 60.0,
         "selectionMilliseconds": 20.0,
         "observationCaptureMilliseconds": 8.0,
         "cpuMilliseconds": 15.0,
         "residentBytes": rss,
         "eventTapState": "responsive",
-        "failure": None,
+        "interruptionCode": None,
+        "interruptionDetail": None,
+        "previewIntegrity": "observed",
+        "activationOutcome": "fixture_application_frontmost_verified",
+        "cmdTabRunningAfterSession": True,
     }
 
 
 def document(window_count: int, sessions: int, mode: str) -> dict:
     return {
         "metadata": {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "sourceSHA": SOURCE_SHA,
             "runKind": mode,
             "hostOS": "Test macOS",
@@ -46,6 +50,11 @@ def document(window_count: int, sessions: int, mode: str) -> dict:
         "preconditions": {
             "accessibilityTrusted": True,
             "screenCaptureAuthorized": True,
+            "secureInputObservation": "not_observable_by_probe",
+            "eventTapHIDObservation": "external_behavioral_proxy_only",
+            "candidateLaunchStatus": "exact_bundle_verified",
+            "candidateFrontmostStatus": "verified",
+            "cmdTabProcessRunning": True,
             "fixtureWindowCountExpected": window_count,
             "fixtureWindowCountObserved": window_count,
         },
@@ -53,6 +62,15 @@ def document(window_count: int, sessions: int, mode: str) -> dict:
         "idleCPUPercent": 0.5,
         "evidenceState": "measured",
         "evidenceStateReason": "test",
+        "prerequisiteInterruptions": [],
+        "activationOutcomeMetrics": {
+            "requested": sessions,
+            "exactVerified": sessions,
+            "applicationFallbackUnverified": 0,
+            "targetDisappeared": 0,
+            "accessibilityUnavailable": 0,
+            "verificationFailure": 0,
+        },
         "eventTapObservationMethod": "test proxy",
     }
 
@@ -103,9 +121,30 @@ class PerformanceEvidenceTests(unittest.TestCase):
         self.assertEqual(manifest["state"], "blocked")
         self.assertIn("clean Git worktree", " ".join(manifest["reasons"]))
 
+    def test_activation_metrics_must_reconcile_to_measured_sessions(self) -> None:
+        documents = self.write_documents("readiness")
+        documents[0][1]["activationOutcomeMetrics"] = {
+            "requested": 0,
+            "exactVerified": 0,
+            "applicationFallbackUnverified": 0,
+            "targetDisappeared": 0,
+            "accessibilityUnavailable": 0,
+            "verificationFailure": 0,
+        }
+        documents[0][0].write_text(json.dumps(documents[0][1]), encoding="utf-8")
+        manifest, passed = MODULE.evaluate(
+            documents,
+            mode="readiness",
+            source_sha=SOURCE_SHA,
+            source_clean=True,
+        )
+        self.assertFalse(passed)
+        self.assertIn("requested activation count", " ".join(manifest["reasons"]))
+
     def test_blocked_raw_run_cannot_create_measurements(self) -> None:
         documents = self.write_documents("readiness")
         documents[0][1]["evidenceState"] = "blocked"
+        documents[0][1]["prerequisiteInterruptions"] = ["accessibility_unavailable"]
         documents[0][1]["measurements"] = []
         documents[0][0].write_text(
             json.dumps(documents[0][1]),
@@ -119,7 +158,7 @@ class PerformanceEvidenceTests(unittest.TestCase):
         )
         self.assertFalse(passed)
         self.assertIn(
-            "contain no measurements",
+            "typed prerequisite interruptions",
             " ".join(manifest["reasons"]),
         )
 
@@ -156,6 +195,19 @@ class PerformanceEvidenceTests(unittest.TestCase):
         )
         self.assertFalse(passed)
         self.assertIn("reveal_p95_ms", " ".join(manifest["reasons"]))
+
+        documents = self.write_documents("readiness")
+        for row in documents[0][1]["measurements"]:
+            row["revealMilliseconds"] = 100.0
+        documents[0][0].write_text(json.dumps(documents[0][1]), encoding="utf-8")
+        manifest, passed = MODULE.evaluate(
+            documents,
+            mode="readiness",
+            source_sha=SOURCE_SHA,
+            source_clean=True,
+        )
+        self.assertFalse(passed)
+        self.assertIn("reveal_p50_ms", " ".join(manifest["reasons"]))
 
     def test_non_finite_measurement_is_rejected(self) -> None:
         documents = self.write_documents("readiness")
@@ -212,6 +264,47 @@ class PerformanceEvidenceTests(unittest.TestCase):
         reasons = " ".join(manifest["reasons"])
         self.assertIn("schema version", reasons)
         self.assertIn("requires Accessibility", reasons)
+
+    def test_reveal_p50_and_p95_gates_are_enforced(self) -> None:
+        documents = self.write_documents("readiness")
+        documents[0][1]["measurements"][-1]["revealMilliseconds"] = 200.0
+        documents[0][0].write_text(json.dumps(documents[0][1]), encoding="utf-8")
+        manifest, passed = MODULE.evaluate(
+            documents,
+            mode="readiness",
+            source_sha=SOURCE_SHA,
+            source_clean=True,
+        )
+        self.assertFalse(passed)
+        self.assertIn("reveal_p95_ms", " ".join(manifest["reasons"]))
+
+    def test_unknown_typed_interruption_is_rejected(self) -> None:
+        documents = self.write_documents("readiness")
+        documents[0][1]["measurements"][0]["interruptionCode"] = "invented"
+        documents[0][1]["measurements"][0]["interruptionDetail"] = "test"
+        documents[0][0].write_text(json.dumps(documents[0][1]), encoding="utf-8")
+        manifest, passed = MODULE.evaluate(
+            documents,
+            mode="readiness",
+            source_sha=SOURCE_SHA,
+            source_clean=True,
+        )
+        self.assertFalse(passed)
+        self.assertIn("unknown interruption code", " ".join(manifest["reasons"]))
+
+    def test_active_secure_input_or_hid_rejection_cannot_be_measured(self) -> None:
+        documents = self.write_documents("readiness")
+        documents[0][1]["preconditions"]["secureInputObservation"] = "active"
+        documents[0][1]["preconditions"]["eventTapHIDObservation"] = "rejected"
+        documents[0][0].write_text(json.dumps(documents[0][1]), encoding="utf-8")
+        manifest, passed = MODULE.evaluate(
+            documents,
+            mode="readiness",
+            source_sha=SOURCE_SHA,
+            source_clean=True,
+        )
+        self.assertFalse(passed)
+        self.assertIn("exact running candidate", " ".join(manifest["reasons"]))
 
 
 if __name__ == "__main__":

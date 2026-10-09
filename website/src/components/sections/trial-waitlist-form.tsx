@@ -5,6 +5,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { analyticsAttributes } from "@/lib/analytics";
+import { hasAnalyticsConsent } from "@/lib/analytics-consent";
+import { collectWaitlistAttribution } from "@/lib/waitlist-attribution";
+import { trackSiteEvent } from "@/lib/site-analytics-client";
 
 type FormState =
   | { kind: "idle" }
@@ -34,6 +37,11 @@ export function TrialWaitlistForm() {
           email: email.trim(),
           name: name.trim() || undefined,
           source: "trial_page_waitlist",
+          metadata: collectWaitlistAttribution(
+            window.location.search,
+            window.location.pathname,
+            hasAnalyticsConsent(),
+          ),
           honeypot,
         }),
       });
@@ -55,7 +63,10 @@ export function TrialWaitlistForm() {
 
       setState({
         kind: "success",
-        message: data.message ?? "You're on the list! We'll email you as soon as your trial download is ready.",
+        message: data.message ?? "Your request was received. We’ll email you when early access opens.",
+      });
+      trackSiteEvent("waitlist_form_success_response", {
+        context: "trial_page_waitlist",
       });
       setEmail("");
       setName("");
@@ -107,7 +118,7 @@ export function TrialWaitlistForm() {
 
           <FormField
             id="trial-email"
-            label="Email address for trial download link"
+            label="Email address for waitlist updates"
             type="email"
             name="email"
             autoComplete="email"
