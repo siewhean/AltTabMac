@@ -627,6 +627,17 @@ final class LicensingController: ObservableObject {
         )
     }
 
+    /// Fills in a code from a `cmdtab://activate` link without activating.
+    func prefillActivationCode(_ code: String) {
+        enteredLicenseKey = code
+        licenseMessage = LicensingMessage(
+            tone: .warning,
+            text: currentLicenseID == nil
+                ? "Check that this activation code came from your CmdTab purchase email, then click Activate."
+                : "This link would replace the license on this Mac. Click Activate only if you requested it."
+        )
+    }
+
     @discardableResult
     func activateEnteredLicenseKey() -> Bool {
         activateLicense(enteredLicenseKey)

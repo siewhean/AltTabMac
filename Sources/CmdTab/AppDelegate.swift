@@ -141,12 +141,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         pendingActivationDeepLink = nil
-        let controller = LicensingController.shared
-        controller.enteredLicenseKey = link.activationCode
+        // Any web page can open a cmdtab:// link, so never activate from one
+        // directly: prefill the code and let the user confirm with Activate.
+        LicensingController.shared.prefillActivationCode(link.activationCode)
         preferencesWindowController.showLicensing()
-        Task { @MainActor in
-            _ = await controller.activateEnteredLicenseKeyOnline()
-        }
     }
 
     private func acquireSingletonLock() -> Bool {

@@ -41,7 +41,7 @@ export default function ThankYouPage() {
         headingAs="h1"
         eyebrow="Purchase confirmed"
         title="Thank you for supporting CmdTab."
-        description="Your activation email is the secure hand-off from checkout to the native app. It contains a one-click CmdTab link and a manual code fallback."
+        description="Your activation email is the secure hand-off from checkout to the native app. It contains a link that opens CmdTab with your code filled in, plus a manual code fallback."
         className="pt-14"
       >
         <div className="grid gap-6 lg:grid-cols-3">
