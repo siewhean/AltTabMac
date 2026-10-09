@@ -1,3 +1,58 @@
+## 2026-10-10 — Waitlist consent: double opt-in, verified counting, marketing consent, suppression
+
+Source: `docs/marketing/one-month-1000-active-users-plan.md` blockers. Status: **plan only; blocked on product decisions (below)**. Nothing implemented, no migration written, no production env/DB/Resend touched.
+
+### Verified on `origin/main` (7d0c9ef5, after PR #64)
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Unsubscribe | **Present, conditional** | `src/lib/waitlist-unsubscribe.ts` HMAC token; `api/waitlist/unsubscribe` GET renders a confirm form, POST deletes the row; applicant email carries RFC 8058 `List-Unsubscribe` headers. Only when `WAITLIST_UNSUBSCRIBE_SECRET` is a strong secret. Otherwise mail is sent **without** a link or header, although the form says "Every email has an unsubscribe link". |
+| Suppression | **Missing** | Unsubscribe hard-deletes the row (`deleteWaitlistSignup`). Anyone re-submitting the address re-creates it and it is emailed again. No bounce/complaint handling (no Resend webhook). |
+| Double opt-in | **Missing** | `POST /api/waitlist` upserts immediately and sends a receipt (`renderApplicantWaitlistEmail`); there is no confirmation token or state. |
+| Verified-address counting | **Missing** | `getWaitlistAggregateStats` counts all rows. `delivered` only means Resend accepted the message. With no `DATABASE_URL` the route still returns `ok` after emailing (nothing durable). |
+| Separate marketing consent | **Missing** | Schema has no consent field. The form shows one bundled notice ("beta, trial, and launch"), and there is no consent timestamp or wording version. |
+
+### Proposed design (additive; implement only after decisions)
+
+1. **Schema.** Add `db/migrations/002_waitlist_consent.sql` (file only, not run) and mirror it in `waitlist-store` `ensureSchema` with `add column if not exists`, the existing pattern.
+   - `waitlist_signups`: add `status text not null default 'pending'` (`pending|confirmed`), `confirmed_at`, `confirmation_sent_at`, `marketing_consent boolean not null default false`, `marketing_consent_at`, and `marketing_consent_version text`.
+   - New table `waitlist_suppressions(email_hash text primary key, reason text check (reason in ('unsubscribed','bounced','complained')), created_at)`. `email_hash` is an HMAC under a server secret, so no plaintext is retained.
+2. **Confirmation token.** Stateless HMAC like the unsubscribe token, under the domain-separated context `cmdtab-waitlist-confirm:v1:`. It covers the email and the issue time, with a 7-day expiry (D4), so no token column is needed.
+3. **Signup (`POST /api/waitlist`).**
+   - Fail closed with a 503 unless the DB, Resend and the token secret are all configured. There is no more `ok` without a durable row (D7).
+   - Accept an optional `marketingConsent: boolean`, false by default and set only by an unchecked box.
+   - Suppressed address: return the same generic `ok` and send nothing (enumeration-safe).
+   - Otherwise upsert as `pending`, never downgrading `confirmed`, and send the confirmation email (plan copy, §Email verification) instead of the receipt.
+4. **Confirm (`/api/waitlist/confirm`).**
+   - GET renders a button page, because mail scanners prefetch links. POST verifies the token, then sets `confirmed` and `confirmed_at`.
+   - Marketing consent becomes effective only on confirmation. A server-side aggregate `waitlist_confirmed` event is recorded.
+   - The owner notification moves from signup to confirmation (D8).
+5. **Unsubscribe and suppression.**
+   - POST deletes the row and inserts a suppression hash (D3).
+   - Optional: a second "product updates only" link that clears `marketing_consent` but keeps trial access (D5).
+   - Also stop sending applicant mail when no unsubscribe secret is configured (fail closed).
+6. **Counting.**
+   - Admin stats gain `confirmed`, `pending`, `marketingConsented` and `suppressed`.
+   - The marketing plan reports `confirmed` only. Pending rows never count (D2).
+   - A cron purges `pending` rows older than N days (D4).
+7. **Copy and policy.**
+   - Form checkbox text (D5).
+   - Privacy policy: consent record, pending expiry and the suppression hash. Today's text says unsubscribing deletes the record (`src/content/legal.ts`), which suppression changes (D3).
+8. **Tests.** Token unit tests, plus route tests with faked stores (reusing the `test:licensing` alias harness from PR #75 once merged) and opt-in Postgres store tests.
+
+### Decisions needed before implementation
+
+- [ ] **D1. Existing rows.** Are pre-double-opt-in signups grandfathered as `confirmed`, set to `pending` with a single re-confirmation email, or kept only for the access notice and excluded from counts?
+- [ ] **D2. Unverified signups.** Confirm that pending rows never count toward the 1,000 goal and never receive the trial-ready notice.
+- [ ] **D3. Suppression retention.** Keep an HMAC hash of unsubscribed, bounced or complained addresses indefinitely so the opt-out survives re-submission, or keep today's pure deletion? Keeping the hash requires a privacy-policy change.
+- [ ] **D4. Expiry.** Confirmation-link validity (proposed 7 days) and the purge age for unconfirmed rows (proposed 30 days).
+- [ ] **D5. Marketing consent.** Exact checkbox wording and version id. Proposed: "Also send me occasional CmdTab product updates (optional). Unsubscribe anytime." Also decide whether updates get their own unsubscribe, separate from leaving the waitlist.
+- [ ] **D6. Bounces and complaints.** Add a signed Resend webhook endpoint (new secret) now, or defer and suppress unsubscribes only?
+- [ ] **D7. Fail-closed signup.** With the DB, Resend or token secret missing, signup returns 503 instead of today's `ok`. Confirm production has all three, which this task cannot check.
+- [ ] **D8. Owner notification.** Send it per confirmation, per signup, or replace it with a daily aggregate?
+
+Review: the plan only. Blocker line in the marketing plan updated to the verified state. No behavior change, so no privacy-policy edit.
+
 ## 2026-10-09 — Licensing hardening (audit H1–H3, M3)
 
 User chose a 30-day paid lease, CMDTAB1 exchange-only in release builds, and a salted hardware hash for trials. Commerce has never been enabled, so no customer migration is needed.

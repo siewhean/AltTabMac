@@ -66,7 +66,7 @@ Replace bracketed items only with verified details. Do not claim a release date,
 ## Blockers and status
 
 - Current waitlist aggregate and conversion baseline: **unknown**; get aggregate counts through the protected dashboard before setting the net-new target.
-- Consent-gated campaign attribution is implemented in local source but **not deployed**; it records a request/API-response path, not a confirmed signup. Double opt-in, verified-address counting, separate marketing consent, and unsubscribe/suppression are **not implemented**.
+- Consent-gated campaign attribution is implemented in local source but **not deployed**; it records a request/API-response path, not a confirmed signup. As of 10 October (`main` after PR #64): a signed one-click **unsubscribe** exists, but only when `WAITLIST_UNSUBSCRIBE_SECRET` is configured (otherwise emails go out without the link). It deletes the record rather than suppressing it, so a re-submitted address is emailed again, and bounces and complaints are not handled. **Double opt-in, verified-address counting, separate marketing consent, and suppression are not implemented.** The design and the product decisions it needs are in `tasks/todo.md` (2026-10-10).
 - `hello@cmdtab.net` is the intended contact address but **not an operational mailbox**: DNS has no MX record, and no email/DNS provider is connected. Do not publish contact details or deploy the contact-source change until it is provisioned and verified.
 - Live/source macOS minimum mismatch: **needs resolution before public promotion**.
 - Current traffic is far below the reach needed by the planning model; large partner/community distribution is essential. The goal cannot be guaranteed.

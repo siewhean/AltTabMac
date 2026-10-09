@@ -46,7 +46,10 @@ packaging rejects before build as designed.
 
 Commerce stays fail-closed unless `CMDTAB_REQUIRE_COMMERCE_READY=1` is set
 with the complete database, Lemon Squeezy, email, and KMS configuration; the
-public website remains waitlist-first.
+public website remains waitlist-first. Waitlist double opt-in, verified-address
+counting, separate marketing consent, and unsubscribe suppression are designed
+but not implemented; they await product decisions recorded in
+[`tasks/todo.md`](tasks/todo.md) (2026-10-10).
 
 ## Product
 
