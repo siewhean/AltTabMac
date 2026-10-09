@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 
+import { optionalStrongInternalSecret } from "@/lib/env";
 import { getSql, isDatabaseConfigured } from "@/lib/postgres";
 
 type Bucket = {
@@ -75,8 +76,15 @@ const CLEANUP_INTERVAL_MS = 5 * 60_000;
 const MAX_LOCAL_BUCKET_KEYS = 2_048;
 const MAX_LOCAL_DUPLICATE_KEYS = 2_048;
 
+// Rate-limit keys contain emails and IPs. Keyed with a server secret, a leaked
+// request_controls table cannot be reversed by hashing guessed addresses.
+// Without the secret (local development) plain SHA-256 keeps limits working.
 function sha(value: string) {
-  return createHash("sha256").update(value).digest("hex");
+  const secret = optionalStrongInternalSecret(process.env.REQUEST_FINGERPRINT_SECRET);
+  if (!secret) return createHash("sha256").update(value).digest("hex");
+  return createHmac("sha256", secret)
+    .update(`cmdtab:request-fingerprint:v1\0${value}`)
+    .digest("hex");
 }
 
 export function createFingerprint(value: string) {

@@ -39,6 +39,7 @@ const KNOWN_SECRET_PLACEHOLDERS = new Set([
   "replace_with_a_random_internal_worker_secret",
   "replace_with_a_random_cron_secret",
   "replace_with_a_random_unsubscribe_secret",
+  "replace_with_a_random_fingerprint_secret",
 ]);
 
 export function optionalStrongInternalSecret(value: string | undefined) {

@@ -266,6 +266,9 @@ export async function listTrialClaimsDueForReminder(limit = 100) {
     select *
     from trial_claims
     where reminder_sent_at is null
+      -- Anonymous trials have no deliverable address; mailing the
+      -- placeholder domain only produces bounces.
+      and email not like '%@trial.cmdtab.invalid'
       and ends_at > now()
       and ends_at <= now() + interval '36 hours'
     order by ends_at asc
