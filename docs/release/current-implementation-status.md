@@ -70,8 +70,9 @@ The following cannot be accepted from repository automation alone:
 - clean Apple Silicon and Intel installation and N-to-N+1 update evidence;
 - real 10/25/50-window and 1,000-session performance acceptance on the final
   signed candidate;
-- restored GitHub-hosted runner/account capacity. Current required workflows
-  fail before their first step and therefore provide no source-quality signal.
+- a hosted CI run for the exact release-candidate commit. Runner capacity was
+  restored on 2026-10-09 and the required workflows now execute; a candidate
+  still needs its own successful run.
 
 No release branch or public download may be promoted until every applicable
 external item is evidenced. Unsupported hardware or unavailable credentials

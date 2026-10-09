@@ -241,9 +241,9 @@ npm run prebuild
 npm run build
 ```
 
-The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks when hosted Actions capacity is available.
+The permanent SEO workflow also starts the compiled server and runs rendered, webmaster, evidence, retrieval, showcase-response, and desktop/mobile browser checks.
 
-Hosted GitHub Actions currently may be rejected before a runner executes because the account has no available Actions capacity. A rejected job has no steps or logs and is not a source failure, but it is also not a CI pass. Any temporary waiver must identify that limitation explicitly and retain executable Vercel or local evidence for the affected commands.
+Hosted GitHub Actions capacity has been restored: on 2026-10-09 the Swift, Release Readiness, Security, and SEO and GEO workflows ran to completion (for example Swift and Release Readiness on `main`, runs 37967350531 and 37967350577). Treat a job as a CI pass only when its run shows executed steps and a success conclusion for the reviewed commit; a job rejected before its first step is not a pass.
 
 A Vercel deployment is accepted only when its metadata identifies the reviewed `main` commit and the public domain serves `/showcase`, every referenced media file, the 23-route sitemap, and no unsupported claims.
 

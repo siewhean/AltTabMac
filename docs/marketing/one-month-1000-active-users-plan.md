@@ -67,7 +67,7 @@ Replace bracketed items only with verified details. Do not claim a release date,
 
 - Current waitlist aggregate and conversion baseline: **unknown**; get aggregate counts through the protected dashboard before setting the net-new target.
 - Consent-gated campaign attribution is implemented in local source but **not deployed**; it records a request/API-response path, not a confirmed signup. Double opt-in, verified-address counting, separate marketing consent, and unsubscribe/suppression are **not implemented**.
-- `hello@cmdtab.net` is the intended contact address but **not an operational mailbox**: DNS has no MX record, and no email/DNS provider is connected. Do not publish contact details or deploy the contact-source change until it is provisioned and verified.
+- Contact address is `trycmdtab@gmail.com` (website change in PR #73). Outgoing waitlist/license mail still needs a verified sending domain.
 - Live/source macOS minimum mismatch: **needs resolution before public promotion**.
 - Current traffic is far below the reach needed by the planning model; large partner/community distribution is essential. The goal cannot be guaranteed.
 - Vercel traffic was queried for project `website` on 7 October 2026 using the Web Analytics visits count endpoint with `since=2026-09-07` and `until=2026-10-07`; result: 15 visitors and 35 pageviews. The custom-events query returned HTTP 402. This is an account query snapshot, not a committed analytics export.
