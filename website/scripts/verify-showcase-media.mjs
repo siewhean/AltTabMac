@@ -162,16 +162,17 @@ assert.match(player, /playsInline/, "showcase player must play inline");
 assert.match(player, /prefers-reduced-motion/, "showcase player must respect reduced motion");
 assert.doesNotMatch(player, /togglePlayback|<button|Read the media description|<details/, "showcase media must not expose playback or transcript controls");
 assert.match(structuredData, /videos = assets\.filter/, "VideoObject generation must exclude poster-only entries");
-assert.equal(packageJson.scripts["security:deps"], "npm audit --audit-level=moderate", "dependency audit must fail on moderate advisories");
+assert.equal(packageJson.scripts["security:deps"], "npm audit --omit=dev --audit-level=moderate", "shipped-dependency audit must fail on moderate advisories");
+assert.equal(packageJson.scripts["security:deps:all"], "npm audit --audit-level=moderate", "full dependency audit must remain available");
 assert.match(packageJson.scripts["showcase:generate"], /normalize-showcase-autoplay/, "build must normalize autoplay duration");
 assert.ok(
   packageJson.scripts.prebuild.includes("showcase:generate") || packageJson.scripts["seo:check"].includes("showcase:generate"),
   "Vercel prebuild path must generate HD media",
 );
-assert.equal(packageJson.dependencies.next, "16.2.11", "Next.js patch is not pinned");
+assert.equal(packageJson.dependencies.next, "16.4.0", "Next.js patch is not pinned");
 assert.equal(packageJson.dependencies.resend, "6.18.0", "Resend patch is not pinned");
-assert.equal(packageJson.dependencies.sharp, "0.35.3", "Sharp patch is not pinned");
-assert.equal(packageJson.devDependencies.postcss, "8.5.21", "PostCSS patch is not pinned");
+assert.equal(packageJson.dependencies.sharp, "0.35.5", "Sharp patch is not pinned");
+assert.equal(packageJson.devDependencies.postcss, "8.5.29", "PostCSS patch is not pinned");
 for (const unsupported of ["ScreenCaptureKit fast", "sub-50", "< 20MB", "Universal Binary"]) {
   assert.ok(!showcaseContent.includes(unsupported), `unsupported claim entered showcase content: ${unsupported}`);
 }
