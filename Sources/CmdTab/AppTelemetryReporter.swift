@@ -60,6 +60,15 @@ struct LicenseDeviceListResult: Equatable {
 
 protocol CmdTabServerClient {
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord
+    func startTrial(
+        email: String,
+        installID: String,
+        hardwareID: String?,
+        appVersion: String,
+        osVersion: String
+    ) async throws -> TrialClaimRecord
+    /// Exchanges the current device-bound license lease for a fresh one.
+    func renewLicense(entitlementToken: String, deviceID: String) async throws -> String
     func activateLicense(
         licenseKey: String,
         deviceID: String,
@@ -81,6 +90,25 @@ protocol CmdTabServerClient {
 }
 
 extension CmdTabServerClient {
+    func startTrial(
+        email: String,
+        installID: String,
+        hardwareID: String?,
+        appVersion: String,
+        osVersion: String
+    ) async throws -> TrialClaimRecord {
+        try await startTrial(
+            email: email,
+            installID: installID,
+            appVersion: appVersion,
+            osVersion: osVersion
+        )
+    }
+
+    func renewLicense(entitlementToken: String, deviceID: String) async throws -> String {
+        throw CmdTabServerClientError.invalidResponse
+    }
+
     func activateLicense(
         licenseKey: String,
         deviceID: String,
@@ -142,6 +170,7 @@ enum CmdTabServerClientError: LocalizedError {
     case invalidResponse
     case blocked(String)
     case licenseRevoked
+    case deviceInactive
 
     var errorDescription: String? {
         switch self {
@@ -151,6 +180,8 @@ enum CmdTabServerClientError: LocalizedError {
             return message
         case .licenseRevoked:
             return "This license has been revoked."
+        case .deviceInactive:
+            return "This Mac is no longer activated for this license."
         }
     }
 }
@@ -168,15 +199,33 @@ final class LiveCmdTabServerClient: CmdTabServerClient, AppTelemetryTransport {
     }
 
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord {
+        try await startTrial(
+            email: email,
+            installID: installID,
+            hardwareID: nil,
+            appVersion: appVersion,
+            osVersion: osVersion
+        )
+    }
+
+    func startTrial(
+        email: String,
+        installID: String,
+        hardwareID: String?,
+        appVersion: String,
+        osVersion: String
+    ) async throws -> TrialClaimRecord {
         var request = URLRequest(url: LicensingConfiguration.trialStartAPIURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
+        var body = [
             "email": email,
             "installId": installID,
             "appVersion": appVersion,
             "osVersion": osVersion,
-        ])
+        ]
+        if let hardwareID { body["hardwareId"] = hardwareID }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -221,6 +270,20 @@ final class LiveCmdTabServerClient: CmdTabServerClient, AppTelemetryTransport {
             devices: response.devices ?? [],
             entitlementToken: entitlementToken
         )
+    }
+
+    func renewLicense(entitlementToken: String, deviceID: String) async throws -> String {
+        let response = try await sendLicenseDeviceRequest(
+            url: LicensingConfiguration.licenseRenewalAPIURL,
+            body: [
+                "entitlementToken": entitlementToken,
+                "deviceId": deviceID,
+            ]
+        )
+        guard let renewed = response.entitlementToken, !renewed.isEmpty else {
+            throw CmdTabServerClientError.invalidResponse
+        }
+        return renewed
     }
 
     func deactivateLicense(
@@ -291,6 +354,9 @@ final class LiveCmdTabServerClient: CmdTabServerClient, AppTelemetryTransport {
         guard httpResponse.statusCode < 400, decoded.ok else {
             if decoded.code == "license_revoked" {
                 throw CmdTabServerClientError.licenseRevoked
+            }
+            if decoded.code == "device_inactive" {
+                throw CmdTabServerClientError.deviceInactive
             }
             throw CmdTabServerClientError.blocked(
                 decoded.message ?? "The license request could not be completed."

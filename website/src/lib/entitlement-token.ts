@@ -19,6 +19,10 @@ const SHA256_HEX = /^[a-f0-9]{64}$/;
 const KEY_ID = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/;
 const MAX_TOKEN_BYTES = 16 * 1024;
 const TRIAL_SECONDS = 14 * 24 * 60 * 60;
+// Paid entitlements are a renewable lease: the app renews while online, so a
+// refund, revocation or remote deactivation takes effect within one lease even
+// if the Mac blocks cmdtab.net.
+export const LICENSE_LEASE_SECONDS = 30 * 24 * 60 * 60;
 
 export type CmdTabEntitlementType = "trial" | "license";
 export type CmdTabBindingType = "install" | "activation";
@@ -60,6 +64,8 @@ export type CmdTabTokenV2Verification = {
     value: string;
   };
   now?: Date;
+  /** Renewal only: accept an otherwise valid token whose lease has lapsed. */
+  allowExpired?: boolean;
 };
 
 export function hashEntitlementIdentifier(value: string) {
@@ -118,7 +124,8 @@ export function validateCmdTabTokenV2Payload(
     }
   } else if (
     payload.binding.typ !== "activation" ||
-    payload.exp !== undefined
+    !Number.isSafeInteger(payload.exp) ||
+    payload.exp !== payload.iat + LICENSE_LEASE_SECONDS
   ) {
     return null;
   }
@@ -185,7 +192,7 @@ export function verifyCmdTabTokenV2(
     }
 
     if (
-      payload.typ === "trial" &&
+      !input.allowExpired &&
       payload.exp! <= Math.floor((input.now ?? new Date()).getTime() / 1000)
     ) {
       return null;

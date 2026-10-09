@@ -8,11 +8,20 @@ import {
   listLicensedDevices,
 } from "@/lib/license-lifecycle-store";
 import { lookupHash } from "@/lib/license-lifecycle-contract";
+import { enforceIngestRateLimit } from "@/lib/ingest-request";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const rateLimit = await enforceIngestRateLimit(request, "license-devices");
+  if (!rateLimit.allowed) {
+    return licenseJson(
+      { ok: false, code: "rate_limited", message: "Too many requests. Try again later." },
+      "unavailable" in rateLimit ? 503 : 429,
+    );
+  }
+
   try {
     const { verified, pepper } = await getBearerLicense(request);
     if (

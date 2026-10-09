@@ -6,6 +6,10 @@ import {
   type PaidPurchaseFulfillmentDependencies,
   type PaidPurchaseInput,
 } from "../src/lib/purchase-fulfillment.js";
+import {
+  deriveActivationCredential,
+  lookupHash,
+} from "../src/lib/license-lifecycle-contract.js";
 
 const purchase: PaidPurchaseInput = {
   orderIdentifier: "order-123",
@@ -77,7 +81,7 @@ test("paid purchase persists entitlement, queues the same credential, and attemp
     delivery: { claimed: 1, delivered: 1, failed: 0 },
   });
   assert.ok(created);
-  assert.match(created.licenseToken, /^CMDTAB-ACT-[A-Za-z0-9_-]{43}$/);
+  assert.equal(created.licenseToken, "", "activation codes must never be persisted");
   assert.match(created.orderLookupHash, /^[a-f0-9]{64}$/);
   assert.match(created.licenseLookupHash, /^[a-f0-9]{64}$/);
   assert.match(created.emailLookupHash, /^[a-f0-9]{64}$/);
@@ -91,7 +95,23 @@ test("paid purchase persists entitlement, queues the same credential, and attemp
   assert.equal(email?.dedupeKey, `purchase:${purchase.orderIdentifier}`);
   assert.equal(email?.kind, "license_delivery");
   assert.equal(email?.recipientEmail, purchase.purchaserEmail);
-  assert.equal(email?.payload.licenseKey, created.licenseToken);
+  const emailedCode = email?.payload.licenseKey;
+  assert.equal(typeof emailedCode, "string");
+  assert.match(emailedCode as string, /^CMDTAB-ACT-[A-Za-z0-9_-]{43}$/);
+  // Retried webhooks re-derive the same code, and only its hash is stored.
+  assert.equal(
+    emailedCode,
+    deriveActivationCredential(purchase.orderIdentifier, 0, purchase.lookupPepper),
+  );
+  assert.equal(
+    created.activationCredentialHash,
+    lookupHash("license", emailedCode as string, purchase.lookupPepper),
+  );
+  assert.notEqual(
+    deriveActivationCredential(purchase.orderIdentifier, 1, purchase.lookupPepper),
+    emailedCode,
+    "recovery rotation must produce a different code",
+  );
   assert.equal(email?.payload.receiptUrl, purchase.receiptUrl);
   assert.equal(processedLimit, 1);
 });

@@ -43,15 +43,20 @@ struct LicenseTokenVerificationContext {
     let expectedType: CmdTabEntitlementType?
     let expectedBinding: (typ: CmdTabEntitlementBindingType, value: String)?
     let now: Date
+    /// Lease renewal and tombstones only: authenticate a lapsed token without
+    /// treating it as an active entitlement.
+    let allowExpired: Bool
 
     init(
         expectedType: CmdTabEntitlementType? = nil,
         expectedBinding: (typ: CmdTabEntitlementBindingType, value: String)? = nil,
-        now: Date = Date()
+        now: Date = Date(),
+        allowExpired: Bool = false
     ) {
         self.expectedType = expectedType
         self.expectedBinding = expectedBinding
         self.now = now
+        self.allowExpired = allowExpired
     }
 }
 
@@ -73,6 +78,9 @@ struct LicenseTokenVerifier {
 
     private static let maximumTokenBytes = 16 * 1024
     private static let trialDurationSeconds: Int64 = 14 * 24 * 60 * 60
+    /// Paid entitlements are a 30-day lease the app renews while online, so a
+    /// refund or remote deactivation reaches a Mac that blocks cmdtab.net.
+    static let licenseLeaseSeconds: Int64 = 30 * 24 * 60 * 60
     private static let sha256Hex = try! NSRegularExpression(pattern: "^[a-f0-9]{64}$")
     private static let keyID = try! NSRegularExpression(
         pattern: "^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$"
@@ -184,13 +192,19 @@ struct LicenseTokenVerifier {
                   expiresAt == payload.iat + Self.trialDurationSeconds else {
                 throw LicenseTokenVerificationError.invalidClaims
             }
-            guard expiresAt > Int64(context.now.timeIntervalSince1970.rounded(.down)) else {
+            guard context.allowExpired ||
+                    expiresAt > Int64(context.now.timeIntervalSince1970.rounded(.down)) else {
                 throw LicenseTokenVerificationError.expired
             }
         case .license:
             guard payload.binding.typ == .activation,
-                  payload.exp == nil else {
+                  let expiresAt = payload.exp,
+                  expiresAt == payload.iat + Self.licenseLeaseSeconds else {
                 throw LicenseTokenVerificationError.invalidClaims
+            }
+            guard context.allowExpired ||
+                    expiresAt > Int64(context.now.timeIntervalSince1970.rounded(.down)) else {
+                throw LicenseTokenVerificationError.expired
             }
         }
 

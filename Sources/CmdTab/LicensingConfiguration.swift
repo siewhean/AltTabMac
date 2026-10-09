@@ -18,6 +18,7 @@ enum LicensingConfiguration {
     static let licenseActivationAPIURL = URL(string: "https://cmdtab.net/api/license/activate")!
     static let licenseDeactivationAPIURL = URL(string: "https://cmdtab.net/api/license/deactivate")!
     static let licenseDevicesAPIURL = URL(string: "https://cmdtab.net/api/license/devices")!
+    static let licenseRenewalAPIURL = URL(string: "https://cmdtab.net/api/license/renew")!
 
     static var commerceEnabled: Bool {
         commerceEnabled(

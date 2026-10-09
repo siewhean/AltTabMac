@@ -1,3 +1,18 @@
+## 2026-10-09 — Licensing hardening (audit H1–H3, M3)
+
+User chose a 30-day paid lease, CMDTAB1 exchange-only in release builds, and a salted hardware hash for trials. Commerce has never been enabled, so no customer migration is needed.
+
+- [x] H1: paid CMDTAB2 tokens carry `exp = iat + 30d`; app renews via `/api/license/renew` (device-bound token is the credential; server checks active slot + not revoked); lapsed lease keeps token but grants nothing.
+- [x] H1: deactivate/devices rate limited; deactivations capped at 3 per license per 30 days (`license_deactivation_events`).
+- [x] H1: app tombstones keyed on signed claims (order|binding|iat), legacy byte keys still honoured.
+- [x] H2: release builds never unlock from a stored CMDTAB1 key or offline activation; CMDTAB1 is only an online-activation input.
+- [x] H3: trial start sends salted SHA-256 of IOPlatformUUID; server keeps one claim per hardware hash and rebinds a reset install to the original dates.
+- [x] H3: missing `trialLastSeen` falls back to the claim's server-validated time for rollback detection.
+- [x] M3: activation codes derived via HMAC(pepper, order, generation); plaintext scrubbed from fulfillments and delivered outbox rows; recovery rotates the code.
+- [x] Privacy policy line for the hardware hash; README licensing notes.
+
+Review: website tsc, unit 51+10, verify-api-security (new licensing assertions), verify-seo and production build pass. Swift: 421 XCTest pass (5 new hardening tests), release configuration builds. Not covered: routes/DB stores have no automated tests (existing gap); no live KMS/Postgres run of `/api/license/renew`.
+
 ## 2026-09-26 — Approved complete inventory and preview coverage
 
 User approved implementation of this plan; preserve unrelated work and installation defaults.

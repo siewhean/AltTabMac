@@ -14,9 +14,10 @@ import {
   enqueueLicenseEmail,
   findRecoverableLicenses,
   isLicenseLifecycleStoreConfigured,
+  rotateActivationCredential,
 } from "@/lib/license-lifecycle-store";
 import { getLicenseLifecycleEnv } from "@/lib/env";
-import { checkRateLimit, createFingerprint } from "@/lib/rate-limit";
+import { checkRateLimit } from "@/lib/rate-limit";
 import {
   enforceIngestRateLimit,
   getIngestClient,
@@ -59,14 +60,16 @@ export async function POST(request: Request) {
         requestFingerprint: rateLimit.fingerprint,
       });
       for (const license of recoverable) {
+        const rotated = await rotateActivationCredential({
+          orderIdentifier: license.order_identifier,
+          pepper: env.lookupPepper,
+        });
         await enqueueLicenseEmail({
-          dedupeKey: `recovery:${license.order_identifier}:${createFingerprint(
-            `${payload.email}:${new Date().toISOString().slice(0, 10)}`,
-          )}`,
+          dedupeKey: `recovery:${license.order_identifier}:${rotated.generation}`,
           kind: "license_recovery",
           recipientEmail: license.purchaser_email,
           payload: {
-            licenseKey: license.license_token,
+            licenseKey: rotated.credential,
             productName: license.product_name,
             receiptUrl: license.receipt_url,
             orderIdentifier: license.order_identifier,

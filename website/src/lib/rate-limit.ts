@@ -26,7 +26,10 @@ export type IngestEndpoint =
   | "app-telemetry"
   | "trial-start"
   | "license-activation"
-  | "license-recovery";
+  | "license-recovery"
+  | "license-deactivation"
+  | "license-devices"
+  | "license-renewal";
 
 const globalState = globalThis as typeof globalThis & {
   __cmdtabLocalRequestBuckets?: BucketStore;
@@ -60,7 +63,9 @@ const SENSITIVE_INGEST_RATE_LIMITS: Bucket[] = [
 function ingestRateLimits(endpoint: IngestEndpoint) {
   return endpoint === "trial-start" ||
     endpoint === "license-activation" ||
-    endpoint === "license-recovery"
+    endpoint === "license-recovery" ||
+    endpoint === "license-deactivation" ||
+    endpoint === "license-renewal"
     ? SENSITIVE_INGEST_RATE_LIMITS
     : INGEST_RATE_LIMITS;
 }

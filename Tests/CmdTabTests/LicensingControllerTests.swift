@@ -509,7 +509,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertNil(credentialStore.value)
         XCTAssertTrue(
             revocations.revokedIdentifiers.contains {
-                $0.hasPrefix("token:")
+                $0.hasPrefix("claims:")
             }
         )
     }
@@ -1247,7 +1247,7 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertNil(deviceEntitlementStore.value)
         XCTAssertEqual(revocationStore.revokedIdentifiers.count, 1)
         XCTAssertTrue(
-            revocationStore.revokedIdentifiers.first?.hasPrefix("token:") == true
+            revocationStore.revokedIdentifiers.first?.hasPrefix("claims:") == true
         )
 
         // Restoring a saved perpetual token after freeing its slot must not
@@ -1269,6 +1269,174 @@ final class LicensingControllerTests: XCTestCase {
         )
         XCTAssertFalse(restored.hasUnlockedAccess)
         XCTAssertNil(deviceEntitlementStore.value)
+    }
+
+    // MARK: - Licensing hardening (paid lease, tombstones, trial resets)
+
+    private struct LeaseFixture {
+        let controller: LicensingController
+        let entitlementStore: MemoryDeviceLicenseEntitlementStore
+        let revocations: MemoryLicenseRevocationStore
+        let server: MockCmdTabServerClient
+        let entitlement: String
+        let mint: (Date) throws -> String
+    }
+
+    private func makeLeaseFixture(issuedAt: Date, now: Date) throws -> LeaseFixture {
+        let legacy = makeSigningMaterials()
+        let v2 = P256.Signing.PrivateKey()
+        let secret = Data(repeating: 9, count: 32)
+        let deviceID = SHA256.hash(data: secret)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let mint: (Date) throws -> String = { [self] issued in
+            try signedV2Entitlement(
+                privateKey: v2,
+                kid: "license-lease",
+                type: .license,
+                subject: "owner@example.com",
+                order: "LIC-LEASE",
+                bindingType: .activation,
+                bindingValue: deviceID,
+                issuedAt: issued
+            )
+        }
+        let entitlement = try mint(issuedAt)
+        let entitlementStore = MemoryDeviceLicenseEntitlementStore()
+        entitlementStore.value = entitlement
+        let credentialStore = MemoryLicenseKeyStore()
+        credentialStore.value = "CMDTAB-ACT-\(String(repeating: "l", count: 43))"
+        let revocations = MemoryLicenseRevocationStore()
+        let server = MockCmdTabServerClient()
+        let controller = makeController(
+            licenseStore: credentialStore,
+            deviceEntitlementStore: entitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(secret: secret),
+            revocationStore: revocations,
+            licenseV2PublicKeysDERBase64: [
+                "license-lease": v2.publicKey.derRepresentation.base64EncodedString(),
+            ],
+            serverClient: server,
+            currentDate: { now },
+            publicKeyBase64: legacy.publicKeyBase64
+        )
+        return LeaseFixture(
+            controller: controller,
+            entitlementStore: entitlementStore,
+            revocations: revocations,
+            server: server,
+            entitlement: entitlement,
+            mint: mint
+        )
+    }
+
+    func testLapsedLeaseKeepsTokenWithoutAccessAndRenewalRestoresIt() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fixture = try makeLeaseFixture(
+            issuedAt: now.addingTimeInterval(-31 * 24 * 60 * 60),
+            now: now
+        )
+        XCTAssertFalse(fixture.controller.hasUnlockedAccess)
+        XCTAssertEqual(fixture.entitlementStore.value, fixture.entitlement)
+        XCTAssertEqual(fixture.controller.licenseMessage?.tone, .warning)
+
+        let renewed = try fixture.mint(now)
+        fixture.server.renewResult = .success(renewed)
+        await fixture.controller.renewLicenseLeaseIfNeeded()
+
+        XCTAssertEqual(fixture.server.renewCalls.first?.entitlementToken, fixture.entitlement)
+        XCTAssertEqual(fixture.entitlementStore.value, renewed)
+        XCTAssertTrue(fixture.controller.hasUnlockedAccess)
+        XCTAssertNil(fixture.controller.licenseMessage)
+    }
+
+    func testFreshLeaseIsNotRenewedAndTransientRenewalFailureKeepsAccess() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fresh = try makeLeaseFixture(issuedAt: now.addingTimeInterval(-60 * 60), now: now)
+        await fresh.controller.renewLicenseLeaseIfNeeded()
+        XCTAssertTrue(fresh.server.renewCalls.isEmpty)
+
+        let aging = try makeLeaseFixture(
+            issuedAt: now.addingTimeInterval(-3 * 24 * 60 * 60),
+            now: now
+        )
+        aging.server.renewResult = .failure(CmdTabServerClientError.invalidResponse)
+        await aging.controller.renewLicenseLeaseIfNeeded()
+        XCTAssertEqual(aging.server.renewCalls.count, 1)
+        XCTAssertTrue(aging.controller.hasUnlockedAccess)
+        XCTAssertEqual(aging.entitlementStore.value, aging.entitlement)
+    }
+
+    func testRenewalForInactiveDeviceRevokesAndWhitespaceResaveStaysRevoked() async throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fixture = try makeLeaseFixture(
+            issuedAt: now.addingTimeInterval(-2 * 24 * 60 * 60),
+            now: now
+        )
+        XCTAssertTrue(fixture.controller.hasUnlockedAccess)
+        fixture.server.renewResult = .failure(CmdTabServerClientError.deviceInactive)
+        await fixture.controller.renewLicenseLeaseIfNeeded()
+
+        XCTAssertFalse(fixture.controller.hasUnlockedAccess)
+        XCTAssertNil(fixture.entitlementStore.value)
+        XCTAssertTrue(fixture.revocations.revokedIdentifiers.contains { $0.hasPrefix("claims:") })
+
+        // Re-inserting the same signed entitlement with different bytes must
+        // not get past the claims-keyed tombstone.
+        fixture.entitlementStore.value = "  \(fixture.entitlement)\n"
+        fixture.controller.refreshStatus()
+        XCTAssertFalse(fixture.controller.hasUnlockedAccess)
+    }
+
+    func testDeletedLastSeenStillDetectsRollbackAgainstServerValidatedTime() {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let started = now.addingTimeInterval(-24 * 60 * 60)
+        let claim = TrialClaimRecord(
+            id: UUID().uuidString,
+            email: "reset@example.com",
+            installID: "server-binding",
+            startedAt: ISO8601DateFormatter().string(from: started),
+            endsAt: ISO8601DateFormatter().string(
+                from: started.addingTimeInterval(
+                    TimeInterval(LicensingConfiguration.trialLengthDays) * 24 * 60 * 60
+                )
+            ),
+            appVersion: "1.0.0",
+            osVersion: "14.0.0",
+            validatedAt: ISO8601DateFormatter().string(from: now.addingTimeInterval(60 * 60))
+        )
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: claim),
+            secureTrialClockStore: MemorySecureTrialClockStore(date: nil),
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+
+        guard case .unregistered = controller.status else {
+            return XCTFail("A clock behind the server-validated time must fail closed")
+        }
+        XCTAssertEqual(
+            controller.trialMessage?.text,
+            "The system clock moved backwards. Connect to the internet and revalidate the trial."
+        )
+    }
+
+    func testTrialRegistrationSendsSaltedHardwareIdentifier() async {
+        let materials = makeSigningMaterials()
+        let server = MockCmdTabServerClient()
+        let controller = makeController(
+            serverClient: server,
+            hardwareIdentifier: { "hardware-hash" },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+        _ = await controller.startTrialRegistration()
+        XCTAssertEqual(server.hardwareIDs, ["hardware-hash"])
+
+        let hashed = HardwareIdentity.hashedIdentifier(platformUUID: " abcd-1234 ")
+        XCTAssertEqual(hashed, HardwareIdentity.hashedIdentifier(platformUUID: "ABCD-1234"))
+        XCTAssertEqual(hashed?.count, 64)
+        XCTAssertNil(HardwareIdentity.hashedIdentifier(platformUUID: "  "))
     }
 
     func testActivationLinkPrefillsCodeWithoutContactingServer() {
@@ -1305,6 +1473,7 @@ final class LicensingControllerTests: XCTestCase {
         serverClient: CmdTabServerClient = MockCmdTabServerClient(),
         currentDate: @escaping () -> Date = Date.init,
         currentUptime: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        hardwareIdentifier: @escaping () -> String? = { nil },
         publicKeyBase64: String,
         developerSettings: DeveloperSettings? = nil
     ) -> LicensingController {
@@ -1324,6 +1493,7 @@ final class LicensingControllerTests: XCTestCase {
             serverClient: serverClient,
             currentDate: currentDate,
             currentUptime: currentUptime,
+            hardwareIdentifier: hardwareIdentifier,
             publicKeyDERBase64: publicKeyBase64,
             debugCompatibility: developerSettings ?? DeveloperSettings(
                 defaults: UserDefaults(suiteName: UUID().uuidString)!,
@@ -1385,7 +1555,7 @@ final class LicensingControllerTests: XCTestCase {
                 hash: LicenseTokenVerifier.hashIdentifier(bindingValue)
             ),
             iat: issued,
-            exp: type == .trial ? issued + 14 * 24 * 60 * 60 : nil,
+            exp: issued + (type == .trial ? 14 * 24 * 60 * 60 : LicenseTokenVerifier.licenseLeaseSeconds),
             updates: "1.x"
         )
         let data = try JSONEncoder().encode(payload)
@@ -1660,6 +1830,33 @@ private final class MockCmdTabServerClient: CmdTabServerClient {
     var deactivationCalls: [(licenseKey: String, deviceID: String)] = []
     var listResult: Result<[LicensedDeviceDTO], Error>?
     var currentActivationActive: Bool?
+    var renewResult: Result<String, Error>?
+    var renewCalls: [(entitlementToken: String, deviceID: String)] = []
+    var hardwareIDs: [String?] = []
+
+    func startTrial(
+        email: String,
+        installID: String,
+        hardwareID: String?,
+        appVersion: String,
+        osVersion: String
+    ) async throws -> TrialClaimRecord {
+        hardwareIDs.append(hardwareID)
+        return try await startTrial(
+            email: email,
+            installID: installID,
+            appVersion: appVersion,
+            osVersion: osVersion
+        )
+    }
+
+    func renewLicense(entitlementToken: String, deviceID: String) async throws -> String {
+        renewCalls.append((entitlementToken, deviceID))
+        guard let renewResult else {
+            throw CmdTabServerClientError.invalidResponse
+        }
+        return try renewResult.get()
+    }
 
     func startTrial(email: String, installID: String, appVersion: String, osVersion: String) async throws -> TrialClaimRecord {
         startTrialCalls.append(

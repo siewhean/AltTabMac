@@ -35,7 +35,10 @@ assert.match(webhook, /createOrGetFulfillment: createOrGetLicenseFulfillment/);
 assert.match(webhook, /reportInlineDeliveryFailure\(error\)/);
 
 const purchaseFulfillment = read("src/lib/purchase-fulfillment.ts");
-assert.match(purchaseFulfillment, /issuePurchaseActivationCredential\(\)/);
+// Activation codes are derived from the order and never persisted in plaintext.
+assert.match(purchaseFulfillment, /deriveActivationCredential\(/);
+assert.match(purchaseFulfillment, /licenseToken: "",/);
+assert.doesNotMatch(purchaseFulfillment, /licenseKey: fulfillment\.licenseToken/);
 assert.match(purchaseFulfillment, /ensureActiveEntitlement\(/);
 assert.match(purchaseFulfillment, /enqueueLicenseEmail\(/);
 assert.match(purchaseFulfillment, /processLicenseOutbox\(1\)/);
@@ -155,5 +158,26 @@ assert.match(unsubscribeRoute, /verifyWaitlistUnsubscribeToken\(tokenFrom\(reque
 const unsubscribeLib = read("src/lib/waitlist-unsubscribe.ts");
 assert.match(unsubscribeLib, /timingSafeEqual/);
 assert.match(unsubscribeLib, /optionalStrongInternalSecret\(process\.env\.WAITLIST_UNSUBSCRIBE_SECRET\)/);
+
+// Licensing hardening: leased paid entitlements, capped and rate-limited
+// device management, rotating recovery codes.
+const entitlementToken = read("src/lib/entitlement-token.ts");
+assert.match(entitlementToken, /payload\.exp !== payload\.iat \+ LICENSE_LEASE_SECONDS/);
+assert.match(entitlementToken, /!input\.allowExpired &&/);
+for (const route of ["deactivate", "devices", "renew"]) {
+  assert.match(
+    read(`src/app/api/license/${route}/route.ts`),
+    /enforceIngestRateLimit\(request, "license-/,
+    `license ${route} must be rate limited`,
+  );
+}
+assert.match(read("src/app/api/license/deactivate/route.ts"), /deactivation_limit/);
+const renewRoute = read("src/app/api/license/renew/route.ts");
+assert.match(renewRoute, /allowExpired: true/);
+assert.match(renewRoute, /findRenewableActivation\(/);
+const recoverRoute = read("src/app/api/license/recover/route.ts");
+assert.match(recoverRoute, /rotateActivationCredential\(/);
+assert.doesNotMatch(recoverRoute, /license_token/);
+assert.match(read("src/lib/license-lifecycle-store.ts"), /payload = payload - 'licenseKey'/);
 
 console.log("API security source verification passed");
