@@ -61,7 +61,7 @@ final class PermissionSetupWindowController: NSObject, NSWindowDelegate {
         NSWorkspace.shared.open(permission.settingsURL)
         panel?.orderFrontRegardless()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refreshIfChanged() }
+            Task { @MainActor [weak self] in self?.refreshIfChanged() }
         }
         RunLoop.main.add(timer, forMode: .common)
         refreshTimer = timer
