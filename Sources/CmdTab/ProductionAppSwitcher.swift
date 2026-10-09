@@ -980,12 +980,21 @@ final class ProductionAppSwitcher {
                didPrepare ? "accepted" : "failed", ownerPID, windowID, workspace.spaceID, onScreen ? 1 : 0)
     }
 
+    /// Activates an AX-only (minimized or off-Space) window. Shares the base
+    /// switcher's request ledger, so any newer switch cancels this chain.
+    /// Workspace preparation and NSRunningApplication activation run on the
+    /// main thread; Accessibility lookups, restores, raises, and verification
+    /// run on the base activation queue.
     private func activateExactSyntheticWindow(
         metadata: AXWindowMetadata,
         descriptor: LiveWindowHistoryDescriptor,
         app: NSRunningApplication,
-        attempt: Int
+        attempt: Int,
+        token existingToken: ActivationRequestLedger.Token? = nil
     ) {
+        let requests = base.activationRequests
+        let token = existingToken ?? requests.begin(pid: metadata.ownerPID)
+        guard requests.isCurrent(token) else { return }
         if attempt == 0 {
             ActivationOutcomeTracker.shared.recordRequested()
             prepareWorkspaceForActivation(
@@ -993,101 +1002,102 @@ final class ProductionAppSwitcher {
                 windowID: metadata.windowID
             )
         }
-        guard let window = AXWindowIdentityLookup.windowElement(
-            ownerPID: metadata.ownerPID,
-            windowID: metadata.windowID
-        ) else {
-            ActivationOutcomeTracker.shared.record(
-                AXIsProcessTrusted() ? .targetDisappeared : .accessibilityUnavailable
-            )
-            logActivationFailure(
-                metadata,
-                reason: "exact AX window is unavailable"
-            )
-            return
-        }
 
-        if metadata.isMinimized {
-            let restoreResult = AXUIElementSetAttributeValue(
-                window,
-                kAXMinimizedAttribute as CFString,
-                kCFBooleanFalse
-            )
-            guard restoreResult == .success else {
-                ActivationOutcomeTracker.shared.record(.failure)
-                logActivationFailure(
-                    metadata,
-                    reason: "restore failed with AX error \(restoreResult.rawValue)"
-                )
+        base.activationQueue.async { [weak self] in
+            guard let self, requests.isCurrent(token) else { return }
+            guard let window = AXWindowIdentityLookup.windowElement(
+                ownerPID: metadata.ownerPID,
+                windowID: metadata.windowID
+            ) else {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, requests.isCurrent(token) else { return }
+                    ActivationOutcomeTracker.shared.record(
+                        AXIsProcessTrusted() ? .targetDisappeared : .accessibilityUnavailable
+                    )
+                    self.logActivationFailure(metadata, reason: "exact AX window is unavailable")
+                }
                 return
             }
-        }
 
-        app.unhide()
-        _ = app.activate(options: [.activateIgnoringOtherApps])
-        let axApp = AXUIElementCreateApplication(metadata.ownerPID)
-        _ = AXUIElementSetAttributeValue(
-            axApp,
-            kAXFrontmostAttribute as CFString,
-            kCFBooleanTrue
-        )
-        _ = AXUIElementSetAttributeValue(
-            axApp,
-            kAXMainWindowAttribute as CFString,
-            window
-        )
-        _ = AXUIElementSetAttributeValue(
-            axApp,
-            kAXFocusedWindowAttribute as CFString,
-            window
-        )
-        _ = AXUIElementSetAttributeValue(
-            window,
-            kAXMainAttribute as CFString,
-            kCFBooleanTrue
-        )
-        _ = AXUIElementSetAttributeValue(
-            window,
-            kAXFocusedAttribute as CFString,
-            kCFBooleanTrue
-        )
-        _ = AXUIElementPerformAction(
-            window,
-            kAXRaiseAction as CFString
-        )
+            if metadata.isMinimized {
+                let restoreResult = AXUIElementSetAttributeValue(
+                    window,
+                    kAXMinimizedAttribute as CFString,
+                    kCFBooleanFalse
+                )
+                guard restoreResult == .success else {
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self, requests.isCurrent(token) else { return }
+                        ActivationOutcomeTracker.shared.record(.failure)
+                        self.logActivationFailure(
+                            metadata,
+                            reason: "restore failed with AX error \(restoreResult.rawValue)"
+                        )
+                    }
+                    return
+                }
+            }
 
-        if isExactWindowFrontmost(metadata) {
-            ActivationOutcomeTracker.shared.record(.exactVerified)
-            history.noteActivation(
-                descriptor.identity,
-                descriptor: descriptor
-            )
-            onActivationConfirmed?(
-                descriptor.identity,
-                metadata.ownerPID
-            )
-            invalidateCatalogCache()
-            base.warmCache(force: true)
-            return
-        }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, requests.isCurrent(token) else { return }
+                app.unhide()
+                _ = app.activate(options: [.activateIgnoringOtherApps])
 
-        guard attempt < 8 else {
-            ActivationOutcomeTracker.shared.record(.failure)
-            logActivationFailure(
-                metadata,
-                reason: "exact focus verification timed out"
-            )
-            return
+                self.base.activationQueue.async { [weak self] in
+                    guard let self, requests.isCurrent(token) else { return }
+                    Self.raiseSyntheticWindow(window, ownerPID: metadata.ownerPID)
+                    let verified = self.isExactWindowFrontmost(metadata)
+
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self, requests.isCurrent(token) else { return }
+                        if verified {
+                            ActivationOutcomeTracker.shared.record(.exactVerified)
+                            self.history.noteActivation(
+                                descriptor.identity,
+                                descriptor: descriptor
+                            )
+                            self.onActivationConfirmed?(
+                                descriptor.identity,
+                                metadata.ownerPID
+                            )
+                            self.invalidateCatalogCache()
+                            self.base.warmCache(force: true)
+                            return
+                        }
+
+                        guard attempt < 8 else {
+                            ActivationOutcomeTracker.shared.record(.failure)
+                            self.logActivationFailure(
+                                metadata,
+                                reason: "exact focus verification timed out"
+                            )
+                            return
+                        }
+                        let delay = 0.05 + Double(attempt) * 0.08
+                        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                            self?.activateExactSyntheticWindow(
+                                metadata: metadata,
+                                descriptor: descriptor,
+                                app: app,
+                                attempt: attempt + 1,
+                                token: token
+                            )
+                        }
+                    }
+                }
+            }
         }
-        let delay = 0.05 + Double(attempt) * 0.08
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.activateExactSyntheticWindow(
-                metadata: metadata,
-                descriptor: descriptor,
-                app: app,
-                attempt: attempt + 1
-            )
-        }
+    }
+
+    /// Activation queue. Makes the AX window main, focused, and raised.
+    private static func raiseSyntheticWindow(_ window: AXUIElement, ownerPID: pid_t) {
+        let axApp = AXUIElementCreateApplication(ownerPID)
+        _ = AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
+        _ = AXUIElementSetAttributeValue(axApp, kAXMainWindowAttribute as CFString, window)
+        _ = AXUIElementSetAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, window)
+        _ = AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        _ = AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        _ = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
     }
 
     private func isExactWindowFrontmost(
