@@ -200,7 +200,7 @@ struct ProductionDiagnosticsView: View {
                         level: snapshot.profileValidationIssues.isEmpty ? .available : .failed
                     )
                     diagnosticRow(
-                        title: "Durable MRU",
+                        title: "Saved Window Order",
                         value: "\(snapshot.durableRecordCount) privacy-minimised record\(snapshot.durableRecordCount == 1 ? "" : "s")",
                         level: .available
                     )
@@ -227,10 +227,10 @@ struct ProductionDiagnosticsView: View {
                     )
                     statusMessage = "Copied."
                 }
-                Button("Reset Durable MRU", role: .destructive) {
+                Button("Reset Saved Window Order", role: .destructive) {
                     SwitcherHistoryStore.shared.resetDurableHistory()
                     refresh()
-                    statusMessage = "Durable MRU reset. Preferences and licensing were not changed."
+                    statusMessage = "Saved window order reset. Preferences and licensing were not changed."
                 }
                 Spacer()
                 Text(statusMessage)

@@ -369,7 +369,7 @@ def main() -> None:
             "ProductionClassicGridView",
             "ProductionCommandPaletteView",
             "ProductionRadialMenuView",
-            "Workspace precision is degraded",
+            "Space detection is limited",
             "Hidden Set",
         ),
     )
@@ -391,7 +391,7 @@ def main() -> None:
         ROOT / "Sources" / "CmdTab" / "ProductionDiagnosticsWindow.swift",
         (
             "Copy Sanitized Report",
-            "Reset Durable MRU",
+            "Reset Saved Window Order",
             "Secure Input",
             "Workspace Provider",
             "account-specific home paths",
@@ -406,7 +406,7 @@ def main() -> None:
             "Choose Installed Apps…",
             "Import…",
             "Export…",
-            "Reset Durable MRU…",
+            "Reset Saved Window Order…",
             "Edits made while a switcher is visible apply to the next session",
             "Keeps the raw draft intact",
         ),

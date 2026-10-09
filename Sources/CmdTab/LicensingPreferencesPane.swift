@@ -111,7 +111,7 @@ struct LicensingPreferencesPane: View {
             subtitle: controller.status.requiresTrialRegistration
                 ? "Start on this Mac immediately. Add an email only when you want an expiry reminder."
                 : (LicensingConfiguration.commerceEnabled
-                    ? "Open the one-click link from your purchase email, or paste the activation credential below."
+                    ? "Open the link in your purchase email, then click Activate, or paste the activation code below."
                     : "This beta accepts a verified trial entitlement. Paid activation is not available in this build.")
         ) {
             VStack(alignment: .leading, spacing: 12) {

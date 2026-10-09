@@ -70,14 +70,14 @@ Terminal needs Accessibility permission for WindowProbe to report `focusedWindow
 - [ ] Active CmdTab text fields and shortcut recorders do not leak typed content into the switcher.
 - [ ] Closing the profile editor with unsaved changes requires Save, Discard, or Cancel; invalid drafts are never silently lost.
 
-## Durable MRU
+## Saved window order
 
 - [ ] Restart preserves unique high-confidence exact-window order.
 - [ ] Duplicate-title windows do not receive ambiguous restored rank.
 - [ ] Reused PID or `CGWindowID` does not inherit unrelated rank.
 - [ ] Failed activation does not persist rank.
 - [ ] Current-session activations outrank restored records.
-- [ ] Reset Durable MRU clears restored order without deleting preferences or licensing state.
+- [ ] Reset Saved Window Order clears restored order without deleting preferences or licensing state.
 - [ ] The persisted JSON has mode 0600 and contains no raw title, URL, preview, search query, clipboard content, or screenshot.
 - [ ] Diagnostics reports only sanitized durable-record count and a home-relative location.
 

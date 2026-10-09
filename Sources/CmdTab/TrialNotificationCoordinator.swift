@@ -42,7 +42,7 @@ struct TrialNotificationPlan: Equatable {
                     Reminder(
                         identifier: "CmdTab.trial.expired",
                         title: "CmdTab trial ended",
-                        body: "CmdTab switching is locked, but native macOS Command-Tab remains available. Buy CmdTab or activate a license from the menu-bar app.",
+                        body: "CmdTab switching is locked, but native macOS Command-Tab remains available. \(LicensingConfiguration.commerceEnabled ? "Buy CmdTab or activate a license from the menu-bar app." : LicensingConfiguration.trialEndedNextStep)",
                         deliveryDate: now.addingTimeInterval(2)
                     )
                 ]
