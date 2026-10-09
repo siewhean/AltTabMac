@@ -675,7 +675,7 @@ final class ProductionAppSwitcher {
                 )
             }
             items.append(
-                SwitcherItem(
+                SwitcherPreviewResolver.item(
                     title: title,
                     subtitle: appName,
                     icon: app.icon,
@@ -797,7 +797,7 @@ final class ProductionAppSwitcher {
         descriptor: LiveWindowHistoryDescriptor,
         activation: @escaping () -> Void
     ) -> SwitcherItem {
-        SwitcherItem(
+        SwitcherPreviewResolver.item(
             title: item.title,
             subtitle: item.subtitle,
             icon: item.icon,
@@ -902,7 +902,7 @@ final class ProductionAppSwitcher {
         guard item.kind == .appWindow,
               let ownerPID = item.ownerPID,
               let windowID = item.windowID else { return item }
-        return SwitcherItem(
+        return SwitcherPreviewResolver.item(
             title: item.title,
             subtitle: item.subtitle,
             icon: item.icon,

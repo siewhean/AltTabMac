@@ -4,15 +4,17 @@ import XCTest
 @MainActor
 final class SwitcherFeatureHintTests: XCTestCase {
     private var defaults: UserDefaults!
+    // A unique suite per test: parallel test processes share fixed suites.
+    private var suiteName = ""
 
     override func setUp() {
         super.setUp()
-        defaults = UserDefaults(suiteName: "SwitcherFeatureHintTests")
-        defaults.removePersistentDomain(forName: "SwitcherFeatureHintTests")
+        suiteName = "SwitcherFeatureHintTests-\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
     }
 
     override func tearDown() {
-        defaults.removePersistentDomain(forName: "SwitcherFeatureHintTests")
+        defaults.removePersistentDomain(forName: suiteName)
         defaults = nil
         super.tearDown()
     }
