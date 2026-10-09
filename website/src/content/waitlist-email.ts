@@ -61,7 +61,6 @@ export const waitlistEmailContent = {
     bullets: [
       "Private beta updates only",
       "First access to the trial when it is ready",
-      "Founder launch pricing access before the public release",
     ],
     ctaLabel: "Visit CmdTab",
     footer:
