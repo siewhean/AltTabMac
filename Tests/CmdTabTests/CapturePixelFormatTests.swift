@@ -77,14 +77,14 @@ final class CapturePixelFormatTests: XCTestCase {
             XCTAssertEqual(trimmed.height, 62)
             let alphaContext = try XCTUnwrap(CGContext(
                 data: nil, width: trimmed.width, height: trimmed.height,
-                bitsPerComponent: 8, bytesPerRow: trimmed.width, space: nil,
-                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.alphaOnly.rawValue)
+                bitsPerComponent: 8, bytesPerRow: trimmed.width * 4, space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
             ))
             alphaContext.draw(trimmed, in: CGRect(x: 0, y: 0, width: trimmed.width, height: trimmed.height))
             let alpha = try XCTUnwrap(alphaContext.data).assumingMemoryBound(to: UInt8.self)
             for y in [0, trimmed.height - 1] {
                 for x in [0, trimmed.width - 1] {
-                    XCTAssertEqual(alpha[y * alphaContext.bytesPerRow + x], 255,
+                    XCTAssertEqual(alpha[y * alphaContext.bytesPerRow + x * 4 + 3], 255,
                                    "Every cropped corner must lie inside the opaque content")
                 }
             }

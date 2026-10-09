@@ -1930,23 +1930,25 @@ final class AppSwitcher: NSObject {
         guard insetLimit > 0,
               let alphaContext = CGContext(
                 data: nil, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width,
-                space: nil, bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.alphaOnly.rawValue)
+                bitsPerComponent: 8, bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
               ), let data = alphaContext.data else { return cgImage }
         defer { withExtendedLifetime(alphaContext) {} }
-        // Core Graphics converts any source layout into one byte of alpha per
-        // pixel. This avoids a full-size four-channel copy just to inspect edges.
+        // Core Graphics converts any source layout into RGBA; alpha is the
+        // fourth byte of each pixel. An alpha-only context would be smaller but
+        // needs a nil color space, which older macOS SDKs cannot express.
         alphaContext.setBlendMode(.copy)
         alphaContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
         let alpha = data.assumingMemoryBound(to: UInt8.self)
         let stride = alphaContext.bytesPerRow
 
         func rowHasOpaquePixels(_ y: Int) -> Bool {
-            (0..<width).contains { alpha[y * stride + $0] >= alphaThreshold }
+            (0..<width).contains { alpha[y * stride + $0 * 4 + 3] >= alphaThreshold }
         }
 
         func columnHasOpaquePixels(_ x: Int) -> Bool {
-            (0..<height).contains { alpha[$0 * stride + x] >= alphaThreshold }
+            (0..<height).contains { alpha[$0 * stride + x * 4 + 3] >= alphaThreshold }
         }
 
         var topInset = 0
