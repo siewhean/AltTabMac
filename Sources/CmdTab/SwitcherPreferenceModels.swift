@@ -145,7 +145,17 @@ enum SwitcherQuickAction: String, CaseIterable, Codable, Sendable {
         acceptsBareShortcut: Bool
     ) -> SwitcherQuickAction? {
         guard commandHeld || acceptsBareShortcut else { return nil }
+        let resolved = resolvedAction(forKeyCode: keyCode, keyEquivalent: keyEquivalent)
+        // Quitting is the one destructive action: a stray bare "q" typed while
+        // the switcher is open must not terminate the selected app.
+        if resolved == .quitApp, !commandHeld { return nil }
+        return resolved
+    }
 
+    private static func resolvedAction(
+        forKeyCode keyCode: Int64,
+        keyEquivalent: String?
+    ) -> SwitcherQuickAction? {
         if let keyEquivalent,
            let action = action(forKeyEquivalent: keyEquivalent) {
             return action

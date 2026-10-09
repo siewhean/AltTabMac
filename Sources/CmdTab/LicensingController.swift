@@ -301,7 +301,7 @@ final class LicensingController: ObservableObject {
             default:
                 overdueCopy = "The trial expired \(daysOverdue) days ago."
             }
-            return "\(overdueCopy) Buy CmdTab or enter a valid license to keep using the switcher. Trial ended \(Self.displayFormatter.string(from: endedAt))."
+            return "\(overdueCopy) \(LicensingConfiguration.trialEndedNextStep) Trial ended \(Self.displayFormatter.string(from: endedAt))."
         }
     }
 
@@ -882,7 +882,7 @@ final class LicensingController: ObservableObject {
             } else {
                 licenseMessage = LicensingMessage(
                     tone: .warning,
-                    text: "The trial ended. Buy CmdTab or enter a valid license to keep using the switcher."
+                    text: "The trial ended. \(LicensingConfiguration.trialEndedNextStep)"
                 )
             }
             if presentLicensing { openLicensing() }

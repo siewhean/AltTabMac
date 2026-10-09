@@ -53,6 +53,32 @@ final class SwitcherQuickActionShortcutTests: XCTestCase {
         )
     }
 
+    func testBareQuitNeverResolvesButCommandQuitDoes() {
+        XCTAssertNil(
+            SwitcherQuickAction.action(
+                forKeyCode: 12,
+                commandHeld: false,
+                acceptsBareShortcut: true
+            )
+        )
+        XCTAssertNil(
+            SwitcherQuickAction.action(
+                forKeyCode: 999,
+                keyEquivalent: "q",
+                commandHeld: false,
+                acceptsBareShortcut: true
+            )
+        )
+        XCTAssertEqual(
+            SwitcherQuickAction.action(
+                forKeyCode: 12,
+                commandHeld: true,
+                acceptsBareShortcut: true
+            ),
+            .quitApp
+        )
+    }
+
     func testBareShortcutDoesNotResolveWhenDisallowed() {
         XCTAssertNil(
             SwitcherQuickAction.action(

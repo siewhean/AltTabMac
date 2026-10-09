@@ -70,10 +70,10 @@ private struct WorkspaceCapabilityBanner: View {
 
     private var title: String {
         switch status.level {
-        case .available: return "Exact workspace identity"
-        case .degraded: return "Workspace precision is degraded"
-        case .unavailable: return "Workspace identity is unavailable"
-        case .failed: return "Workspace identity failed"
+        case .available: return "Space detected"
+        case .degraded: return "Space detection is limited"
+        case .unavailable: return "Space detection is unavailable"
+        case .failed: return "Couldn't detect this window's Space"
         }
     }
 }
