@@ -73,14 +73,19 @@ No public release claim may treat the accepted local ad-hoc artifact as a distri
 
 The licensing migration now includes an additive `CMDTAB2` P-256
 token/keyring contract and separate trial/license AWS KMS signer abstraction.
-Existing `CMDTAB1` paid licenses remain supported for offline compatibility;
+Release builds accept a `CMDTAB1` key only as input to online activation,
+which exchanges it for a device-bound `CMDTAB2` lease;
 production KMS provisioning and embedding its public keyrings in the signed
 app remain release gates.
 
 The repository-owned commerce lifecycle now exchanges a high-entropy opaque
-purchase activation code for an install-bound signed entitlement, keeps paid
-access offline after activation, and transactionally limits each license to
-three named Macs. Deactivation frees a slot immediately; recovery is
+purchase activation code for an install-bound signed entitlement, and
+transactionally limits each license to three named Macs. Paid entitlements are
+a 30-day lease the app renews online (`/api/license/renew`), so refunds and
+remote deactivation reach offline Macs within a month. Deactivation frees a
+slot immediately but is capped at three per license per 30 days; activation
+codes are derived, never stored in plaintext, and recovery rotates them; trials
+are limited to one per Mac via a salted hardware hash; recovery is
 enumeration-safe; fulfillment uses a retryable outbox; partial refunds preserve
 access; and authoritative full-refund or revocation states persist as hashed
 tombstones. The migration is idempotent and local real-PostgreSQL concurrency

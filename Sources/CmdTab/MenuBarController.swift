@@ -302,6 +302,7 @@ final class MenuBarController {
 
     func refreshLicenseAuthorization() async {
         refreshLicenseStatus()
+        await licensingController.renewLicenseLeaseIfNeeded()
         if licensingController.currentLicenseID != nil {
             await licensingController.refreshLicensedDevices()
             updateMenu()

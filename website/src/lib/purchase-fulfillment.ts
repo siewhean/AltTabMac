@@ -1,5 +1,5 @@
 import {
-  issuePurchaseActivationCredential,
+  deriveActivationCredential,
   lookupHash,
 } from "./license-lifecycle-contract";
 
@@ -102,8 +102,12 @@ export async function fulfillPaidPurchase(
 ): Promise<PaidPurchaseFulfillmentResult> {
   // The purchase email carries an opaque exchange credential. It cannot grant
   // offline access until the activation route exchanges it for a device-bound
-  // signed entitlement.
-  const activationCredential = issuePurchaseActivationCredential();
+  // signed entitlement. Only its hash is persisted.
+  const activationCredential = deriveActivationCredential(
+    input.orderIdentifier,
+    0,
+    input.lookupPepper,
+  );
   const fulfillment = await dependencies.createOrGetFulfillment({
     orderIdentifier: input.orderIdentifier,
     orderLookupHash: lookupHash(
@@ -139,7 +143,7 @@ export async function fulfillPaidPurchase(
       activationCredential,
       input.lookupPepper,
     ),
-    licenseToken: activationCredential,
+    licenseToken: "",
     testMode: input.testMode,
   });
 
@@ -162,7 +166,7 @@ export async function fulfillPaidPurchase(
     recipientEmail: fulfillment.purchaserEmail,
     payload: {
       orderIdentifier: fulfillment.orderIdentifier,
-      licenseKey: fulfillment.licenseToken,
+      licenseKey: activationCredential,
       productName: fulfillment.productName,
       receiptUrl: fulfillment.receiptUrl,
       orderNumber: fulfillment.orderNumber,

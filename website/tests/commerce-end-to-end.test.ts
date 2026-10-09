@@ -15,7 +15,7 @@ import {
   type PaidPurchaseFulfillmentDependencies,
 } from "../src/lib/purchase-fulfillment.js";
 
-test("verified paid order flows through licence email to a device-bound offline entitlement", async () => {
+test("verified paid order flows through licence email to a device-bound leased entitlement", async () => {
   const orderIdentifier = "order-e2e-1001";
   const purchaserEmail = "buyer@example.com";
   const deviceIdentifier = "device-secret-from-keychain";
@@ -27,7 +27,7 @@ test("verified paid order flows through licence email to a device-bound offline 
 
   const dependencies: PaidPurchaseFulfillmentDependencies = {
     async createOrGetFulfillment(input) {
-      storedCredential = input.licenseToken;
+      assert.equal(input.licenseToken, "", "activation codes must never be persisted");
       return {
         orderIdentifier: input.orderIdentifier,
         orderNumber: input.orderNumber,
@@ -49,6 +49,7 @@ test("verified paid order flows through licence email to a device-bound offline 
       if (typeof licenseKey !== "string") {
         throw new TypeError("purchase email payload must contain a licence key");
       }
+      storedCredential = licenseKey;
       deliveredEmail = renderLicenseDeliveryEmail({
         email: input.recipientEmail,
         name:
@@ -131,12 +132,12 @@ test("verified paid order flows through licence email to a device-bound offline 
     keyring,
     expectedType: "license",
     expectedBinding: { typ: "activation", value: deviceIdentifier },
-    now: new Date("2036-07-28T00:00:00Z"),
+    now: new Date("2026-08-20T00:00:00Z"),
   });
 
   assert.equal(verified?.tokenVersion, 2);
   assert.equal(verified?.kind, "license");
-  assert.equal(entitlement.payload.exp, undefined);
+  assert.equal(entitlement.payload.exp, entitlement.payload.iat + 30 * 24 * 60 * 60);
   assert.equal(
     verifyCmdTabTokenV2({
       token: entitlement.token,

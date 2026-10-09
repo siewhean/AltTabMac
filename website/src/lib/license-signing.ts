@@ -10,6 +10,7 @@ import {
   CMDTAB_TOKEN_V2,
   CMDTAB_TOKEN_V2_PREFIX,
   CMDTAB_V1_UPDATE_ENTITLEMENT,
+  LICENSE_LEASE_SECONDS,
   hashEntitlementIdentifier,
   type CmdTabBindingType,
   type CmdTabEntitlementType,
@@ -26,14 +27,23 @@ export interface P256TokenSigner {
 export type TokenV2IssueInput = {
   signer: P256TokenSigner;
   typ: CmdTabEntitlementType;
-  subjectIdentifier: string;
-  orderIdentifier: string;
+  /** Raw identifiers, or the already-hashed claims when renewing a lease. */
+  subjectIdentifier: string | { hash: string };
+  orderIdentifier: string | { hash: string };
   binding: {
     typ: CmdTabBindingType;
     value: string;
   };
   issuedAt?: Date;
 };
+
+function claimHash(identifier: string | { hash: string }) {
+  if (typeof identifier === "string") return hashEntitlementIdentifier(identifier);
+  if (!/^[a-f0-9]{64}$/.test(identifier.hash)) {
+    throw new Error("Precomputed claim hashes must be SHA-256 hex.");
+  }
+  return identifier.hash;
+}
 
 export async function issueCmdTabTokenV2(input: TokenV2IssueInput) {
   if (
@@ -54,15 +64,17 @@ export async function issueCmdTabTokenV2(input: TokenV2IssueInput) {
     kid: input.signer.kid,
     typ: input.typ,
     aud: CMDTAB_TOKEN_AUDIENCE,
-    sub: hashEntitlementIdentifier(input.subjectIdentifier),
-    order: hashEntitlementIdentifier(input.orderIdentifier),
+    sub: claimHash(input.subjectIdentifier),
+    order: claimHash(input.orderIdentifier),
     binding: {
       typ: input.binding.typ,
       hash: hashEntitlementIdentifier(input.binding.value),
     },
     iat: issuedAt,
     updates: CMDTAB_V1_UPDATE_ENTITLEMENT,
-    ...(input.typ === "trial" ? { exp: issuedAt + 14 * 24 * 60 * 60 } : {}),
+    exp:
+      issuedAt +
+      (input.typ === "trial" ? 14 * 24 * 60 * 60 : LICENSE_LEASE_SECONDS),
   };
   const payloadBuffer = Buffer.from(JSON.stringify(payload), "utf8");
   const signature = await input.signer.sign(payloadBuffer);
