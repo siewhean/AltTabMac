@@ -75,6 +75,10 @@ final class AppSwitcher: NSObject {
     /// Serial queue for frontmost-window AX walks kept off the main thread.
     private let frontmostQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Frontmost", qos: .userInitiated)
     let frontmostCache = FrontmostIdentityCache()
+    /// Serial queue for activation Accessibility IPC (lookups, raises, checks).
+    let activationQueue = DispatchQueue(label: "CmdTab.AppSwitcher.Activation", qos: .userInteractive)
+    /// The latest switch request; superseded activation chains stop.
+    let activationRequests = ActivationRequestLedger()
     private var _cachedItems: [SwitcherItem] = []
     private var previewCache: [String: PreviewCacheEntry] = [:]
     private let cacheLock = NSLock()
@@ -963,31 +967,41 @@ final class AppSwitcher: NSObject {
     // MARK: - Window activation
 
     private func activateFallbackApplication(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity) {
+        let token = activationRequests.begin(pid: app.processIdentifier)
         ActivationOutcomeTracker.shared.recordRequested()
         markPendingActivation(app.processIdentifier)
-        schedulePendingActivationTimeout(for: app.processIdentifier)
+        schedulePendingActivationTimeout(for: app.processIdentifier, token: token)
         activateApplication(app, activateAllWindows: true)
 
-        let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        let preferredWindows = [
-            preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString),
-            preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
-        ].compactMap { $0 }
+        // Window lookup and raise are Accessibility IPC: keep them off main.
+        activationQueue.async { [weak self] in
+            guard let self, self.activationRequests.isCurrent(token) else { return }
+            let axApp = AXUIElementCreateApplication(app.processIdentifier)
+            let preferredWindows = [
+                self.preferredWindow(for: axApp, attribute: kAXFocusedWindowAttribute as CFString),
+                self.preferredWindow(for: axApp, attribute: kAXMainWindowAttribute as CFString),
+            ].compactMap { $0 }
 
-        if let preferred = preferredWindows.first(where: { isStandardWindow($0) }) {
-            raiseWindow(preferred, ownerPID: app.processIdentifier)
-        } else {
-            var value: CFTypeRef?
-            if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
-               let windows = value as? [AXUIElement],
-               let target = windows.first(where: { isStandardWindow($0) }) ?? windows.first {
-                raiseWindow(target, ownerPID: app.processIdentifier)
+            var needsReopen = false
+            if let preferred = preferredWindows.first(where: { self.isStandardWindow($0) }) {
+                _ = self.raiseWindow(preferred, ownerPID: app.processIdentifier)
             } else {
-                reopenApplication(app)
+                var value: CFTypeRef?
+                if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
+                   let windows = value as? [AXUIElement],
+                   let target = windows.first(where: { self.isStandardWindow($0) }) ?? windows.first {
+                    _ = self.raiseWindow(target, ownerPID: app.processIdentifier)
+                } else {
+                    needsReopen = true
+                }
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.continuesActivation(token) else { return }
+                if needsReopen { self.reopenApplication(app) }
+                self.ensureApplicationFrontmost(app, identity: identity, attempt: 0, token: token)
             }
         }
-
-        ensureApplicationFrontmost(app, identity: identity, attempt: 0)
         // warmCache intentionally omitted: the NSWorkspace.didActivateApplication
         // notification fires after app.activate() and already calls warmCache(force: true)
         // via appActivated(_:). Calling it here too queues a redundant rebuild that
@@ -1010,13 +1024,14 @@ final class AppSwitcher: NSObject {
     }
 
     private func activateWindow(_ candidate: WindowCandidate) {
+        let token = activationRequests.begin(pid: candidate.ownerPID)
         ActivationOutcomeTracker.shared.recordRequested()
         guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
             ActivationOutcomeTracker.shared.record(.targetDisappeared)
             return
         }
         markPendingActivation(candidate.ownerPID)
-        schedulePendingActivationTimeout(for: candidate.ownerPID)
+        schedulePendingActivationTimeout(for: candidate.ownerPID, token: token)
 
         // An unavailable identity or focus bridge must never be treated as an
         // exact selection.  Public application activation still preserves a
@@ -1024,7 +1039,7 @@ final class AppSwitcher: NSObject {
         // cannot advance exact-window MRU.
         guard exactFocusCapabilityAvailable else {
             activateApplication(app, activateAllWindows: true)
-            ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0)
+            ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0, token: token)
             return
         }
 
@@ -1033,14 +1048,14 @@ final class AppSwitcher: NSObject {
             windowID: candidate.id
         ) else {
             activateApplication(app, activateAllWindows: true)
-            ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0)
+            ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0, token: token)
             return
         }
         // Activating every sibling can return macOS to the app's desktop Space
         // after the selected fullscreen window was brought forward.
         activateApplication(app, activateAllWindows: false)
         DispatchQueue.main.asyncAfter(deadline: .now() + initialWindowFocusDelay) { [weak self] in
-            self?.focusBestMatchingWindow(candidate, attempt: 0)
+            self?.focusBestMatchingWindow(candidate, attempt: 0, token: token)
         }
         // warmCache intentionally omitted: NSWorkspace.didActivateApplication fires
         // after activate() and already triggers warmCache via appActivated(_:).
@@ -1049,37 +1064,75 @@ final class AppSwitcher: NSObject {
     }
 
     // MARK: - Window focus (exact CGWindowID only)
+    //
+    // The chain runs for up to a few seconds. NSRunningApplication activation,
+    // retry scheduling, pending state, and history stay on the main thread;
+    // Accessibility reads and raises run on `activationQueue`. Every step
+    // checks its request token so a newer switch cancels this chain.
 
-    private func focusBestMatchingWindow(_ candidate: WindowCandidate, attempt: Int) {
+    private enum WindowRaiseResult {
+        case windowsUnavailable, exactWindowNotFound, raised, raiseFailed
+    }
+
+    /// Main thread. Returns true while `token` is the latest request. A
+    /// superseded chain stops, releasing its pending state only when the newer
+    /// request targets a different process (which still owns it otherwise).
+    private func continuesActivation(_ token: ActivationRequestLedger.Token) -> Bool {
+        guard activationRequests.isCurrent(token) else {
+            if activationRequests.currentPID != token.pid {
+                pendingActivationPIDs.remove(token.pid)
+            }
+            return false
+        }
+        return true
+    }
+
+    private func focusBestMatchingWindow(
+        _ candidate: WindowCandidate, attempt: Int, token: ActivationRequestLedger.Token
+    ) {
+        guard continuesActivation(token) else { return }
+        activationQueue.async { [weak self] in
+            guard let self, self.activationRequests.isCurrent(token) else { return }
+            let result = self.raiseExactWindow(candidate)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.continuesActivation(token) else { return }
+                switch result {
+                case .windowsUnavailable, .exactWindowNotFound:
+                    // Do not raise a same-PID sibling based on title/frame
+                    // heuristics. Retrying lets a temporarily stale AX bridge
+                    // resolve; terminal handling records a non-exact outcome.
+                    self.scheduleWindowFocusRetry(for: candidate, attempt: attempt, token: token)
+                case .raiseFailed:
+                    guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
+                        self.scheduleWindowFocusRetry(for: candidate, attempt: attempt, token: token)
+                        return
+                    }
+                    self.ensureApplicationFrontmost(
+                        app, identity: candidate.historyIdentity, attempt: attempt, token: token
+                    )
+                case .raised:
+                    self.ensureWindowFrontmost(candidate, attempt: attempt, token: token)
+                }
+            }
+        }
+    }
+
+    /// Activation queue. The Accessibility half of one focus attempt.
+    private func raiseExactWindow(_ candidate: WindowCandidate) -> WindowRaiseResult {
         let axApp = AXUIElementCreateApplication(candidate.ownerPID)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &value) == .success,
               let windows = value as? [AXUIElement], !windows.isEmpty else {
-            scheduleWindowFocusRetry(for: candidate, attempt: attempt)
-            return
+            return .windowsUnavailable
         }
-
         let mappedWindowIDs = windows.map { resolvedWindowID(for: $0) }
         guard let exactIndex = ExactWindowActivationPolicy.selectedWindowIndex(
             selectedWindowID: candidate.id,
             mappedWindowIDs: mappedWindowIDs
         ) else {
-            // Do not raise a same-PID sibling based on title/frame heuristics.
-            // Retrying allows an AX bridge that is temporarily stale to resolve;
-            // terminal handling records a non-exact outcome and preserves MRU.
-            scheduleWindowFocusRetry(for: candidate, attempt: attempt)
-            return
+            return .exactWindowNotFound
         }
-
-        guard raiseWindow(windows[exactIndex], ownerPID: candidate.ownerPID) else {
-            guard let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
-                scheduleWindowFocusRetry(for: candidate, attempt: attempt)
-                return
-            }
-            ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: attempt)
-            return
-        }
-        ensureWindowFrontmost(candidate, attempt: attempt)
+        return raiseWindow(windows[exactIndex], ownerPID: candidate.ownerPID) ? .raised : .raiseFailed
     }
 
     private func raiseWindow(_ axWindow: AXUIElement, ownerPID: pid_t) -> Bool {
@@ -1112,7 +1165,9 @@ final class AppSwitcher: NSObject {
         )
     }
 
-    private func scheduleWindowFocusRetry(for candidate: WindowCandidate, attempt: Int) {
+    private func scheduleWindowFocusRetry(
+        for candidate: WindowCandidate, attempt: Int, token: ActivationRequestLedger.Token
+    ) {
         guard attempt < activationRetryLimit else {
             if clearPendingActivation(candidate.ownerPID) {
                 ActivationOutcomeTracker.shared.record(
@@ -1130,7 +1185,7 @@ final class AppSwitcher: NSObject {
         }
         let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.focusBestMatchingWindow(candidate, attempt: attempt + 1)
+            self?.focusBestMatchingWindow(candidate, attempt: attempt + 1, token: token)
         }
     }
 
@@ -1148,7 +1203,13 @@ final class AppSwitcher: NSObject {
         }
     }
 
-    private func ensureApplicationFrontmost(_ app: NSRunningApplication, identity: SwitcherHistoryIdentity, attempt: Int) {
+    private func ensureApplicationFrontmost(
+        _ app: NSRunningApplication,
+        identity: SwitcherHistoryIdentity,
+        attempt: Int,
+        token: ActivationRequestLedger.Token
+    ) {
+        guard continuesActivation(token) else { return }
         guard currentSystemFrontmostPID() != app.processIdentifier else {
             confirmActivation(
                 identity: identity,
@@ -1172,7 +1233,7 @@ final class AppSwitcher: NSObject {
 
         let delay = 0.05 + Double(attempt) * 0.08
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self else { return }
+            guard let self, self.continuesActivation(token) else { return }
             guard self.currentSystemFrontmostPID() != app.processIdentifier else {
                 self.confirmActivation(
                     identity: identity,
@@ -1182,42 +1243,16 @@ final class AppSwitcher: NSObject {
                 return
             }
             self.activateApplication(app, activateAllWindows: true)
-            self.ensureApplicationFrontmost(app, identity: identity, attempt: attempt + 1)
+            self.ensureApplicationFrontmost(app, identity: identity, attempt: attempt + 1, token: token)
         }
     }
 
-    private func ensureWindowFrontmost(_ candidate: WindowCandidate, attempt: Int) {
-        guard !isFrontmostWindow(candidate) else {
-            confirmActivation(
-                identity: candidate.historyIdentity,
-                pid: candidate.ownerPID,
-                outcome: .exactVerified
-            )
-            return
-        }
-        guard attempt < activationRetryLimit,
-              let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
-            if clearPendingActivation(candidate.ownerPID) {
-                ActivationOutcomeTracker.shared.record(
-                    NSRunningApplication(processIdentifier: candidate.ownerPID) == nil
-                        ? .targetDisappeared
-                        : (AXIsProcessTrusted() ? .failure : .accessibilityUnavailable)
-                )
-                os_log(
-                    .error,
-                    log: appSwitcherLog,
-                    "Exact window activation failed after retries (pid=%{public}d, window=%{public}u)",
-                    candidate.ownerPID,
-                    candidate.id
-                )
-            }
-            return
-        }
-
-        let delay = 0.05 + Double(attempt) * 0.08
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+    private func ensureWindowFrontmost(
+        _ candidate: WindowCandidate, attempt: Int, token: ActivationRequestLedger.Token
+    ) {
+        verifyFrontmostWindow(candidate, token: token) { [weak self] isFrontmost in
             guard let self else { return }
-            guard !self.isFrontmostWindow(candidate) else {
+            guard !isFrontmost else {
                 self.confirmActivation(
                     identity: candidate.historyIdentity,
                     pid: candidate.ownerPID,
@@ -1225,14 +1260,67 @@ final class AppSwitcher: NSObject {
                 )
                 return
             }
-            self.activateApplication(app, activateAllWindows: false)
-            self.focusBestMatchingWindow(candidate, attempt: attempt + 1)
+            guard attempt < self.activationRetryLimit,
+                  let app = NSRunningApplication(processIdentifier: candidate.ownerPID) else {
+                if self.clearPendingActivation(candidate.ownerPID) {
+                    ActivationOutcomeTracker.shared.record(
+                        NSRunningApplication(processIdentifier: candidate.ownerPID) == nil
+                            ? .targetDisappeared
+                            : (AXIsProcessTrusted() ? .failure : .accessibilityUnavailable)
+                    )
+                    os_log(
+                        .error,
+                        log: appSwitcherLog,
+                        "Exact window activation failed after retries (pid=%{public}d, window=%{public}u)",
+                        candidate.ownerPID,
+                        candidate.id
+                    )
+                }
+                return
+            }
+
+            let delay = 0.05 + Double(attempt) * 0.08
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.verifyFrontmostWindow(candidate, token: token) { [weak self] isFrontmost in
+                    guard let self else { return }
+                    guard !isFrontmost else {
+                        self.confirmActivation(
+                            identity: candidate.historyIdentity,
+                            pid: candidate.ownerPID,
+                            outcome: .exactVerified
+                        )
+                        return
+                    }
+                    self.activateApplication(app, activateAllWindows: false)
+                    self.focusBestMatchingWindow(candidate, attempt: attempt + 1, token: token)
+                }
+            }
         }
     }
 
-    private func schedulePendingActivationTimeout(for pid: pid_t) {
+    /// Runs the Accessibility focus check on the activation queue and calls
+    /// `completion` on the main thread, unless a newer request superseded it.
+    private func verifyFrontmostWindow(
+        _ candidate: WindowCandidate,
+        token: ActivationRequestLedger.Token,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard continuesActivation(token) else { return }
+        activationQueue.async { [weak self] in
+            guard let self, self.activationRequests.isCurrent(token) else { return }
+            let isFrontmost = self.isFrontmostWindow(candidate)
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.continuesActivation(token) else { return }
+                completion(isFrontmost)
+            }
+        }
+    }
+
+    private func schedulePendingActivationTimeout(for pid: pid_t, token: ActivationRequestLedger.Token) {
         DispatchQueue.main.asyncAfter(deadline: .now() + pendingActivationTimeout) { [weak self] in
-            guard let self else { return }
+            // A superseded request must not clear or fail a newer request's
+            // pending state for the same process.
+            guard let self, self.continuesActivation(token) else { return }
             if self.clearPendingActivation(pid) {
                 ActivationOutcomeTracker.shared.record(.failure)
             }
