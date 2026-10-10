@@ -51,6 +51,22 @@ export default function AboutPage() {
           <LastReviewed date={productFacts.reviewedAt} />
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
+          <article className="surface-panel p-7 lg:col-span-2">
+            <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Why I built CmdTab</h2>
+            <div className="mt-4 max-w-3xl space-y-4 text-base leading-8 text-muted">
+              <p>
+                I switch between a lot of windows on my Mac every day, and Cmd+Tab only switches apps. I tried the existing window switchers, but each had problems I couldn’t fix or add to myself. So I built CmdTab, with the features I wanted.
+              </p>
+              <p>
+                It’s still in private beta and I’m improving it often. I’m sharing it with other Mac users in the hope it solves the same frustrations for them. If something doesn’t work for you, tell me at{" "}
+                <a className="text-cyan underline underline-offset-4 hover:text-text" href={`mailto:${siteConfig.contactEmail}`}>
+                  {siteConfig.contactEmail}
+                </a>{" "}
+                and I’ll fix it.
+              </p>
+              <p className="text-sm text-subdued">Siew Hean, developer of CmdTab</p>
+            </div>
+          </article>
           <article className="surface-panel p-7">
             <h2 className="text-2xl font-medium tracking-[-0.04em] text-text">Product approach</h2>
             <p className="mt-4 text-base leading-8 text-muted">
