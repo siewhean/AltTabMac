@@ -1,5 +1,5 @@
 import { FooterSection } from "@/components/sections/footer-section";
-import { TrialWaitlistForm } from "@/components/sections/trial-waitlist-form";
+import { WaitlistForm } from "@/components/sections/waitlist-form";
 import { JsonLd } from "@/components/seo/json-ld";
 import { LastReviewed } from "@/components/seo/last-reviewed";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export default function WaitlistPage() {
                 free license.
               </p>
             </div>
-            <TrialWaitlistForm />
+            <WaitlistForm source="waitlist_page" variant="page" />
           </MotionReveal>
 
           <MotionReveal direction="left" className="surface-panel order-2 min-w-0 p-6 xl:order-1">
