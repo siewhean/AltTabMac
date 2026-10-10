@@ -1,3 +1,11 @@
+## 2026-10-10 — Flaky analytics rate-limit browser check
+
+- [x] Root cause: the shared ingest limiter uses clock-aligned fixed windows; the browser check sent a fixed 130 requests, so a burst crossing a minute boundary split (e.g. 65 + 65) and never exceeded 120 in either window. Seen on run 37970231146.
+- [x] Reproduced locally against Postgres: a boundary-straddling 130-request burst returned 130 × 204.
+- [x] Fix (check only, limiter unchanged): send up to 2 × max + 1 requests, stopping at the first 429; read `max` from `src/lib/rate-limit.ts`; report an inconclusive burst if it takes ≥ 60 s.
+
+Review: three boundary-straddling bursts now hit 429 (after 148, 123 and 195 requests). `browser:check` passed 3/3 against a local Postgres-backed server; `npm run prebuild` passes.
+
 ## 2026-10-10 — README status refresh and todo reconciliation
 
 - [x] Read merged PRs #63–#69 (`gh pr view`) and replace README's stale 2026-09-25/27 header with a dated current-status paragraph, deploy prerequisites and open device checks.
