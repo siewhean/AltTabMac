@@ -14,7 +14,7 @@ replace signed-artifact or physical-Mac evidence.
 | Exact-window activation | UNPROVEN | Source records verified exact activation separately from application fallback; physical cross-Space proof remains required. |
 | Wrong-sibling activation | UNPROVEN | Exact sibling fallback is removed; physical canary/soak must show zero wrong siblings. |
 | Preview integrity | UNPROVEN | Physical soak receipt must report no stale cross-window previews. |
-| Fresh beta entitlement | UNPROVEN | Trial KMS/KID/public-keyring inputs are unset locally; requires deployed trial-only KMS/OIDC/keyring and clean-user receipt. |
+| Fresh beta entitlement | UNPROVEN | Server side is live: trial KMS/OIDC/keyring deployed and a production trial token verified against the `trial-2026-10` keyring (2026-10-10). Still requires a signed app built with that keyring and a clean-user receipt. |
 | macOS support policy consistent | PASS (source) | Package, release config, and generated plist require macOS 14+. |
 | Private capability degradation | UNPROVEN | Retain candidate-bound macOS 14 and 15 private-capability canary receipts; deterministic CI validates only their schema/harness. |
 | Cmd-Q semantics | PASS (source) | Exact and fallback items route Cmd-Q to the owning application. |
