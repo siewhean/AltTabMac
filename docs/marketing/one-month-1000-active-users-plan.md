@@ -38,14 +38,14 @@ The allocation is a channel hypothesis, not a forecast. If no separately consent
 - **Week 1 (8–14 Oct):** Obtain the current waitlist aggregate without exporting addresses. Resolve live/source compatibility copy. Verify the new consent-gated campaign attribution in a controlled test; double opt-in, optional marketing consent, unsubscribe suppression, and a confirmed-address metric are now implemented (see `tasks/todo.md`, 2026-10-10); verify them in production before any nurture campaign. Prepare actual-app footage or clearly labeled showcase composites. No paid spend until measurement works.
 - **Week 2 (15–21 Oct):** Start the creator/community wave. Publish the first demo and setup guide. Email only a separately permissioned segment; current access requests get only the access/availability update they were promised. Run the US$300 paid pilot after attribution and verification are working.
 - **Week 3 (22–28 Oct):** Compare cost per confirmed signup and signup quality by channel. Shift effort to the best two sources; stop weak or misleading channels. Publish two workflow tips and one fair comparison.
-- **Week 4 (29 Oct–6 Nov):** Run a referral and community push; publish an honest progress update; suppress unsubscribed/bounced addresses; report total verified unique addresses, net-new signups, source mix, conversion, spend, and remaining gap.
+- **Week 4 (29 Oct–6 Nov):** Run a referral and community push; publish an honest progress update; honour unsubscribes (they delete the signup); report total verified unique addresses, net-new signups, source mix, conversion, spend, and remaining gap.
 
 ## Measurement pipeline
 
 1. Tag every campaign link with `utm_source`, `utm_medium`, `utm_campaign=waitlist_1000_30d`, and unique `utm_content`.
 2. The current source captures bounded campaign labels and landing path in signup metadata after explicit submission only when optional analytics consent is accepted; the privacy notice describes this. Waitlist access request and analytics consent remain separate.
 3. Double opt-in is implemented: each signup gets a signed confirmation link (7 days). Count only `confirmed` addresses (the dashboard aggregate now reports `confirmed` and `unconfirmed`). An email provider accepting a message or the API returning `ok` does not count as confirmation.
-4. An explicit, unchecked marketing-consent box (version `2026-10-product-updates-v1`, timestamp on confirmation) is on the full waitlist form. Unsubscribe removes the row and keeps only a keyed hash, so a re-submitted address is not emailed again. Bounce/complaint suppression is deferred (needs a Resend webhook and secret).
+4. An explicit, unchecked marketing-consent box (version `2026-10-product-updates-v1`, timestamp on confirmation) is on the full waitlist form. Unsubscribe removes the row entirely, so no further email is sent; signing up again later starts a new confirmation. Bounce/complaint handling is deferred (needs a Resend webhook and secret).
 5. A consented `waitlist_form_success_response` event now measures successful API responses. It is not proof of durable storage or email verification. Record confirmed-signup events server-side after double opt-in exists.
 6. Review aggregate daily: qualified visits, form submissions, verification rate, confirmed unique addresses, source, spend, cost per confirmed signup, bounces, unsubscribes, and complaints. Do not expose or share individual addresses in campaign reporting.
 
@@ -66,7 +66,7 @@ Replace bracketed items only with verified details. Do not claim a release date,
 ## Blockers and status
 
 - Current waitlist aggregate and conversion baseline: **unknown**; get aggregate counts through the protected dashboard before setting the net-new target.
-- Waitlist hardening (2026-10-10): double opt-in, confirmed-only counting, optional marketing consent, unsubscribe suppression, fail-closed signup (503 if the database, Resend or the link-signing secret is missing), owner notification on confirmation, and a 30-day purge of never-confirmed signups are implemented in source. Deployed status: see the release evidence. Bounce/complaint handling is **not** implemented.
+- Waitlist hardening (2026-10-10): double opt-in, confirmed-only counting, optional marketing consent, unsubscribe by deletion, pre-existing signups counted as confirmed, fail-closed signup (503 if the database, Resend or the link-signing secret is missing), one owner notification per new signup, and a 30-day purge of never-confirmed signups are implemented in source. Deployed status: see the release evidence. Bounce/complaint handling is **not** implemented.
 - Contact address is `trycmdtab@gmail.com` (merged in #73). Outgoing waitlist/license mail still needs a verified sending domain, and production `WAITLIST_REPLY_TO_EMAIL` must be updated.
 - macOS minimum: source is consistently 14.0; the one stale live FAQ answer (13.0) is fixed in #74, **merged, pending deploy**. Recheck `/faq` after deploy before quoting a minimum in campaigns.
 - Current traffic is far below the reach needed by the planning model; large partner/community distribution is essential. The goal cannot be guaranteed.
