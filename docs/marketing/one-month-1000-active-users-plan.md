@@ -16,7 +16,7 @@ The live trial form says “Request Trial Access” and promises an email when t
 
 **8 October dashboard snapshot (user-provided Vercel screenshot):** Production, Last 7 Days: 8 visitors, 18 pageviews, 75% bounce rate. The visible page rows show `/` (4 visitors), `/guides/switch-between-windows-on-mac` (4), `/waitlist` (2), `/buy` (1), and `/security` (1). Visible referrers are Google (4), Bing (1), and DuckDuckGo (1). These are tiny, overlapping aggregates; they do not establish search as a winning channel or reveal signup conversion. The guide has the same visible visitor count as the home page, so this iteration adds a clearly labeled private-preview waitlist CTA near the guide introduction and tags its link. Compare guide visits and consented form-success responses after a production release; neither metric proves a confirmed signup.
 
-**Minimum macOS (rechecked 10 October 2026):** the app targets macOS 14.0 (`Package.swift` `.macOS(.v14)`, `Resources/Info.plist` and `release/ReleaseConfig.json` `14.0`). The live `/waitlist`, `/compatibility`, home page and `llms.txt` already say macOS 14.0 (Sonoma) or later. Only the FAQ answer still said macOS 13.0 Ventura; the fix merged in #74 and is live only after it is deployed.
+**Minimum macOS (rechecked 10 October 2026):** the app targets macOS 14.0 (`Package.swift` `.macOS(.v14)`, `Resources/Info.plist` and `release/ReleaseConfig.json` `14.0`). The live `/waitlist`, `/compatibility`, home page and `llms.txt` already say macOS 14.0 (Sonoma) or later. The FAQ answer that said macOS 13.0 Ventura was fixed in #74; live `/faq` was rechecked on 10 October 2026 and says macOS 14.0 (Sonoma) or later.
 
 ## Funnel model and reach required
 
@@ -66,9 +66,9 @@ Replace bracketed items only with verified details. Do not claim a release date,
 ## Blockers and status
 
 - Current waitlist aggregate and conversion baseline: **unknown**; get aggregate counts through the protected dashboard before setting the net-new target.
-- Waitlist hardening (2026-10-10): double opt-in, confirmed-only counting, optional marketing consent, unsubscribe by deletion, pre-existing signups counted as confirmed, fail-closed signup (503 if the database, Resend or the link-signing secret is missing), one owner notification per new signup, and a 30-day purge of never-confirmed signups are implemented in source. Deployed status: see the release evidence. Bounce/complaint handling is **not** implemented.
-- Contact address is `trycmdtab@gmail.com` (merged in #73). Outgoing waitlist/license mail still needs a verified sending domain, and production `WAITLIST_REPLY_TO_EMAIL` must be updated.
-- macOS minimum: source is consistently 14.0; the one stale live FAQ answer (13.0) is fixed in #74, **merged, pending deploy**. Recheck `/faq` after deploy before quoting a minimum in campaigns.
+- Waitlist hardening (2026-10-10): double opt-in, confirmed-only counting, optional marketing consent, unsubscribe by deletion, pre-existing signups counted as confirmed, fail-closed signup (503 if the database, Resend or the link-signing secret is missing), one owner notification per new signup, and a 30-day purge of never-confirmed signups are implemented and deployed (`main` at `c5f13873`, 10 October 2026). Bounce/complaint handling is **not** implemented.
+- Email is live (10 October 2026): contact and reply-to address `trycmdtab@gmail.com`; waitlist mail sends from `CmdTab <hello@cmdtab.net>`, a verified Resend domain (DKIM, SPF, DMARC `p=none`). A live test signup delivered its confirmation. Consider `p=quarantine` and a DMARC report address after a few weeks of clean sending.
+- macOS minimum: resolved. Source and every live page, including `/faq`, say macOS 14.0 (Sonoma) or later.
 - Current traffic is far below the reach needed by the planning model; large partner/community distribution is essential. The goal cannot be guaranteed.
 - Vercel traffic was queried for project `website` on 7 October 2026 using the Web Analytics visits count endpoint with `since=2026-09-07` and `until=2026-10-07`; result: 15 visitors and 35 pageviews. The custom-events query returned HTTP 402. This is an account query snapshot, not a committed analytics export.
 - No posts, email campaigns, directory listings, or ads have been sent/launched; no spend has been made.
