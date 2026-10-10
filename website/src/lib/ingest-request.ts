@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getClientIp } from "@/lib/client-ip";
 import {
   checkIngestRateLimit,
   type IngestEndpoint,
@@ -50,14 +51,8 @@ export function isAllowedIngestRequest(request: Request) {
 }
 
 export function getIngestClient(request: Request) {
-  const isVercelRequest = request.headers.has("x-vercel-id");
-  const realIp = isVercelRequest ? request.headers.get("x-real-ip")?.trim() : undefined;
-  const forwardedFor = isVercelRequest
-    ? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    : undefined;
-
   return {
-    ip: realIp || forwardedFor || "unknown",
+    ip: getClientIp(request),
     userAgent: request.headers.get("user-agent")?.trim() || "unknown",
   };
 }

@@ -1,9 +1,9 @@
 import { createHmac } from "node:crypto";
 
 import { optionalStrongInternalSecret } from "./env";
-import { canonicalEmail, DEVICE_ID_PATTERN, networkKey } from "./waitlist-referral";
+import { DEVICE_ID_PATTERN, networkKey } from "./waitlist-referral";
 
-type SignalKind = "device" | "network" | "email";
+type SignalKind = "device" | "network";
 
 // Raw IPs and device identifiers are never stored. Keyed with a server secret,
 // a leaked table cannot be reversed by hashing guessed addresses. Without the
@@ -27,10 +27,3 @@ export function hashNetwork(ip: string | null | undefined) {
   return key ? hashSignal("network", key) : undefined;
 }
 
-/**
- * Keyed hash of a canonical address, so an unsubscribe survives re-submission
- * (and alias spellings) without keeping the address itself.
- */
-export function hashEmailForSuppression(email: string) {
-  return hashSignal("email", canonicalEmail(email));
-}
