@@ -34,7 +34,7 @@ export async function sendWaitlistOwnerNotification(payload: {
     `Email: ${payload.email}`,
     `Name: ${payload.name || "Not provided"}`,
     `Source: ${payload.source || "Not provided"}`,
-    "Status: awaiting email confirmation",
+    "Status: awaiting email confirmation. Everything above was typed by the visitor and is unverified; don't follow links in it.",
     "",
     "Metadata:",
     formatMetadata(payload.metadata),
@@ -43,7 +43,8 @@ export async function sendWaitlistOwnerNotification(payload: {
   return resend.emails.send({
     from: env.waitlistFromEmail,
     to: env.waitlistToEmail,
-    replyTo: env.waitlistReplyToEmail ?? payload.email,
+    // Never reply to the submitted address: it is unverified until confirmed.
+    ...(env.waitlistReplyToEmail ? { replyTo: env.waitlistReplyToEmail } : {}),
     subject: waitlistEmailContent.ownerNotification.subject,
     text,
   });
