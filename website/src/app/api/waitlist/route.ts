@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { getClientIp } from "@/lib/client-ip";
 import {
   renderApplicantWaitlistEmail,
   waitlistEmailContent,
@@ -20,16 +21,16 @@ import {
   readBoundedJson,
 } from "@/lib/ingest-request";
 import {
-  isEmailSuppressed,
   isWaitlistStoreConfigured,
   markWaitlistConfirmationSent,
   updateWaitlistNotificationStatus,
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
+import { sendWaitlistOwnerNotification } from "@/lib/waitlist-owner-notification";
 import { referralUrl } from "@/lib/waitlist-referral";
 import { waitlistConfirmUrl } from "@/lib/waitlist-confirm";
-import { hashDeviceId, hashEmailForSuppression, hashNetwork } from "@/lib/waitlist-signals";
+import { hashDeviceId, hashNetwork } from "@/lib/waitlist-signals";
 import { waitlistUnsubscribeSecret, waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
 
 export const runtime = "nodejs";
@@ -136,17 +137,6 @@ function passesFetchSiteProtection(request: Request) {
   return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
 }
 
-function getClientIp(request: Request) {
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (request.headers.has("x-vercel-id") && forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
-  }
-
-  return "unknown";
-}
 
 function getUserAgent(request: Request) {
   return request.headers.get("user-agent")?.trim() ?? "unknown";
@@ -348,21 +338,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // An address that unsubscribed (or an alias of it) stays opted out. Answer
-    // exactly like a normal success so the response reveals nothing.
-    if (await isEmailSuppressed(hashEmailForSuppression(payload.email))) {
-      await markSubmitted(emailFingerprint);
-      await markSubmitted(requestFingerprint);
-      return jsonResponse({
-        ok: true,
-        code: "waitlist_submitted",
-        message: waitlistEmailContent.applicant.onPageMessage,
-        requestId,
-        submittedAt: new Date().toISOString(),
-        notificationDelivered: true,
-      });
-    }
-
     let storedSubmission = null;
     let alreadyRegistered = false;
     let referral:
@@ -463,6 +438,31 @@ export async function POST(request: Request) {
     if (storedSubmission) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
       await markWaitlistConfirmationSent(storedSubmission.email);
+    }
+
+    // One owner notice per new signup (owner decision, 2026-10-10). A failed
+    // notice must never fail or change the applicant's response.
+    if (storedSubmission && !alreadyRegistered) {
+      try {
+        const sent = await sendWaitlistOwnerNotification({
+          email: storedSubmission.email,
+          name: payload.name,
+          source: payload.source,
+          metadata: payload.metadata,
+          requestId,
+        });
+        if (sent.error) {
+          console.error("[CmdTab Website] waitlist owner notification failed", {
+            requestId,
+            errorName: sent.error.name,
+          });
+        }
+      } catch (notificationError) {
+        console.error("[CmdTab Website] waitlist owner notification failed", {
+          requestId,
+          error: notificationError instanceof Error ? notificationError.message : "Unknown error",
+        });
+      }
     }
 
     await markSubmitted(emailFingerprint);

@@ -162,15 +162,18 @@ async function ensureSchema() {
   ]) {
     await sql.unsafe(`alter table waitlist_signups add column if not exists ${column}`);
   }
-  // Keyed hashes of unsubscribed addresses: the opt-out survives re-submission.
-  await sql`
-    create table if not exists waitlist_suppressions (
-      email_hash text primary key,
-      reason text not null check (reason in ('unsubscribed', 'bounced', 'complained')),
-      created_at timestamptz not null default now()
-    )
-  `;
   await sql`create index if not exists waitlist_signups_canonical_email_idx on waitlist_signups (canonical_email)`;
+  // An earlier build kept keyed hashes of unsubscribed addresses. Unsubscribe
+  // now keeps nothing (owner decision, 2026-10-10), so remove any leftovers.
+  await sql`drop table if exists waitlist_suppressions`;
+  // Signups made before double opt-in count as confirmed (owner decision,
+  // 2026-10-10). Every signup written by this code sets canonical_email, so a
+  // row with neither canonical_email nor confirmed_at predates it. Idempotent.
+  await sql`
+    update waitlist_signups
+    set confirmed_at = created_at
+    where confirmed_at is null and canonical_email is null
+  `;
   await sql`create index if not exists waitlist_signups_device_hash_idx on waitlist_signups (device_hash)`;
 
   schemaReady = true;
@@ -597,27 +600,16 @@ export async function updateWaitlistNotificationStatus(
 
 /**
  * Removes a signup on the applicant's request (unsubscribe). Idempotent.
- * When a suppression hash is supplied, it is recorded in the same transaction
- * so a later re-submission of the address (or an alias) is not emailed again.
- * If the address had been counted toward someone's reward, that inviter's
+ * Nothing about the address is kept, so it receives no further email; signing
+ * up again later starts over as a new, unconfirmed signup. If the address had been counted toward someone's reward, that inviter's
  * referrals are re-judged so the reward cannot outlive the friend.
  */
-export async function deleteWaitlistSignup(
-  email: string,
-  options: { suppressionHash?: string } = {},
-) {
+export async function deleteWaitlistSignup(email: string) {
   await ensureSchema();
   const sql = getSql();
   await sql.begin(async (transaction) => {
     const tx = transaction as unknown as typeof sql;
     await lockReferralDecisions(tx);
-    if (options.suppressionHash) {
-      await tx`
-        insert into waitlist_suppressions (email_hash, reason)
-        values (${options.suppressionHash}, 'unsubscribed')
-        on conflict (email_hash) do nothing
-      `;
-    }
     const [deleted] = await tx<Pick<WaitlistRow, "referred_by">[]>`
       delete from waitlist_signups
       where email = ${email.trim().toLowerCase()}
@@ -625,17 +617,6 @@ export async function deleteWaitlistSignup(
     `;
     if (deleted?.referred_by) await recomputeReferrals(tx, deleted.referred_by);
   });
-}
-
-/** True when the address (or an alias of it) previously unsubscribed. */
-export async function isEmailSuppressed(emailHash: string | undefined) {
-  if (!emailHash) return false;
-  await ensureSchema();
-  const sql = getSql();
-  const [row] = await sql<{ email_hash: string }[]>`
-    select email_hash from waitlist_suppressions where email_hash = ${emailHash}
-  `;
-  return Boolean(row);
 }
 
 export const WAITLIST_USE_CASES = ["browsing", "development", "design", "writing", "other"] as const;
