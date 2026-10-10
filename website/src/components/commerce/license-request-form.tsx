@@ -148,7 +148,7 @@ export function LicenseRequestForm() {
               value={reason}
               onChange={(event) => setReason(event.target.value as typeof reason)}
               disabled={isSubmitting}
-              className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-text transition-[border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] focus:border-accent/50 focus:bg-white/8 focus:outline-none focus:ring-2 focus:ring-accent/20 active:scale-[0.995]"
+              className="min-h-12 w-full rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-text transition-[border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] focus:border-accent/50 focus:bg-white/8 focus:outline-hidden focus:ring-2 focus:ring-accent/20 active:scale-[0.995]"
             >
               {licenseRequestReasonOptions.map((option) => (
                 <option key={option.value} value={option.value} className="bg-[#0B1018] text-text">

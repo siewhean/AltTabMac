@@ -15,7 +15,7 @@ export function FeatureBandsSection() {
         role="region"
         aria-label="CmdTab feature highlights"
         tabIndex={0}
-        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0"
       >
         {featureHighlights.map((item, index) => (
           <MotionReveal

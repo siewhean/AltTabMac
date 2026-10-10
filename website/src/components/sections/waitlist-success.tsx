@@ -22,7 +22,7 @@ type WaitlistSuccessProps = {
 };
 
 const shareLinkClass =
-  "inline-flex min-h-11 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-text transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
+  "inline-flex min-h-11 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-text transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.09] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60";
 
 const useCases = [
   { id: "browsing", label: "Browsing and research" },
@@ -135,7 +135,7 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
               aria-label="Your invite link"
               value={link}
               onFocus={(event) => event.currentTarget.select()}
-              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-text focus:border-accent/50 focus:outline-none"
+              className="min-h-11 w-full rounded-xl border border-white/10 bg-white/5 px-3 text-xs text-text focus:border-accent/50 focus:outline-hidden"
             />
             <Button type="button" onClick={copyLink} className="sm:w-auto">
               {copied === "copied" ? "Copied" : "Copy link"}

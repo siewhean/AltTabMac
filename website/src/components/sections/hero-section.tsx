@@ -52,7 +52,7 @@ export function HeroSection() {
           <Button
             href="#join"
             variant="secondary"
-            className="hidden lg:inline-flex"
+            className="max-lg:hidden"
             {...analyticsAttributes("hero_nav_primary", "header")}
           >
             {siteConfig.ctas.primary}
@@ -79,7 +79,7 @@ export function HeroSection() {
               <WaitlistForm source="homepage_hero" variant="hero" />
               <a
                 href="#demo"
-                className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-cyan underline decoration-cyan/40 underline-offset-4 hover:decoration-cyan focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-cyan underline decoration-cyan/40 underline-offset-4 hover:decoration-cyan focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
                 {...analyticsAttributes("hero_secondary_cta", "hero")}
               >
                 {heroContent.secondaryCta} →

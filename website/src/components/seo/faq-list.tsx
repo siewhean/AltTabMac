@@ -12,7 +12,6 @@ export function FaqList({
           key={item.question}
           delay={index * 30}
           direction="up"
-          className="border-b-0"
         >
           <details className="group py-6">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 text-left text-lg font-medium tracking-[-0.03em] text-text [&::-webkit-details-marker]:hidden">

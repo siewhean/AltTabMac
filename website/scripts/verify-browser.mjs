@@ -17,6 +17,16 @@ const baseUrl = (process.env.VERIFY_BASE_URL || "http://127.0.0.1:3000").replace
 const localRun = /^http:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(baseUrl);
 const root = process.cwd();
 const axeSource = readFileSync(resolve(root, "node_modules/axe-core/axe.min.js"), "utf8");
+// The shared ingest limiter counts fixed, clock-aligned windows. Read its
+// per-minute maximum from source so the contract below cannot drift from it.
+const ingestPerMinuteMax = (() => {
+  const source = readFileSync(resolve(root, "src/lib/rate-limit.ts"), "utf8");
+  const match = source.match(
+    /const INGEST_RATE_LIMITS[^=]*=\s*\[\s*\{\s*max:\s*([\d_]+),\s*windowMs:\s*60_000\s*\}/,
+  );
+  assert.ok(match, "INGEST_RATE_LIMITS per-minute bucket not found in src/lib/rate-limit.ts");
+  return Number(match[1].replaceAll("_", ""));
+})();
 const routes = JSON.parse(readFileSync(resolve(root, "src/content/public-routes.json"), "utf8")).map(
   (entry) => entry.path,
 );
@@ -876,10 +886,16 @@ try {
     fail(`analytics ingestion contract returned unexpected statuses: ${JSON.stringify(apiStatuses)}`);
   }
 
+  // A burst that crosses a minute boundary is split across two fixed windows,
+  // so a fixed count just above the limit can pass without a 429. Any
+  // 2 * max + 1 requests sent within 60 seconds touch at most two windows, so
+  // one of them must exceed the limit. Stop at the first 429.
+  const rateLimitBurst = 2 * ingestPerMinuteMax + 1;
   const rateLimitContracts = await client.send("Runtime.evaluate", {
     expression: `new Promise(async (resolve) => {
       const statuses = [];
-      for (let index = 0; index < 130; index += 1) {
+      const startedAt = performance.now();
+      for (let index = 0; index < ${rateLimitBurst}; index += 1) {
         const response = await fetch("/api/analytics", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -891,15 +907,21 @@ try {
           }),
         });
         statuses.push(response.status);
+        if (response.status === 429) break;
       }
-      resolve(statuses);
+      resolve({ statuses, elapsedMs: performance.now() - startedAt });
     })`,
     awaitPromise: true,
     returnByValue: true,
   });
-  const rateLimitStatuses = rateLimitContracts.result?.value || [];
+  const { statuses: rateLimitStatuses = [], elapsedMs: rateLimitElapsedMs = 0 } =
+    rateLimitContracts.result?.value || {};
   if (!rateLimitStatuses.includes(429)) {
-    fail(`analytics ingestion rate limit did not return 429: ${JSON.stringify(rateLimitStatuses)}`);
+    fail(
+      rateLimitElapsedMs >= 60_000
+        ? `analytics rate-limit burst took ${Math.round(rateLimitElapsedMs)} ms, longer than one window; the contract is inconclusive`
+        : `analytics ingestion rate limit did not return 429 within ${rateLimitBurst} requests: ${JSON.stringify(rateLimitStatuses)}`,
+    );
   }
 
   await client.send("Emulation.setDeviceMetricsOverride", {

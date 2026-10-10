@@ -99,7 +99,7 @@ export default function MacWindowSwitchersPage() {
             role="region"
             tabIndex={0}
             aria-label="Mac window switcher comparison table"
-            className="mt-4 overflow-x-auto rounded-[28px] border border-white/10 bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+            className="mt-4 overflow-x-auto rounded-[28px] border border-white/10 bg-white/[0.04] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60"
           >
             <table className="min-w-[1040px] w-full border-collapse text-left">
               <thead>

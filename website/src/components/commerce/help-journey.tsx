@@ -5,7 +5,7 @@ export function HelpJourney() {
   return (
     <div className="surface-panel p-6">
       <p className="type-eyebrow text-cyan">Step by step</p>
-      <div className="relative mt-6 space-y-4">
+      <div className="relative mt-6 flex flex-col gap-4">
         <div className="absolute left-[17px] top-3 bottom-3 w-px bg-white/10" />
         {commercePageContent.help.journey.map((step, index) => (
           <MotionReveal

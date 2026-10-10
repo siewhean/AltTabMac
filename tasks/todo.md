@@ -17,6 +17,14 @@ User asked for one consistent waitlist with no conflicts, a free-license reward 
 
 Review: website tsc, 70 unit tests, 20 + 10 real-PostgreSQL scenarios (abuse rules, cap, race for the last slot, suppression, consent, purge), 13 offline end-to-end checks against the production build with a mock mail server (redirects, signup, confirm, owner notice, alias, flagged friend, unsubscribe + suppression, fail-closed), prebuild chain, production build, rendered-site, retrieval, evidence, showcase and Chrome browser checks (22 routes). Not covered: a real Resend send, `webmaster:check` (needs production `GOOGLE_SITE_VERIFICATION`), Vercel preview/production behaviour, bounce handling.
 
+## 2026-10-10 — Flaky analytics rate-limit browser check
+
+- [x] Root cause: the shared ingest limiter uses clock-aligned fixed windows; the browser check sent a fixed 130 requests, so a burst crossing a minute boundary split (e.g. 65 + 65) and never exceeded 120 in either window. Seen on run 37970231146.
+- [x] Reproduced locally against Postgres: a boundary-straddling 130-request burst returned 130 × 204.
+- [x] Fix (check only, limiter unchanged): send up to 2 × max + 1 requests, stopping at the first 429; read `max` from `src/lib/rate-limit.ts`; report an inconclusive burst if it takes ≥ 60 s.
+
+Review: three boundary-straddling bursts now hit 429 (after 148, 123 and 195 requests). `browser:check` passed 3/3 against a local Postgres-backed server; `npm run prebuild` passes.
+
 ## 2026-10-10 — README status refresh and todo reconciliation
 
 - [x] Read merged PRs #63–#69 (`gh pr view`) and replace README's stale 2026-09-25/27 header with a dated current-status paragraph, deploy prerequisites and open device checks.

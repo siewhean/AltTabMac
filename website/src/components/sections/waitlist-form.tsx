@@ -174,7 +174,7 @@ export function WaitlistForm({
             disabled={isSubmitting}
             required
             aria-invalid={fieldErrors?.email ? true : undefined}
-            className="min-h-12 w-full rounded-full border border-white/12 bg-white/[0.06] px-5 text-sm text-text placeholder:text-subdued focus:border-accent/60 focus:outline-none focus:ring-2 focus:ring-accent/25 sm:max-w-[300px]"
+            className="min-h-12 w-full rounded-full border border-white/12 bg-white/[0.06] px-5 text-sm text-text placeholder:text-subdued focus:border-accent/60 focus:outline-hidden focus:ring-2 focus:ring-accent/25 sm:max-w-[300px]"
           />
           {honeypotField}
           {submitButton}

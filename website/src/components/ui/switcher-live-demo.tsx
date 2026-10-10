@@ -369,7 +369,7 @@ export function SwitcherLiveDemo() {
 
           {/* Auto-play badge */}
           {autoPlaying && (
-            <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 backdrop-blur-sm">
+            <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 backdrop-blur-xs">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan animate-pulse" />
               <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-subdued">
                 Auto
@@ -382,8 +382,8 @@ export function SwitcherLiveDemo() {
               stagePhase === "out"
                 ? "translate-y-2 scale-[0.985] opacity-0 blur-[2px]"
                 : stagePhase === "in"
-                  ? "translate-y-0 scale-100 opacity-100 blur-0"
-                  : "translate-y-0 scale-100 opacity-100 blur-0"
+                  ? "translate-y-0 scale-100 opacity-100 blur-[0px]"
+                  : "translate-y-0 scale-100 opacity-100 blur-[0px]"
             }`}
           >
 
@@ -410,7 +410,7 @@ export function SwitcherLiveDemo() {
                   >
                     {/* Thumbnail */}
                     <div
-                      className={`relative mb-2.5 aspect-[4/3] w-full overflow-hidden rounded-[16px] border border-white/8 bg-gradient-to-br ${item.accent}`}
+                      className={`relative mb-2.5 aspect-[4/3] w-full overflow-hidden rounded-[16px] border border-white/8 bg-linear-to-br/srgb ${item.accent}`}
                     >
                       {/* Fake title bar */}
                       <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/60 px-2.5 py-1.5">
@@ -483,7 +483,7 @@ export function SwitcherLiveDemo() {
                       else if (e.key === "ArrowUp") { e.preventDefault(); moveSelection("prev"); }
                     }}
                     placeholder="Type to filter…"
-                    className="flex-1 bg-transparent font-mono text-sm text-text outline-none placeholder:text-white/30"
+                    className="flex-1 bg-transparent font-mono text-sm text-text outline-hidden placeholder:text-white/30"
                     spellCheck={false}
                     autoComplete="off"
                   />
