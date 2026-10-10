@@ -6,6 +6,7 @@ import {
   evaluateReferrals,
   generateReferralCode,
   isDisposableEmail,
+  REFERRAL_REWARD_CAP,
   REFERRAL_REWARD_TARGET,
   type ReferralFlag,
 } from "@/lib/waitlist-referral";
@@ -26,8 +27,11 @@ type WaitlistRow = {
   confirmation_sent_at: string | null;
   referral_status: "pending" | "qualified" | "flagged" | null;
   referral_flag: string | null;
-  reward_status: "earned" | "granted" | "denied" | null;
+  reward_status: "earned" | "waitlisted" | "granted" | "denied" | null;
   reward_earned_at: string | null;
+  marketing_consent: boolean | null;
+  marketing_consent_at: string | null;
+  use_case: string | null;
   request_id: string;
   notification_status: string;
   notification_error: string | null;
@@ -46,7 +50,9 @@ export type WaitlistSubmission = {
   confirmedAt?: string;
   referralStatus?: "pending" | "qualified" | "flagged";
   referralFlag?: string;
-  rewardStatus?: "earned" | "granted" | "denied";
+  rewardStatus?: "earned" | "waitlisted" | "granted" | "denied";
+  marketingConsent?: boolean;
+  useCase?: string;
   requestId: string;
   notificationStatus: "stored" | "delivered" | "failed";
   notificationError?: string;
@@ -61,7 +67,8 @@ export type WaitlistReferralProgress = {
   target: number;
   /** Whether this address has confirmed its own email (required to earn the reward). */
   confirmed: boolean;
-  rewardStatus?: "earned" | "granted" | "denied";
+  /** Internal only: never include in public API responses (see the waitlist route). */
+  rewardStatus?: "earned" | "waitlisted" | "granted" | "denied";
 };
 
 export type WaitlistUpsertResult = {
@@ -74,6 +81,10 @@ export type WaitlistUpsertResult = {
 
 export type WaitlistAggregateStats = {
   total: number;
+  /** Addresses whose owner clicked the confirmation link. Only these count toward goals. */
+  confirmed: number;
+  /** Awaiting confirmation, plus rows created before confirmation existed. */
+  unconfirmed: number;
   delivered: number;
   failed: number;
   pending: number;
@@ -144,9 +155,21 @@ async function ensureSchema() {
     "referral_flag text",
     "reward_status text",
     "reward_earned_at timestamptz",
+    "marketing_consent boolean not null default false",
+    "marketing_consent_at timestamptz",
+    "marketing_consent_version text",
+    "use_case text",
   ]) {
     await sql.unsafe(`alter table waitlist_signups add column if not exists ${column}`);
   }
+  // Keyed hashes of unsubscribed addresses: the opt-out survives re-submission.
+  await sql`
+    create table if not exists waitlist_suppressions (
+      email_hash text primary key,
+      reason text not null check (reason in ('unsubscribed', 'bounced', 'complained')),
+      created_at timestamptz not null default now()
+    )
+  `;
   await sql`create index if not exists waitlist_signups_canonical_email_idx on waitlist_signups (canonical_email)`;
   await sql`create index if not exists waitlist_signups_device_hash_idx on waitlist_signups (device_hash)`;
 
@@ -166,6 +189,8 @@ function mapRow(row: WaitlistRow): WaitlistSubmission {
     referralStatus: row.referral_status ?? undefined,
     referralFlag: row.referral_flag ?? undefined,
     rewardStatus: row.reward_status ?? undefined,
+    marketingConsent: row.marketing_consent ?? undefined,
+    useCase: row.use_case ?? undefined,
     requestId: row.request_id,
     notificationStatus: row.notification_status as WaitlistSubmission["notificationStatus"],
     notificationError: row.notification_error ?? undefined,
@@ -183,6 +208,23 @@ function isUniqueViolation(error: unknown) {
 }
 
 const SIGNAL_RETENTION_DAYS = 90;
+/** Identifies the wording of the optional product-update checkbox the signer saw. */
+export const MARKETING_CONSENT_VERSION = "2026-10-product-updates-v1";
+
+/** Beta cap on free licenses; CMDTAB_REFERRAL_REWARD_CAP overrides it (positive integers only). */
+function rewardCap() {
+  const override = Number.parseInt(process.env.CMDTAB_REFERRAL_REWARD_CAP ?? "", 10);
+  return Number.isInteger(override) && override > 0 ? override : REFERRAL_REWARD_CAP;
+}
+
+/**
+ * One transaction-scoped lock serializes every referral decision. Reward slots
+ * are global, so two confirmations must never both take the last one, and a
+ * single lock order (this one, then rows) rules out deadlocks. Volume is tiny.
+ */
+async function lockReferralDecisions(sql: ReturnType<typeof getSql>) {
+  await sql`select pg_advisory_xact_lock(hashtext('cmdtab-referral-decisions'))`;
+}
 let lastPurgeAt = 0;
 
 /**
@@ -194,6 +236,7 @@ async function purgeExpiredSignals() {
   if (Date.now() - lastPurgeAt < 60 * 60 * 1000) return;
   lastPurgeAt = Date.now();
   const sql = getSql();
+  await purgeUnconfirmedSignups();
   await sql`
     update waitlist_signups
     set device_hash = null, network_hash = null, confirm_network_hash = null
@@ -201,6 +244,24 @@ async function purgeExpiredSignals() {
       and (device_hash is not null or network_hash is not null or confirm_network_hash is not null)
       and coalesce(referral_status, '') <> 'flagged'
       and coalesce(reward_status, '') <> 'earned'
+  `;
+}
+
+const UNCONFIRMED_EXPIRY_DAYS = 30;
+
+/**
+ * Deletes signups that were sent a confirmation link and never used it within
+ * 30 days. Rows created before confirmation existed (no link was ever sent)
+ * are kept: their owners were never asked, so silence is not abandonment.
+ */
+async function purgeUnconfirmedSignups() {
+  const sql = getSql();
+  await sql`
+    delete from waitlist_signups
+    where confirmed_at is null
+      and confirmation_sent_at is not null
+      and confirmation_sent_at < now() - ${UNCONFIRMED_EXPIRY_DAYS} * interval '1 day'
+      and reward_status is null
   `;
 }
 
@@ -213,6 +274,8 @@ export async function upsertWaitlistSubmission(input: {
   /** HMAC of the browser's device id and of the IP network; see waitlist-signals. */
   deviceHash?: string;
   networkHash?: string;
+  /** Optional product-update consent; recorded as effective on confirmation. */
+  marketingConsent?: boolean;
   requestId: string;
 }) {
   await ensureSchema();
@@ -267,7 +330,7 @@ export async function upsertWaitlistSubmission(input: {
         insert into waitlist_signups (
           id, email, name, source, metadata,
           referral_code, referred_by, canonical_email, device_hash, network_hash,
-          request_id, notification_status, notification_error
+          marketing_consent, request_id, notification_status, notification_error
         ) values (
           ${randomUUID()},
           ${normalizedEmail},
@@ -279,6 +342,7 @@ export async function upsertWaitlistSubmission(input: {
           ${canonical},
           ${input.deviceHash ?? null},
           ${input.networkHash ?? null},
+          ${input.marketingConsent === true},
           ${input.requestId},
           ${"stored"},
           ${null}
@@ -295,6 +359,7 @@ export async function upsertWaitlistSubmission(input: {
           canonical_email = coalesce(waitlist_signups.canonical_email, excluded.canonical_email),
           device_hash = coalesce(waitlist_signups.device_hash, excluded.device_hash),
           network_hash = coalesce(waitlist_signups.network_hash, excluded.network_hash),
+          marketing_consent = waitlist_signups.marketing_consent or excluded.marketing_consent,
           request_id = excluded.request_id,
           notification_status = 'stored',
           notification_error = null,
@@ -371,9 +436,7 @@ async function recomputeReferrals(
   sql: ReturnType<typeof getSql>,
   inviterCode: string,
 ) {
-  // Serialize per inviter; the lock is released at the end of the transaction.
-  await sql`select pg_advisory_xact_lock(hashtext(${inviterCode}))`;
-
+  // Callers hold lockReferralDecisions() for the whole transaction.
   const [inviter] = await sql<WaitlistRow[]>`
     select * from waitlist_signups where referral_code = ${inviterCode} for update
   `;
@@ -424,19 +487,48 @@ async function recomputeReferrals(
   }
 
   // 'granted' and 'denied' are human decisions and are never overwritten.
-  if (result.rewardEarned) {
-    await sql`
-      update waitlist_signups
-      set reward_status = 'earned', reward_earned_at = coalesce(reward_earned_at, now())
-      where id = ${inviter.id} and reward_status is null
-    `;
-  } else {
-    await sql`
-      update waitlist_signups
-      set reward_status = null, reward_earned_at = null
-      where id = ${inviter.id} and reward_status = 'earned'
-    `;
+  const cap = rewardCap();
+  if (inviter.reward_status !== "granted" && inviter.reward_status !== "denied") {
+    if (result.rewardEarned) {
+      if (inviter.reward_status !== "earned") {
+        const [{ taken }] = await sql<{ taken: number }[]>`
+          select count(*)::int as taken
+          from waitlist_signups
+          where reward_status in ('earned', 'granted') and id <> ${inviter.id}
+        `;
+        await sql`
+          update waitlist_signups
+          set reward_status = ${taken < cap ? "earned" : "waitlisted"},
+              reward_earned_at = coalesce(reward_earned_at, now())
+          where id = ${inviter.id}
+        `;
+      }
+    } else if (inviter.reward_status === "earned" || inviter.reward_status === "waitlisted") {
+      await sql`
+        update waitlist_signups
+        set reward_status = null, reward_earned_at = null
+        where id = ${inviter.id}
+      `;
+    }
   }
+
+  // A freed slot (a withdrawn or denied reward) goes to the longest-waiting member.
+  await sql`
+    update waitlist_signups
+    set reward_status = 'earned'
+    where id in (
+      select id
+      from waitlist_signups
+      where reward_status = 'waitlisted'
+      order by reward_earned_at, id
+      limit greatest(
+        0,
+        ${cap} - (
+          select count(*) from waitlist_signups where reward_status in ('earned', 'granted')
+        )
+      )
+    )
+  `;
 }
 
 /**
@@ -454,19 +546,32 @@ export async function confirmWaitlistSignup(
   return sql.begin(async (transaction) => {
     // postgres.js types a transaction handle as non-callable; it is the same tagged-template client.
     const tx = transaction as unknown as typeof sql;
+    await lockReferralDecisions(tx);
+    const [before] = await tx<Pick<WaitlistRow, "confirmed_at">[]>`
+      select confirmed_at from waitlist_signups where email = ${normalizedEmail}
+    `;
     const [row] = await tx<WaitlistRow[]>`
       update waitlist_signups
       set confirmed_at = coalesce(confirmed_at, now()),
           confirm_network_hash = coalesce(confirm_network_hash, ${signals.networkHash ?? null}),
+          marketing_consent_at = case
+            when marketing_consent and marketing_consent_at is null then now()
+            else marketing_consent_at
+          end,
+          marketing_consent_version = case
+            when marketing_consent and marketing_consent_version is null then ${MARKETING_CONSENT_VERSION}
+            else marketing_consent_version
+          end,
           updated_at = now()
       where email = ${normalizedEmail}
       returning *
     `;
     if (!row) return { found: false as const };
+    const firstConfirmation = !before?.confirmed_at;
 
     if (row.referred_by) await recomputeReferrals(tx, row.referred_by);
     if (row.referral_code) await recomputeReferrals(tx, row.referral_code);
-    return { found: true as const };
+    return { found: true as const, firstConfirmation, submission: mapRow(row) };
   });
 }
 
@@ -492,14 +597,27 @@ export async function updateWaitlistNotificationStatus(
 
 /**
  * Removes a signup on the applicant's request (unsubscribe). Idempotent.
+ * When a suppression hash is supplied, it is recorded in the same transaction
+ * so a later re-submission of the address (or an alias) is not emailed again.
  * If the address had been counted toward someone's reward, that inviter's
  * referrals are re-judged so the reward cannot outlive the friend.
  */
-export async function deleteWaitlistSignup(email: string) {
+export async function deleteWaitlistSignup(
+  email: string,
+  options: { suppressionHash?: string } = {},
+) {
   await ensureSchema();
   const sql = getSql();
   await sql.begin(async (transaction) => {
     const tx = transaction as unknown as typeof sql;
+    await lockReferralDecisions(tx);
+    if (options.suppressionHash) {
+      await tx`
+        insert into waitlist_suppressions (email_hash, reason)
+        values (${options.suppressionHash}, 'unsubscribed')
+        on conflict (email_hash) do nothing
+      `;
+    }
     const [deleted] = await tx<Pick<WaitlistRow, "referred_by">[]>`
       delete from waitlist_signups
       where email = ${email.trim().toLowerCase()}
@@ -507,6 +625,32 @@ export async function deleteWaitlistSignup(email: string) {
     `;
     if (deleted?.referred_by) await recomputeReferrals(tx, deleted.referred_by);
   });
+}
+
+/** True when the address (or an alias of it) previously unsubscribed. */
+export async function isEmailSuppressed(emailHash: string | undefined) {
+  if (!emailHash) return false;
+  await ensureSchema();
+  const sql = getSql();
+  const [row] = await sql<{ email_hash: string }[]>`
+    select email_hash from waitlist_suppressions where email_hash = ${emailHash}
+  `;
+  return Boolean(row);
+}
+
+export const WAITLIST_USE_CASES = ["browsing", "development", "design", "writing", "other"] as const;
+export type WaitlistUseCase = (typeof WAITLIST_USE_CASES)[number];
+
+/** Records one optional answer, keyed by the signup's own invite code. First answer wins. */
+export async function setWaitlistUseCase(code: string, useCase: WaitlistUseCase) {
+  await ensureSchema();
+  const sql = getSql();
+  const result = await sql`
+    update waitlist_signups
+    set use_case = coalesce(use_case, ${useCase})
+    where referral_code = ${code}
+  `;
+  return result.count > 0;
 }
 
 export async function listWaitlistSubmissions(limit = 100) {
@@ -528,6 +672,7 @@ export async function getWaitlistAggregateStats() {
   const [row] = await sql<
     {
       total: number;
+      confirmed: number;
       delivered: number;
       failed: number;
       pending: number;
@@ -541,6 +686,7 @@ export async function getWaitlistAggregateStats() {
   >`
     select
       count(*)::int as total,
+      count(*) filter (where confirmed_at is not null)::int as confirmed,
       count(*) filter (where notification_status = 'delivered')::int as delivered,
       count(*) filter (where notification_status = 'failed')::int as failed,
       count(*) filter (where notification_status = 'stored')::int as pending,
@@ -555,6 +701,8 @@ export async function getWaitlistAggregateStats() {
 
   return {
     total: row?.total ?? 0,
+    confirmed: row?.confirmed ?? 0,
+    unconfirmed: (row?.total ?? 0) - (row?.confirmed ?? 0),
     delivered: row?.delivered ?? 0,
     failed: row?.failed ?? 0,
     pending: row?.pending ?? 0,

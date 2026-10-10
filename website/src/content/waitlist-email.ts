@@ -78,7 +78,7 @@ export const waitlistEmailContent = {
     referral: {
       heading: "Get CmdTab free",
       body: (target: number) =>
-        `Invite ${target} friends. When ${target} of them confirm their email, you get a free CmdTab license after a quick review. Each friend must be a different person on their own device and network; duplicate, disposable, or same-device invitations don’t count.`,
+        `Invite ${target} friends. When ${target} of them confirm their email, you get a free CmdTab license after a quick review. The beta reward is limited to the first 100 members. Each friend must be a different person on their own device and network; duplicate, disposable, or same-device invitations don’t count.`,
       cta: "Your invite link",
     },
     ctaLabel: "Visit CmdTab",

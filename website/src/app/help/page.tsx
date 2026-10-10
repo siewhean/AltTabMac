@@ -81,8 +81,8 @@ export default function HelpPage() {
                   <Button href="/faq" variant="secondary">
                     Read common answers
                   </Button>
-                  <Button href="/buy" variant="secondary" {...analyticsAttributes("help_page_buy_click", "help_page")}>
-                    Review pricing
+                  <Button href="/waitlist" variant="secondary" {...analyticsAttributes("help_page_waitlist_click", "help_page")}>
+                    Join the beta list
                   </Button>
                   {commerce.licensePortalUrl ? (
                     <Button

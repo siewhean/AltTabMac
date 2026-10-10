@@ -1,6 +1,6 @@
 import { productFacts } from "@/content/product-facts";
 
-export const termsReviewedAt = "2026-07-27";
+export const termsReviewedAt = "2026-10-10";
 
 export const termsSections = [
   {
@@ -27,6 +27,14 @@ export const termsSections = [
     ],
   },
   {
+    title: "Beta invite reward",
+    body: [
+      "During the private beta, a person on the waitlist can earn one free CmdTab personal license by inviting 5 other people who each confirm a real email address and are judged to be different people. The reward is limited to the first 100 members who qualify, and a person can receive at most one.",
+      "An invitation does not count if the invited address is a duplicate, an alias of an address already on the list, a disposable mailbox, or the inviter's own; if it was created from the inviter's device or network; or if several signups came from one device. These checks use the signals described in the Privacy policy and are not proof of wrongdoing.",
+      "A person reviews every reward before a license is granted. We may decline or withdraw a reward that appears to result from abuse, from fake or paid signups, or from spam, and a reward is withdrawn if the invitations that earned it are removed before it is granted. A granted license is subject to the rest of these terms. Rewards have no cash value and cannot be transferred or sold.",
+    ],
+  },
+  {
     title: "Refunds and revocation",
     body: [
       `You may request a ${productFacts.refundPolicy} from the Help page. Refund eligibility is measured from the purchase timestamp and may also be governed by mandatory consumer law.`,
@@ -37,7 +45,7 @@ export const termsSections = [
     title: "Updates and support",
     body: [
       "CmdTab 1.x uses the stable update channel. Update packages must be signed and published through CmdTab's release feed; beta updates are not part of the version 1 offer.",
-      "Updates may change behavior to preserve compatibility, security, or platform support. The current minimum macOS version and release notes are published on the Trial and Changelog pages.",
+      "Updates may change behavior to preserve compatibility, security, or platform support. The current minimum macOS version and release notes are published on the Waitlist and Changelog pages.",
       "Support is provided through the Help page and is not a guarantee of a particular response time or continued support for an unsupported macOS release.",
     ],
   },

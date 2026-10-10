@@ -43,6 +43,9 @@ export const waitlistPayloadSchema = z
       .trim()
       .regex(/^[A-Za-z0-9_-]{16,64}$/)
       .optional(),
+    // Optional, unchecked by default: occasional product updates beyond the beta,
+    // trial and launch notices. Effective only once the address is confirmed.
+    marketingConsent: z.boolean().optional(),
     honeypot: z.string().max(0).optional(),
   })
   .strict();

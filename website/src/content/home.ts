@@ -225,6 +225,6 @@ export const faqItems = [
   {
     question: "Is CmdTab available now?",
     answer:
-      "CmdTab is in private preview. Join the waitlist on the Trial page and we’ll email you when access opens.",
+      "CmdTab is in private preview. Join the waitlist and we’ll email you when access opens.",
   },
 ];

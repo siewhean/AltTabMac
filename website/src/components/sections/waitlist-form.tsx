@@ -34,6 +34,7 @@ export function WaitlistForm({
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [honeypot, setHoneypot] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [state, setState] = useState<FormState>({ kind: "idle" });
   const idPrefix = `waitlist-${source}`;
   const compact = variant === "hero";
@@ -60,6 +61,8 @@ export function WaitlistForm({
           ),
           referralCode: readCapturedReferralCode(),
           deviceId: getOrCreateDeviceId(),
+          // Only the full form offers the optional checkbox; it is never pre-checked.
+          marketingConsent: compact ? undefined : marketingConsent,
           honeypot,
         }),
       });
@@ -89,6 +92,7 @@ export function WaitlistForm({
       setEmail("");
       setName("");
       setHoneypot("");
+      setMarketingConsent(false);
     } catch {
       setState({
         kind: "error",
@@ -216,6 +220,17 @@ export function WaitlistForm({
         required
       />
       {honeypotField}
+      <label className="flex items-start gap-3 text-sm leading-6 text-muted">
+        <input
+          type="checkbox"
+          name="marketingConsent"
+          checked={marketingConsent}
+          onChange={(e) => setMarketingConsent(e.target.checked)}
+          disabled={isSubmitting}
+          className="mt-1.5 h-4 w-4 shrink-0 accent-[#79AFFF]"
+        />
+        <span>Also send me occasional CmdTab product updates (optional). Unsubscribe anytime.</span>
+      </label>
       <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
         {submitButton}
         <p className="text-xs leading-5 text-muted">

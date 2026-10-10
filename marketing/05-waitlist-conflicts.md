@@ -1,3 +1,5 @@
+> **Status update (2026-10-10, end of task):** every conflict in sections A and B is resolved or consciously deferred; see "Resolution" at the bottom.
+
 # Waitlist conflicts (checked 2026-10-10 against `origin/main` 94343041)
 
 Method: my work was snapshotted as a dangling commit and `git merge-tree` was run against each branch, then the branch diffs were read.
@@ -26,3 +28,17 @@ Method: my work was snapshotted as a dangling commit and `git merge-tree` was ru
 
 ## C. Suggested merge order
 1. Decide #76's D1–D8. 2. Merge my branch onto main (clean). 3. Rebase #52 on top, **keeping `on conflict do update` with the referral/signal backfills** and its waitlist-only copy. 4. Retire `codex/marketing-waitlist-readiness`. 5. Consolidate the four marketing docs into one.
+
+
+## Resolution
+| Item | Outcome |
+|---|---|
+| My branch vs `main` | Rebased onto `main` 94343041; merged via the PR for `feat/beta-first-referral-loop`. |
+| PR #52 | Superseded. Ported: canonical `/waitlist`, permanent `/trial` and `/buy` redirects that keep `utm_*` and `ref`, waitlist-only public copy. Deliberately **not** ported: Tailwind 4 (own PR #77), dependency bumps, CI workflows that need verification secrets, closing `/api/trial/*` (the installed app uses them), and its "macOS 13" text (the minimum is 14.0). |
+| PR #76 | D1–D5, D7, D8 decided and implemented; D6 (bounce/complaint webhook) deferred. Recorded in `tasks/todo.md`. |
+| `codex/marketing-waitlist-readiness` | Superseded by `main`; branch left untouched, nothing merged from it. |
+| PR #77 (Tailwind 4) | `main` merged into its branch so its only conflict (`site-header.tsx`) is gone. |
+| B3 counting | Dashboard aggregate now reports `confirmed` and `unconfirmed`. |
+| B6 terms/FAQ | "Beta invite reward" terms section and FAQ entry added; cap of 100 stated. |
+| B7 commerce pages | `/buy` redirects to `/waitlist`; links, nav, footer and structured-data URLs updated. |
+| B9 unsubscribe promise | Signup now fails closed (503) when the link-signing secret is missing. |

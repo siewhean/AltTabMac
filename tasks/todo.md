@@ -1,3 +1,22 @@
+## 2026-10-10 — Waitlist: beta-first site, confirmed referral reward, #76 decisions made
+
+User asked for one consistent waitlist with no conflicts, a free-license reward for 5 qualified referrals, and a cap of 100 for the beta. Decisions below were taken by the assistant on the user's instruction ("you can decide") and are recorded so they can be reversed.
+
+- [x] `/waitlist` is the single canonical page (single goal, form first, shared honesty points, demo link; shows the download when a stable release exists). `/trial` and `/buy` are permanent redirects in `next.config.ts` that keep `utm_*` and `ref`. The native app still links to `/trial?utm_source=cmdtab-app`.
+- [x] Reward: 5 qualified referrals earn one free license, reviewed by a person; capped at 100 earned+granted (`CMDTAB_REFERRAL_REWARD_CAP` overrides); overflow is `waitlisted` and promoted when a slot frees. One global advisory lock serialises decisions.
+- [x] Abuse checks: confirmed email, Gmail/plus alias collapse, disposable-mail list, salted hashes of IP /24 (/64), browser device id and confirm-time network; same device/network as inviter or another invitee, or several signups per device, are flagged with a reason; missing signals fail closed.
+- [x] D1 existing rows: kept, never confirmed, excluded from `confirmed`, exempt from the purge (no link was ever sent). Production held only 5 test rows when checked.
+- [x] D2 pending rows never count: dashboard aggregate reports `confirmed` and `unconfirmed`.
+- [x] D3 suppression: unsubscribe deletes the row and stores an HMAC of the canonical address in `waitlist_suppressions`; a re-submission returns the normal success and sends nothing. Privacy policy updated.
+- [x] D4 expiry: confirmation link 7 days; never-confirmed rows (link sent) purged after 30 days.
+- [x] D5 marketing consent: optional unchecked box on the full form, version `2026-10-product-updates-v1`, effective on confirmation. No separate "updates only" unsubscribe yet.
+- [ ] D6 bounces/complaints: **deferred**. Needs a signed Resend webhook endpoint and a new secret.
+- [x] D7 fail closed: signup returns 503 unless the database, Resend and `WAITLIST_UNSUBSCRIBE_SECRET` are all configured. Production has `DATABASE_URL`, `RESEND_API_KEY`, `WAITLIST_FROM_EMAIL`, `WAITLIST_TO_EMAIL`, `WAITLIST_UNSUBSCRIBE_SECRET` and `REQUEST_FINGERPRINT_SECRET` (checked with `vercel env ls production`, names only).
+- [x] D8 owner notification moves from signup to first confirmation.
+- [x] Terms: "Beta invite reward" section; FAQ entry; privacy policy rewritten for signals, suppression, consent, purge.
+
+Review: website tsc, 70 unit tests, 20 + 10 real-PostgreSQL scenarios (abuse rules, cap, race for the last slot, suppression, consent, purge), 13 offline end-to-end checks against the production build with a mock mail server (redirects, signup, confirm, owner notice, alias, flagged friend, unsubscribe + suppression, fail-closed), prebuild chain, production build, rendered-site, retrieval, evidence, showcase and Chrome browser checks (22 routes). Not covered: a real Resend send, `webmaster:check` (needs production `GOOGLE_SITE_VERIFICATION`), Vercel preview/production behaviour, bounce handling.
+
 ## 2026-10-10 — README status refresh and todo reconciliation
 
 - [x] Read merged PRs #63–#69 (`gh pr view`) and replace README's stale 2026-09-25/27 header with a dated current-status paragraph, deploy prerequisites and open device checks.

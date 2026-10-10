@@ -1,11 +1,6 @@
 import { WaitlistForm } from "@/components/sections/waitlist-form";
 import { SectionShell } from "@/components/ui/section-shell";
-
-const honestyPoints = [
-  { title: "What it asks for", body: "Accessibility (to detect your shortcut and focus the window you pick) and Screen Recording (to draw previews). Without Screen Recording, windows still appear with icons." },
-  { title: "What it never collects", body: "Optional telemetry is off by default. It never includes window titles, previews, screenshots, keystrokes, clipboard contents, or search queries." },
-  { title: "What it will cost", body: "Planned: a 14-day trial, then a one-time US$12 license for up to three of your Macs and all 1.x updates. No subscription. 14-day refund." },
-] as const;
+import { betaHonestyPoints } from "@/content/beta-honesty";
 
 export function BetaCtaSection() {
   return (
@@ -20,7 +15,7 @@ export function BetaCtaSection() {
           <WaitlistForm source="homepage_footer" variant="page" />
         </div>
         <dl className="grid gap-5 sm:grid-cols-3 lg:grid-cols-1">
-          {honestyPoints.map((point) => (
+          {betaHonestyPoints.map((point) => (
             <div key={point.title} className="border-t border-white/10 pt-4">
               <dt className="text-sm font-semibold text-text">{point.title}</dt>
               <dd className="mt-2 text-sm leading-6 text-muted">{point.body}</dd>

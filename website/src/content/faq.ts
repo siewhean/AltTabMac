@@ -75,6 +75,11 @@ export const faqItems = [
       "The current packaged version recorded in the project is CmdTab 1.0.0, build 1. The Changelog page is the canonical public source for dated changes.",
   },
   {
+    question: "Can I get CmdTab for free?",
+    answer:
+      "During the private beta, you can earn a free personal license by inviting 5 friends who each confirm their own email address. The reward is limited to the first 100 members who qualify, and a person reviews each one before it is granted. Duplicate, disposable, or same-device invitations do not count. See the Terms for the full rules.",
+  },
+  {
     question: "Is there a free trial?",
     answer:
       "CmdTab is currently in private preview, so a public trial download is not available yet. Join the waitlist and we’ll email you when access opens.",

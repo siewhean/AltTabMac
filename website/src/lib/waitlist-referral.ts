@@ -2,6 +2,12 @@ import { randomBytes } from "node:crypto";
 
 /** Qualified referrals needed to earn a free CmdTab license. */
 export const REFERRAL_REWARD_TARGET = 5;
+/**
+ * Beta limit on free licenses (earned plus granted). Qualifying members beyond
+ * it wait for a slot. Public copy says "the first 100"; if the server override
+ * CMDTAB_REFERRAL_REWARD_CAP is changed, update that copy too.
+ */
+export const REFERRAL_REWARD_CAP = 100;
 
 // Lowercase, no look-alike characters (0/o, 1/l/i), so codes survive being read aloud.
 const ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";

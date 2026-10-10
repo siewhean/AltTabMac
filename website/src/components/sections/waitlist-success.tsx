@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { trackSiteEvent } from "@/lib/site-analytics-client";
-import { referralShareText, referralUrl } from "@/lib/waitlist-referral";
+import { REFERRAL_REWARD_CAP, referralShareText, referralUrl } from "@/lib/waitlist-referral";
 
 export type WaitlistReferral = {
   code: string;
@@ -12,7 +12,6 @@ export type WaitlistReferral = {
   qualified: number;
   target: number;
   confirmed: boolean;
-  rewardStatus?: "earned" | "granted" | "denied";
 };
 
 type WaitlistSuccessProps = {
@@ -25,8 +24,33 @@ type WaitlistSuccessProps = {
 const shareLinkClass =
   "inline-flex min-h-11 items-center justify-center rounded-full border border-white/12 bg-white/[0.05] px-4 py-2 text-sm font-medium text-text transition-colors duration-200 hover:border-white/20 hover:bg-white/[0.09] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60";
 
+const useCases = [
+  { id: "browsing", label: "Browsing and research" },
+  { id: "development", label: "Development" },
+  { id: "design", label: "Design" },
+  { id: "writing", label: "Writing and docs" },
+  { id: "other", label: "Something else" },
+] as const;
+
 export function WaitlistSuccess({ message, referral, context, onReset }: WaitlistSuccessProps) {
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
+  const [answered, setAnswered] = useState(false);
+
+  // Optional one-tap answer, saved against the signup's own invite code.
+  async function answerUseCase(useCase: string) {
+    if (!referral) return;
+    setAnswered(true);
+    trackSiteEvent("waitlist_use_case", { context, useCase });
+    try {
+      await fetch("/api/waitlist/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: referral.code, useCase }),
+      });
+    } catch {
+      // The answer is a nicety; never surface a failure.
+    }
+  }
   const link = referral ? referralUrl(window.location.origin, referral.code) : undefined;
 
   async function copyLink() {
@@ -69,12 +93,24 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
       </div>
       <p className="text-sm leading-6 text-emerald-200/90">{message}</p>
 
+      {referral ? (
+        <div className="space-y-2 rounded-xl border border-white/10 bg-ink/40 p-4 text-text">
+          <p className="text-sm font-medium">Step 1 · Confirm your email</p>
+          <p className="text-xs leading-5 text-muted">
+            We just sent a confirmation link. Your place on the list and your free-license progress
+            count once you click it.
+          </p>
+        </div>
+      ) : null}
+
       {referral && link ? (
         <div className="space-y-3 rounded-xl border border-white/10 bg-ink/40 p-4 text-text">
+          <p className="text-xs uppercase tracking-[0.18em] text-subdued">Step 2 · Optional</p>
           <p className="text-sm font-medium">Get CmdTab free</p>
           <p className="text-sm leading-6 text-muted">
             Invite {referral.target} friends. When {referral.target} of them confirm their email,
-            you get a free CmdTab license after a quick review.
+            you get a free CmdTab license after a quick review. The beta reward is limited to the
+            first {REFERRAL_REWARD_CAP} members.
           </p>
           <div
             className="h-2 overflow-hidden rounded-full bg-white/10"
@@ -133,6 +169,28 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
           Check your inbox for a confirmation link and your personal invite link.
         </p>
       )}
+
+      {referral ? (
+        <div className="space-y-2">
+          <p className="text-xs text-emerald-200/90">
+            {answered ? "Thanks, that helps us decide what to build first." : "What will you mostly use CmdTab for? (optional, one tap)"}
+          </p>
+          {answered ? null : (
+            <div className="flex flex-wrap gap-2">
+              {useCases.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => answerUseCase(item.id)}
+                  className={shareLinkClass}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button href="/#demo" variant="secondary" className="text-xs">

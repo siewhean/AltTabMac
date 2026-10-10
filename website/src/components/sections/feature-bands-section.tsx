@@ -36,7 +36,7 @@ export function FeatureBandsSection() {
           <p className="mt-2 text-sm leading-6 text-muted">It’s in private preview. Join the waitlist for an email when trial access is ready.</p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Button href="/trial" className="w-full sm:w-auto">
+          <Button href="/waitlist" className="w-full sm:w-auto">
             Join the waitlist
           </Button>
           <Button href="/features/window-switcher" variant="secondary" className="w-full sm:w-auto">

@@ -70,7 +70,7 @@ export default function TermsPage() {
             </section>
           ))}
           <div className="flex flex-col gap-3 border-t border-white/8 pt-8 sm:flex-row">
-            <Button href="/buy">Review the offer</Button>
+            <Button href="/waitlist">Join the beta list</Button>
             <Button href="/privacy" variant="secondary">Privacy policy</Button>
             <Button href="/help" variant="secondary">Purchase or recovery help</Button>
           </div>

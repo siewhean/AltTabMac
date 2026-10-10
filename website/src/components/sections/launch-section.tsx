@@ -58,7 +58,7 @@ export function LaunchSection() {
               ))}
             </div>
             <div className="mt-8">
-              <Button href="/buy" {...analyticsAttributes("launch_buy_page_click", "launch")}>
+              <Button href="/waitlist" {...analyticsAttributes("launch_buy_page_click", "launch")}>
                 {commerceContent.license.cta}
               </Button>
             </div>
@@ -100,7 +100,7 @@ export function LaunchSection() {
                 </Button>
               ) : (
                 <Button
-                  href="/trial"
+                  href="/waitlist"
                   variant="secondary"
                   {...analyticsAttributes("launch_trial_fallback", "launch")}
                 >

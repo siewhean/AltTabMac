@@ -1,7 +1,6 @@
 [
   { "path": "/", "lastModified": "2026-07-22" },
   { "path": "/about", "lastModified": "2026-07-20" },
-  { "path": "/buy", "lastModified": "2026-07-20" },
   { "path": "/changelog", "lastModified": "2026-07-20" },
   { "path": "/compatibility", "lastModified": "2026-07-20" },
   { "path": "/compare/cmdtab-vs-alttab", "lastModified": "2026-07-21" },
@@ -21,5 +20,5 @@
   { "path": "/security", "lastModified": "2026-07-20" },
   { "path": "/showcase", "lastModified": "2026-07-21" },
   { "path": "/terms", "lastModified": "2026-07-27" },
-  { "path": "/trial", "lastModified": "2026-07-20" }
+  { "path": "/waitlist", "lastModified": "2026-10-10" }
 ]

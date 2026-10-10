@@ -30,7 +30,7 @@ function configuredOffers(siteUrl: string) {
       price: "0",
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
-      url: `${siteUrl}/trial`,
+      url: `${siteUrl}/waitlist`,
     });
   }
 
@@ -41,7 +41,7 @@ function configuredOffers(siteUrl: string) {
       price: commerceContent.license.price.replace(/[^0-9.]/g, ""),
       priceCurrency: "USD",
       availability: "https://schema.org/InStock",
-      url: `${siteUrl}/buy`,
+      url: `${siteUrl}/waitlist`,
     });
   }
 

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { getClientIp } from "@/lib/client-ip";
+import { sendWaitlistOwnerNotification } from "@/lib/waitlist-owner-notification";
 import { verifyWaitlistConfirmToken } from "@/lib/waitlist-confirm";
 import { hashNetwork } from "@/lib/waitlist-signals";
 import { waitlistUnsubscribeSecret } from "@/lib/waitlist-unsubscribe";
@@ -83,11 +84,39 @@ export async function POST(request: Request) {
   const email = verifyWaitlistConfirmToken(tokenFrom(request), secret);
   if (!email) return invalidLink();
 
+  const requestId = randomUUID();
   try {
-    await confirmWaitlistSignup(email, { networkHash: hashNetwork(getClientIp(request)) });
+    const result = await confirmWaitlistSignup(email, {
+      networkHash: hashNetwork(getClientIp(request)),
+    });
+
+    // Notify the owner once, when the address is first confirmed. A failed
+    // notice must never undo or hide a successful confirmation.
+    if (result.found && result.firstConfirmation) {
+      try {
+        const sent = await sendWaitlistOwnerNotification({
+          email: result.submission.email,
+          name: result.submission.name,
+          source: result.submission.source,
+          metadata: result.submission.metadata,
+          requestId,
+        });
+        if (sent.error) {
+          console.error("[CmdTab Website] waitlist owner notification failed", {
+            requestId,
+            errorName: sent.error.name,
+          });
+        }
+      } catch (notificationError) {
+        console.error("[CmdTab Website] waitlist owner notification failed", {
+          requestId,
+          error: notificationError instanceof Error ? notificationError.message : "Unknown error",
+        });
+      }
+    }
   } catch (error) {
     console.error("[CmdTab Website] waitlist confirmation failed", {
-      requestId: randomUUID(),
+      requestId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return unavailable();
