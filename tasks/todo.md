@@ -1,3 +1,14 @@
+## 2026-10-10 — Production KMS signing provisioned
+
+- [x] OIDC fix: the signer reads the Vercel OIDC token per request with `@vercel/oidc` (#84); `VERCEL_OIDC_TOKEN` exists only in builds.
+- [x] AWS (account `880302055919`, `us-east-1`): trial and license P-256 KMS keys, Vercel team OIDC provider, `cmdtab-vercel-production-signing` role limited to production of project `website` and to `kms:Sign`/`kms:GetPublicKey` on the two keys.
+- [x] Keyrings `trial-2026-10` and `license-2026-10` pass the app build validator; KMS test signatures verify against them.
+- [x] Vercel Production: 8 KMS variables added, `CMDTAB_LICENSE_PRIVATE_KEY_PEM` removed (also from Preview), `main` at `c2389cd1` redeployed.
+- [ ] Build the signed app with the trial and license kid/keyring values embedded.
+- [ ] Paid-license signing is untested until commerce is enabled.
+
+Review: a live `POST /api/trial/start` returned a `CMDTAB2` trial token (kid `trial-2026-10`, 14 days) whose signature verifies against the published keyring. Details: `docs/release/token-v2-kms-migration.md`.
+
 ## 2026-10-10 — Welcome email redesign reworked onto the current email
 
 Source: uncommitted redesign recovered from the deleted `codex/marketing-waitlist-readiness` worktree (backup in `~/Documents/CmdTab-branch-backups-2026-10-10/`), rebased by hand onto the current template.

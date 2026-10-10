@@ -1,9 +1,9 @@
 # Token v2 and AWS KMS migration
 
 Status: the versioned issuer, verifier, native keyring, AWS KMS adapter,
-trial route, and device-activation route are integrated. Production key
-provisioning and embedding the resulting public keyrings in the signed app
-remain external release gates. The legacy `CMDTAB1` verifier remains available
+trial route, and device-activation route are integrated. Production keys are
+provisioned and trial signing is verified live (see below). Embedding the
+public keyrings in the signed app remains an external release gate. The legacy `CMDTAB1` verifier remains available
 during migration.
 
 ## Token contract
@@ -54,6 +54,31 @@ Grandfathered `CMDTAB1` verification uses only
 same algorithm. `getTrialTokenSigner()` and `getLicenseTokenSigner()` create
 route-ready signers using AWS SDK web-identity credentials. Their narrow client
 interface keeps tests hermetic.
+
+## Production provisioning (2026-10-10)
+
+All values are public identifiers.
+
+| Item | Value |
+|---|---|
+| AWS account / region | `880302055919` / `us-east-1` |
+| Trial key | `arn:aws:kms:us-east-1:880302055919:key/a505db8e-d622-4603-b846-04542c50826a` (`alias/cmdtab-trial-signing`), kid `trial-2026-10` |
+| License key | `arn:aws:kms:us-east-1:880302055919:key/31128a3f-47d7-4bf7-b2c1-6cf88bf43cee` (`alias/cmdtab-license-signing`), kid `license-2026-10` |
+| OIDC provider | `oidc.vercel.com/siewheans-projects`, audience `https://vercel.com/siewheans-projects` |
+| Role | `arn:aws:iam::880302055919:role/cmdtab-vercel-production-signing`; trusts only `owner:siewheans-projects:project:website:environment:production`; inline policy allows only `kms:Sign` and `kms:GetPublicKey` on the two keys |
+
+Both keys are `ECC_NIST_P256` / `SIGN_VERIFY`. The two public keyrings pass
+`release_config.validate_public_keyring`, and a KMS test signature from each
+key verified against its keyring. The eight variables above are set in Vercel
+Production only, and `CMDTAB_LICENSE_PRIVATE_KEY_PEM` is removed (from Preview
+too, so Preview deployments cannot issue trials). After redeploying `main` at
+`c2389cd1`, `POST https://cmdtab.net/api/trial/start` returned a `CMDTAB2`
+trial token with kid `trial-2026-10` and a 14-day expiry whose signature
+verifies against the trial keyring; it left one anonymous test claim
+(`c0bab337-1212-46b9-b083-915ccdc620b9`, app version
+`kms-selftest-2026-10-10`). Paid-license signing is not yet exercised because
+commerce is disabled. The signed app must be built with the same
+`CMDTAB_TRIAL_*` and `CMDTAB_LICENSE_*` kid and keyring values.
 
 ## Rotation and rollout
 

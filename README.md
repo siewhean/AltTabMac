@@ -14,7 +14,7 @@ Website update (2026-10-10, merged in #79; owner waitlist decisions and client-I
 
 Latest reported Swift result: 425 tests pass and `swift build -c release` passes (PR #69). Outstanding, not verified here:
 
-- Waitlist email is configured in Vercel Production: `WAITLIST_UNSUBSCRIBE_SECRET` (#64), `REQUEST_FINGERPRINT_SECRET` (#66), `WAITLIST_FROM_EMAIL` (`CmdTab <hello@cmdtab.net>`), with reply-to and owner notices going to `trycmdtab@gmail.com`. Per #68, production has no KMS signing configuration and still holds `CMDTAB_LICENSE_PRIVATE_KEY_PEM`, which must be removed when KMS is configured.
+- Waitlist email is configured in Vercel Production: `WAITLIST_UNSUBSCRIBE_SECRET` (#64), `REQUEST_FINGERPRINT_SECRET` (#66), `WAITLIST_FROM_EMAIL` (`CmdTab <hello@cmdtab.net>`), with reply-to and owner notices going to `trycmdtab@gmail.com`. Production KMS signing is provisioned (2026-10-10, see [token v2 and KMS](docs/release/token-v2-kms-migration.md#production-provisioning-2026-10-10)): trial and license keys in AWS account `880302055919` (`us-east-1`), signed via Vercel OIDC (#84); `CMDTAB_LICENSE_PRIVATE_KEY_PEM` is removed. A live trial request returned a `CMDTAB2` token that verifies against the published trial keyring. The signed app still has to be built with the trial and license keyrings embedded.
 - Paid licensing needs an app release that contains #65; older builds reject leased tokens. Commerce remains disabled (`commerceEnabled: false`).
 - Device acceptance requires the user: #69 is not yet checked on real multi-display hardware, and the dedicated-thread event-tap build installed at `~/Applications/CmdTab.app` launches but its live tap behaviour awaits a permission re-grant ([tasks/todo.md](tasks/todo.md), Step 1b). Developer ID signing and notarization remain release gates (see [Production-readiness plan](#production-readiness-plan)).
 
@@ -31,9 +31,10 @@ macOS 14/15 canary procedure remains physical-only evidence.
 It recorded that the then-active worktree was dirty and behind `origin/main`,
 so it was not a release candidate. Candidate evidence now must bind a clean requested
 SHA, branch, release-config hash, artifact hash, command results, and host
-identity. Fresh-user beta entitlement remains blocked until trial-only signing,
-OIDC deployment identity, and the beta trial public keyring are provisioned and
-verified. Public beta explicitly disables commerce presentation; existing
+identity. Trial-only KMS signing, the OIDC deployment identity and the beta
+trial public keyring are provisioned and verified live (2026-10-10); fresh-user
+beta entitlement still needs a signed app built with that keyring and a
+clean-user receipt. Public beta explicitly disables commerce presentation; existing
 verified paid entitlements remain honored. Deterministic release CI also runs
 the beta-trial readiness regressions whenever their verifier or KMS source
 changes. The regenerated public-beta matrix labels only repository evidence as
@@ -74,8 +75,8 @@ The licensing migration now includes an additive `CMDTAB2` P-256
 token/keyring contract and separate trial/license AWS KMS signer abstraction.
 Release builds accept a `CMDTAB1` key only as input to online activation,
 which exchanges it for a device-bound `CMDTAB2` lease;
-production KMS provisioning and embedding its public keyrings in the signed
-app remain release gates.
+production KMS keys are provisioned (2026-10-10); embedding their public
+keyrings in the signed app remains a release gate.
 
 The repository-owned commerce lifecycle now exchanges a high-entropy opaque
 purchase activation code for an install-bound signed entitlement, and
@@ -97,8 +98,10 @@ store SQL for the deactivation cap, renewal lookup, and trial hardware
 rebinding runs against a disposable local Postgres only when
 `CMDTAB_TEST_DATABASE_URL` is set (skipped otherwise). Recovery now answers
 generically when credential rotation or outbox enqueue fails, which previously
-returned 400 only for emails with a purchase. Live Lemon Squeezy, email-provider,
-KMS, and production-database execution remain external release gates.
+returned 400 only for emails with a purchase. Email delivery and trial KMS
+signing are verified live (2026-10-10); live Lemon Squeezy, paid-license
+signing, and production-database commerce execution remain external release
+gates.
 
 Commerce launch is one explicit boundary. Scheduled and manually invoked
 license-outbox workers always require their bearer secret, but while
