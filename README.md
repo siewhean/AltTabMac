@@ -223,6 +223,7 @@ The canonical website showcase is `/showcase`.
 - VideoObject data is emitted only for actual MP4 assets.
 - The homepage Overview clip loops only while visible; showcase-page autoplay clips run once for no more than five seconds. All media remains static when Reduce Motion is enabled.
 - The homepage hero hides its asset-title overlay, and generated Quick Actions frames contain no central Command-W annotation.
+- The Command Palette poster types the fixture query "launch" and shows three matching fixture windows (Notes, Mail, Calendar; PR #85). It previously typed "spotify", matched nothing, and showed the empty state. The Overview MP4 reuses the same scene. Regenerate with `npm run showcase:generate` from `website/`; `seo:check` also regenerates and verifies manifest checksums.
 
 The showcase demonstrates presentation. It does not prove signed-app permissions, exact focused `CGWindowID`, Spaces, displays, fullscreen, Stage Manager, signing, notarization, performance, memory use, processor support, or architecture coverage.
 
