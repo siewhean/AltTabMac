@@ -4,6 +4,7 @@ import {
   SignCommand,
 } from "@aws-sdk/client-kms";
 import { fromWebToken } from "@aws-sdk/credential-providers";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { createPublicKey } from "node:crypto";
 
 import { LocalPemP256Signer } from "./license-signing";
@@ -303,14 +304,18 @@ function productionKmsClient(
   configuration: CmdTabKmsSignerConfiguration,
   env: SigningEnvironment,
 ) {
-  const webIdentityToken = required(env, "VERCEL_OIDC_TOKEN");
   const roleArn = required(env, "AWS_ROLE_ARN");
-  const credentials = fromWebToken({
-    roleArn,
-    roleSessionName: `cmdtab-${env.VERCEL_ENV ?? "deployment"}`,
-    webIdentityToken,
-    clientConfig: { region: configuration.region },
-  });
+  // In a Vercel Function the OIDC token arrives per request in the
+  // `x-vercel-oidc-token` header; `VERCEL_OIDC_TOKEN` exists only in builds
+  // and local development. Resolve it when credentials are first needed
+  // (inside the request), never at module load, and never cache it.
+  const credentials = async () =>
+    fromWebToken({
+      roleArn,
+      roleSessionName: `cmdtab-${env.VERCEL_ENV ?? "deployment"}`,
+      webIdentityToken: await getVercelOidcToken(),
+      clientConfig: { region: configuration.region },
+    })();
   return new AwsSdkKmsP256Client(
     new KMSClient({ region: configuration.region, credentials }),
   );

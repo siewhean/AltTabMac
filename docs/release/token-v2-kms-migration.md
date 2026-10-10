@@ -43,7 +43,7 @@ CMDTAB_LICENSE_V1_PUBLIC_KEY_PEM
 The production Vercel OIDC role must be scoped to the production project and
 environment, and may call only `kms:Sign` and `kms:GetPublicKey` on those two
 key ARNs. It must not receive `Decrypt`, key-management, or wildcard-resource
-permissions. `VERCEL_OIDC_TOKEN` is supplied by Vercel at runtime. No private
+permissions. The signer reads the OIDC token per request with `@vercel/oidc` (`getVercelOidcToken()`): in a Vercel Function it arrives in the `x-vercel-oidc-token` header, while `VERCEL_OIDC_TOKEN` is set only in builds and local development. Do not add it to the project environment. No private
 PEM is exported, stored in Vercel, logged, or returned by an API. Production
 configuration fails closed if either legacy/local PEM variable is present.
 Grandfathered `CMDTAB1` verification uses only
