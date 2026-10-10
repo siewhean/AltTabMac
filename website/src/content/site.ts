@@ -34,5 +34,5 @@ export const siteConfig = {
     "one-time license for Mac utility",
     "Mac utility free trial",
   ],
-  contactEmail: "hello@cmdtab.net",
+  contactEmail: "trycmdtab@gmail.com",
 } as const;

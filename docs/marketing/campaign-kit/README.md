@@ -10,4 +10,4 @@ Prepared 7 October 2026. Assets are ready for review; they have not been publish
 
 The visual is an abstract illustration, not a capture of the app. Keep it paired with the private-preview copy in the social posts. The form source now preserves bounded UTM labels and landing path on waitlist requests only when the visitor has accepted optional analytics; the per-channel links below carry distinct tags. This source change is local and must be deployed before those tags appear in aggregate signup reporting. Do not promise a release date or minimum macOS version until the live/source mismatch is corrected.
 
-`hello@cmdtab.net` is the intended CmdTab contact address but is not verified as a working mailbox. DNS currently has no MX record. Provision and verify the mailbox before publishing any draft that includes it.
+`trycmdtab@gmail.com` is the CmdTab contact address. Outgoing waitlist and license email still sends from a verified CmdTab domain; this Gmail address is the public contact and reply-to.

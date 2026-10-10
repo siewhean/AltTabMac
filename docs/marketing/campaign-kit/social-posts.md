@@ -7,7 +7,7 @@ All links include channel-specific tags. Local source now stores bounded UTM lab
 If Command-Tab gets you to the app, CmdTab helps you find the window. Keyboard-first window switching for macOS, with previews, search, and quick actions.
 
 CmdTab is in private preview. Request trial access: https://cmdtab.net/trial?utm_source=x_threads&utm_medium=organic_social&utm_campaign=waitlist_1000_30d&utm_content=x_threads_post_01
-CmdTab email: hello@cmdtab.net (publish only after mailbox setup is verified)
+CmdTab email: trycmdtab@gmail.com
 
 **Image:** `social-visual-01.png`
 **Alt text:** Illustration of several desktop windows converging on one highlighted window.
@@ -19,7 +19,7 @@ A busy Mac desktop can mean dozens of open windows and a lot of cycling to find 
 CmdTab is a keyboard-first macOS window switcher designed to help you find the specific window you need, with previews, search, and quick actions.
 
 The trial is currently in private preview. Join the waitlist and we’ll email you when access is ready: https://cmdtab.net/trial?utm_source=linkedin&utm_medium=organic_social&utm_campaign=waitlist_1000_30d&utm_content=linkedin_post_01
-CmdTab email: hello@cmdtab.net (publish only after mailbox setup is verified)
+CmdTab email: trycmdtab@gmail.com
 
 **Image:** `social-visual-01.png`
 **Alt text:** Illustration of several desktop windows converging on one highlighted window.
@@ -31,7 +31,7 @@ Find the window. Get back to work. ⌘⇥
 CmdTab is a keyboard-first window switcher for macOS. We’re inviting people to request early trial access while the app remains in private preview.
 
 Join the waitlist at the link in bio. We’ll email when access is ready: https://cmdtab.net/trial?utm_source=instagram&utm_medium=organic_social&utm_campaign=waitlist_1000_30d&utm_content=instagram_caption_01
-CmdTab email: hello@cmdtab.net (publish only after mailbox setup is verified)
+CmdTab email: trycmdtab@gmail.com
 
 *Illustration, not a screenshot of the app.*
 
@@ -40,7 +40,7 @@ CmdTab email: hello@cmdtab.net (publish only after mailbox setup is verified)
 ## Founder/community post
 
 Disclosure: I work on CmdTab. We’re building a keyboard-first Mac window switcher for people who keep many windows open. The trial is in private preview, so this is a waitlist invite, not a public download announcement. If this is relevant here, the details and permissions are on the site: https://cmdtab.net/trial?utm_source=community&utm_medium=organic_community&utm_campaign=waitlist_1000_30d&utm_content=founder_post_01
-CmdTab email: hello@cmdtab.net (publish only after mailbox setup is verified)
+CmdTab email: trycmdtab@gmail.com
 
 Post only where product announcements are allowed. Personalize the context and follow each community’s promotion rules.
 

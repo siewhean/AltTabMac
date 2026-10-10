@@ -67,7 +67,7 @@ export const faqItems = [
   {
     question: "What macOS version does CmdTab require?",
     answer:
-      "The current project target and packaged app metadata require macOS 13.0 Ventura or later. Check the Compatibility and Changelog pages for build-specific changes.",
+      "The current project target and packaged app metadata require macOS 14.0 (Sonoma) or later. Check the Compatibility and Changelog pages for build-specific changes.",
   },
   {
     question: "What is the current CmdTab version?",

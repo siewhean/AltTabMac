@@ -1,3 +1,19 @@
+## 2026-10-10 — Flaky analytics rate-limit browser check
+
+- [x] Root cause: the shared ingest limiter uses clock-aligned fixed windows; the browser check sent a fixed 130 requests, so a burst crossing a minute boundary split (e.g. 65 + 65) and never exceeded 120 in either window. Seen on run 37970231146.
+- [x] Reproduced locally against Postgres: a boundary-straddling 130-request burst returned 130 × 204.
+- [x] Fix (check only, limiter unchanged): send up to 2 × max + 1 requests, stopping at the first 429; read `max` from `src/lib/rate-limit.ts`; report an inconclusive burst if it takes ≥ 60 s.
+
+Review: three boundary-straddling bursts now hit 429 (after 148, 123 and 195 requests). `browser:check` passed 3/3 against a local Postgres-backed server; `npm run prebuild` passes.
+
+## 2026-10-10 — README status refresh and todo reconciliation
+
+- [x] Read merged PRs #63–#69 (`gh pr view`) and replace README's stale 2026-09-25/27 header with a dated current-status paragraph, deploy prerequisites and open device checks.
+- [x] Move superseded device history into README "Device acceptance history", keeping every evidence link.
+- [x] Reconcile unchecked items below against files on `main` (7d0c9ef5). Checked only items with evidence in the repository; device-acceptance items stay open.
+
+Review: docs-only change; no code, tests or deploys run. Items checked from evidence: 2026-09-23 tile identification and test/QA/package (both done in the 2026-09-25 work, `tasks/switcher-remediation-2026-09-25.md`); 2026-09-15 duplicate follow-up evidence, membership fix and regression (`tasks/duplicate-windows-2026-09-27.md`, `testLive500PointHelpersDoNotDuplicateVisibleAndMinimizedSiblings`). Left open with notes: AppKit geometry fix (not app-fixable so far), Phase H Developer ID packaging and release report, and every live/device check.
+
 ## 2026-10-09 — Licensing hardening (audit H1–H3, M3)
 
 User chose a 30-day paid lease, CMDTAB1 exchange-only in release builds, and a salted hardware hash for trials. Commerce has never been enabled, so no customer migration is needed.
@@ -52,9 +68,9 @@ Sept25 review: 317 XCTest + 2 Swift Testing passed; universal ad-hoc packaging p
 
 ## 2026-09-23 — Remaining device defects
 
-- [ ] Identify remaining icon-only and helper tiles using exact window evidence; preserve legitimate multiple windows and app-only fallbacks.
-- [ ] Trace and fix AppKit layout faults with targeted regression coverage.
-- [ ] Run focused/full tests, independent QA, and package a corrected local build.
+- [x] Identify remaining icon-only and helper tiles using exact window evidence; preserve legitimate multiple windows and app-only fallbacks. (Done 2026-09-25: helper findings bound to exact window identities; see `tasks/switcher-remediation-2026-09-25.md`.)
+- [ ] Trace and fix AppKit layout faults with targeted regression coverage. (Traced 2026-09-25 to the native sharing indicator and reproduced without CmdTab; no app-side fix. See `Tests/Fixtures/AppKitSharingGeometry/README.md`.)
+- [x] Run focused/full tests, independent QA, and package a corrected local build. (Done 2026-09-25: 317 XCTest + 2 Swift Testing, independent QA, universal ad-hoc package.)
 - [ ] Retest live membership/previews/settings; report permission or runtime blockers explicitly.
 
 ## 2026-09-17 — AltTab thumbnail audit and integration
@@ -77,10 +93,10 @@ Review (2026-09-20): final source passed 308 XCTest + 2 Swift Testing tests; six
 
 ## 2026-09-15 — Duplicate icon-only windows follow-up
 
-- [ ] Capture live window identity evidence; distinguish fallback duplication from real/helper CG surfaces.
-- [ ] Correct the shared membership cause without hiding legitimate windows or depending on preview success.
-- [ ] Add end-to-end regression coverage for the reproduced case and adjacent merge paths.
-- [ ] Run focused/full tests, package, inspect live behavior, and independent QA; document remaining limits.
+- [x] Capture live window identity evidence; distinguish fallback duplication from real/helper CG surfaces. (Done 2026-09-27: read-only CG/AX inventory in `tasks/duplicate-windows-2026-09-27.md`.)
+- [x] Correct the shared membership cause without hiding legitimate windows or depending on preview success. (Done 2026-09-27: `AppSwitcher.swift` helper rejection uses AX sibling evidence, not names or capture success.)
+- [x] Add end-to-end regression coverage for the reproduced case and adjacent merge paths. (Done: `UnknownCGSurfaceMembershipTests`, including the observed helper/real pairs.)
+- [ ] Run focused/full tests, package, inspect live behavior, and independent QA; document remaining limits. (Tests, package and QA recorded 2026-09-27; live inspection is a user device check, left open.)
 
 ---
 
@@ -257,7 +273,7 @@ User authorized implementation of the reviewed audit. Preserve unrelated dirty w
 
 ### Phase H — Release Verification
 - [x] 24. Full compilation and verification: swift build (0 errors/warnings).
-- [ ] 25. Package release app bundle via ./build.sh and verify manifest/signatures.
+- [ ] 25. Package release app bundle via ./build.sh and verify manifest/signatures. (Local ad-hoc packaging verified repeatedly; Developer ID signing is still blocked, so left open.)
 - [ ] 26. Final deliverable report with formal Release Recommendation.
 - [x] 1. Protect `lastRefresh`, `isRefreshing`, and `pendingForcedRefresh` under `cacheLock` in `AppSwitcher.swift`.
 - [x] 2. Implement process termination cleanup and validation for `launchTokensByPID` in `SwitcherItem.swift`.
