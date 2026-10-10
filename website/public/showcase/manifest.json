@@ -23,8 +23,8 @@
       "videoWidth": 1920,
       "videoHeight": 1200,
       "frameRate": 30,
-      "videoBytes": 349967,
-      "videoSha256": "75221f7397e1e6acbcf7d4a1cbaaaa99e0e2b0494987fa98ef3fb4cc12b36fdd"
+      "videoBytes": 352561,
+      "videoSha256": "8b5e86cdaa733e4b7488d5f1b4499da87c68065b91f5263be962453c4d6ae8f3"
     },
     {
       "id": "classic-grid",
@@ -49,8 +49,8 @@
       "sourceType": "deterministic-product-composite",
       "sourceLabel": "HD deterministic product poster",
       "hasAudio": false,
-      "posterBytes": 38960,
-      "posterSha256": "e37f7eee9255e569be4ac3d2a2f418b6236d57c86e7c2cb7acfebf9d86b6add7"
+      "posterBytes": 47446,
+      "posterSha256": "1f6dbf3f8c3d1efd869c2c7de12a4e8181a3f895b1b8c321dcccf20718bbf8f5"
     },
     {
       "id": "radial-menu",

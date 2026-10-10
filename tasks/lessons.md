@@ -35,3 +35,7 @@
 - 2026-09-25: Process-level geometry stacks do not identify the affected window or prove an app layout defect. Inspect the actual native window and size arguments; reproduce in plain AppKit before changing SwiftUI sizing or disabling system UI. Same-bundle-ID QA checkouts can confuse macOS Quit & Reopen; verify the executable path after every restart.
 
 - 2026-09-27: Permission acceptance must use one persistent exact bundle and distinguish identical-binary restart from ad-hoc rebuilds. Retain logs outside `/tmp`; never report a replaced or disappeared QA copy as the active authorized app.
+
+## 2026-10-10 — Use /usr/bin/log for unified-log checks
+- The user's zsh defines a `log` function, so `log show ...` fails ("too many arguments") and piping it through `grep`/`tail` hides the failure as "no results". Always call `/usr/bin/log show`, and treat an empty result as suspect until a known-present message is found.
+

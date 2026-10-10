@@ -102,7 +102,9 @@ function classicScene(progress = 0, selected = 1) {
 }
 
 function paletteScene(progress = 0) {
-  const typed = "spotify".slice(0, Math.max(0, Math.min(7, Math.floor(progress * 9))));
+  // "launch" matches three fixture windows (Notes, Mail, Calendar), so the poster shows a successful search.
+  const query = "launch";
+  const typed = query.slice(0, Math.max(0, Math.min(query.length, Math.floor(progress * 9))));
   const results = apps.filter((app) => !typed || `${app.name} ${app.title}`.toLowerCase().includes(typed));
   return `${desktopBackdrop()}${chrome("CmdTab Command Palette", "Local matching")}
     <g font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" filter="url(#shadow)">
