@@ -29,6 +29,11 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
+/** Banner artwork served from /public. Decorative concept art, not a product screenshot. */
+export const WELCOME_ILLUSTRATION_PATH = "/email/cmdtab-welcome-illustration.jpg";
+export const WELCOME_ILLUSTRATION_ALT =
+  "Conceptual artwork of desktop windows, with one window highlighted in cyan.";
+
 export const waitlistEmailContent = {
   ownerNotification: {
     subject: "New CmdTab private beta waitlist signup",
@@ -95,7 +100,10 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
   const safeSubject = escapeHtml(subject);
   const safeIntro = escapeHtml(intro);
   const safeFooter = escapeHtml(waitlistEmailContent.applicant.footer);
-  const safeSiteUrl = escapeHtml(input.siteUrl);
+  const safePreview = escapeHtml(preview);
+  const siteUrl = input.siteUrl.replace(/\/+$/, "");
+  const safeSiteUrl = escapeHtml(siteUrl);
+  const safeImageUrl = escapeHtml(`${siteUrl}${WELCOME_ILLUSTRATION_PATH}`);
 
   const text = [
     preview,
@@ -129,75 +137,85 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
     ...(input.unsubscribeUrl ? ["", `Unsubscribe: ${input.unsubscribeUrl}`] : []),
   ].join("\n");
 
+  // Email clients (Gmail, Outlook) strip flex, grid, positioning, and gradients,
+  // so the layout is tables with inline styles and solid colors only. The one
+  // intentional exception is the hidden preheader (display:none), which is the
+  // standard way to set the inbox preview text.
+  const buttonCell = (href: string, label: string) =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" bgcolor="#8FC8FF" style="border-radius:8px;background-color:#8FC8FF;"><a href="${escapeHtml(href)}" style="display:inline-block;padding:13px 20px;color:#08111E;text-decoration:none;font-size:14px;line-height:20px;font-weight:bold;">${escapeHtml(label)}</a></td></tr></table>`;
+
+  const panel = (borderColor: string, inner: string) =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:22px;"><tr><td bgcolor="#162238" style="padding:18px 20px;background-color:#162238;border:1px solid ${borderColor};border-radius:10px;">${inner}</td></tr></table>`;
+
+  const panelHeading = (label: string) =>
+    `<p style="margin:0 0 8px;color:#9FB2CF;font-size:12px;line-height:18px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">${escapeHtml(label)}</p>`;
+
+  const confirmBlock = input.confirmUrl
+    ? panel(
+        "#2C4263",
+        `${panelHeading(waitlistEmailContent.applicant.confirm.heading)}<p style="margin:0 0 14px;color:#D8E0EE;font-size:14px;line-height:22px;">${escapeHtml(waitlistEmailContent.applicant.confirm.body)}</p>${buttonCell(input.confirmUrl, waitlistEmailContent.applicant.confirm.cta)}`,
+      )
+    : "";
+
+  const referralBlock = input.referralUrl
+    ? panel(
+        "#263247",
+        `${panelHeading(waitlistEmailContent.applicant.referral.heading)}<p style="margin:0 0 12px;color:#D8E0EE;font-size:14px;line-height:22px;">${escapeHtml(waitlistEmailContent.applicant.referral.body(input.referralTarget ?? 5))}</p><p style="margin:0;font-size:14px;line-height:22px;word-break:break-all;"><a href="${escapeHtml(input.referralUrl)}" style="color:#8FBFFF;">${escapeHtml(input.referralUrl)}</a></p>`,
+      )
+    : "";
+
+  // One primary button per email: the confirm button when there is one,
+  // otherwise the visit button. The visit link then drops to plain text.
+  const visitBlock = input.confirmUrl
+    ? `<p style="margin:22px 0 0;font-size:14px;line-height:22px;"><a href="${safeSiteUrl}" style="color:#8FBFFF;">${escapeHtml(waitlistEmailContent.applicant.ctaLabel)}</a></p>`
+    : `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:24px;"><tr><td>${buttonCell(siteUrl, waitlistEmailContent.applicant.ctaLabel)}</td></tr></table>`;
+
   const html = `
-    <div style="background:#05070C;padding:40px 18px;font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#E8EEF9;">
-      <div style="max-width:640px;margin:0 auto;">
-        <div style="margin-bottom:18px;border:1px solid rgba(121,175,255,0.24);border-radius:999px;background:rgba(121,175,255,0.08);padding:10px 16px;color:#A9D2FF;font-size:12px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;text-align:center;">
-          CmdTab private beta
-        </div>
-        <!-- Email-safe layout: Gmail strips position, flex/grid, and gradients,
-             so the card uses solid colors and tables only. -->
-        <div style="border:1px solid #1C2433;border-radius:30px;background-color:#0E1421;">
-          <div style="padding:34px 32px 30px;">
-            <p style="margin:0 0 18px;font-size:13px;font-weight:600;color:#A9D2FF;">&#9679;&nbsp; CmdTab</p>
-            <h1 style="margin:0 0 14px;font-size:34px;line-height:1.04;letter-spacing:-0.05em;color:#F7FAFF;">${safeSubject}</h1>
-            <p style="margin:0 0 20px;font-size:16px;line-height:1.75;color:#D8E0EE;">${safeIntro}</p>
-        ${body
-          .map(
-            (paragraph) =>
-              `<p style="margin:0 0 14px;font-size:15px;line-height:1.8;color:#B7C3D9;">${escapeHtml(paragraph)}</p>`,
-          )
-          .join("")}
-            <div style="margin:28px 0 0;border-top:1px solid rgba(255,255,255,0.08);padding-top:22px;">
-              <p style="margin:0 0 14px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">What to expect</p>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;border-spacing:0 10px;">
-                ${waitlistEmailContent.applicant.bullets
-                  .map(
-                    (item) => `
-                      <tr>
-                        <td width="22" valign="top" style="padding:12px 0 12px 14px;background-color:#131A28;border-radius:18px 0 0 18px;color:#79AFFF;font-size:14px;line-height:1.7;">&#9679;</td>
-                        <td style="padding:12px 14px 12px 6px;background-color:#131A28;border-radius:0 18px 18px 0;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(item)}</td>
-                      </tr>
-                    `,
-                  )
-                  .join("")}
-              </table>
-            </div>
-            ${
-              input.confirmUrl
-                ? `<div style="margin:26px 0 0;border:1px solid rgba(121,175,255,0.24);border-radius:20px;background-color:#131A28;padding:18px 20px;">
-              <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">${escapeHtml(waitlistEmailContent.applicant.confirm.heading)}</p>
-              <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(waitlistEmailContent.applicant.confirm.body)}</p>
-              <a href="${escapeHtml(input.confirmUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background-color:#79AFFF;color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">${escapeHtml(waitlistEmailContent.applicant.confirm.cta)}</a>
-            </div>`
-                : ""
-            }
-            ${
-              input.referralUrl
-                ? `<div style="margin:18px 0 0;border:1px solid rgba(255,255,255,0.1);border-radius:20px;background-color:#131A28;padding:18px 20px;">
-              <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">${escapeHtml(waitlistEmailContent.applicant.referral.heading)}</p>
-              <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(waitlistEmailContent.applicant.referral.body(input.referralTarget ?? 5))}</p>
-              <p style="margin:0;font-size:14px;line-height:1.6;word-break:break-all;"><a href="${escapeHtml(input.referralUrl)}" style="color:#79AFFF;">${escapeHtml(input.referralUrl)}</a></p>
-            </div>`
-                : ""
-            }
-            <div style="margin-top:26px;">
-              <a href="${safeSiteUrl}" style="display:inline-block;padding:14px 20px;border-radius:999px;background-color:#79AFFF;color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
-                ${escapeHtml(waitlistEmailContent.applicant.ctaLabel)}
-              </a>
-            </div>
-            <p style="margin:22px 0 0;font-size:13px;line-height:1.75;color:#8A97B0;">${safeFooter}</p>
-          </div>
-        </div>
-        <p style="margin:16px 0 0;text-align:center;font-size:12px;line-height:1.7;color:#657189;">
-          You’re receiving this because you joined the CmdTab beta list.${
-            input.unsubscribeUrl
-              ? ` <a href="${escapeHtml(input.unsubscribeUrl)}" style="color:#8A97B0;text-decoration:underline;">Unsubscribe</a>`
-              : ""
-          }
-        </p>
-      </div>
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;color:#080D18;">
+      ${safePreview}${"&nbsp;&#847;".repeat(60)}
     </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#080D18" style="width:100%;margin:0;background-color:#080D18;font-family:Arial,Helvetica,sans-serif;color:#E8EEF9;">
+      <tr><td align="center" style="padding:28px 12px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;border-spacing:0;">
+          <tr><td align="center" bgcolor="#111A2B" style="padding:12px 16px;border:1px solid #243550;border-radius:12px 12px 0 0;color:#B9D8FF;font-size:12px;line-height:18px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">
+            CmdTab private beta
+          </td></tr>
+          <tr><td bgcolor="#101827" style="padding:0;background-color:#101827;">
+            <img src="${safeImageUrl}" width="600" alt="${escapeHtml(WELCOME_ILLUSTRATION_ALT)}" style="display:block;width:100%;max-width:600px;height:auto;border:0;line-height:100%;outline:none;text-decoration:none;">
+          </td></tr>
+          <tr><td bgcolor="#101827" style="padding:28px 30px 30px;border:1px solid #263247;border-top:0;border-radius:0 0 12px 12px;background-color:#101827;">
+            <p style="margin:0 0 10px;color:#8FBFFF;font-size:13px;line-height:20px;font-weight:bold;">CMDTAB</p>
+            <h1 style="margin:0 0 14px;color:#F7FAFF;font-size:30px;line-height:36px;font-weight:700;">${safeSubject}</h1>
+            <p style="margin:0 0 18px;color:#D8E0EE;font-size:16px;line-height:26px;">${safeIntro}</p>
+            ${body
+              .map(
+                (paragraph) =>
+                  `<p style="margin:0 0 14px;color:#B7C3D9;font-size:15px;line-height:25px;">${escapeHtml(paragraph)}</p>`,
+              )
+              .join("")}
+            <p style="margin:24px 0 12px;padding-top:18px;border-top:1px solid #2A3548;color:#8A97B0;font-size:12px;line-height:18px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">What to expect</p>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              ${waitlistEmailContent.applicant.bullets
+                .map(
+                  (item) => `<tr><td width="18" valign="top" style="padding:5px 0;color:#79AFFF;font-size:16px;line-height:22px;">&#8226;</td><td style="padding:5px 0;color:#D8E0EE;font-size:14px;line-height:22px;">${escapeHtml(item)}</td></tr>`,
+                )
+                .join("")}
+            </table>
+            ${confirmBlock}
+            ${referralBlock}
+            ${visitBlock}
+            <p style="margin:22px 0 0;color:#8A97B0;font-size:13px;line-height:21px;">${safeFooter}</p>
+          </td></tr>
+          <tr><td align="center" style="padding:14px 10px 0;color:#7B879A;font-size:12px;line-height:19px;">
+            You’re receiving this because you joined the CmdTab beta list.${
+              input.unsubscribeUrl
+                ? ` <a href="${escapeHtml(input.unsubscribeUrl)}" style="color:#9AA7BD;text-decoration:underline;">Unsubscribe</a>`
+                : ""
+            }
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
   `;
 
   return { subject, text, html };

@@ -1,3 +1,14 @@
+## 2026-10-10 — Welcome email redesign reworked onto the current email
+
+Source: uncommitted redesign recovered from the deleted `codex/marketing-waitlist-readiness` worktree (backup in `~/Documents/CmdTab-branch-backups-2026-10-10/`), rebased by hand onto the current template.
+
+- [x] Table-based, solid-colour layout (no flex/grid/positioning/gradients, which Gmail and Outlook strip), hidden preheader for the inbox preview, banner illustration, flatter card. Kept the confirm button, free-license block (cap of 100) and unsubscribe footer added since the redesign was drafted, restyled to match.
+- [x] One primary button per email: "Confirm my email" when a confirm link exists, otherwise "Visit CmdTab"; the visit link becomes plain text next to the confirm button.
+- [x] Banner `public/email/cmdtab-welcome-illustration.jpg` (68 KB, 1200x600) is decorative concept art, labelled as such in the alt text; it is not a product screenshot. `/email/*` is cached for a day like the other public images.
+- [x] 8 new tests (`tests/waitlist-email.test.ts`): email-safe constructs only, absolute and normalized banner URL, alt text, file is a JPEG under 150 KB, preheader first, single-button rule, unsubscribe in both formats, HTML escaping, existing-member wording.
+
+Review: tsc, 78 unit tests, `npm run security:check` (webpack build, as CI), banner served as image/jpeg with the cache header, and the rendered email checked at 700px and 375px (no horizontal overflow). Not covered: real mail clients (Gmail, Outlook, Apple Mail, dark-mode inversion), because nothing was sent. Send yourself a test before relying on it.
+
 ## 2026-10-10 — Waitlist: beta-first site, confirmed referral reward, #76 decisions made
 
 User asked for one consistent waitlist with no conflicts, a free-license reward for 5 qualified referrals, and a cap of 100 for the beta. Decisions below were taken by the assistant on the user's instruction ("you can decide") and are recorded so they can be reversed.
