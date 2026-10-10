@@ -11,10 +11,10 @@ import {
   CONFIRM_TOKEN_TTL_SECONDS,
   verifyWaitlistConfirmToken,
 } from "../src/lib/waitlist-confirm.js";
+import { generateReferralCode } from "../src/lib/waitlist-referral-code.js";
 import {
   canonicalEmail,
   evaluateReferrals,
-  generateReferralCode,
   isDisposableEmail,
   networkKey,
   normalizeReferralCode,

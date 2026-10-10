@@ -4,12 +4,12 @@ import { getSql, isDatabaseConfigured } from "@/lib/postgres";
 import {
   canonicalEmail,
   evaluateReferrals,
-  generateReferralCode,
   isDisposableEmail,
   REFERRAL_REWARD_CAP,
   REFERRAL_REWARD_TARGET,
   type ReferralFlag,
 } from "@/lib/waitlist-referral";
+import { generateReferralCode } from "@/lib/waitlist-referral-code";
 
 type WaitlistRow = {
   id: string;

@@ -1,5 +1,3 @@
-import { randomBytes } from "node:crypto";
-
 /** Qualified referrals needed to earn a free CmdTab license. */
 export const REFERRAL_REWARD_TARGET = 5;
 /**
@@ -9,21 +7,10 @@ export const REFERRAL_REWARD_TARGET = 5;
  */
 export const REFERRAL_REWARD_CAP = 100;
 
-// Lowercase, no look-alike characters (0/o, 1/l/i), so codes survive being read aloud.
-const ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz";
-const CODE_LENGTH = 8;
-
+// This module is bundled into the browser: it must not import Node-only modules.
+// Server-only helpers live in waitlist-referral-code.ts.
 export const REFERRAL_CODE_PATTERN = /^[a-z0-9]{6,12}$/;
 export const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
-
-export function generateReferralCode() {
-  const bytes = randomBytes(CODE_LENGTH);
-  let code = "";
-  for (let index = 0; index < CODE_LENGTH; index += 1) {
-    code += ALPHABET[bytes[index] % ALPHABET.length];
-  }
-  return code;
-}
 
 /** Returns a normalized code, or undefined when the input cannot be a code. */
 export function normalizeReferralCode(value: unknown) {
