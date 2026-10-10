@@ -1,3 +1,11 @@
+## 2026-10-10 — Exact window selection raised every window of the app
+
+- [x] Root cause: after the private SkyLight focus brought the selected window forward, `activateWindow` also activated the app (`NSRunningApplication.activate` plus `AXFrontmost` on the application), and `raiseWindow` set `AXFrontmost` again. App-level activation raises all of an app's windows, so selecting one of three Finder windows brought all three forward.
+- [x] Fix: the first exact attempt focuses only the window (private focus, then AX main/focused/raise on that window). App activation stays only as the escalation when the window is not verified frontmost, and on the app-fallback paths.
+- [x] `Activation path:` log lines (exact focus, app fallback with reason, escalation) at default level.
+
+Review: 427 XCTest + 2 Swift Testing pass; five-feature source verifier passes. On the user's Mac (debug build): only the selected Finder window comes forward; three switches logged `Activation path: exact window focus`, no fallback or escalation.
+
 ## 2026-10-10 — Production KMS signing provisioned
 
 - [x] OIDC fix: the signer reads the Vercel OIDC token per request with `@vercel/oidc` (#84); `VERCEL_OIDC_TOKEN` exists only in builds.
