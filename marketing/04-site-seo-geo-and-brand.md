@@ -4,7 +4,7 @@
 1. **Enable Vercel Web Analytics** (currently 404). Then compare against first-party table.
 2. **Persist attribution on waitlist rows.** All 5 rows have `metadata: null`. `collectWaitlistAttribution()` returns nothing unless analytics consent is true. Store campaign params (`utm_*`) and the landing path in a first-party cookie/session *before* consent for the narrow purpose of attributing a voluntary signup, or accept consent-gated loss. Decide with your privacy policy; I did not change this.
 3. **Waitlist form is not above the fold on every path.** `/trial` (90 pv) and `/buy` (54 pv) are the #2 and #3 pages: people looking for a download hit a page that can't deliver. Make both pages lead with "Private beta — join the list" and the form, and say honestly when the first beta wave opens.
-4. **Success state = growth loop.** After signup show: reward progress (N of 5 friends counted), referral link, X/WhatsApp/Telegram/WeChat share, "try the demo".
+4. **Success state = growth loop.** After signup the page says "you're in", explains the optional free-license invite, and points to the welcome email, which holds the personal invite link (the web response deliberately carries nothing per address, so it cannot be used to probe who is on the list). A one-tap use-case question and the demo link follow.
 5. **Cross-post proof:** add the "side-by-side Cmd+Tab vs CmdTab" 12-sec video to the hero (poster-first, lazy video).
 6. **Keep one primary CTA** on `/`: "Join the private beta". Hero currently has primary + secondary + tertiary (3 CTAs). Test removing the tertiary.
 7. Remove/adjust nav item "Buy" while commerce is disabled; replace with "Beta".

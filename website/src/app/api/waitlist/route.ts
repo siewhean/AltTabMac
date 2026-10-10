@@ -21,7 +21,6 @@ import {
   readBoundedJson,
 } from "@/lib/ingest-request";
 import {
-  getReferralCodeForEmail,
   isWaitlistStoreConfigured,
   markWaitlistConfirmationSent,
   updateWaitlistNotificationStatus,
@@ -29,8 +28,8 @@ import {
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
 import { sendWaitlistOwnerNotification } from "@/lib/waitlist-owner-notification";
-import { referralUrl, REFERRAL_REWARD_TARGET } from "@/lib/waitlist-referral";
-import { waitlistConfirmUrl } from "@/lib/waitlist-confirm";
+import { referralUrl } from "@/lib/waitlist-referral";
+import { createWaitlistProfileToken, waitlistConfirmUrl } from "@/lib/waitlist-confirm";
 import { hashDeviceId, hashNetwork } from "@/lib/waitlist-signals";
 import { waitlistUnsubscribeSecret, waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
 
@@ -264,15 +263,16 @@ async function deliverWaitlistEmails(input: {
   }
 }
 
-const REWARD_TARGET = REFERRAL_REWARD_TARGET;
-
 /**
  * The one success response for every non-error outcome: new signup, address
  * already on the list, another spelling of a registered mailbox, and a repeat
- * within 24 hours. Identical keys and values in every case, so it reveals
- * nothing about the address (the form must never say who is on the list).
+ * within 24 hours. Same keys in every case, and nothing in it depends on the
+ * address except an opaque token that is valid for whatever was typed, so it
+ * reveals nothing about the address (the form must never say who is on the
+ * list). The token only authorizes one optional write, see /api/waitlist/profile.
  */
-function signupSuccess(requestId: string, referralCode?: string | null) {
+function signupSuccess(requestId: string, typedEmail: string) {
+  const secret = waitlistUnsubscribeSecret();
   return jsonResponse({
     ok: true,
     code: "waitlist_submitted",
@@ -280,7 +280,7 @@ function signupSuccess(requestId: string, referralCode?: string | null) {
     requestId,
     submittedAt: new Date().toISOString(),
     notificationQueued: true,
-    referral: referralCode ? { code: referralCode, target: REWARD_TARGET } : undefined,
+    profileToken: secret ? createWaitlistProfileToken(typedEmail, secret) : undefined,
   });
 }
 
@@ -421,7 +421,7 @@ export async function POST(request: Request) {
     if (alreadySubmitted) {
       // A repeat within 24 hours: answer exactly like a first signup, so the
       // response cannot be used to learn who recently signed up.
-      return signupSuccess(requestId, await getReferralCodeForEmail(payload.email));
+      return signupSuccess(requestId, payload.email);
     }
 
     const upsertResult = await upsertWaitlistSubmission({
@@ -436,10 +436,10 @@ export async function POST(request: Request) {
       requestId,
     });
 
-    // Whatever address a visitor types, the answer is the same shape and
-    // carries only that address's own invite code and the reward target: never
-    // anyone's progress, verification state or reward status, and nothing that
-    // says whether the address was already on the list.
+    // The web response never carries anything about the address: no invite
+    // code, no progress, no verification or reward state, and nothing that says
+    // whether it was already on the list. The personal invite link goes only to
+    // the mailbox, by email (below).
     const referral = upsertResult.referral
       ? {
           code: upsertResult.referral.code,
@@ -472,7 +472,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return signupSuccess(requestId, referral?.code);
+    return signupSuccess(requestId, payload.email);
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {
       return jsonResponse(

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { WaitlistSuccess, type WaitlistReferral } from "@/components/sections/waitlist-success";
+import { WaitlistSuccess } from "@/components/sections/waitlist-success";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { analyticsAttributes } from "@/lib/analytics";
@@ -15,7 +15,7 @@ import { collectWaitlistAttribution } from "@/lib/waitlist-attribution";
 type FormState =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "success"; message: string; referral?: WaitlistReferral }
+  | { kind: "success"; message: string; profileToken?: string }
   | { kind: "error"; message: string; fieldErrors?: Record<string, string> };
 
 type WaitlistFormProps = {
@@ -71,7 +71,7 @@ export function WaitlistForm({
         ok: boolean;
         message?: string;
         fieldErrors?: Record<string, string>;
-        referral?: WaitlistReferral;
+        profileToken?: string;
       };
 
       if (!response.ok || !data.ok) {
@@ -86,7 +86,7 @@ export function WaitlistForm({
       setState({
         kind: "success",
         message: data.message ?? "Your request was received. We’ll email you when the next beta opens.",
-        referral: data.referral,
+        profileToken: data.profileToken,
       });
       trackSiteEvent("waitlist_form_success_response", { context: source });
       setEmail("");
@@ -105,7 +105,7 @@ export function WaitlistForm({
     return (
       <WaitlistSuccess
         message={state.message}
-        referral={state.referral}
+        profileToken={state.profileToken}
         context={source}
         onReset={() => setState({ kind: "idle" })}
       />

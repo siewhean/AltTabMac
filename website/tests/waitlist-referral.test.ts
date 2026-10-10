@@ -8,8 +8,11 @@ import {
 } from "../src/lib/waitlist-attribution.js";
 import {
   createWaitlistConfirmToken,
+  createWaitlistProfileToken,
   CONFIRM_TOKEN_TTL_SECONDS,
+  PROFILE_TOKEN_TTL_SECONDS,
   verifyWaitlistConfirmToken,
+  verifyWaitlistProfileToken,
 } from "../src/lib/waitlist-confirm.js";
 import { generateReferralCode } from "../src/lib/waitlist-referral-code.js";
 import {
@@ -238,4 +241,23 @@ test("confirmation order is chronological, not alphabetical (timestamps may be f
   const byId = Object.fromEntries(result.verdicts.map((verdict) => [verdict.id, verdict]));
   assert.equal(byId.early.status, "qualified");
   assert.equal(byId.late.flag, "same_network_as_other_invitee");
+});
+
+test("profile tokens authorize only their own purpose, address and lifetime", () => {
+  const secret = "s".repeat(48);
+  const now = 1_800_000_000;
+  const profile = createWaitlistProfileToken("Person@Example.com", secret, now);
+  assert.equal(verifyWaitlistProfileToken(profile, secret, now + 60), "person@example.com");
+  assert.equal(verifyWaitlistProfileToken(profile, secret, now + PROFILE_TOKEN_TTL_SECONDS + 1), null);
+  assert.equal(verifyWaitlistProfileToken(profile, "t".repeat(48), now), null);
+
+  // A token made for one purpose never works for the other.
+  const confirm = createWaitlistConfirmToken("person@example.com", secret, now);
+  assert.equal(verifyWaitlistProfileToken(confirm, secret, now + 60), null);
+  assert.equal(verifyWaitlistConfirmToken(profile, secret, now + 60), null);
+
+  // It cannot be redirected to another address.
+  const [, issued, sig] = profile.split(".");
+  const other = Buffer.from("victim@example.com").toString("base64url");
+  assert.equal(verifyWaitlistProfileToken(`${other}.${issued}.${sig}`, secret, now), null);
 });

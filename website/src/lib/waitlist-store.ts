@@ -415,16 +415,6 @@ export async function markWaitlistConfirmationSent(email: string) {
   `;
 }
 
-/** The invite code of one address, or null. Used to answer repeat submissions. */
-export async function getReferralCodeForEmail(email: string) {
-  await ensureSchema();
-  const sql = getSql();
-  const [row] = await sql<{ referral_code: string | null }[]>`
-    select referral_code from waitlist_signups where email = ${email.trim().toLowerCase()}
-  `;
-  return row?.referral_code ?? null;
-}
-
 /** Progress toward the reward for one address. Same shape for every address. */
 export async function getReferralProgress(email: string) {
   await ensureSchema();
@@ -653,16 +643,15 @@ export async function deleteWaitlistSignup(email: string) {
 export const WAITLIST_USE_CASES = ["browsing", "development", "design", "writing", "other"] as const;
 export type WaitlistUseCase = (typeof WAITLIST_USE_CASES)[number];
 
-/** Records one optional answer, keyed by the signup's own invite code. First answer wins. */
-export async function setWaitlistUseCase(code: string, useCase: WaitlistUseCase) {
+/** Records one optional answer for an address. First answer wins; a missing address changes nothing. */
+export async function setWaitlistUseCaseByEmail(email: string, useCase: WaitlistUseCase) {
   await ensureSchema();
   const sql = getSql();
-  const result = await sql`
+  await sql`
     update waitlist_signups
     set use_case = coalesce(use_case, ${useCase})
-    where referral_code = ${code}
+    where email = ${email.trim().toLowerCase()}
   `;
-  return result.count > 0;
 }
 
 export async function listWaitlistSubmissions(limit = 100) {

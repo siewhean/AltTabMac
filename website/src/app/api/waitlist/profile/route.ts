@@ -5,23 +5,26 @@ import { z } from "zod";
 
 import { getClientIp } from "@/lib/client-ip";
 import { readBoundedJson } from "@/lib/ingest-request";
+import { verifyWaitlistProfileToken } from "@/lib/waitlist-confirm";
+import { waitlistUnsubscribeSecret } from "@/lib/waitlist-unsubscribe";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   isWaitlistStoreConfigured,
-  setWaitlistUseCase,
+  setWaitlistUseCaseByEmail,
   WAITLIST_USE_CASES,
 } from "@/lib/waitlist-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// One optional answer ("what will you use it for?") saved against the signup's
-// own invite code. The code is the only credential, so the endpoint reveals
-// nothing about whether a code exists and accepts a single enumerated value.
+// One optional answer ("what will you use it for?") for the address a visitor
+// just typed. The signed token from the signup response is the only credential
+// and authorizes this single write; the answer never reveals whether the
+// address exists, and only one enumerated value is accepted.
 
 const bodySchema = z
   .object({
-    code: z.string().trim().toLowerCase().regex(/^[a-z0-9]{6,12}$/),
+    token: z.string().min(10).max(700),
     useCase: z.enum(WAITLIST_USE_CASES),
   })
   .strict();
@@ -47,9 +50,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = bodySchema.parse(await readBoundedJson(request, 512));
+    const body = bodySchema.parse(await readBoundedJson(request, 1024));
+    const secret = waitlistUnsubscribeSecret();
+    const email = secret ? verifyWaitlistProfileToken(body.token, secret) : null;
+    if (!email) {
+      return NextResponse.json({ ok: false, code: "validation_error", requestId }, { status: 400, headers: HEADERS });
+    }
     const limit = await checkRateLimit({
-      email: body.code,
+      email,
       ip: getClientIp(request),
       userAgent: request.headers.get("user-agent")?.trim() ?? "unknown",
     });
@@ -59,8 +67,8 @@ export async function POST(request: Request) {
     if (!isWaitlistStoreConfigured()) {
       return NextResponse.json({ ok: false, code: "service_unavailable", requestId }, { status: 503, headers: HEADERS });
     }
-    await setWaitlistUseCase(body.code, body.useCase);
-    // Same answer whether or not the code exists.
+    await setWaitlistUseCaseByEmail(email, body.useCase);
+    // Same answer whether or not the address exists.
     return NextResponse.json({ ok: true, requestId }, { headers: HEADERS });
   } catch {
     return NextResponse.json({ ok: false, code: "validation_error", requestId }, { status: 400, headers: HEADERS });
