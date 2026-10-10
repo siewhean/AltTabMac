@@ -37,8 +37,10 @@ if [[ "${PACKAGE_MODE}" == "release" && "${UPDATE_CHANNEL}" == "beta" ]]; then
     echo "Public-beta packaging requires Node.js for beta-trial readiness validation." >&2
     exit 1
   }
+  # The app only embeds the trial kid and public keyring; server issuance
+  # settings are verified by the website build on Vercel.
   CMDTAB_REQUIRE_BETA_TRIAL_READY=1 \
-    node "${ROOT_DIR}/website/scripts/verify-beta-trial-readiness.mjs"
+    node "${ROOT_DIR}/website/scripts/verify-beta-trial-readiness.mjs" --scope=app
 fi
 if [[ -n "${SIGNING_IDENTITY}" && -z "${CMDTAB_SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
   echo "Developer ID packaging requires CMDTAB_SPARKLE_PUBLIC_ED_KEY." >&2
