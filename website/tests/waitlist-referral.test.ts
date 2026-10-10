@@ -8,8 +8,11 @@ import {
 } from "../src/lib/waitlist-attribution.js";
 import {
   createWaitlistConfirmToken,
+  createWaitlistProfileToken,
   CONFIRM_TOKEN_TTL_SECONDS,
+  PROFILE_TOKEN_TTL_SECONDS,
   verifyWaitlistConfirmToken,
+  verifyWaitlistProfileToken,
 } from "../src/lib/waitlist-confirm.js";
 import { generateReferralCode } from "../src/lib/waitlist-referral-code.js";
 import {
@@ -63,6 +66,7 @@ test("referral codes are normalized and hostile input is rejected", () => {
   }
   const url = new URL(referralUrl("https://cmdtab.net/", "abc23xyz"));
   assert.equal(url.searchParams.get("ref"), "abc23xyz");
+  assert.equal([...url.searchParams.keys()].length, 1, "invite links carry only the code");
 });
 
 test("aliases of one mailbox collapse; unrelated addresses do not", () => {
@@ -204,6 +208,11 @@ test("campaign attribution is withheld without analytics consent and prefers the
   const parsed = parseCampaignParams("?utm_source=<script>&utm_medium=email&ref=ABC23XYZ", "/g");
   assert.deepEqual(parsed.campaign, { utm_medium: "email", path: "/g" });
   assert.equal(parsed.referralCode, "abc23xyz");
+  // A bare invite link is tagged as a referral on arrival.
+  assert.deepEqual(parseCampaignParams("?ref=ABC23XYZ", "/"), {
+    campaign: { utm_source: "referral", utm_medium: "invite", utm_campaign: "beta_referral", path: "/" },
+    referralCode: "abc23xyz",
+  });
 });
 
 test("confirmation email shows the confirm button and reward terms, with no queue", () => {
@@ -214,13 +223,13 @@ test("confirmation email shows the confirm button and reward terms, with no queu
     referralUrl: "https://cmdtab.net/?ref=abc23xyz&utm_source=referral",
     referralTarget: 5,
   });
-  assert.match(full.text, /Confirm my email/);
+  assert.match(full.text, /Verify my email/);
   assert.match(full.text, /Invite 5 friends/);
   assert.match(full.html, /ref=abc23xyz&amp;utm_source=referral/);
   assert.doesNotMatch(full.text + full.html, /\bqueue\b|\bspots\b|you are #\d/i);
 
   const bare = renderApplicantWaitlistEmail(base);
-  assert.doesNotMatch(bare.text, /Confirm my email|Invite 5/);
+  assert.doesNotMatch(bare.text, /Verify my email|Invite 5/);
 });
 
 test("confirmation order is chronological, not alphabetical (timestamps may be formatted any way)", () => {
@@ -232,4 +241,23 @@ test("confirmation order is chronological, not alphabetical (timestamps may be f
   const byId = Object.fromEntries(result.verdicts.map((verdict) => [verdict.id, verdict]));
   assert.equal(byId.early.status, "qualified");
   assert.equal(byId.late.flag, "same_network_as_other_invitee");
+});
+
+test("profile tokens authorize only their own purpose, address and lifetime", () => {
+  const secret = "s".repeat(48);
+  const now = 1_800_000_000;
+  const profile = createWaitlistProfileToken("Person@Example.com", secret, now);
+  assert.equal(verifyWaitlistProfileToken(profile, secret, now + 60), "person@example.com");
+  assert.equal(verifyWaitlistProfileToken(profile, secret, now + PROFILE_TOKEN_TTL_SECONDS + 1), null);
+  assert.equal(verifyWaitlistProfileToken(profile, "t".repeat(48), now), null);
+
+  // A token made for one purpose never works for the other.
+  const confirm = createWaitlistConfirmToken("person@example.com", secret, now);
+  assert.equal(verifyWaitlistProfileToken(confirm, secret, now + 60), null);
+  assert.equal(verifyWaitlistConfirmToken(profile, secret, now + 60), null);
+
+  // It cannot be redirected to another address.
+  const [, issued, sig] = profile.split(".");
+  const other = Buffer.from("victim@example.com").toString("base64url");
+  assert.equal(verifyWaitlistProfileToken(`${other}.${issued}.${sig}`, secret, now), null);
 });

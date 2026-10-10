@@ -19,9 +19,14 @@ export function normalizeReferralCode(value: unknown) {
   return REFERRAL_CODE_PATTERN.test(code) ? code : undefined;
 }
 
+/**
+ * Short on purpose: long tracking query strings read as spam in email and look
+ * untrustworthy when shared. Landing on a `ref` link tags the visit as a
+ * referral on the receiving side (see parseCampaignParams).
+ */
 export function referralUrl(siteUrl: string, code: string) {
   const base = siteUrl.replace(/\/+$/, "");
-  return `${base}/?ref=${encodeURIComponent(code)}&utm_source=referral&utm_medium=invite&utm_campaign=beta_referral`;
+  return `${base}/?ref=${encodeURIComponent(code)}`;
 }
 
 export const referralShareText =

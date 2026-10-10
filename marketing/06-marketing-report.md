@@ -10,7 +10,7 @@ Everything marked **verified** was checked today against a live source; everythi
 1. **You have no audience yet, and no downloadable product.** The waitlist holds 6 rows: 5 are old test rows counted as confirmed, 1 is your own unconfirmed test signup. **Real confirmed signups: 0.** Consented site traffic last 7 days: 4 pageviews, 2 visitors.
 2. **The missing download is the biggest constraint on marketing.** Hacker News "Show HN", Product Hunt, AlternativeTo and Mac-press reviews all expect something people can try. Until a signed build exists, only the waitlist-building channels below are usable.
 3. **I corrected three things from my first plan:** Show HN is *not allowed* for sign-up pages, r/macapps *now restricts* developer posts, and Resend open/click tracking is *off*, so I can't measure email opens. Details in §2.
-4. **1,000 confirmed signups by 8 Nov is unlikely** without a downloadable beta. Honest range from the channels available now: **about 50 to 600** (§9). The plan below maximises that range and prepares the launch that unlocks the rest.
+4. **1,000 signups by 8 Nov is unlikely** without a downloadable beta. Honest range from the channels available now: **about 75 to 900 members** (§9; a member is anyone who has entered their email, since signup is one step). The plan below maximises that range and prepares the launch that unlocks the rest.
 5. **What to do first (this weekend, about 3 hours):** pick a founder story paragraph, create/confirm your X, LinkedIn, Reddit, Xiaohongshu handles, record one 15-second screen capture of the in-browser demo, and check the welcome-email sample I emailed you (Gmail, phone, dark mode). Then Monday: 40 personal messages.
 
 **What I produced today:** six social cards (`marketing/assets/`), this report, corrections to the earlier kit, and one fix task for a bug I found on your website (§7).
@@ -27,8 +27,8 @@ Everything marked **verified** was checked today against a live source; everythi
 | Waitlist | 6 rows, 5 counted confirmed (legacy test rows), 0 marketing consents, 0 referrals, 0 rewards | production DB aggregate (no addresses read) |
 | Traffic | 4 pageviews / 2 visitors in 7 days (consented only; Vercel's own dashboard showed 15 visitors in the prior month) | first-party table; PR #76 plan |
 | Email infrastructure | **`cmdtab.net` verified, sending enabled**; `updates.cmdtab.net` verified since March. The site's automated email currently sends from a `cmdtab.net` address configured in Vercel; the public contact and reply-to address is `trycmdtab@gmail.com` (you asked me to use only that address from now on). 8 of 8 recent emails delivered, 0 bounces, 0 complaints. **Open and click tracking are OFF** | Resend account |
-| Welcome email | Redesigned version merged (banner, confirm button, free-license block, unsubscribe). **Never viewed in a real inbox by me** | PR #82 |
-| Reward program | 5 confirmed friends = free license, reviewed by a person, **capped at 100** (US$1,200 face value) | PR #79 |
+| Welcome email | Reworked for one-step signup: "You're in", one "Try it in your browser" button, optional verify link and invite link inside a reward panel, decorative banner (no alt text when images are blocked). First test landed in **Junk** at an NUS Outlook inbox | PR #82 + one-step fix |
+| Reward program | 5 friends who verify their email = free license, reviewed by a person, **capped at 100** (US$1,200 face value) | PR #79 |
 | Brand assets | Logo, 5 showcase images, 3 MP4 loops, OG image | `website/public` |
 | New today | 6 social cards, honestly labelled (§7) | `marketing/assets` |
 
@@ -52,7 +52,7 @@ Everything marked **verified** was checked today against a live source; everythi
 
 **The gate** (you decide when it opens): a **signed, notarized, downloadable beta** with a working 14-day trial path and tested Gatekeeper install. Without it, don't submit to Show HN, Product Hunt, AlternativeTo or press.
 
-**Phase B, gate → +2 weeks: launch.** One coordinated day (Tue–Thu): site download CTA, email to the confirmed list, Show HN, Product Hunt, AlternativeTo listing, r/macapps, press and creator pitches with a testable build.
+**Phase B, gate → +2 weeks: launch.** One coordinated day (Tue–Thu): site download CTA, email to the whole beta list, Show HN, Product Hunt, AlternativeTo listing, r/macapps, press and creator pitches with a testable build.
 
 Why this order: every channel with big reach demands a product people can try. Spending those one-shot chances now would waste them.
 
@@ -121,7 +121,7 @@ Why this order: every channel with big reach demands a product people can try. S
 | Where | What exactly | Prerequisite | Who |
 |---|---|---|---|
 | cmdtab.net | Download CTA; `releases/stable.json` published; trial path verified | Signed, notarized build; Gatekeeper tested on a clean Mac | Me + You |
-| **Email to the confirmed list** | "Your beta is ready" (transactional scope: all confirmed). Product updates only to the 0 people who ticked the marketing box | Domain verified ✓ | Me (draft/send with your approval) |
+| **Email to the beta list** | "Your beta is ready" (transactional scope: everyone who joined). Product updates only to the 0 people who ticked the marketing box | Domain verified ✓ | Me (draft/send with your approval) |
 | **Show HN** (Tue–Thu, 8–9 am ET) | Title `Show HN: CmdTab – a macOS window switcher …`; first comment from you with the technical story | Downloadable, no signup needed to try | You |
 | **Product Hunt** (Tue–Thu) | Launch page, 5 images, maker comment | Read PH's current maker guide first | You |
 | **AlternativeTo** | "Suggest new application" as an alternative to AltTab and Macscope; review queue is slow | Public availability | You |
@@ -161,13 +161,13 @@ The Command Palette image on your **Showcase and homepage** shows the search "sp
 
 ## 8. Measurement
 
-**North Star:** confirmed email addresses (not raw signups), because rewards and invitations only count confirmed ones.
+**North Star:** members (everyone who entered their email; joining is one step). **Verified** addresses are a secondary quality metric: verification is optional and only matters for the reward and for product-update consent. Expect some typos and fake addresses among unverified members.
 
 | Metric | Source | Target (4 weeks) |
 |---|---|---|
 | Unique visitors | Vercel Analytics dashboard (primary) | 1,500 / 4,000 / 12,000 (scenarios, §9) |
 | Visit → signup | signups ÷ visitors | 5–8% (assumption; your hero CTA click rate was 4.3%) |
-| **Confirmation rate** | `confirmed_at` / signups | ≥60% |
+| **Verification rate** (optional step) | `confirmed_at` / signups | ≥25% |
 | Reward progress | dashboard export | n/a |
 | Channel quality | signups by `utm_source` | see caveat |
 | AI citations | weekly manual check of 10 prompts | CmdTab named in ≥3 of 10 |
@@ -178,21 +178,21 @@ The Command Palette image on your **Showcase and homepage** shows the search "sp
 
 **Weekly ritual (Mondays, 20 min):** counts and conversion → what worked → keep/kill rule (cut any channel with <1% visit→signup and <20 visitors) → one change for next week.
 
-**Results-post template (8 Nov):** "4 weeks, N confirmed signups. What worked: …; what didn't: …; the number that surprised me: …; next: the download."
+**Results-post template (8 Nov):** "4 weeks, N members. What worked: …; what didn't: …; the number that surprised me: …; next: the download."
 
 ---
 
 ## 9. Scenarios (estimates, not data)
 
-Formula: visitors × signup rate × confirm rate, then a referral lift of ×1.2–1.4.
+Formula: visitors × signup rate = members, then a referral lift of ×1.2–1.4. (Signup is one step, so there is no confirmation drop-off; some members will be typos or fakes.)
 
-| Scenario | Visitors | Signup | Confirm | Confirmed | With referrals |
-|---|---|---|---|---|---|
-| Conservative | 1,500 | 5% | 60% | **≈45** | ≈55–65 |
-| Base | 4,000 | 7% | 65% | **≈180** | ≈215–250 |
-| Stretch (one community thread or the article takes off) | 12,000 | 8% | 65% | **≈620** | ≈750–870 |
+| Scenario | Visitors | Signup rate | Members | With referrals |
+|---|---|---|---|---|
+| Conservative | 1,500 | 5% | **≈75** | ≈90–105 |
+| Base | 4,000 | 7% | **≈280** | ≈335–390 |
+| Stretch (one community thread or the article takes off) | 12,000 | 8% | **≈960** | ≈1,150–1,340 |
 
-To reach **1,000 confirmed** you need roughly 15–19k visitors at those rates. **My judgment: well under a 10% chance before a downloadable beta exists.** Opening the gate earlier is the single biggest lever on this number.
+To reach **1,000 members** you need roughly 12–14k visitors at those rates. **My judgment: about a 10% chance or less before a downloadable beta exists.** Opening the gate earlier is the single biggest lever on this number.
 
 ---
 
@@ -211,8 +211,8 @@ To reach **1,000 confirmed** you need roughly 15–19k visitors at those rates. 
 |---|---|
 | Promotion rules differ per community | Read the live rules before each post; disclose that you are the developer; no vote-asking; no sock puppets |
 | Waitlist-only product on a download-first community | Don't post where a download is required (§2) |
-| Privacy law (Singapore PDPA, GDPR) | Consent-based marketing only (0 consents today); every email has unsubscribe; purge of never-confirmed signups; policy updated |
-| Reward gaming | Confirmation, device/network checks, flags, manual approval, cap of 100 |
+| Privacy law (Singapore PDPA, GDPR) | Consent-based marketing only (0 consents today); every email has unsubscribe; verification is optional and only gates rewards and marketing consent; policy updated |
+| Reward gaming | Email verification, device/network checks, flags, manual approval, cap of 100 |
 | Over-claiming | Use only claims in `product-facts.ts` and `SEO-GEO.md`; no unverified benchmarks, Apple-Silicon/Intel claims, or fake proof |
 | Failed first impression on the product | Fix the Command Palette poster before pushing traffic (§7) |
 | Email deliverability on a new domain | Start small, personal first; consider a separate marketing subdomain (below) |
@@ -276,10 +276,10 @@ All three come from real work in your repo. **Re-verify every technical claim ag
 
 ## Appendix E: reward decision replies (manual)
 
-**Granted:** *Subject: Your CmdTab license* · "You invited 5 friends who confirmed their email, so here is your free CmdTab personal license: [key/link]. Thank you for spreading the word."
+**Granted:** *Subject: Your CmdTab license* · "You invited 5 friends who verified their email, so here is your free CmdTab personal license: [key/link]. Thank you for spreading the word."
 **Declined:** *Subject: About your CmdTab invite reward* · "I reviewed your invitations and couldn't count some of them (for example same device or network, or duplicate addresses). The rules are in our Terms. If you think this is a mistake, reply and I'll look again."
 
-## Appendix F: "Your beta is ready" (Phase B; confirmed list)
+## Appendix F: "Your beta is ready" (Phase B; whole beta list)
 
 > **Subject:** CmdTab beta: your invitation
 > Hi [first name], the CmdTab private beta is open. Download: [link]. Needs macOS 14+, and Accessibility and Screen Recording permission (previews need it; here's why: [permissions page]). Your 14-day trial starts when you open the app. I read every reply: what broke, what's missing? · [founder]

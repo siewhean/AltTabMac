@@ -190,35 +190,51 @@ async function checkSharedFixedWindowRateLimit(input: {
   const sql = getSql();
   const now = Date.now();
 
-  for (const config of input.limits) {
+  // Count every (window, key) pair in ONE statement. This connection does not
+  // use prepared statements (the pooled database needs that), so each
+  // statement costs two network round trips and statements cannot overlap;
+  // fewer statements is the only way to be faster. The verdict is still read
+  // in the original order, so the first limit that is exceeded decides, as
+  // before. A blocked request now also counts against the other buckets,
+  // which is harmless for a limiter.
+  const counters = input.limits.flatMap((config) => {
     const windowStart = Math.floor(now / config.windowMs) * config.windowMs;
     const expiresAt = new Date(windowStart + config.windowMs).toISOString();
-    for (const key of input.keys) {
-      const [row] = await sql<{ event_count: number }[]>`
-        insert into ingest_rate_limits (
-          bucket_key,
-          window_start,
-          event_count,
-          expires_at
-        ) values (
-          ${`${key}:${config.windowMs}`},
-          ${windowStart},
+    return input.keys.map((key) => ({
+      config,
+      windowStart,
+      bucket: `${key}:${config.windowMs}`,
+      expiresAt,
+    }));
+  });
+  const rows = await sql<{ bucket_key: string; window_start: string; event_count: number }[]>`
+    insert into ingest_rate_limits ${sql(
+      counters.map((counter) => ({
+        bucket_key: counter.bucket,
+        window_start: counter.windowStart,
+        event_count: 1,
+        expires_at: counter.expiresAt,
+      })),
+    )}
+    on conflict (bucket_key, window_start)
+    do update set event_count = ingest_rate_limits.event_count + 1
+    returning bucket_key, window_start, event_count
+  `;
+  const counts = new Map(
+    rows.map((row) => [`${row.bucket_key}|${Number(row.window_start)}`, row.event_count]),
+  );
+
+  for (const counter of counters) {
+    const { config, windowStart } = counter;
+    const count = counts.get(`${counter.bucket}|${windowStart}`) ?? config.max + 1;
+    if (count > config.max) {
+      return {
+        allowed: false,
+        retryAfterSeconds: Math.max(
           1,
-          ${expiresAt}
-        )
-        on conflict (bucket_key, window_start)
-        do update set event_count = ingest_rate_limits.event_count + 1
-        returning event_count
-      `;
-      if ((row?.event_count ?? config.max + 1) > config.max) {
-        return {
-          allowed: false,
-          retryAfterSeconds: Math.max(
-            1,
-            Math.ceil((windowStart + config.windowMs - now) / 1_000),
-          ),
-        };
-      }
+          Math.ceil((windowStart + config.windowMs - now) / 1_000),
+        ),
+      };
     }
   }
 
@@ -370,4 +386,48 @@ export async function checkIngestRateLimit(input: {
     console.error("[CmdTab Website] shared ingest rate limit failed", error);
     return databaseUnavailableResult();
   }
+}
+
+/**
+ * True if any of the fingerprints was submitted within the duplicate window.
+ * One statement for the whole set (see checkSharedFixedWindowRateLimit for why).
+ */
+export async function recentlySubmittedAny(fingerprints: string[]) {
+  if (!isDatabaseConfigured()) {
+    for (const fingerprint of fingerprints) {
+      if (await recentlySubmitted(fingerprint)) return true;
+    }
+    return false;
+  }
+
+  await ensureRequestControlSchema();
+  const sql = getSql();
+  const [row] = await sql<{ exists: boolean }[]>`
+    select exists(
+      select 1
+      from request_deduplication
+      where fingerprint in ${sql(fingerprints)}
+        and expires_at > now()
+    ) as exists
+  `;
+  return row?.exists ?? false;
+}
+
+/** Records all fingerprints as submitted in one statement. */
+export async function markSubmittedAll(fingerprints: string[]) {
+  if (!isDatabaseConfigured()) {
+    for (const fingerprint of fingerprints) await markSubmitted(fingerprint);
+    return;
+  }
+
+  await ensureRequestControlSchema();
+  const sql = getSql();
+  const expiresAt = new Date(Date.now() + DUPLICATE_WINDOW_MS).toISOString();
+  await sql`
+    insert into request_deduplication ${sql(
+      fingerprints.map((fingerprint) => ({ fingerprint, expires_at: expiresAt })),
+    )}
+    on conflict (fingerprint)
+    do update set expires_at = excluded.expires_at
+  `;
 }

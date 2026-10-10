@@ -29,7 +29,7 @@ Data pulled 2026-10-10 from the production Postgres (`site_analytics_events`, `w
 ## 2. Honest math
 - 1,000 signups at a 6% cold visit→signup rate needs ~16,000 unique visitors; at 12% (warm communities, demo-first) ~8,300.
 - Realistic outcomes: **no breakout post → 150–400 signups. One Show HN / r/macapps hit + referral loop + creator pickup → 1,000+.** I can't guarantee a hit, so the plan buys many lottery tickets, cheaply, and doubles down on whatever works by day 10.
-- Referral reward ("invite 5 friends who confirm their email, get CmdTab free", after review) at K≈0.3 lifts every channel ~1.4×. Each reward costs a US$12 license, so budget for it; the abuse checks keep that cost bounded.
+- Referral reward ("invite 5 friends who verify their email, get CmdTab free", after review) at K≈0.3 lifts every channel ~1.4×. Each reward costs a US$12 license, so budget for it; the abuse checks keep that cost bounded.
 
 ## 3. Positioning (single idea)
 > **Cmd+Tab switches apps. You don't have 6 apps open — you have 6 Chrome windows.**
@@ -68,7 +68,7 @@ Examples: `reddit/organic/macapps_demo`, `x/organic/thread_a`, `hn/organic/showh
 - Day 28: last-48h scarcity email — only if the beta cohort cap is real. Day 30: results post (true numbers, what worked) — the retrospective itself is a strong organic post.
 
 ## 6. KPIs (tracked weekly)
-Unique visitors · visit→signup % per UTM · confirmation rate · CPL (paid) · referral K-factor · cited-by-AI count (10 fixed prompts) · waitlist total (real, deduped, excluding `e2e_*` test rows).
+Unique visitors · visit→signup % per UTM · verification rate · CPL (paid) · referral K-factor · cited-by-AI count (10 fixed prompts) · waitlist total (real, deduped, excluding `e2e_*` test rows).
 Milestones: day 7 = 100 · day 14 = 300 · day 21 = 600 · day 30 = 1,000. Missing day-14 by >50% → escalate budget/creator outreach, not more posts.
 
 ## 7. What I did not do (needs you)

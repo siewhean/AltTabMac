@@ -60,7 +60,7 @@ export default function WaitlistPage() {
             <p className="type-eyebrow text-cyan">{release ? "Or join the list" : "Save your spot"}</p>
             <div className="mb-5 mt-3 space-y-2 text-sm leading-6 text-muted">
               <p>
-                Confirm your email and we’ll send beta invitations in waves. Invite friends to earn a
+                Enter your email and you’re in. We’ll send beta invitations in waves, and you can invite friends to earn a
                 free license.
               </p>
             </div>

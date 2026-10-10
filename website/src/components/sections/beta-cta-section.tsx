@@ -8,7 +8,7 @@ export function BetaCtaSection() {
       id="beta"
       eyebrow="Private beta"
       title="Be first when the next beta opens."
-      description="Invitations go out in waves, in queue order. Invite friends after you join to move up the list."
+      description="Enter your email and you’re in. We’ll email you the moment a beta build is ready, in waves. Invite friends after you join to earn a free license."
     >
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="surface-panel p-6 sm:p-8">
