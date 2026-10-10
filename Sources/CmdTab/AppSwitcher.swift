@@ -1040,6 +1040,9 @@ final class AppSwitcher: NSObject {
         // usable switcher, but it is explicitly an unverified app fallback and
         // cannot advance exact-window MRU.
         guard exactFocusCapabilityAvailable else {
+            os_log(.default, log: appSwitcherLog,
+                   "Activation path: app fallback, exact focus unavailable (pid=%{public}d window=%{public}u)",
+                   candidate.ownerPID, candidate.id)
             activateApplication(app, activateAllWindows: true)
             ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0, token: token)
             return
@@ -1049,13 +1052,21 @@ final class AppSwitcher: NSObject {
             ownerPID: candidate.ownerPID,
             windowID: candidate.id
         ) else {
+            os_log(.default, log: appSwitcherLog,
+                   "Activation path: app fallback, private focus failed (pid=%{public}d window=%{public}u)",
+                   candidate.ownerPID, candidate.id)
             activateApplication(app, activateAllWindows: true)
             ensureApplicationFrontmost(app, identity: candidate.historyIdentity, attempt: 0, token: token)
             return
         }
-        // Activating every sibling can return macOS to the app's desktop Space
-        // after the selected fullscreen window was brought forward.
-        activateApplication(app, activateAllWindows: false)
+        os_log(.default, log: appSwitcherLog,
+               "Activation path: exact window focus (pid=%{public}d window=%{public}u)",
+               candidate.ownerPID, candidate.id)
+        // The private focus already made the selected window frontmost. Do not
+        // activate the application here: app-level activation (and AXFrontmost
+        // on the application) brings every one of its windows forward, so
+        // selecting one of three Finder windows would raise all three. App
+        // activation is kept only as the escalation when verification fails.
         DispatchQueue.main.asyncAfter(deadline: .now() + initialWindowFocusDelay) { [weak self] in
             self?.focusBestMatchingWindow(candidate, attempt: 0, token: token)
         }
@@ -1134,17 +1145,29 @@ final class AppSwitcher: NSObject {
         ) else {
             return .exactWindowNotFound
         }
-        return raiseWindow(windows[exactIndex], ownerPID: candidate.ownerPID) ? .raised : .raiseFailed
+        return raiseWindow(
+            windows[exactIndex],
+            ownerPID: candidate.ownerPID,
+            bringApplicationFrontmost: false
+        ) ? .raised : .raiseFailed
     }
 
-    private func raiseWindow(_ axWindow: AXUIElement, ownerPID: pid_t) -> Bool {
+    /// `bringApplicationFrontmost` sets AXFrontmost on the application, which
+    /// raises all of its windows; exact selections leave it off.
+    private func raiseWindow(
+        _ axWindow: AXUIElement,
+        ownerPID: pid_t,
+        bringApplicationFrontmost: Bool = true
+    ) -> Bool {
         let t = kCFBooleanTrue!
         let axApp = AXUIElementCreateApplication(ownerPID)
         guard let axWindowID = resolvedWindowID(for: axWindow),
               case .success = privateCapabilities.focusWindow(ownerPID: ownerPID, windowID: axWindowID) else {
             return false
         }
-        AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, t)
+        if bringApplicationFrontmost {
+            AXUIElementSetAttributeValue(axApp, kAXFrontmostAttribute as CFString, t)
+        }
         AXUIElementSetAttributeValue(axApp, kAXMainWindowAttribute as CFString, axWindow)
         AXUIElementSetAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, axWindow)
         AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
@@ -1293,6 +1316,9 @@ final class AppSwitcher: NSObject {
                         )
                         return
                     }
+                    os_log(.default, log: appSwitcherLog,
+                           "Activation path: exact window not frontmost after attempt %{public}d; escalating to app activation (pid=%{public}d window=%{public}u)",
+                           attempt, candidate.ownerPID, candidate.id)
                     self.activateApplication(app, activateAllWindows: false)
                     self.focusBestMatchingWindow(candidate, attempt: attempt + 1, token: token)
                 }
