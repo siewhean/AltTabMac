@@ -11,6 +11,16 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/releases/stable.json": ["../release/stable.json"],
   },
+  async redirects() {
+    // /waitlist is the one canonical page for early access. /trial and /buy used
+    // to promise a trial and a purchase that are not open, and the native app
+    // still links to /trial, so both stay as permanent redirects. Next.js passes
+    // the query string (utm_*, ref) through to the destination.
+    return [
+      { source: "/trial", destination: "/waitlist", permanent: true },
+      { source: "/buy", destination: "/waitlist", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

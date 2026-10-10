@@ -20,12 +20,17 @@ import {
   readBoundedJson,
 } from "@/lib/ingest-request";
 import {
+  isEmailSuppressed,
   isWaitlistStoreConfigured,
+  markWaitlistConfirmationSent,
   updateWaitlistNotificationStatus,
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
-import { waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
+import { referralUrl } from "@/lib/waitlist-referral";
+import { waitlistConfirmUrl } from "@/lib/waitlist-confirm";
+import { hashDeviceId, hashEmailForSuppression, hashNetwork } from "@/lib/waitlist-signals";
+import { waitlistUnsubscribeSecret, waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -155,18 +160,11 @@ function getContentLength(request: Request) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function formatMetadata(metadata?: Record<string, string>) {
-  if (!metadata || Object.keys(metadata).length === 0) return "None provided";
-
-  return Object.entries(metadata)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join("\n");
-}
-
 async function sendApplicantConfirmationEmail(payload: {
   email: string;
   name?: string;
   alreadyRegistered: boolean;
+  referral?: { code: string; qualified: number; target: number };
 }) {
   const env = getServerEnv();
   const resend = getResendClient(env.resendApiKey);
@@ -178,6 +176,9 @@ async function sendApplicantConfirmationEmail(payload: {
     siteUrl,
     variant: payload.alreadyRegistered ? "existing" : "new",
     unsubscribeUrl,
+    referralUrl: payload.referral ? referralUrl(siteUrl, payload.referral.code) : undefined,
+    confirmUrl: waitlistConfirmUrl(siteUrl, payload.email),
+    referralTarget: payload.referral?.target,
   });
 
   return resend.emails.send({
@@ -199,40 +200,15 @@ async function sendApplicantConfirmationEmail(payload: {
   });
 }
 
-function shouldSendOwnerNotification(applicantEmail: string) {
-  const env = getServerEnv();
-  return env.waitlistToEmail.trim().toLowerCase() !== applicantEmail.trim().toLowerCase();
-}
-
-async function submitWaitlistNotification(payload: {
-  email: string;
-  name?: string;
-  source?: string;
-  metadata?: Record<string, string>;
-  requestId: string;
-}) {
-  const env = getServerEnv();
-  const resend = getResendClient(env.resendApiKey);
-
-  const text = [
-    waitlistEmailContent.ownerNotification.heading,
-    "",
-    `Request ID: ${payload.requestId}`,
-    `Email: ${payload.email}`,
-    `Name: ${payload.name || "Not provided"}`,
-    `Source: ${payload.source || "Not provided"}`,
-    "",
-    "Metadata:",
-    formatMetadata(payload.metadata),
-  ].join("\n");
-
-  return resend.emails.send({
-    from: env.waitlistFromEmail,
-    to: env.waitlistToEmail,
-    replyTo: env.waitlistReplyToEmail ?? payload.email,
-    subject: waitlistEmailContent.ownerNotification.subject,
-    text,
-  });
+/** Signup needs a durable store, a way to email, and the secret that signs links. */
+function waitlistSignupReady() {
+  if (!isWaitlistStoreConfigured() || !waitlistUnsubscribeSecret()) return false;
+  try {
+    getServerEnv();
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function parseRequestBody(request: Request) {
@@ -358,18 +334,81 @@ export async function POST(request: Request) {
       );
     }
 
+    // Without a durable store, mail delivery, and the link-signing secret the
+    // signup cannot be honoured, so refuse instead of reporting success.
+    if (!waitlistSignupReady()) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: "service_unavailable",
+          message: "The waitlist is temporarily unavailable. Please try again shortly.",
+          requestId,
+        },
+        503,
+      );
+    }
+
+    // An address that unsubscribed (or an alias of it) stays opted out. Answer
+    // exactly like a normal success so the response reveals nothing.
+    if (await isEmailSuppressed(hashEmailForSuppression(payload.email))) {
+      await markSubmitted(emailFingerprint);
+      await markSubmitted(requestFingerprint);
+      return jsonResponse({
+        ok: true,
+        code: "waitlist_submitted",
+        message: waitlistEmailContent.applicant.onPageMessage,
+        requestId,
+        submittedAt: new Date().toISOString(),
+        notificationDelivered: true,
+      });
+    }
+
     let storedSubmission = null;
     let alreadyRegistered = false;
+    let referral:
+      | { code: string; qualified: number; target: number; confirmed: boolean }
+      | undefined;
+    let aliasOfExisting = false;
     if (isWaitlistStoreConfigured()) {
       const upsertResult = await upsertWaitlistSubmission({
         email: payload.email,
         name: payload.name,
         source: payload.source,
         metadata: payload.metadata,
+        referralCode: payload.referralCode,
+        marketingConsent: payload.marketingConsent,
+        deviceHash: hashDeviceId(payload.deviceId),
+        networkHash: hashNetwork(ip),
         requestId,
       });
       storedSubmission = upsertResult.submission;
       alreadyRegistered = upsertResult.alreadyRegistered;
+      aliasOfExisting = Boolean(upsertResult.aliasOfExisting);
+      // Reward status stays private: this response is identical for any address
+      // a visitor types, so it must not reveal someone else's standing.
+      referral = upsertResult.referral
+        ? {
+            code: upsertResult.referral.code,
+            qualified: upsertResult.referral.qualified,
+            target: upsertResult.referral.target,
+            confirmed: upsertResult.referral.confirmed,
+          }
+        : undefined;
+
+      // A different spelling of an already-registered mailbox is not a new
+      // signup: send nothing and answer exactly like a normal success.
+      if (aliasOfExisting) {
+        await markSubmitted(emailFingerprint);
+        await markSubmitted(requestFingerprint);
+        return jsonResponse({
+          ok: true,
+          code: "waitlist_submitted",
+          message: waitlistEmailContent.applicant.onPageMessage,
+          requestId,
+          submittedAt: new Date().toISOString(),
+          notificationDelivered: true,
+        });
+      }
     }
 
     const deliveryTasks = [
@@ -377,20 +416,9 @@ export async function POST(request: Request) {
         email: payload.email,
         name: payload.name,
         alreadyRegistered,
+        referral,
       }),
     ];
-
-    if (shouldSendOwnerNotification(payload.email)) {
-      deliveryTasks.push(
-        submitWaitlistNotification({
-          email: payload.email,
-          name: payload.name,
-          source: payload.source,
-          metadata: payload.metadata,
-          requestId,
-        }),
-      );
-    }
 
     const deliveryResults = await Promise.all(deliveryTasks);
     const deliveryError = deliveryResults.find((result) => result.error)?.error;
@@ -417,6 +445,7 @@ export async function POST(request: Request) {
           requestId,
           submittedAt: new Date().toISOString(),
           notificationDelivered: false,
+          referral,
         });
       }
 
@@ -433,6 +462,7 @@ export async function POST(request: Request) {
 
     if (storedSubmission) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
+      await markWaitlistConfirmationSent(storedSubmission.email);
     }
 
     await markSubmitted(emailFingerprint);
@@ -445,6 +475,9 @@ export async function POST(request: Request) {
       requestId,
       submittedAt: new Date().toISOString(),
       notificationDelivered: true,
+      // Same shape for new and returning addresses, so the response never
+      // reveals whether an email was already on the list.
+      referral,
     });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {

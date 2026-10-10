@@ -4,6 +4,7 @@ import {
   verifyWaitlistUnsubscribeToken,
   waitlistUnsubscribeSecret,
 } from "@/lib/waitlist-unsubscribe";
+import { hashEmailForSuppression } from "@/lib/waitlist-signals";
 import { deleteWaitlistSignup, isWaitlistStoreConfigured } from "@/lib/waitlist-store";
 
 export const runtime = "nodejs";
@@ -71,7 +72,7 @@ export async function GET(request: Request) {
   const action = `/api/waitlist/unsubscribe?token=${encodeURIComponent(token ?? "")}`;
   return htmlPage(
     "Unsubscribe from the CmdTab beta list?",
-    `<p style="margin:0;line-height:1.7;color:#B7C3D9;">You will stop receiving beta, trial, and launch emails, and your signup will be deleted.</p>` +
+    `<p style="margin:0;line-height:1.7;color:#B7C3D9;">You will stop receiving beta, trial, and launch emails, and your signup will be deleted. We keep a one-way hash of your address only so we do not email you again if it is submitted later.</p>` +
       `<form method="post" action="${action}"><button type="submit" style="${BUTTON_STYLE}">Unsubscribe</button></form>`,
   );
 }
@@ -83,7 +84,8 @@ export async function POST(request: Request) {
   if (!email) return invalidLink();
 
   try {
-    await deleteWaitlistSignup(email);
+    // Keep only a keyed hash so the opt-out survives a later re-submission.
+    await deleteWaitlistSignup(email, { suppressionHash: hashEmailForSuppression(email) });
   } catch (error) {
     console.error("[CmdTab Website] waitlist unsubscribe failed", {
       requestId: randomUUID(),

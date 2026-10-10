@@ -42,8 +42,8 @@ export function SiteHeader() {
         ))}
       </nav>
 
-      <Button href="/trial" variant="secondary" className="max-lg:hidden">
-        Join the waitlist
+      <Button href="/waitlist" variant="secondary" className="max-lg:hidden">
+        Join the private beta
       </Button>
       <MobileNavigation />
     </header>

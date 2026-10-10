@@ -104,7 +104,7 @@ export default function SwitchWindowsGuidePage() {
             </p>
           </div>
           <Button
-            href="/trial?utm_source=switch_guide&utm_medium=organic_search&utm_campaign=waitlist_1000_30d&utm_content=guide_intro_cta"
+            href="/waitlist?utm_source=switch_guide&utm_medium=organic_search&utm_campaign=waitlist_1000_30d&utm_content=guide_intro_cta"
             className="shrink-0"
           >
             Join the private-preview waitlist

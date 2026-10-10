@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Image from "next/image";
 
 import { ShowcaseVideo } from "@/components/showcase/showcase-video";
+import { WaitlistForm } from "@/components/sections/waitlist-form";
 import { Button } from "@/components/ui/button";
 import { MobileNavigation } from "@/components/ui/mobile-navigation";
 import { heroContent } from "@/content/home";
@@ -49,7 +50,7 @@ export function HeroSection() {
           </nav>
 
           <Button
-            href="/trial"
+            href="#join"
             variant="secondary"
             className="max-lg:hidden"
             {...analyticsAttributes("hero_nav_primary", "header")}
@@ -59,34 +60,30 @@ export function HeroSection() {
           <MobileNavigation />
         </header>
 
-        <div className="grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-16 lg:py-20">
+        <div className="grid items-center gap-8 py-8 sm:gap-10 sm:py-16 lg:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] lg:gap-16 lg:py-20">
           <div
             className="hero-enter max-w-[600px]"
             style={{ "--enter-delay": "150ms" } as CSSProperties}
           >
-            <h1 className="max-w-[11ch] text-balance text-[clamp(2.75rem,7vw,5.4rem)] font-medium leading-[0.92] tracking-[-0.065em] text-text">
+            <p className="mb-5 inline-flex items-center rounded-full border border-cyan/30 bg-cyan/[0.08] px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-cyan">
+              {heroContent.eyebrow}
+            </p>
+            <h1 className="max-w-[15ch] text-balance text-[clamp(2.1rem,5.6vw,4.6rem)] font-medium leading-[0.98] tracking-[-0.06em] text-text">
               {heroContent.title}
             </h1>
-            <p className="mt-6 max-w-[34rem] text-pretty text-lg leading-8 text-muted sm:text-xl sm:leading-9">
-              CmdTab is a standalone native macOS window-switcher app, separate from Apple’s built-in Command-Tab shortcut. Find the exact window with previews, search, and quick actions. It’s in private preview; join the waitlist and we’ll email you when trial access is ready.
+            <p className="mt-5 max-w-[34rem] text-pretty text-base leading-7 text-muted sm:mt-6 sm:text-xl sm:leading-9">
+              CmdTab is a standalone native macOS window-switcher app, separate from Apple’s built-in Command-Tab shortcut. Every window gets its own preview, so you can search for it, jump to it, or close it without guessing.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button
-                href="/trial"
-                className="w-full sm:w-auto"
-                {...analyticsAttributes("hero_primary_cta", "hero")}
-              >
-                {siteConfig.ctas.primary}
-              </Button>
-              <Button
-                href="/showcase"
-                variant="secondary"
-                className="w-full sm:w-auto"
+            <div id="join" className="mt-8 scroll-mt-24">
+              <WaitlistForm source="homepage_hero" variant="hero" />
+              <a
+                href="#demo"
+                className="mt-3 inline-flex min-h-11 items-center text-sm font-medium text-cyan underline decoration-cyan/40 underline-offset-4 hover:decoration-cyan focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
                 {...analyticsAttributes("hero_secondary_cta", "hero")}
               >
-                Watch CmdTab
-              </Button>
+                {heroContent.secondaryCta} →
+              </a>
             </div>
           </div>
 

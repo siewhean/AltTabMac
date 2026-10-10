@@ -7,6 +7,12 @@ type ApplicantEmailInput = {
   siteUrl: string;
   /** Signed unsubscribe link; omitted when no unsubscribe secret is configured. */
   unsubscribeUrl?: string;
+  /** Personal invite link; omitted when referrals are unavailable. */
+  referralUrl?: string;
+  /** Signed link that confirms the address; omitted when no secret is configured. */
+  confirmUrl?: string;
+  /** Confirmed friends needed for the free license. */
+  referralTarget?: number;
 };
 
 function firstName(name?: string) {
@@ -33,7 +39,7 @@ export const waitlistEmailContent = {
     // whether an address is already on the list. The email itself (sent only
     // to that address) says which case applies.
     onPageMessage:
-      "Thanks, you’re on the list. Check your inbox for a confirmation, and we’ll email you when the next beta opens.",
+      "Thanks, you’re on the list. Check your inbox and confirm your email address, and we’ll email you when the next beta opens.",
     subject(input: ApplicantEmailInput) {
       return input.variant === "new"
         ? "You’re on the CmdTab beta list"
@@ -64,6 +70,17 @@ export const waitlistEmailContent = {
       "Private beta updates only",
       "First access to the trial when it is ready",
     ],
+    confirm: {
+      heading: "Confirm your email",
+      body: "Confirm this address so we know it’s really yours. Your free-license progress only counts once you’ve confirmed.",
+      cta: "Confirm my email",
+    },
+    referral: {
+      heading: "Get CmdTab free",
+      body: (target: number) =>
+        `Invite ${target} friends. When ${target} of them confirm their email, you get a free CmdTab license after a quick review. The beta reward is limited to the first 100 members. Each friend must be a different person on their own device and network; duplicate, disposable, or same-device invitations don’t count.`,
+      cta: "Your invite link",
+    },
     ctaLabel: "Visit CmdTab",
     footer:
       "If you need to update your signup details, just reply to this email and we’ll sort it out.",
@@ -89,6 +106,22 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
     "",
     "What to expect:",
     ...waitlistEmailContent.applicant.bullets.map((item) => `- ${item}`),
+    ...(input.confirmUrl
+      ? [
+          "",
+          `${waitlistEmailContent.applicant.confirm.heading}:`,
+          waitlistEmailContent.applicant.confirm.body,
+          `${waitlistEmailContent.applicant.confirm.cta}: ${input.confirmUrl}`,
+        ]
+      : []),
+    ...(input.referralUrl
+      ? [
+          "",
+          `${waitlistEmailContent.applicant.referral.heading}:`,
+          waitlistEmailContent.applicant.referral.body(input.referralTarget ?? 5),
+          `${waitlistEmailContent.applicant.referral.cta}: ${input.referralUrl}`,
+        ]
+      : []),
     "",
     `CmdTab: ${input.siteUrl}`,
     "",
@@ -130,6 +163,24 @@ export function renderApplicantWaitlistEmail(input: ApplicantEmailInput) {
                   .join("")}
               </table>
             </div>
+            ${
+              input.confirmUrl
+                ? `<div style="margin:26px 0 0;border:1px solid rgba(121,175,255,0.24);border-radius:20px;background-color:#131A28;padding:18px 20px;">
+              <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">${escapeHtml(waitlistEmailContent.applicant.confirm.heading)}</p>
+              <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(waitlistEmailContent.applicant.confirm.body)}</p>
+              <a href="${escapeHtml(input.confirmUrl)}" style="display:inline-block;padding:12px 18px;border-radius:999px;background-color:#79AFFF;color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">${escapeHtml(waitlistEmailContent.applicant.confirm.cta)}</a>
+            </div>`
+                : ""
+            }
+            ${
+              input.referralUrl
+                ? `<div style="margin:18px 0 0;border:1px solid rgba(255,255,255,0.1);border-radius:20px;background-color:#131A28;padding:18px 20px;">
+              <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A97B0;">${escapeHtml(waitlistEmailContent.applicant.referral.heading)}</p>
+              <p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#D8E0EE;">${escapeHtml(waitlistEmailContent.applicant.referral.body(input.referralTarget ?? 5))}</p>
+              <p style="margin:0;font-size:14px;line-height:1.6;word-break:break-all;"><a href="${escapeHtml(input.referralUrl)}" style="color:#79AFFF;">${escapeHtml(input.referralUrl)}</a></p>
+            </div>`
+                : ""
+            }
             <div style="margin-top:26px;">
               <a href="${safeSiteUrl}" style="display:inline-block;padding:14px 20px;border-radius:999px;background-color:#79AFFF;color:#08111E;text-decoration:none;font-weight:700;font-size:14px;">
                 ${escapeHtml(waitlistEmailContent.applicant.ctaLabel)}

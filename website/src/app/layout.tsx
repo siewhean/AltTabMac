@@ -4,6 +4,7 @@ import {
   AnalyticsConsentBanner,
   OptionalAnalytics,
 } from "@/components/analytics-consent-controls";
+import { CampaignCapture } from "@/components/campaign-capture";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SiteEventTracker } from "@/components/site-event-tracker";
 import { SitePageTracker } from "@/components/site-page-tracker";
@@ -106,6 +107,7 @@ export default function RootLayout({
       <body>
         <JsonLd data={createHomeStructuredData()} />
         {children}
+        <CampaignCapture />
         <SitePageTracker />
         <SiteEventTracker />
         <AnalyticsConsentBanner />

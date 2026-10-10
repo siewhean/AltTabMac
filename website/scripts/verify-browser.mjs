@@ -247,7 +247,7 @@ try {
     { name: "zoom-200", width: 640, height: 500, mobile: false, motionCheck: false },
     { name: "zoom-400", width: 320, height: 320, mobile: false, motionCheck: false },
   ];
-  const screenshotRoutes = new Set(["/", "/showcase", "/features/window-switcher", "/buy"]);
+  const screenshotRoutes = new Set(["/", "/showcase", "/features/window-switcher", "/waitlist"]);
 
   for (const profile of profiles) {
     await client.send("Emulation.setDeviceMetricsOverride", {

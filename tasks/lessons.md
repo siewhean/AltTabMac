@@ -1,5 +1,11 @@
 # Lessons
 
+## 2026-10-10 — Shared modules must not import `node:` modules
+
+- **What happened:** `waitlist-referral.ts` imported `node:crypto` for code generation and was also bundled into the browser form. `next build` (Turbopack) accepted it locally; CI builds with `--webpack` and failed with `UnhandledSchemeError`.
+- **Rule:** a file imported by any `"use client"` component must be browser-safe. Put Node-only helpers (`node:crypto`, `postgres`) in separate server-only files (`*-code.ts`, `*-signals.ts`, `*-store.ts`).
+- **Check before pushing website changes:** run `npm run security:check` (webpack build, as CI does), not only `next build`.
+
 - 2026-08-01: A public launch switch must gate every commerce ingress, public purchase surface, and background path before it reaches customer payment, databases, queues, KMS, or email providers. Gating fulfillment while leaving checkout visible can charge a customer for an order the system deliberately refuses to fulfill.
 - 2026-08-01: A source-order assertion must prove the fail-closed branch contains an actual `return`, not merely that its `if` statement appears before the protected sink. Otherwise a later edit can remove the return while the security gate still passes.
 - 2026-07-27: In zsh, `path` is a special array tied to `PATH`; never use
