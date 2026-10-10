@@ -262,6 +262,19 @@ test("trial KMS configuration and signer have no paid-license dependency", () =>
   );
 });
 
+test("production KMS signer does not require VERCEL_OIDC_TOKEN at construction", () => {
+  // Vercel Functions receive the OIDC token per request in a header, not as
+  // an environment variable, so building the signer must not demand it.
+  const signer = getTrialTokenSigner({
+    VERCEL_ENV: "production",
+    AWS_REGION: "us-east-1",
+    AWS_ROLE_ARN: "arn:aws:iam::123456789012:role/cmdtab-trial",
+    CMDTAB_TRIAL_KMS_KEY_ID: "trial-key",
+    CMDTAB_TRIAL_SIGNING_KID: "trial-2026-01",
+  });
+  assert.equal(signer.kid, "trial-2026-01");
+});
+
 test("KMS signer refuses keys that do not match the published keyring", async () => {
   const kms = signingMaterials();
   const other = signingMaterials();
