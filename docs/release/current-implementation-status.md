@@ -61,8 +61,10 @@ absent:
 
 The following cannot be accepted from repository automation alone:
 
-- production Vercel/Postgres/rate-limit storage/Resend/KMS/Auth0/WAF
-  configuration, operational mailboxes, and backup/restore evidence;
+- production Vercel/Postgres/rate-limit storage/KMS/Auth0/WAF configuration
+  and backup/restore evidence (waitlist email is done: `cmdtab.net` is a
+  verified Resend sending domain and the contact mailbox is
+  `trycmdtab@gmail.com`, 10 October 2026);
 - a real Lemon Squeezy test-mode purchase-to-update lifecycle with no manual
   database intervention;
 - the intended Developer ID identity, Team ID reconciliation, Hardened Runtime
