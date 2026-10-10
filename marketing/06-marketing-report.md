@@ -26,7 +26,7 @@ Everything marked **verified** was checked today against a live source; everythi
 | Website | Live: homepage with inline signup and browser demo; `/waitlist` canonical page; `/trial` and `/buy` redirect there; terms, FAQ, privacy updated | production check |
 | Waitlist | 6 rows, 5 counted confirmed (legacy test rows), 0 marketing consents, 0 referrals, 0 rewards | production DB aggregate (no addresses read) |
 | Traffic | 4 pageviews / 2 visitors in 7 days (consented only; Vercel's own dashboard showed 15 visitors in the prior month) | first-party table; PR #76 plan |
-| Email infrastructure | **`cmdtab.net` verified, sending enabled**; `updates.cmdtab.net` verified since March. Sender `CmdTab <hello@cmdtab.net>`. 8 of 8 recent emails delivered, 0 bounces, 0 complaints. **Open and click tracking are OFF** | Resend account |
+| Email infrastructure | **`cmdtab.net` verified, sending enabled**; `updates.cmdtab.net` verified since March. The site's automated email currently sends from a `cmdtab.net` address configured in Vercel; the public contact and reply-to address is `trycmdtab@gmail.com` (you asked me to use only that address from now on). 8 of 8 recent emails delivered, 0 bounces, 0 complaints. **Open and click tracking are OFF** | Resend account |
 | Welcome email | Redesigned version merged (banner, confirm button, free-license block, unsubscribe). **Never viewed in a real inbox by me** | PR #82 |
 | Reward program | 5 confirmed friends = free license, reviewed by a person, **capped at 100** (US$1,200 face value) | PR #79 |
 | Brand assets | Logo, 5 showcase images, 3 MP4 loops, OG image | `website/public` |
@@ -217,7 +217,7 @@ To reach **1,000 confirmed** you need roughly 15–19k visitors at those rates. 
 | Failed first impression on the product | Fix the Command Palette poster before pushing traffic (§7) |
 | Email deliverability on a new domain | Start small, personal first; consider a separate marketing subdomain (below) |
 
-**Email recommendation:** keep `hello@cmdtab.net` for transactional mail (confirmations). Send any future bulk updates from **`updates.cmdtab.net`** (already verified) so a marketing complaint can't hurt confirmation delivery.
+**Email recommendation:** keep the existing `cmdtab.net` sender for transactional mail (confirmations), with `trycmdtab@gmail.com` as the reply-to. Send any future bulk updates from **`updates.cmdtab.net`** (already verified) so a marketing complaint can't hurt confirmation delivery.
 
 ---
 
@@ -235,7 +235,7 @@ To reach **1,000 confirmed** you need roughly 15–19k visitors at those rates. 
 2. **OK to add the optional "How did you hear about CmdTab?" field?**
 3. **Do you want an engineering article first (Appendix B), and which topic?**
 4. **OK to build a `/press` page** once you have screenshots?
-5. ~~Email this report to you~~ **Done:** the report and a sample of the welcome email were emailed to you from `hello@cmdtab.net` on 10 Oct (no other email has been sent).
+5. ~~Email this report to you~~ **Done:** the report and a sample of the welcome email were emailed to you on 10 Oct from the `cmdtab.net` sending domain (before you asked me to stop using that address) (no other email has been sent).
 
 ---
 
