@@ -11,7 +11,7 @@ Everything marked **verified** was checked today against a live source; everythi
 2. **The missing download is the biggest constraint on marketing.** Hacker News "Show HN", Product Hunt, AlternativeTo and Mac-press reviews all expect something people can try. Until a signed build exists, only the waitlist-building channels below are usable.
 3. **I corrected three things from my first plan:** Show HN is *not allowed* for sign-up pages, r/macapps *now restricts* developer posts, and Resend open/click tracking is *off*, so I can't measure email opens. Details in §2.
 4. **1,000 confirmed signups by 8 Nov is unlikely** without a downloadable beta. Honest range from the channels available now: **about 50 to 600** (§9). The plan below maximises that range and prepares the launch that unlocks the rest.
-5. **What to do first (this weekend, about 3 hours):** pick a founder story paragraph, create/confirm your X, LinkedIn, Reddit, Xiaohongshu handles, record one 15-second screen capture of the in-browser demo, and send yourself a test of the new welcome email. Then Monday: 40 personal messages.
+5. **What to do first (this weekend, about 3 hours):** pick a founder story paragraph, create/confirm your X, LinkedIn, Reddit, Xiaohongshu handles, record one 15-second screen capture of the in-browser demo, and check the welcome-email sample I emailed you (Gmail, phone, dark mode). Then Monday: 40 personal messages.
 
 **What I produced today:** six social cards (`marketing/assets/`), this report, corrections to the earlier kit, and one fix task for a bug I found on your website (§7).
 
@@ -95,7 +95,7 @@ Why this order: every channel with big reach demands a product people can try. S
 
 | Date | Where | What exactly | Asset / copy | Who | Link `utm_source/medium/content` | Success |
 |---|---|---|---|---|---|---|
-| **Sat 10 – Sun 11** | Your desk | Founder story paragraph (3 sentences, real); confirm handles; verify email on Reddit; record 15 s demo capture; send yourself a test of the welcome email | `01-social-posts.md` §1; Appendix D | You | n/a | Test email looks right in Gmail and on a phone |
+| **Sat 10 – Sun 11** | Your desk | Founder story paragraph (3 sentences, real); confirm handles; verify email on Reddit; record 15 s demo capture; check the welcome-email sample I emailed you | `01-social-posts.md` §1; Appendix D | You | n/a | Test email looks right in Gmail and on a phone |
 | **Mon 12** | Direct messages (WhatsApp, Telegram, iMessage, LinkedIn) | **40 personal messages** to Mac power users you know. One specific question each | Appendix D | You | `dm / dm / personal` | ≥10 click, ≥4 confirmed |
 | **Tue 13** | X (your account) | Thread A (6 posts) + card **x-hero** on post 1, **radial-menu** on post 3 | `01` §1 Thread A; `assets/x-hero…`, `assets/card-radial-menu…` | You | `x / social / thread_a` | ≥300 impressions per post; ≥15 clicks |
 | **Tue 13** | LinkedIn (personal profile) | Short post + square card | `01` §6; `assets/square-pain…` | You | `linkedin / social / post1` | ≥10 clicks |
@@ -235,7 +235,7 @@ To reach **1,000 confirmed** you need roughly 15–19k visitors at those rates. 
 2. **OK to add the optional "How did you hear about CmdTab?" field?**
 3. **Do you want an engineering article first (Appendix B), and which topic?**
 4. **OK to build a `/press` page** once you have screenshots?
-5. **Should I email this report to you** from `hello@cmdtab.net`? (I haven't sent any email.)
+5. ~~Email this report to you~~ **Done:** the report and a sample of the welcome email were emailed to you from `hello@cmdtab.net` on 10 Oct (no other email has been sent).
 
 ---
 
