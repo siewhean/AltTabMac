@@ -1,5 +1,7 @@
 # CmdTab — Paste-ready social posts
 
+> **Corrected 2026-10-10 — read `06-marketing-report.md` first.** Show HN does not accept sign-up/waitlist pages, r/macapps now restricts developer promotion, and Resend open/click tracking is off. Where this file disagrees with the report, the report wins.
+
 Replace `[LINK-xxx]` with the UTM link from `00-…` §4. `[ME]` = your personal detail. Only claim what the site already claims. Attach `public/showcase/overview.mp4` / `quick-actions.mp4` / `radial-menu.mp4` or the poster WebPs.
 
 ---
@@ -47,7 +49,7 @@ Join the private beta list there. I'm letting people in in waves.
 ---
 ## 2. Reddit (read each sub's self-promo rules first; lead with value; disclose you're the dev)
 
-### r/macapps (best fit — Tue/Wed, 9–11 am US ET)
+### r/macapps (⚠ restricted: use the monthly "App Pile" megathread in PCP format, see 06 report §6 and Appendix A; main-feed posting needs a trust or transparency path)
 **Title:** I built a window switcher for macOS that switches *windows*, not apps — looking for beta testers
 **Body:**
 Hey r/macapps, dev here.
@@ -72,7 +74,7 @@ Short version of the r/macapps body, with the 12-sec side-by-side video.
 Reply to every comment within 2 h for 48 h. Never argue with AltTab fans — "AltTab is excellent; here's the gap I'm trying to fill" wins threads.
 
 ---
-## 3. Show HN (Day 6, Thu 8–9 am ET)
+## 3. Show HN (⚠ NOT ELIGIBLE until a downloadable beta exists: Show HN excludes sign-up pages and requires something people can try without signing up. Use a regular HN submission of an engineering article instead; see 06 report Appendix B)
 **Title:** Show HN: CmdTab – a macOS window switcher with exact-window previews and a command palette
 **First comment (post immediately, as the author):**
 I'm [ME]. Cmd+Tab on macOS switches apps, which stops working when your work is 15 windows across 4 apps. CmdTab treats each window as a separate target in a single most-recently-used sequence, shows previews, and lets you search/act without switching in.
@@ -82,7 +84,7 @@ Demo: [LINK-hn_showhn]
 *(HN hates marketing language. Keep it technical. Don't ask for upvotes. Don't use "revolutionary".)*
 
 ---
-## 4. Product Hunt
+## 4. Product Hunt (⚠ launch only once there is something to download; before that, at most a "coming soon" page)
 - **Now:** create a "Coming soon" page → collects followers who are notified at launch (free list growth).
 - **Tagline (≤60):** Switch windows, not just apps. For macOS.
 - **Description:** CmdTab gives every Mac window its own spot in the switcher — with real previews, a command palette, a radial menu, and quick actions. Private beta open.

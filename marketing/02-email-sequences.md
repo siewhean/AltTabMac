@@ -1,5 +1,7 @@
 # CmdTab — Email system
 
+> **Corrected 2026-10-10 — read `06-marketing-report.md` first.** Show HN does not accept sign-up/waitlist pages, r/macapps now restricts developer promotion, and Resend open/click tracking is off. Where this file disagrees with the report, the report wins.
+
 Sender: the configured waitlist from-address (public contact address is `trycmdtab@gmail.com`) (Resend already wired in `website/src/lib/resend.ts`). Plain, founder-voice, text-first. Every email needs the signed unsubscribe link (`WAITLIST_UNSUBSCRIBE_SECRET` already in production). Consent text on the form covers "beta updates and launch-related messages" — keep every email within that scope; do **not** import purchased lists.
 
 ## A. Welcome sequence (automated)
@@ -53,4 +55,4 @@ Same as above + "I'll send a clean 30-second B-roll pack (the three modes) and t
 "Bumping this once — happy to answer anything about permissions/privacy before you decide."
 
 ## E. Metrics
-Welcome open ≥55%, click ≥18%; referral share rate ≥10%; unsubscribe <1.5%/email. Test subject lines 2 variants on E1 (curiosity vs benefit) once list >200.
+Opens and clicks are NOT measurable (Resend open/click tracking is off); measure confirmation rate (target ≥60% of signups) and UTM-tagged visits; referral share rate ≥10%; unsubscribe <1.5%/email. Test subject lines 2 variants on E1 (curiosity vs benefit) once list >200.
