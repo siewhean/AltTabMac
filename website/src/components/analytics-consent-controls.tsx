@@ -75,21 +75,21 @@ export function AnalyticsConsentBanner() {
       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          className="min-h-12 rounded-full border border-accent/45 bg-accent px-6 py-3 text-sm font-medium text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="min-h-12 rounded-full border border-accent/45 bg-accent px-6 py-3 text-sm font-medium text-slate-950 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           onClick={() => setAnalyticsConsent("accepted")}
         >
           Accept optional analytics
         </button>
         <button
           type="button"
-          className="min-h-12 rounded-full border border-white/12 bg-white/[0.05] px-6 py-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="min-h-12 rounded-full border border-white/12 bg-white/[0.05] px-6 py-3 text-sm font-medium text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
           onClick={() => setAnalyticsConsent("declined")}
         >
           Decline
         </button>
         <a
           href="/privacy#analytics-controls"
-          className="inline-flex min-h-12 items-center justify-center px-4 text-sm font-medium text-muted underline decoration-white/30 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="inline-flex min-h-12 items-center justify-center px-4 text-sm font-medium text-muted underline decoration-white/30 underline-offset-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           Learn more
         </a>
@@ -124,7 +124,7 @@ export function AnalyticsPrivacyControls() {
       <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <button
           type="button"
-          className="min-h-12 rounded-full border border-accent/45 bg-accent px-6 py-3 text-sm font-medium text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+          className="min-h-12 rounded-full border border-accent/45 bg-accent px-6 py-3 text-sm font-medium text-slate-950 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
           onClick={() => setAnalyticsConsent("accepted")}
           disabled={consent === "accepted"}
         >
@@ -132,7 +132,7 @@ export function AnalyticsPrivacyControls() {
         </button>
         <button
           type="button"
-          className="min-h-12 rounded-full border border-white/12 bg-white/[0.05] px-6 py-3 text-sm font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
+          className="min-h-12 rounded-full border border-white/12 bg-white/[0.05] px-6 py-3 text-sm font-medium text-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60"
           onClick={withdrawAnalyticsConsent}
           disabled={consent === "declined"}
         >

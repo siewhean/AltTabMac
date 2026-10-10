@@ -51,7 +51,7 @@ export function HeroSection() {
           <Button
             href="/trial"
             variant="secondary"
-            className="hidden lg:inline-flex"
+            className="max-lg:hidden"
             {...analyticsAttributes("hero_nav_primary", "header")}
           >
             {siteConfig.ctas.primary}

@@ -73,7 +73,7 @@ export default function CmdTabVsAltTabPage() {
           role="region"
           aria-label="CmdTab and AltTab comparison"
           tabIndex={0}
-          className="overflow-x-auto rounded-[26px] border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan/60"
+          className="overflow-x-auto rounded-[26px] border border-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60"
         >
           <table className="w-full min-w-[920px] border-collapse text-left text-sm">
             <thead className="bg-white/[0.05] text-text">

@@ -93,7 +93,7 @@ export default async function DashboardLoginPage({
                   name="password"
                   type="password"
                   required
-                  className="w-full rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-text outline-none transition focus:border-cyan/40"
+                  className="w-full rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-text outline-hidden transition focus:border-cyan/40"
                 />
               </div>
 
