@@ -1,3 +1,12 @@
+## 2026-10-10 — Vercel firewall configured
+
+- [x] Custom rule denies scanner paths (`.env`, `.git`, WordPress, `*.php`).
+- [x] Existing POST rate-limit rule (waitlist, license help, trial start, dashboard login submit) corrected to 30 per 60 s per IP and switched from Log to Deny.
+- [x] Managed Bot Protection active in Log mode.
+- [ ] After a week of traffic, decide whether to move Bot Protection to Challenge with an `/api/*` bypass.
+
+Review: scanner paths 403 deny; pages and `security.txt` 200; app API reaches the app; 31st POST to `/api/license-help` denied at the edge. Details: `docs/security/vercel-firewall.md`.
+
 ## 2026-10-10 — One-step signup, faster signup, better welcome email
 
 User report (screenshot): the welcome email landed in **Junk** (NUS Outlook) with the banner blocked; the confirm button worked; two-step signup was unwanted; signup felt slow.

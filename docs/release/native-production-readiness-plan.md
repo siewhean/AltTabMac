@@ -583,7 +583,7 @@ Complete the non-code release obligations.
 - [ ] Domain mailboxes receive and reply successfully.
 - [ ] Security mailbox has an owner and response SLA.
 - [ ] Sender-domain verification passes.
-- [ ] WAF/rate-limit test traffic behaves as expected.
+- [x] WAF/rate-limit test traffic behaves as expected. (2026-10-10, `docs/security/vercel-firewall.md`; bot protection still log-only.)
 - [ ] Secret scan is clean.
 - [ ] Telemetry disclosure matches emitted fields.
 - [ ] Incident tabletop exercise is completed.

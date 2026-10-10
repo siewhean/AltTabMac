@@ -61,8 +61,9 @@ absent:
 
 The following cannot be accepted from repository automation alone:
 
-- production Vercel/Postgres/rate-limit storage/Auth0/WAF configuration
-  and backup/restore evidence (KMS signing is done: trial and license keys
+- production Vercel/Postgres/rate-limit storage/Auth0 configuration
+  and backup/restore evidence (the Vercel firewall is configured and verified:
+  see `docs/security/vercel-firewall.md`; KMS signing is done: trial and license keys
   provisioned with Vercel OIDC, trial signing verified live on 10 October 2026;
   waitlist email is done: `cmdtab.net` is a
   verified Resend sending domain and the contact mailbox is
