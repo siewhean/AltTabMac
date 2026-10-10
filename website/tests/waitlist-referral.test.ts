@@ -63,6 +63,7 @@ test("referral codes are normalized and hostile input is rejected", () => {
   }
   const url = new URL(referralUrl("https://cmdtab.net/", "abc23xyz"));
   assert.equal(url.searchParams.get("ref"), "abc23xyz");
+  assert.equal([...url.searchParams.keys()].length, 1, "invite links carry only the code");
 });
 
 test("aliases of one mailbox collapse; unrelated addresses do not", () => {
@@ -204,6 +205,11 @@ test("campaign attribution is withheld without analytics consent and prefers the
   const parsed = parseCampaignParams("?utm_source=<script>&utm_medium=email&ref=ABC23XYZ", "/g");
   assert.deepEqual(parsed.campaign, { utm_medium: "email", path: "/g" });
   assert.equal(parsed.referralCode, "abc23xyz");
+  // A bare invite link is tagged as a referral on arrival.
+  assert.deepEqual(parseCampaignParams("?ref=ABC23XYZ", "/"), {
+    campaign: { utm_source: "referral", utm_medium: "invite", utm_campaign: "beta_referral", path: "/" },
+    referralCode: "abc23xyz",
+  });
 });
 
 test("confirmation email shows the confirm button and reward terms, with no queue", () => {
@@ -214,13 +220,13 @@ test("confirmation email shows the confirm button and reward terms, with no queu
     referralUrl: "https://cmdtab.net/?ref=abc23xyz&utm_source=referral",
     referralTarget: 5,
   });
-  assert.match(full.text, /Confirm my email/);
+  assert.match(full.text, /Verify my email/);
   assert.match(full.text, /Invite 5 friends/);
   assert.match(full.html, /ref=abc23xyz&amp;utm_source=referral/);
   assert.doesNotMatch(full.text + full.html, /\bqueue\b|\bspots\b|you are #\d/i);
 
   const bare = renderApplicantWaitlistEmail(base);
-  assert.doesNotMatch(bare.text, /Confirm my email|Invite 5/);
+  assert.doesNotMatch(bare.text, /Verify my email|Invite 5/);
 });
 
 test("confirmation order is chronological, not alphabetical (timestamps may be formatted any way)", () => {

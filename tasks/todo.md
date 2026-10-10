@@ -1,3 +1,15 @@
+## 2026-10-10 — One-step signup, faster signup, better welcome email
+
+User report (screenshot): the welcome email landed in **Junk** (NUS Outlook) with the banner blocked; the confirm button worked; two-step signup was unwanted; signup felt slow.
+
+- [x] **One step (owner decision, reverses D2/D4 of 2026-10-10):** entering an email is joining. No confirm gate, no 30-day purge of unverified signups. Verification stays as an **optional** signed link, needed only for the invite reward (inviter and friends must be verified) and for product-update consent. Copy updated in the form, success screen, welcome email, verify page, privacy policy, terms and FAQ. Trade-off accepted: unverified addresses (typos, someone else's address) now count as members; one welcome email is sent per signup and every email has an unsubscribe link.
+- [x] **Speed.** Measured with 50 ms database round trips and a 500 ms mail API: warm signup **2.5 s → 0.55 s**. Causes: the response waited for two mail calls in series plus ~30 sequential database statements (each costs two round trips because the pooled connection cannot use prepared statements, and statements cannot overlap). Fixes: welcome and owner emails sent after the response with `after()`, both at once; rate-limit counters, duplicate lookups, duplicate marks and signup lookups each folded into one statement; one-query schema probe instead of ~15 DDL statements per cold start.
+- [x] **Region (biggest real-world cause):** the database is in `ap-southeast-1` (Singapore) but functions ran in `iad1` (Washington). `vercel.json` now pins `regions: ["sin1"]`. Watch AWS KMS signing (us-east-1) after deploy: it now crosses the Pacific once per license operation while the many database queries get fast.
+- [x] **Deliverability changes** (cannot prove the cause of Junk from here): decorative banner now has empty alt text (no ugly alt line when images are blocked), invite link shortened to `/?ref=code` (no tracking query string), "Get CmdTab free" heading softened to "Earn a CmdTab license", one primary button. Real fix needs sender reputation: ask the user for the Junk message's `Authentication-Results` header (SPF/DKIM/DMARC), consider sending from the older verified `updates.cmdtab.net`, and mark-not-junk at big providers.
+- [x] Referral qualification, abuse checks and the cap of 100 are unchanged (20 database scenarios re-run, all pass).
+
+Review: tsc, 83 unit tests, 20 real-PostgreSQL scenarios, 9 offline end-to-end checks (one-step reply time, both emails after the response, no "confirm" wording, short invite link, optional verify, verified-friend-only referrals, alias, mail outage keeps the signup and marks it `failed`). Not covered: a real send to Outlook/Gmail, production latency (measured only in a simulated harness).
+
 ## 2026-10-10 — Production KMS signing provisioned
 
 - [x] OIDC fix: the signer reads the Vercel OIDC token per request with `@vercel/oidc` (#84); `VERCEL_OIDC_TOKEN` exists only in builds.

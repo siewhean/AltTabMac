@@ -8,7 +8,7 @@ import { REFERRAL_REWARD_CAP, referralShareText, referralUrl } from "@/lib/waitl
 
 export type WaitlistReferral = {
   code: string;
-  /** Invitations that confirmed their email and passed the abuse checks. */
+  /** Invitations that verified their email and passed the abuse checks. */
   qualified: number;
   target: number;
   confirmed: boolean;
@@ -89,26 +89,16 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
-        You’re on the beta list
+        You’re in the beta
       </div>
       <p className="text-sm leading-6 text-emerald-200/90">{message}</p>
 
-      {referral ? (
-        <div className="space-y-2 rounded-xl border border-white/10 bg-ink/40 p-4 text-text">
-          <p className="text-sm font-medium">Step 1 · Confirm your email</p>
-          <p className="text-xs leading-5 text-muted">
-            We just sent a confirmation link. Your place on the list and your free-license progress
-            count once you click it.
-          </p>
-        </div>
-      ) : null}
-
       {referral && link ? (
         <div className="space-y-3 rounded-xl border border-white/10 bg-ink/40 p-4 text-text">
-          <p className="text-xs uppercase tracking-[0.18em] text-subdued">Step 2 · Optional</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-subdued">Optional · invite friends</p>
           <p className="text-sm font-medium">Get CmdTab free</p>
           <p className="text-sm leading-6 text-muted">
-            Invite {referral.target} friends. When {referral.target} of them confirm their email,
+            Invite {referral.target} friends. When {referral.target} of them verify their email,
             you get a free CmdTab license after a quick review. The beta reward is limited to the
             first {REFERRAL_REWARD_CAP} members.
           </p>
@@ -118,7 +108,7 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
             aria-valuemin={0}
             aria-valuemax={referral.target}
             aria-valuenow={referral.qualified}
-            aria-label="Friends who confirmed their email"
+            aria-label="Friends who verified their email"
           >
             <div
               className="h-full rounded-full bg-accent transition-[width] duration-300"
@@ -127,7 +117,7 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
           </div>
           <p className="text-xs text-muted">
             {referral.qualified} of {referral.target} friends counted
-            {referral.confirmed ? "" : ". Confirm your own email first, using the link we just sent you"}
+            {referral.confirmed ? "" : ". Verify your own email too, using the link in your welcome email, so your invitations count"}
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -159,14 +149,14 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
             ))}
           </div>
           <p className="text-xs leading-5 text-subdued">
-            A friend counts once, after they confirm a real email address. Invitations from your own
+            A friend counts once, after they verify a real email address. Invitations from your own
             device or network, duplicate or disposable addresses, and several signups from one device
             don’t count. Rewards are reviewed before a license is granted.
           </p>
         </div>
       ) : (
         <p className="text-sm leading-6 text-emerald-200/90">
-          Check your inbox for a confirmation link and your personal invite link.
+          Check your inbox for your welcome email and your personal invite link.
         </p>
       )}
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import test from "node:test";
 
+import { referralUrl } from "../src/lib/waitlist-referral.js";
 import {
   renderApplicantWaitlistEmail,
   WELCOME_ILLUSTRATION_ALT,
@@ -42,7 +43,10 @@ test("banner image is absolute, normalized, sized and described", () => {
   }
   const { html } = renderApplicantWaitlistEmail(base);
   assert.match(html, /<img [^>]*width="600"/);
-  assert.ok(html.includes(`alt="${WELCOME_ILLUSTRATION_ALT}"`));
+  // Decorative artwork: empty alt, so a client that blocks images shows nothing
+  // instead of a line of alt text.
+  assert.equal(WELCOME_ILLUSTRATION_ALT, "");
+  assert.ok(html.includes('alt=""'));
 });
 
 test("the banner file ships with the site, is a JPEG, and stays email-light", () => {
@@ -57,19 +61,38 @@ test("a hidden preheader carries the preview text first", () => {
   const { html } = renderApplicantWaitlistEmail(base);
   const first = html.trimStart();
   assert.match(first, /^<div style="display:none;/);
-  assert.match(first, /Thanks for joining the CmdTab private beta list\./);
+  assert.match(first, /You’re in\. We’ll email you as soon as a beta build is ready\./);
 });
 
-test("exactly one primary button: confirm when present, otherwise visit", () => {
-  const withConfirm = renderApplicantWaitlistEmail(full).html;
-  assert.equal((withConfirm.match(/background-color:#8FC8FF/g) ?? []).length, 1);
-  assert.match(withConfirm, />Confirm my email</);
-  assert.match(withConfirm, /<a href="https:\/\/cmdtab\.net" style="color:#8FBFFF;">Visit CmdTab<\/a>/);
+test("exactly one primary button, and verification is only an optional text link", () => {
+  for (const html of [renderApplicantWaitlistEmail(base).html, renderApplicantWaitlistEmail(full).html]) {
+    assert.equal((html.match(/background-color:#8FC8FF/g) ?? []).length, 1);
+    assert.match(html, />Try it in your browser</);
+    assert.ok(html.includes('href="https://cmdtab.net/#demo"'));
+  }
+  const withVerify = renderApplicantWaitlistEmail(full).html;
+  assert.match(withVerify, /Optional: verify your email/);
+  assert.match(withVerify, /<a href="https:\/\/cmdtab\.net\/api\/waitlist\/confirm\?token=t\.1\.sig" style="color:#8FBFFF;">Verify my email<\/a>/);
+  assert.doesNotMatch(renderApplicantWaitlistEmail(base).html, /Verify my email/);
+});
 
-  const without = renderApplicantWaitlistEmail(base).html;
-  assert.equal((without.match(/background-color:#8FC8FF/g) ?? []).length, 1);
-  assert.match(without, />Visit CmdTab</);
-  assert.doesNotMatch(without, /Confirm my email/);
+test("joining is one step: the email says so and never asks people to confirm to be in", () => {
+  const { text, html, subject } = renderApplicantWaitlistEmail(full);
+  assert.match(subject, /in the CmdTab private beta/);
+  assert.match(text, /nothing else to do/i);
+  // Visible wording only: the verification link's URL path legitimately contains "confirm".
+  const visible = (subject + " " + text + " " + html)
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/<[^>]+>/g, " ");
+  assert.doesNotMatch(visible, /\bconfirm(ation)?\b/i);
+});
+
+test("the invite link in the email is short and free of tracking parameters", () => {
+  const url = referralUrl("https://cmdtab.net", "abc23xyz");
+  assert.equal(url, "https://cmdtab.net/?ref=abc23xyz");
+  const { text } = renderApplicantWaitlistEmail({ ...full, referralUrl: url });
+  assert.ok(text.includes(`Your personal invite link: ${url}`));
+  assert.doesNotMatch(text, /utm_/);
 });
 
 test("the unsubscribe link is in the footer of both formats when available", () => {
@@ -94,6 +117,6 @@ test("names and urls are escaped in HTML", () => {
 
 test("existing members get the existing-list wording", () => {
   const { subject, html } = renderApplicantWaitlistEmail({ ...base, variant: "existing" });
-  assert.match(subject, /still on the CmdTab beta list/);
-  assert.match(html, /already on the CmdTab private beta list/);
+  assert.match(subject, /still in the CmdTab private beta/);
+  assert.match(html, /already in the CmdTab private beta/);
 });

@@ -55,10 +55,19 @@ export function parseCampaignParams(search: string, pathname: string) {
     const value = params.get(key)?.trim();
     if (value && SAFE_CAMPAIGN_VALUE.test(value)) campaign[key] = value.toLowerCase();
   }
+  const referralCode = normalizeReferralCode(params.get("ref"));
+
+  // An invite link carries only `ref`; tag the visit as a referral unless the
+  // link already carries campaign labels of its own.
+  if (referralCode && Object.keys(campaign).length === 0) {
+    campaign.utm_source = "referral";
+    campaign.utm_medium = "invite";
+    campaign.utm_campaign = "beta_referral";
+  }
   if (Object.keys(campaign).length > 0) campaign.path = pathname.slice(0, 120);
 
   return {
     campaign: Object.keys(campaign).length > 0 ? campaign : undefined,
-    referralCode: normalizeReferralCode(params.get("ref")),
+    referralCode,
   };
 }

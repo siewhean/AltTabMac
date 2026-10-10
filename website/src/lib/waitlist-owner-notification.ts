@@ -34,7 +34,7 @@ export async function sendWaitlistOwnerNotification(payload: {
     `Email: ${payload.email}`,
     `Name: ${payload.name || "Not provided"}`,
     `Source: ${payload.source || "Not provided"}`,
-    "Status: awaiting email confirmation. Everything above was typed by the visitor and is unverified; don't follow links in it.",
+    "Status: in the beta; email not verified yet (verifying is optional and only matters for the invite reward). Everything above was typed by the visitor and is unverified; don't follow links in it.",
     "",
     "Metadata:",
     formatMetadata(payload.metadata),

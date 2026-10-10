@@ -116,6 +116,25 @@ async function ensureSchema() {
   if (schemaReady) return;
 
   const sql = getSql();
+
+  // Fast path: one query proves the table and its newest columns exist, so a
+  // cold start costs one round trip instead of ~15 DDL statements. If you add
+  // a column below, add it to this probe too.
+  try {
+    await sql`
+      select id, referral_code, referred_by, canonical_email, device_hash, network_hash,
+             confirm_network_hash, confirmed_at, confirmation_sent_at, referral_status,
+             referral_flag, reward_status, reward_earned_at, marketing_consent,
+             marketing_consent_at, marketing_consent_version, use_case
+      from waitlist_signups
+      limit 0
+    `;
+    schemaReady = true;
+    return;
+  } catch {
+    // Table or a column is missing (first run or a new migration): fall through.
+  }
+
   await sql`
     create table if not exists waitlist_signups (
       id text primary key,
@@ -239,7 +258,6 @@ async function purgeExpiredSignals() {
   if (Date.now() - lastPurgeAt < 60 * 60 * 1000) return;
   lastPurgeAt = Date.now();
   const sql = getSql();
-  await purgeUnconfirmedSignups();
   await sql`
     update waitlist_signups
     set device_hash = null, network_hash = null, confirm_network_hash = null
@@ -247,24 +265,6 @@ async function purgeExpiredSignals() {
       and (device_hash is not null or network_hash is not null or confirm_network_hash is not null)
       and coalesce(referral_status, '') <> 'flagged'
       and coalesce(reward_status, '') <> 'earned'
-  `;
-}
-
-const UNCONFIRMED_EXPIRY_DAYS = 30;
-
-/**
- * Deletes signups that were sent a confirmation link and never used it within
- * 30 days. Rows created before confirmation existed (no link was ever sent)
- * are kept: their owners were never asked, so silence is not abandonment.
- */
-async function purgeUnconfirmedSignups() {
-  const sql = getSql();
-  await sql`
-    delete from waitlist_signups
-    where confirmed_at is null
-      and confirmation_sent_at is not null
-      and confirmation_sent_at < now() - ${UNCONFIRMED_EXPIRY_DAYS} * interval '1 day'
-      and reward_status is null
   `;
 }
 
@@ -286,45 +286,44 @@ export async function upsertWaitlistSubmission(input: {
   const sql = getSql();
   const normalizedEmail = input.email.trim().toLowerCase();
   const canonical = canonicalEmail(normalizedEmail);
-  const [existing] = await sql<Pick<WaitlistRow, "id">[]>`
-    select id
+  // One statement finds both this exact address and any other spelling of the
+  // same mailbox. Statements here cost two round trips each and cannot
+  // overlap (no prepared statements), so fewer is faster.
+  const matches = await sql<WaitlistRow[]>`
+    select *
     from waitlist_signups
-    where email = ${normalizedEmail}
-    limit 1
+    where email = ${normalizedEmail} or canonical_email = ${canonical}
+    limit 5
   `;
+  const existing = matches.find((row) => row.email === normalizedEmail);
+  const alias = matches.find((row) => row.email !== normalizedEmail && row.canonical_email === canonical);
+
+  // Only referred signups need the inviter lookup.
+  const [inviter] =
+    !existing && input.referralCode
+      ? await sql<Pick<WaitlistRow, "referral_code">[]>`
+          select referral_code
+          from waitlist_signups
+          where referral_code = ${input.referralCode}
+            and canonical_email is distinct from ${canonical}
+            and email <> ${normalizedEmail}
+          limit 1
+        `
+      : [];
 
   // A different spelling of a mailbox that is already registered (Gmail dots,
   // +tags) is not a new person: no row, no email, no credit.
-  if (!existing) {
-    const [alias] = await sql<WaitlistRow[]>`
-      select *
-      from waitlist_signups
-      where canonical_email = ${canonical} and email <> ${normalizedEmail}
-      limit 1
-    `;
-    if (alias) {
-      return {
-        submission: mapRow(alias),
-        alreadyRegistered: true,
-        aliasOfExisting: true,
-      } satisfies WaitlistUpsertResult;
-    }
+  if (!existing && alias) {
+    return {
+      submission: mapRow(alias),
+      alreadyRegistered: true,
+      aliasOfExisting: true,
+    } satisfies WaitlistUpsertResult;
   }
 
   // Only a brand-new signup can be credited to an inviter. Already-registered
   // addresses are never re-attributed, so two friends cannot swap links.
-  let referredBy: string | null = null;
-  if (!existing && input.referralCode) {
-    const [inviter] = await sql<Pick<WaitlistRow, "referral_code">[]>`
-      select referral_code
-      from waitlist_signups
-      where referral_code = ${input.referralCode}
-        and canonical_email is distinct from ${canonical}
-        and email <> ${normalizedEmail}
-      limit 1
-    `;
-    referredBy = inviter?.referral_code ?? null;
-  }
+  const referredBy: string | null = !existing ? (inviter?.referral_code ?? null) : null;
 
   let row: WaitlistRow | undefined;
   for (let attempt = 0; attempt < 4 && !row; attempt += 1) {
@@ -377,10 +376,22 @@ export async function upsertWaitlistSubmission(input: {
 
   if (!row) throw new Error("Waitlist upsert returned no row.");
 
+  // A brand-new signup has no invitees and is not verified yet, so its progress
+  // is known without another query. Only returning members need the lookup.
+  const referral: WaitlistReferralProgress | undefined =
+    existing || !row.referral_code
+      ? ((await getReferralProgress(normalizedEmail)) ?? undefined)
+      : {
+          code: row.referral_code,
+          qualified: 0,
+          target: REFERRAL_REWARD_TARGET,
+          confirmed: Boolean(row.confirmed_at),
+        };
+
   return {
     submission: mapRow(row),
     alreadyRegistered: Boolean(existing),
-    referral: (await getReferralProgress(normalizedEmail)) ?? undefined,
+    referral,
   } satisfies WaitlistUpsertResult;
 }
 

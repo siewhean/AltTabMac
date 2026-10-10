@@ -46,7 +46,7 @@ function htmlPage(title: string, body: string, status = 200) {
 function invalidLink() {
   return htmlPage(
     "This link is not valid",
-    `<p style="${TEXT_STYLE}">The confirmation link is invalid or has expired. Join the beta list again from cmdtab.net to get a new one.</p>`,
+    `<p style="${TEXT_STYLE}">This verification link is invalid or has expired. Use the link in your most recent CmdTab email, or reply to that email and we will help. You are still in the beta either way.</p>`,
     400,
   );
 }
@@ -54,7 +54,7 @@ function invalidLink() {
 function unavailable() {
   return htmlPage(
     "Please try again later",
-    `<p style="${TEXT_STYLE}">Confirmation is temporarily unavailable. Please try the link again in a few minutes.</p>`,
+    `<p style="${TEXT_STYLE}">Verification is temporarily unavailable. Please try the link again in a few minutes.</p>`,
     503,
   );
 }
@@ -71,9 +71,9 @@ export async function GET(request: Request) {
 
   const action = `/api/waitlist/confirm?token=${encodeURIComponent(token ?? "")}`;
   return htmlPage(
-    "Confirm your email",
-    `<p style="${TEXT_STYLE}">One click to confirm this address for the CmdTab private beta list.</p>` +
-      `<form method="post" action="${action}"><button type="submit" style="${BUTTON_STYLE}">Confirm my email</button></form>`,
+    "Verify your email",
+    `<p style="${TEXT_STYLE}">One click to verify this address. It is optional: you are already in the CmdTab beta. Verifying only makes your invitations count toward a free license.</p>` +
+      `<form method="post" action="${action}"><button type="submit" style="${BUTTON_STYLE}">Verify my email</button></form>`,
   );
 }
 
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
 
   // Same answer whether or not the address is still on the list.
   return htmlPage(
-    "Email confirmed",
-    `<p style="${TEXT_STYLE}">Thanks. If this address is on the CmdTab beta list, it is now confirmed.</p>`,
+    "Email verified",
+    `<p style="${TEXT_STYLE}">Thanks. If this address is in the CmdTab beta, it is now verified.</p>`,
   );
 }

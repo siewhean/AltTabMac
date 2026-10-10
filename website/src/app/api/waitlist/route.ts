@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { getClientIp } from "@/lib/client-ip";
@@ -12,8 +12,8 @@ import { getServerEnv, getSiteUrl } from "@/lib/env";
 import {
   checkRateLimit,
   createFingerprint,
-  markSubmitted,
-  recentlySubmitted,
+  markSubmittedAll,
+  recentlySubmittedAny,
 } from "@/lib/rate-limit";
 import { getResendClient } from "@/lib/resend";
 import {
@@ -190,6 +190,79 @@ async function sendApplicantConfirmationEmail(payload: {
   });
 }
 
+/**
+ * Sends the welcome email and the owner notice after the signup response has
+ * gone out. Runs both sends at once, records the outcome on the signup row,
+ * and never throws: a mail problem must not undo or hide a stored signup.
+ */
+async function deliverWaitlistEmails(input: {
+  email: string;
+  name?: string;
+  source?: string;
+  metadata?: Record<string, string>;
+  alreadyRegistered: boolean;
+  referral?: { code: string; qualified: number; target: number; confirmed: boolean };
+  requestId: string;
+}) {
+  try {
+    const [applicant, owner] = await Promise.allSettled([
+      sendApplicantConfirmationEmail({
+        email: input.email,
+        name: input.name,
+        alreadyRegistered: input.alreadyRegistered,
+        referral: input.referral,
+      }),
+      // One owner notice per new signup; repeat submissions send none.
+      input.alreadyRegistered
+        ? Promise.resolve(null)
+        : sendWaitlistOwnerNotification({
+            email: input.email,
+            name: input.name,
+            source: input.source,
+            metadata: input.metadata,
+            requestId: input.requestId,
+          }),
+    ]);
+
+    const applicantError =
+      applicant.status === "rejected"
+        ? { name: "Error", message: applicant.reason instanceof Error ? applicant.reason.message : "Unknown error" }
+        : applicant.value.error;
+
+    if (applicantError) {
+      console.error("[CmdTab Website] waitlist delivery failed", {
+        requestId: input.requestId,
+        errorName: applicantError.name,
+        errorMessage: applicantError.message,
+      });
+      await updateWaitlistNotificationStatus(input.email, "failed", applicantError.message);
+    } else {
+      await Promise.all([
+        updateWaitlistNotificationStatus(input.email, "delivered"),
+        markWaitlistConfirmationSent(input.email),
+      ]);
+    }
+
+    const ownerError =
+      owner.status === "rejected"
+        ? { name: "Error" }
+        : owner.value && "error" in owner.value
+          ? owner.value.error
+          : null;
+    if (ownerError) {
+      console.error("[CmdTab Website] waitlist owner notification failed", {
+        requestId: input.requestId,
+        errorName: ownerError.name,
+      });
+    }
+  } catch (error) {
+    console.error("[CmdTab Website] waitlist background delivery failed", {
+      requestId: input.requestId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
 /** Signup needs a durable store, a way to email, and the secret that signs links. */
 function waitlistSignupReady() {
   if (!isWaitlistStoreConfigured() || !waitlistUnsubscribeSecret()) return false;
@@ -270,13 +343,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // Local, free checks first: with no store, mail key or link secret the
+    // signup cannot be honoured, so refuse before doing any network work.
+    if (!waitlistSignupReady()) {
+      return jsonResponse(
+        {
+          ok: false,
+          code: "service_unavailable",
+          message: "The waitlist is temporarily unavailable. Please try again shortly.",
+          requestId,
+        },
+        503,
+      );
+    }
+
     const ip = getClientIp(request);
     const userAgent = getUserAgent(request);
-    const rateLimit = await checkRateLimit({
-      email: payload.email,
-      ip,
-      userAgent,
-    });
+    const emailFingerprint = createFingerprint(payload.email);
+    const requestFingerprint = createFingerprint(
+      `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
+    );
+
+    // The abuse check and the duplicate lookups are independent reads/writes,
+    // so run them together. Nothing is stored unless the limiter allows it.
+    const [rateLimit, alreadySubmitted] = await Promise.all([
+      checkRateLimit({ email: payload.email, ip, userAgent }),
+      recentlySubmittedAny([emailFingerprint, requestFingerprint]),
+    ]);
 
     if (!rateLimit.allowed) {
       if ("unavailable" in rateLimit) {
@@ -304,15 +397,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const emailFingerprint = createFingerprint(payload.email);
-    const requestFingerprint = createFingerprint(
-      `${payload.email}|${payload.source ?? "homepage"}|${ip}`,
-    );
-
-    if (
-      (await recentlySubmitted(emailFingerprint)) ||
-      (await recentlySubmitted(requestFingerprint))
-    ) {
+    if (alreadySubmitted) {
       return jsonResponse(
         {
           ok: true,
@@ -324,149 +409,51 @@ export async function POST(request: Request) {
       );
     }
 
-    // Without a durable store, mail delivery, and the link-signing secret the
-    // signup cannot be honoured, so refuse instead of reporting success.
-    if (!waitlistSignupReady()) {
-      return jsonResponse(
-        {
-          ok: false,
-          code: "service_unavailable",
-          message: "The waitlist is temporarily unavailable. Please try again shortly.",
-          requestId,
-        },
-        503,
-      );
-    }
+    const upsertResult = await upsertWaitlistSubmission({
+      email: payload.email,
+      name: payload.name,
+      source: payload.source,
+      metadata: payload.metadata,
+      referralCode: payload.referralCode,
+      marketingConsent: payload.marketingConsent,
+      deviceHash: hashDeviceId(payload.deviceId),
+      networkHash: hashNetwork(ip),
+      requestId,
+    });
 
-    let storedSubmission = null;
-    let alreadyRegistered = false;
-    let referral:
-      | { code: string; qualified: number; target: number; confirmed: boolean }
-      | undefined;
-    let aliasOfExisting = false;
-    if (isWaitlistStoreConfigured()) {
-      const upsertResult = await upsertWaitlistSubmission({
-        email: payload.email,
-        name: payload.name,
-        source: payload.source,
-        metadata: payload.metadata,
-        referralCode: payload.referralCode,
-        marketingConsent: payload.marketingConsent,
-        deviceHash: hashDeviceId(payload.deviceId),
-        networkHash: hashNetwork(ip),
-        requestId,
-      });
-      storedSubmission = upsertResult.submission;
-      alreadyRegistered = upsertResult.alreadyRegistered;
-      aliasOfExisting = Boolean(upsertResult.aliasOfExisting);
-      // Reward status stays private: this response is identical for any address
-      // a visitor types, so it must not reveal someone else's standing.
-      referral = upsertResult.referral
-        ? {
-            code: upsertResult.referral.code,
-            qualified: upsertResult.referral.qualified,
-            target: upsertResult.referral.target,
-            confirmed: upsertResult.referral.confirmed,
-          }
-        : undefined;
+    // Reward status stays private: this response is identical for any address
+    // a visitor types, so it must not reveal someone else's standing.
+    const referral = upsertResult.referral
+      ? {
+          code: upsertResult.referral.code,
+          qualified: upsertResult.referral.qualified,
+          target: upsertResult.referral.target,
+          confirmed: upsertResult.referral.confirmed,
+        }
+      : undefined;
 
-      // A different spelling of an already-registered mailbox is not a new
-      // signup: send nothing and answer exactly like a normal success.
-      if (aliasOfExisting) {
-        await markSubmitted(emailFingerprint);
-        await markSubmitted(requestFingerprint);
-        return jsonResponse({
-          ok: true,
-          code: "waitlist_submitted",
-          message: waitlistEmailContent.applicant.onPageMessage,
-          requestId,
-          submittedAt: new Date().toISOString(),
-          notificationDelivered: true,
-        });
-      }
-    }
+    // Remember the submission before replying, so a double click or a retry
+    // cannot send a second welcome email.
+    await markSubmittedAll([emailFingerprint, requestFingerprint]);
 
-    const deliveryTasks = [
-      sendApplicantConfirmationEmail({
-        email: payload.email,
-        name: payload.name,
-        alreadyRegistered,
-        referral,
-      }),
-    ];
-
-    const deliveryResults = await Promise.all(deliveryTasks);
-    const deliveryError = deliveryResults.find((result) => result.error)?.error;
-    if (deliveryError) {
-      console.error("[CmdTab Website] waitlist delivery failed", {
-        requestId,
-        errorName: deliveryError.name,
-        errorMessage: deliveryError.message,
-      });
-
-      if (storedSubmission) {
-        await updateWaitlistNotificationStatus(
-          storedSubmission.email,
-          "failed",
-          deliveryError.message,
-        );
-        await markSubmitted(emailFingerprint);
-        await markSubmitted(requestFingerprint);
-
-        return jsonResponse({
-          ok: true,
-          code: "waitlist_submitted",
-          message: waitlistEmailContent.applicant.onPageMessage,
-          requestId,
-          submittedAt: new Date().toISOString(),
-          notificationDelivered: false,
-          referral,
-        });
-      }
-
-      return jsonResponse(
-        {
-          ok: false,
-          code: "service_unavailable",
-          message: "The waitlist is temporarily unavailable. Please try again shortly.",
-          requestId,
-        },
-        503,
-      );
-    }
-
-    if (storedSubmission) {
-      await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
-      await markWaitlistConfirmationSent(storedSubmission.email);
-    }
-
-    // One owner notice per new signup (owner decision, 2026-10-10). A failed
-    // notice must never fail or change the applicant's response.
-    if (storedSubmission && !alreadyRegistered) {
-      try {
-        const sent = await sendWaitlistOwnerNotification({
-          email: storedSubmission.email,
+    // A different spelling of an already-registered mailbox is not a new
+    // signup: send nothing and answer exactly like a normal success.
+    if (!upsertResult.aliasOfExisting) {
+      // The person is in the beta as soon as the signup is stored. Email goes
+      // out after the response, both messages at once, so the page never waits
+      // on the mail provider.
+      after(() =>
+        deliverWaitlistEmails({
+          email: upsertResult.submission.email,
           name: payload.name,
           source: payload.source,
           metadata: payload.metadata,
+          alreadyRegistered: upsertResult.alreadyRegistered,
+          referral,
           requestId,
-        });
-        if (sent.error) {
-          console.error("[CmdTab Website] waitlist owner notification failed", {
-            requestId,
-            errorName: sent.error.name,
-          });
-        }
-      } catch (notificationError) {
-        console.error("[CmdTab Website] waitlist owner notification failed", {
-          requestId,
-          error: notificationError instanceof Error ? notificationError.message : "Unknown error",
-        });
-      }
+        }),
+      );
     }
-
-    await markSubmitted(emailFingerprint);
-    await markSubmitted(requestFingerprint);
 
     return jsonResponse({
       ok: true,
@@ -474,10 +461,8 @@ export async function POST(request: Request) {
       message: waitlistEmailContent.applicant.onPageMessage,
       requestId,
       submittedAt: new Date().toISOString(),
-      notificationDelivered: true,
-      // Same shape for new and returning addresses, so the response never
-      // reveals whether an email was already on the list.
-      referral,
+      notificationQueued: !upsertResult.aliasOfExisting,
+      referral: upsertResult.aliasOfExisting ? undefined : referral,
     });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {

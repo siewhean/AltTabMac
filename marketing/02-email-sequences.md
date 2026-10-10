@@ -6,9 +6,9 @@ Sender: the configured waitlist from-address (public contact address is `trycmdt
 
 ## A. Welcome sequence (automated)
 
-### E0 — Instant confirmation (built into the product; this is the live copy)
-**Subject:** You're on the CmdTab beta list
-Contains: a **Confirm my email** button (signed link, valid 7 days), and the reward terms with the personal invite link: "Invite 5 friends. When 5 of them confirm their email, you get a free CmdTab license after a quick review. Each friend must be a different person on their own device and network; duplicate, disposable, or same-device invitations don't count."
+### E0 — Instant welcome (built into the product; this is the live copy)
+**Subject:** You're in the CmdTab private beta
+One step: entering an email puts someone in the beta. The email says so, offers one **Try it in your browser** button, and has a reward panel with the short personal invite link and an optional **Verify my email** link (signed, valid 7 days; only needed for the reward). Reward text: "Invite 5 friends. When 5 of them verify their email, you earn a free license after a quick review. Each friend must be a different person on their own device and network; duplicate, disposable, or same-device invitations don't count."
 Follow up manually only by replying to people who write back; do not send marketing beyond the beta/trial/launch scope the signup consented to.
 
 ### E1 — Day 2: the story
@@ -25,7 +25,7 @@ Permissions: Accessibility (shortcut + focus windows), Screen Recording (preview
 
 ### E4 — Day 14: social proof (only when true)
 **Subject:** {{count}} Mac users are on the list — your move
-Use the **real** count only. Ask for a referral: "Send this to the one friend with 30 windows open: {{referral_url}}". Reward: a free license at 5 confirmed friends (see E0).
+Use the **real** count only. Ask for a referral: "Send this to the one friend with 30 windows open: {{referral_url}}". Reward: a free license at 5 verified friends (see E0).
 
 ### E5 — Beta invitation (manual, in waves)
 **Subject:** Your CmdTab beta is ready
@@ -38,7 +38,7 @@ Wave 1: top-referrers + replied-to-me users. Include install steps, the permissi
 
 ## C. Referral mechanic (built; see `website/src/lib/waitlist-referral.ts`)
 - Reward: **5 qualified referrals = a free CmdTab license**, granted by a person after review. No queue or position.
-- A referral qualifies only if the friend (1) confirmed their email via the signed link, (2) is not a disposable-mail domain or a Gmail dot/plus alias of an existing address, (3) did not sign up from the inviter's device or network, (4) shares no device or network with another counted friend, and (5) did not create several signups from one device. The inviter must also have confirmed their own email.
+- A referral qualifies only if the friend (1) verified their email via the signed link, (2) is not a disposable-mail domain or a Gmail dot/plus alias of an existing address, (3) did not sign up from the inviter's device or network, (4) shares no device or network with another counted friend, and (5) did not create several signups from one device. The inviter must also have confirmed their own email.
 - Anything that fails is **flagged for review with the reason**, not silently dropped. Dashboard CSV export includes `referral_status`, `referral_flag`, `reward_status`.
 - Stored as keyed hashes only (network prefix, browser device id), deleted after 90 days unless flagged or awaiting review. Disclosed in the privacy policy.
 - Known limit: one person with a different device, a different network, and several real mailboxes can still pass the automated checks. The human review before granting is the backstop.
@@ -55,4 +55,4 @@ Same as above + "I'll send a clean 30-second B-roll pack (the three modes) and t
 "Bumping this once — happy to answer anything about permissions/privacy before you decide."
 
 ## E. Metrics
-Opens and clicks are NOT measurable (Resend open/click tracking is off); measure confirmation rate (target ≥60% of signups) and UTM-tagged visits; referral share rate ≥10%; unsubscribe <1.5%/email. Test subject lines 2 variants on E1 (curiosity vs benefit) once list >200.
+Opens and clicks are NOT measurable (Resend open/click tracking is off); measure verification rate (optional step; target ≥25% of signups) and UTM-tagged visits; referral share rate ≥10%; unsubscribe <1.5%/email. Test subject lines 2 variants on E1 (curiosity vs benefit) once list >200.
