@@ -33,11 +33,11 @@ Method: my work was snapshotted as a dangling commit and `git merge-tree` was ru
 ## Resolution
 | Item | Outcome |
 |---|---|
-| My branch vs `main` | Rebased onto `main` 94343041; merged via the PR for `feat/beta-first-referral-loop`. |
-| PR #52 | Superseded. Ported: canonical `/waitlist`, permanent `/trial` and `/buy` redirects that keep `utm_*` and `ref`, waitlist-only public copy. Deliberately **not** ported: Tailwind 4 (own PR #77), dependency bumps, CI workflows that need verification secrets, closing `/api/trial/*` (the installed app uses them), and its "macOS 13" text (the minimum is 14.0). |
-| PR #76 | D1–D5, D7, D8 decided and implemented; D6 (bounce/complaint webhook) deferred. Recorded in `tasks/todo.md`. |
-| `codex/marketing-waitlist-readiness` | Superseded by `main`; branch left untouched, nothing merged from it. |
-| PR #77 (Tailwind 4) | `main` merged into its branch so its only conflict (`site-header.tsx`) is gone. |
+| My branch vs `main` | Merged as PR #79 (CI green) after merging `main` (with Tailwind 4) into the branch; production serves `/waitlist`. |
+| PR #52 | Closed as superseded by #79. Ported: canonical `/waitlist`, permanent `/trial` and `/buy` redirects that keep `utm_*` and `ref`, waitlist-only public copy. Deliberately **not** ported: Tailwind 4 (own PR #77), dependency bumps, CI workflows that need verification secrets, closing `/api/trial/*` (the installed app uses them), and its "macOS 13" text (the minimum is 14.0). |
+| PR #76 | Closed as resolved by #79: D1–D5, D7, D8 decided and implemented; D6 (bounce/complaint webhook) deferred. Recorded in `tasks/todo.md`. |
+| `codex/marketing-waitlist-readiness` | Superseded by `main`; branch left untouched, nothing merged from it. It would still conflict in ~23 files if anyone merged it, so treat it as dead (safe to delete). |
+| PR #77 (Tailwind 4) | Merged to `main` while #79 was open. Its conflicts with #79 (header, mobile nav, the deleted `/trial` page, todo) were resolved in #79, and the new components use Tailwind 4 syntax. |
 | B3 counting | Dashboard aggregate now reports `confirmed` and `unconfirmed`. |
 | B6 terms/FAQ | "Beta invite reward" terms section and FAQ entry added; cap of 100 stated. |
 | B7 commerce pages | `/buy` redirects to `/waitlist`; links, nav, footer and structured-data URLs updated. |
