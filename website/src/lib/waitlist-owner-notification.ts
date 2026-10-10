@@ -11,8 +11,8 @@ function formatMetadata(metadata?: Record<string, string>) {
 }
 
 /**
- * Tells the owner about a signup. Sent when an address is confirmed (not when
- * it is merely submitted), so typos, bots and abandoned signups never notify.
+ * Tells the owner about a new signup, sent once when it is submitted. The
+ * address is not confirmed yet, so the notice says so.
  */
 export async function sendWaitlistOwnerNotification(payload: {
   email: string;
@@ -34,6 +34,7 @@ export async function sendWaitlistOwnerNotification(payload: {
     `Email: ${payload.email}`,
     `Name: ${payload.name || "Not provided"}`,
     `Source: ${payload.source || "Not provided"}`,
+    "Status: awaiting email confirmation. Everything above was typed by the visitor and is unverified; don't follow links in it.",
     "",
     "Metadata:",
     formatMetadata(payload.metadata),
@@ -42,7 +43,8 @@ export async function sendWaitlistOwnerNotification(payload: {
   return resend.emails.send({
     from: env.waitlistFromEmail,
     to: env.waitlistToEmail,
-    replyTo: env.waitlistReplyToEmail ?? payload.email,
+    // Never reply to the submitted address: it is unverified until confirmed.
+    ...(env.waitlistReplyToEmail ? { replyTo: env.waitlistReplyToEmail } : {}),
     subject: waitlistEmailContent.ownerNotification.subject,
     text,
   });

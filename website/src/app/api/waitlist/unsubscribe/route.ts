@@ -4,7 +4,6 @@ import {
   verifyWaitlistUnsubscribeToken,
   waitlistUnsubscribeSecret,
 } from "@/lib/waitlist-unsubscribe";
-import { hashEmailForSuppression } from "@/lib/waitlist-signals";
 import { deleteWaitlistSignup, isWaitlistStoreConfigured } from "@/lib/waitlist-store";
 
 export const runtime = "nodejs";
@@ -84,8 +83,8 @@ export async function POST(request: Request) {
   if (!email) return invalidLink();
 
   try {
-    // Keep only a keyed hash so the opt-out survives a later re-submission.
-    await deleteWaitlistSignup(email, { suppressionHash: hashEmailForSuppression(email) });
+    // Delete everything; a later signup with this address starts over.
+    await deleteWaitlistSignup(email);
   } catch (error) {
     console.error("[CmdTab Website] waitlist unsubscribe failed", {
       requestId: randomUUID(),

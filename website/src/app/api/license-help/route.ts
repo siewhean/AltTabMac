@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { getClientIp } from "@/lib/client-ip";
 import {
   licenseEmailContent,
   renderApplicantLicenseEmail,
@@ -124,15 +125,6 @@ function passesFetchSiteProtection(request: Request) {
   return fetchSite === "same-origin" || fetchSite === "same-site" || fetchSite === "none";
 }
 
-function getClientIp(request: Request) {
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (request.headers.has("x-vercel-id") && forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
-  }
-  return "unknown";
-}
 
 function getUserAgent(request: Request) {
   return request.headers.get("user-agent")?.trim() ?? "unknown";
