@@ -1,5 +1,7 @@
 # CmdTab — Diagnosis + 30-Day Waitlist Sprint (goal: 1,000 real signups)
 
+> **Corrected 2026-10-10 — read `06-marketing-report.md` first.** Show HN does not accept sign-up/waitlist pages, r/macapps now restricts developer promotion, and Resend open/click tracking is off. Where this file disagrees with the report, the report wins.
+
 Data pulled 2026-10-10 from the production Postgres (`site_analytics_events`, `waitlist_signups`). Vercel Web Analytics is **not enabled** (API returns 404), so the first-party tables are the only source. They only record visitors who accepted analytics consent, so true traffic is somewhat higher than shown.
 
 ## 1. What the data says (no sugar)
@@ -49,7 +51,7 @@ Examples: `reddit/organic/macapps_demo`, `x/organic/thread_a`, `hn/organic/showh
 - Submit the 10 pages in `04-…` §C to IndexNow (`npm run indexnow:submit`).
 
 **Days 4–10 — Lottery tickets**
-- Day 4 Tue: **r/macapps** post. Day 5 Wed: r/MacOS (different angle, check rules). Day 6 Thu: **Show HN** 8–9 am US-Eastern. Day 7: Indie Hackers + dev.to write-up. Day 8: Product Hunt "Coming soon" page live. Day 9–10: Xiaohongshu + Bilibili notes (Asia angle), V2EX + 少数派 (Chinese Mac power users).
+- Day 4 Tue: **r/macapps** post. Day 5 Wed: r/MacOS (different angle, check rules). Show HN is deferred (see the 06 report: not eligible without a downloadable build). Day 7: Indie Hackers + dev.to write-up. Day 8: Product Hunt "Coming soon" page live. Day 9–10: Xiaohongshu + Bilibili notes (Asia angle), V2EX + 少数派 (Chinese Mac power users).
 - Send 25 creator/newsletter pitches (`03-…` §3) — 5 per day.
 - Email #1 to every signup the minute they join (`02-…`).
 
@@ -66,7 +68,7 @@ Examples: `reddit/organic/macapps_demo`, `x/organic/thread_a`, `hn/organic/showh
 - Day 28: last-48h scarcity email — only if the beta cohort cap is real. Day 30: results post (true numbers, what worked) — the retrospective itself is a strong organic post.
 
 ## 6. KPIs (tracked weekly)
-Unique visitors · visit→signup % per UTM · CPL (paid) · email open/click · referral K-factor · cited-by-AI count (10 fixed prompts) · waitlist total (real, deduped, excluding `e2e_*` test rows).
+Unique visitors · visit→signup % per UTM · confirmation rate · CPL (paid) · referral K-factor · cited-by-AI count (10 fixed prompts) · waitlist total (real, deduped, excluding `e2e_*` test rows).
 Milestones: day 7 = 100 · day 14 = 300 · day 21 = 600 · day 30 = 1,000. Missing day-14 by >50% → escalate budget/creator outreach, not more posts.
 
 ## 7. What I did not do (needs you)

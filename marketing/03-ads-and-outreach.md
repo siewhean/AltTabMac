@@ -1,5 +1,7 @@
 # CmdTab — Paid, partnerships, and community
 
+> **Corrected 2026-10-10 — read `06-marketing-report.md` first.** Show HN does not accept sign-up/waitlist pages, r/macapps now restricts developer promotion, and Resend open/click tracking is off. Where this file disagrees with the report, the report wins.
+
 **Principle:** don't scale paid until organic proves the message. Test cap **US$250 total** over days 11–20. Success = cost per real signup (CPL) < US$3, else stop.
 
 ## 1. Google Search (high intent)
