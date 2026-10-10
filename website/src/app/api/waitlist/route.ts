@@ -21,10 +21,14 @@ import {
 } from "@/lib/ingest-request";
 import {
   isWaitlistStoreConfigured,
+  markWaitlistConfirmationSent,
   updateWaitlistNotificationStatus,
   upsertWaitlistSubmission,
 } from "@/lib/waitlist-store";
 import { waitlistPayloadSchema } from "@/lib/validation";
+import { referralUrl } from "@/lib/waitlist-referral";
+import { waitlistConfirmUrl } from "@/lib/waitlist-confirm";
+import { hashDeviceId, hashNetwork } from "@/lib/waitlist-signals";
 import { waitlistUnsubscribeUrl } from "@/lib/waitlist-unsubscribe";
 
 export const runtime = "nodejs";
@@ -167,6 +171,7 @@ async function sendApplicantConfirmationEmail(payload: {
   email: string;
   name?: string;
   alreadyRegistered: boolean;
+  referral?: { code: string; qualified: number; target: number };
 }) {
   const env = getServerEnv();
   const resend = getResendClient(env.resendApiKey);
@@ -178,6 +183,9 @@ async function sendApplicantConfirmationEmail(payload: {
     siteUrl,
     variant: payload.alreadyRegistered ? "existing" : "new",
     unsubscribeUrl,
+    referralUrl: payload.referral ? referralUrl(siteUrl, payload.referral.code) : undefined,
+    confirmUrl: waitlistConfirmUrl(siteUrl, payload.email),
+    referralTarget: payload.referral?.target,
   });
 
   return resend.emails.send({
@@ -360,16 +368,40 @@ export async function POST(request: Request) {
 
     let storedSubmission = null;
     let alreadyRegistered = false;
+    let referral:
+      | { code: string; qualified: number; target: number; confirmed: boolean; rewardStatus?: string }
+      | undefined;
+    let aliasOfExisting = false;
     if (isWaitlistStoreConfigured()) {
       const upsertResult = await upsertWaitlistSubmission({
         email: payload.email,
         name: payload.name,
         source: payload.source,
         metadata: payload.metadata,
+        referralCode: payload.referralCode,
+        deviceHash: hashDeviceId(payload.deviceId),
+        networkHash: hashNetwork(ip),
         requestId,
       });
       storedSubmission = upsertResult.submission;
       alreadyRegistered = upsertResult.alreadyRegistered;
+      aliasOfExisting = Boolean(upsertResult.aliasOfExisting);
+      referral = upsertResult.referral;
+
+      // A different spelling of an already-registered mailbox is not a new
+      // signup: send nothing and answer exactly like a normal success.
+      if (aliasOfExisting) {
+        await markSubmitted(emailFingerprint);
+        await markSubmitted(requestFingerprint);
+        return jsonResponse({
+          ok: true,
+          code: "waitlist_submitted",
+          message: waitlistEmailContent.applicant.onPageMessage,
+          requestId,
+          submittedAt: new Date().toISOString(),
+          notificationDelivered: true,
+        });
+      }
     }
 
     const deliveryTasks = [
@@ -377,6 +409,7 @@ export async function POST(request: Request) {
         email: payload.email,
         name: payload.name,
         alreadyRegistered,
+        referral,
       }),
     ];
 
@@ -417,6 +450,7 @@ export async function POST(request: Request) {
           requestId,
           submittedAt: new Date().toISOString(),
           notificationDelivered: false,
+          referral,
         });
       }
 
@@ -433,6 +467,7 @@ export async function POST(request: Request) {
 
     if (storedSubmission) {
       await updateWaitlistNotificationStatus(storedSubmission.email, "delivered");
+      await markWaitlistConfirmationSent(storedSubmission.email);
     }
 
     await markSubmitted(emailFingerprint);
@@ -445,6 +480,9 @@ export async function POST(request: Request) {
       requestId,
       submittedAt: new Date().toISOString(),
       notificationDelivered: true,
+      // Same shape for new and returning addresses, so the response never
+      // reveals whether an email was already on the list.
+      referral,
     });
   } catch (error) {
     if (error instanceof PayloadTooLargeError) {

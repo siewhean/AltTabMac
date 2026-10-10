@@ -20,7 +20,19 @@ export async function GET(request: Request) {
     metadata: { rowCount: rows.length },
   });
   const csv = [
-    ["email", "name", "source", "notification_status", "updated_at"].join(","),
+    [
+      "email",
+      "name",
+      "source",
+      "notification_status",
+      "updated_at",
+      "confirmed_at",
+      "referral_code",
+      "referred_by",
+      "referral_status",
+      "referral_flag",
+      "reward_status",
+    ].join(","),
     ...rows.map((row) =>
       [
         escapeCsvCell(row.email),
@@ -28,6 +40,12 @@ export async function GET(request: Request) {
         escapeCsvCell(row.source ?? ""),
         escapeCsvCell(row.notificationStatus),
         escapeCsvCell(row.updatedAt),
+        escapeCsvCell(row.confirmedAt ?? ""),
+        escapeCsvCell(row.referralCode ?? ""),
+        escapeCsvCell(row.referredBy ?? ""),
+        escapeCsvCell(row.referralStatus ?? ""),
+        escapeCsvCell(row.referralFlag ?? ""),
+        escapeCsvCell(row.rewardStatus ?? ""),
       ].join(","),
     ),
   ].join("\n");

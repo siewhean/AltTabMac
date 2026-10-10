@@ -10,10 +10,10 @@ export const siteConfig = {
     { label: "Modes", href: "#modes" },
     { label: "Showcase", href: "/showcase" },
     { label: "Features", href: "#details" },
-    { label: "Buy", href: "/buy" },
+    { label: "Demo", href: "#demo" },
   ],
   ctas: {
-    primary: "Join the waitlist",
+    primary: "Join the private beta",
     secondary: "Watch the app",
     tertiary: "Read the privacy policy",
   },

@@ -53,6 +53,7 @@ export function FooterSection() {
               alt="CmdTab app icon"
               width={40}
               height={40}
+              loading="eager"
               className="rounded-[12px]"
             />
             <div>

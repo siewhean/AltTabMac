@@ -1,9 +1,7 @@
 export const heroContent = {
-  eyebrow: "Window switching for macOS",
-  title: "Find the right Mac window in one move.",
-  summary:
-    "CmdTab gives you real window previews, fast mode switching, keyboard-first search, and instant hot swap so you can get to the right app or window without guessing.",
-  status: "Built for people who keep too many apps and windows open. Start with the trial, then buy once if it earns a place in your workflow.",
+  eyebrow: "Private beta · macOS 14+",
+  title: "Cmd+Tab switches apps. CmdTab switches windows.",
+  secondaryCta: "Try it in your browser",
 };
 
 export const proofPoints = [

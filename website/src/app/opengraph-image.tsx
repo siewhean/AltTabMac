@@ -64,7 +64,7 @@ export default function OpenGraphImage() {
                 letterSpacing: "-0.05em",
               }}
             >
-              Find the right Mac window in one move.
+              Cmd+Tab switches apps. CmdTab switches windows.
             </div>
           </div>
 

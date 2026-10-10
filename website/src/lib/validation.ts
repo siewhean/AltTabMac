@@ -28,6 +28,21 @@ export const waitlistPayloadSchema = z
       })
       .optional(),
     metadata: metadataSchema.optional(),
+    // Invite code from a friend's link. Validated for shape only; the store
+    // decides whether it belongs to a real signup.
+    referralCode: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z0-9]{6,12}$/)
+      .optional(),
+    // Random id the browser keeps to recognise repeat signups from one device.
+    // Only its salted hash is stored (see waitlist-signals).
+    deviceId: z
+      .string()
+      .trim()
+      .regex(/^[A-Za-z0-9_-]{16,64}$/)
+      .optional(),
     honeypot: z.string().max(0).optional(),
   })
   .strict();
