@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
       {
         // Public images are not content-hashed, so cache for a day and
         // revalidate in the background rather than marking them immutable.
-        source: "/:dir(brand|screenshots|showcase)/:path*",
+        source: "/:dir(brand|screenshots|showcase|email)/:path*",
         headers: [
           {
             key: "Cache-Control",
