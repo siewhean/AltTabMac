@@ -7,11 +7,10 @@ import { trackSiteEvent } from "@/lib/site-analytics-client";
 import { REFERRAL_REWARD_CAP, referralShareText, referralUrl } from "@/lib/waitlist-referral";
 
 export type WaitlistReferral = {
+  /** This address's own invite code. The response carries nothing else about it. */
   code: string;
-  /** Invitations that verified their email and passed the abuse checks. */
-  qualified: number;
+  /** Verified friends needed for the reward. */
   target: number;
-  confirmed: boolean;
 };
 
 type WaitlistSuccessProps = {
@@ -102,22 +101,9 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
             you get a free CmdTab license after a quick review. The beta reward is limited to the
             first {REFERRAL_REWARD_CAP} members.
           </p>
-          <div
-            className="h-2 overflow-hidden rounded-full bg-white/10"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={referral.target}
-            aria-valuenow={referral.qualified}
-            aria-label="Friends who verified their email"
-          >
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${Math.min(100, (referral.qualified / referral.target) * 100)}%` }}
-            />
-          </div>
-          <p className="text-xs text-muted">
-            {referral.qualified} of {referral.target} friends counted
-            {referral.confirmed ? "" : ". Verify your own email too, using the link in your welcome email, so your invitations count"}
+          <p className="text-xs leading-5 text-muted">
+            To make your invitations count, verify your own email with the link in your welcome
+            email. It’s optional, and it’s the only extra step.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input

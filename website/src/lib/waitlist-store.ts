@@ -318,6 +318,16 @@ export async function upsertWaitlistSubmission(input: {
       submission: mapRow(alias),
       alreadyRegistered: true,
       aliasOfExisting: true,
+      // The mailbox is that member's, so the answer carries their invite code,
+      // exactly as if they had typed their own address (see the route).
+      referral: alias.referral_code
+        ? {
+            code: alias.referral_code,
+            qualified: 0,
+            target: REFERRAL_REWARD_TARGET,
+            confirmed: Boolean(alias.confirmed_at),
+          }
+        : undefined,
     } satisfies WaitlistUpsertResult;
   }
 
@@ -403,6 +413,16 @@ export async function markWaitlistConfirmationSent(email: string) {
     set confirmation_sent_at = now()
     where email = ${email.trim().toLowerCase()}
   `;
+}
+
+/** The invite code of one address, or null. Used to answer repeat submissions. */
+export async function getReferralCodeForEmail(email: string) {
+  await ensureSchema();
+  const sql = getSql();
+  const [row] = await sql<{ referral_code: string | null }[]>`
+    select referral_code from waitlist_signups where email = ${email.trim().toLowerCase()}
+  `;
+  return row?.referral_code ?? null;
 }
 
 /** Progress toward the reward for one address. Same shape for every address. */
