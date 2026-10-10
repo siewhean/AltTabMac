@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import { generateKeyPairSync } from "node:crypto";
 
 import {
+  readinessScope,
   shouldRequireBetaTrialReadiness,
+  validateBetaTrialAppEnvironment,
   validateBetaTrialEnvironment,
 } from "../scripts/verify-beta-trial-readiness.mjs";
 
@@ -65,4 +67,58 @@ test("readiness CLI fails closed only when beta trial readiness is requested", (
   assert.equal(required.status, 1);
   assert.match(required.stderr, /Beta trial configuration is incomplete/);
   assert.match(required.stderr, /CMDTAB_TRIAL_KMS_KEY_ID/);
+});
+
+function appPackagingEnvironment() {
+  const { publicKey } = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  return {
+    CMDTAB_REQUIRE_BETA_TRIAL_READY: "1",
+    CMDTAB_TRIAL_SIGNING_KID: "trial-2026-10",
+    CMDTAB_TRIAL_PUBLIC_KEYRING_JSON: JSON.stringify({
+      "trial-2026-10": publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    }),
+  };
+}
+
+test("app packaging readiness needs only the trial kid and public keyring", () => {
+  // No database, AWS role, KMS key or OIDC token on a packaging Mac.
+  assert.deepEqual(validateBetaTrialAppEnvironment(appPackagingEnvironment()), []);
+});
+
+test("app packaging readiness rejects a missing or mismatched keyring", () => {
+  const missing = validateBetaTrialAppEnvironment({});
+  assert.ok(missing.some((issue) => issue.includes("CMDTAB_TRIAL_SIGNING_KID is missing")));
+  assert.ok(missing.some((issue) => issue.includes("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON is missing")));
+
+  const mismatched = validateBetaTrialAppEnvironment({
+    ...appPackagingEnvironment(),
+    CMDTAB_TRIAL_SIGNING_KID: "trial-2027-01",
+  });
+  assert.ok(mismatched.some((issue) => issue.includes("must contain the configured trial kid")));
+
+  const malformed = validateBetaTrialAppEnvironment({
+    ...appPackagingEnvironment(),
+    CMDTAB_TRIAL_PUBLIC_KEYRING_JSON: JSON.stringify({ "trial-2026-10": "bm90LWEta2V5" }),
+  });
+  assert.ok(malformed.some((issue) => issue.includes("must contain the configured trial kid")));
+});
+
+test("readiness scope defaults to server and is app only when requested", () => {
+  assert.equal(readinessScope([]), "server");
+  assert.equal(readinessScope(["--scope=app"]), "app");
+});
+
+test("app-scope CLI passes without server secrets and fails without a keyring", () => {
+  const passed = spawnSync(process.execPath, [verifierPath, "--scope=app"], {
+    env: appPackagingEnvironment(), encoding: "utf8",
+  });
+  assert.equal(passed.status, 0, passed.stderr);
+  assert.match(passed.stdout, /app packaging readiness verification passed/);
+
+  const failed = spawnSync(process.execPath, [verifierPath, "--scope=app"], {
+    env: { CMDTAB_REQUIRE_BETA_TRIAL_READY: "1" }, encoding: "utf8",
+  });
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /app packaging configuration is incomplete/);
+  assert.doesNotMatch(failed.stderr, /DATABASE_URL|AWS_ROLE_ARN|VERCEL_OIDC_TOKEN/);
 });

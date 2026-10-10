@@ -81,6 +81,33 @@ export function validateBetaTrialEnvironment(env) {
   return issues;
 }
 
+/**
+ * What a packaged app needs to verify beta trial entitlements: the active
+ * trial kid and the public keyring it embeds. Server-side issuance settings
+ * (database, AWS role, KMS key, the per-request OIDC token) belong to the
+ * website build on Vercel and are checked there, never on a packaging Mac.
+ */
+export function validateBetaTrialAppEnvironment(env) {
+  const issues = [];
+  const kid = value(env, "CMDTAB_TRIAL_SIGNING_KID");
+  if (!kid) {
+    issues.push("CMDTAB_TRIAL_SIGNING_KID is missing");
+  } else if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/.test(kid)) {
+    issues.push("CMDTAB_TRIAL_SIGNING_KID contains unsupported characters");
+  }
+  const keyring = value(env, "CMDTAB_TRIAL_PUBLIC_KEYRING_JSON");
+  if (!keyring) {
+    issues.push("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON is missing");
+  } else if (!validKeyring(keyring, kid)) {
+    issues.push("CMDTAB_TRIAL_PUBLIC_KEYRING_JSON must contain the configured trial kid");
+  }
+  return issues;
+}
+
+export function readinessScope(argv) {
+  return argv.includes("--scope=app") ? "app" : "server";
+}
+
 export function shouldRequireBetaTrialReadiness(env) {
   return value(env, "CMDTAB_REQUIRE_BETA_TRIAL_READY") === "1";
 }
@@ -90,14 +117,25 @@ function run() {
     console.log("Beta trial readiness gate is disabled; beta entitlement issuance remains fail-closed.");
     return;
   }
-  const issues = validateBetaTrialEnvironment(process.env);
+  const scope = readinessScope(process.argv.slice(2));
+  const issues = scope === "app"
+    ? validateBetaTrialAppEnvironment(process.env)
+    : validateBetaTrialEnvironment(process.env);
   if (issues.length > 0) {
-    console.error("Beta trial configuration is incomplete:");
+    console.error(
+      scope === "app"
+        ? "Beta trial app packaging configuration is incomplete:"
+        : "Beta trial configuration is incomplete:",
+    );
     for (const issue of issues) console.error(`- ${issue}`);
     process.exitCode = 1;
     return;
   }
-  console.log("Beta trial readiness verification passed.");
+  console.log(
+    scope === "app"
+      ? "Beta trial app packaging readiness verification passed."
+      : "Beta trial readiness verification passed.",
+  );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
