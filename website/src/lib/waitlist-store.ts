@@ -163,6 +163,9 @@ async function ensureSchema() {
     await sql.unsafe(`alter table waitlist_signups add column if not exists ${column}`);
   }
   await sql`create index if not exists waitlist_signups_canonical_email_idx on waitlist_signups (canonical_email)`;
+  // An earlier build kept keyed hashes of unsubscribed addresses. Unsubscribe
+  // now keeps nothing (owner decision, 2026-10-10), so remove any leftovers.
+  await sql`drop table if exists waitlist_suppressions`;
   // Signups made before double opt-in count as confirmed (owner decision,
   // 2026-10-10). Every signup written by this code sets canonical_email, so a
   // row with neither canonical_email nor confirmed_at predates it. Idempotent.
