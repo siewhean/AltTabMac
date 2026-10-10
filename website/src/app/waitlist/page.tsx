@@ -56,7 +56,7 @@ export default function WaitlistPage() {
       >
         <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           {/* The form leads on small screens: one goal per page, no competing buttons. */}
-          <MotionReveal direction="right" className="surface-panel order-1 p-6 sm:p-8 xl:order-2">
+          <MotionReveal direction="right" className="surface-panel order-1 min-w-0 p-6 sm:p-8 xl:order-2">
             <p className="type-eyebrow text-cyan">{release ? "Or join the list" : "Save your spot"}</p>
             <div className="mb-5 mt-3 space-y-2 text-sm leading-6 text-muted">
               <p>
@@ -67,7 +67,7 @@ export default function WaitlistPage() {
             <TrialWaitlistForm />
           </MotionReveal>
 
-          <MotionReveal direction="left" className="surface-panel order-2 p-6 xl:order-1">
+          <MotionReveal direction="left" className="surface-panel order-2 min-w-0 p-6 xl:order-1">
             <p className="type-eyebrow text-cyan">{release ? "Trial checklist" : "Before you join"}</p>
             <dl className="mt-5 space-y-5">
               {betaHonestyPoints.map((point) => (
@@ -91,7 +91,7 @@ export default function WaitlistPage() {
               <Button
                 href="/#demo"
                 variant="secondary"
-                className="text-xs"
+                className="w-full whitespace-normal text-center text-xs sm:w-auto"
                 {...analyticsAttributes("waitlist_page_demo_click", "waitlist_page")}
               >
                 Try the switcher in your browser

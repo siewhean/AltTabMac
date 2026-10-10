@@ -193,7 +193,7 @@ export function WaitlistSuccess({ message, referral, context, onReset }: Waitlis
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button href="/#demo" variant="secondary" className="text-xs">
+        <Button href="/#demo" variant="secondary" className="whitespace-normal text-center text-xs">
           Try the switcher in your browser
         </Button>
         <button
