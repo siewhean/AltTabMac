@@ -100,8 +100,25 @@ neon branches create --project-id sparkling-surf-15506179 \
   the old one; no CmdTab rows were written to the old database after the final
   copy; `/`, `/waitlist` and `/dashboard/login` return 200.
 - Preview deployments no longer have a database and fail closed.
-- The CmdTab tables still exist, unused, in the old `neondb`; drop them only
-  after a verified backup of the new project.
+- After a verified backup of the new project (below), the owner dropped the
+  13 CmdTab tables from the old `neondb` in the Neon SQL editor on
+  11 October 2026, without `CASCADE` (owner-reported; Matchday's tables were
+  not in the statement). The old project's 6-hour history allowed recovery
+  for that window.
+
+## Evidence: first backup of the new project (11 October 2026)
+
+- Run [38115640396](https://github.com/siewhean/AltTabMac/actions/runs/38115640396)
+  on `main` succeeded as `cmdtab_backup` (recreated on the new project:
+  read-only, `pg_read_all_data`, write probe refused) and uploaded
+  `cmdtab/2026/10/11/cmdtab-2026-10-11T054245Z.dump`.
+- The downloaded copy matched its stored SHA-256 and restored with
+  `pg_restore --no-owner --no-privileges` into a fresh database on a temporary
+  branch: exit 0, no errors, 13 tables. Every data table matched live
+  `cmdtab` exactly (`waitlist_signups` 8, `trial_claims` 2,
+  `site_analytics_events` 978, `app_usage_events` 2011, `admin_audit_log` 2);
+  `ingest_rate_limits` and `request_deduplication` change per request and were
+  not compared. The temporary branch and local copy were deleted.
 
 ## Previous risk: shared database (resolved)
 

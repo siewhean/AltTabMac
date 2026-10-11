@@ -3,8 +3,8 @@
 - [x] New Neon account (trycmdtab@gmail.com), project `CmdTab` (`sparkling-surf-15506179`, Singapore, Postgres 17, Free plan), database `cmdtab`.
 - [x] Copied the 13 CmdTab tables (rehearsal + final copy, exact row counts matched); disconnected the old Neon integration from `website`; `DATABASE_URL` points at the new pooled endpoint; redeployed and verified.
 - [x] Nightly backup workflow targets `cmdtab` under `cmdtab/` in S3; dump check lowered from 50 to 10 tables.
-- [ ] Recreate `cmdtab_backup` on the new project and replace `NEON_BACKUP_DATABASE_URL`; run the backup once.
-- [ ] After a verified backup, drop the unused CmdTab tables from the old shared `neondb`.
+- [x] Recreated `cmdtab_backup` on the new project, replaced `NEON_BACKUP_DATABASE_URL`, ran the backup, and restored it: 13 tables, data matched live.
+- [x] Dropped the unused CmdTab tables from the old shared `neondb` (owner ran the statement in the Neon SQL editor).
 
 Details: `docs/operations/database-backups.md`.
 
