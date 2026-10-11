@@ -1,3 +1,14 @@
+## 2026-10-11 — Dashboard login (Auth0) and Resend account
+
+- [x] CmdTab-only Auth0 tenant `cmdtab.us.auth0.com`: dashboard app, email/password only, sign-ups off, TOTP MFA always, owner subject set in Vercel.
+- [x] Fixed the Strict-cookie login loop (#102).
+- [x] Post-login Action `require-mfa-every-login` (no remembered browser); verified a later login prompted for TOTP.
+- [x] Removed `ADMIN_DASHBOARD_PASSWORD` from Vercel Production (a Preview copy remains, ignored).
+- [x] Moved `cmdtab.net` sending to the trycmdtab Resend account; DNS updated at Namecheap; verified and a live signup delivered.
+- [x] Cleared the 8 waitlist entries (owner ran the delete in the Neon SQL editor).
+
+Details: `docs/security/dashboard-authentication.md`.
+
 ## 2026-10-11 — CmdTab database moved to its own Neon project
 
 - [x] New Neon account (trycmdtab@gmail.com), project `CmdTab` (`sparkling-surf-15506179`, Singapore, Postgres 17, Free plan), database `cmdtab`.
