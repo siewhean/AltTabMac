@@ -1,3 +1,13 @@
+## 2026-10-11 — CmdTab database moved to its own Neon project
+
+- [x] New Neon account (trycmdtab@gmail.com), project `CmdTab` (`sparkling-surf-15506179`, Singapore, Postgres 17, Free plan), database `cmdtab`.
+- [x] Copied the 13 CmdTab tables (rehearsal + final copy, exact row counts matched); disconnected the old Neon integration from `website`; `DATABASE_URL` points at the new pooled endpoint; redeployed and verified.
+- [x] Nightly backup workflow targets `cmdtab` under `cmdtab/` in S3; dump check lowered from 50 to 10 tables.
+- [ ] Recreate `cmdtab_backup` on the new project and replace `NEON_BACKUP_DATABASE_URL`; run the backup once.
+- [ ] After a verified backup, drop the unused CmdTab tables from the old shared `neondb`.
+
+Details: `docs/operations/database-backups.md`.
+
 ## 2026-10-11 — Database backups
 
 - [x] Point-in-time restore test: branch from 1 hour earlier matched live `neondb` exactly (102 tables); temporary branch deleted.

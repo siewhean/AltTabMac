@@ -1,6 +1,6 @@
 name: Database backup
 
-# Nightly logical backup of the production Neon database (neondb) to S3.
+# Nightly logical backup of the production Neon database (cmdtab) to S3.
 # Neon's own point-in-time history covers only 6 hours on the current plan;
 # these dumps cover the last 35 days. See docs/operations/database-backups.md.
 on:
@@ -23,7 +23,7 @@ jobs:
     env:
       AWS_REGION: ap-southeast-1
       BUCKET: cmdtab-db-backups-880302055919
-      PREFIX: neondb
+      PREFIX: cmdtab
       PG_IMAGE: postgres:17
     steps:
       - name: Assume the upload-only backup role
@@ -42,18 +42,18 @@ jobs:
             exit 1
           fi
           docker run --rm -e DATABASE_URL -v "$PWD:/out" "$PG_IMAGE" \
-            sh -c 'pg_dump --format=custom --compress=9 --dbname="$DATABASE_URL" --file=/out/neondb.dump'
+            sh -c 'pg_dump --format=custom --compress=9 --dbname="$DATABASE_URL" --file=/out/cmdtab.dump'
 
       - name: Verify the dump can be read back
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD:/out" "$PG_IMAGE" pg_restore --list /out/neondb.dump > toc.txt
+          docker run --rm -v "$PWD:/out" "$PG_IMAGE" pg_restore --list /out/cmdtab.dump > toc.txt
           tables=$(grep -c ' TABLE DATA ' toc.txt || true)
           if ! grep -q ' TABLE DATA public waitlist_signups ' toc.txt; then
             echo "::error::Dump has no waitlist_signups data"
             exit 1
           fi
-          if [ "$tables" -lt 50 ]; then
+          if [ "$tables" -lt 10 ]; then
             echo "::error::Dump has only $tables tables of data"
             exit 1
           fi
@@ -63,14 +63,14 @@ jobs:
         run: |
           set -euo pipefail
           stamp=$(date -u +%Y-%m-%dT%H%M%SZ)
-          key="${PREFIX}/$(date -u +%Y/%m/%d)/neondb-${stamp}.dump"
-          sha256sum neondb.dump | awk '{print $1}' > neondb.dump.sha256
-          aws s3 cp neondb.dump "s3://${BUCKET}/${key}" --only-show-errors
-          aws s3 cp neondb.dump.sha256 "s3://${BUCKET}/${key}.sha256" --only-show-errors
+          key="${PREFIX}/$(date -u +%Y/%m/%d)/cmdtab-${stamp}.dump"
+          sha256sum cmdtab.dump | awk '{print $1}' > cmdtab.dump.sha256
+          aws s3 cp cmdtab.dump "s3://${BUCKET}/${key}" --only-show-errors
+          aws s3 cp cmdtab.dump.sha256 "s3://${BUCKET}/${key}.sha256" --only-show-errors
           {
             echo "### Database backup"
             echo "- Object: \`s3://${BUCKET}/${key}\`"
-            echo "- Size: $(du -h neondb.dump | cut -f1)"
+            echo "- Size: $(du -h cmdtab.dump | cut -f1)"
             echo "- Tables with data: ${TABLES}"
-            echo "- SHA-256: \`$(cat neondb.dump.sha256)\`"
+            echo "- SHA-256: \`$(cat cmdtab.dump.sha256)\`"
           } >> "$GITHUB_STEP_SUMMARY"
