@@ -2,6 +2,7 @@
 
 - [x] Point-in-time restore test: branch from 1 hour earlier matched live `neondb` exactly (102 tables); temporary branch deleted.
 - [x] Nightly `pg_dump` workflow to S3 via GitHub OIDC with a read-only `cmdtab_backup` role and an upload-only AWS role.
+- [x] First run uploaded a dump; it restored into a fresh database with all 102 tables matching live.
 - [ ] Neon history retention is only 6 hours; consider a paid plan.
 - [ ] `neondb` is shared with Matchday; move CmdTab to its own Neon project.
 

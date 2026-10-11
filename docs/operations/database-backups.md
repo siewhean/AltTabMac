@@ -62,6 +62,20 @@ neon branches create --project-id twilight-shadow-19787996 \
   identical counts are expected.
 - The temporary branch was deleted afterwards.
 
+## Evidence: first nightly dump restored (11 October 2026)
+
+- Manual run [38107506245](https://github.com/siewhean/AltTabMac/actions/runs/38107506245)
+  on `main` at `64024acc` succeeded: OIDC role assumed, dump verified with
+  `pg_restore --list`, uploaded.
+- Object `neondb/2026/10/11/neondb-2026-10-11T031122Z.dump`: 1,016,777 bytes,
+  SSE-S3 (`AES256`), versioned. Downloaded copy matched the stored SHA-256
+  `41600e5b769c67404d1a873730539041068ca8986b4643100942dd0e4f568768`.
+- Restored with `pg_restore --no-owner --no-privileges` into a new database
+  `restore_check` on a temporary branch: exit 0, no errors. All 102 tables
+  matched live `neondb` exactly (`waitlist_signups` 7, `trial_claims` 2,
+  `license_requests` 3, `site_analytics_events` 978, `app_usage_events` 2011).
+  The temporary branch and the local copy were deleted.
+
 ## Known risk: shared database
 
 `neondb` also holds about 90 tables of another application (Matchday:
