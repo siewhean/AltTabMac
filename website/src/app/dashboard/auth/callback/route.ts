@@ -9,6 +9,30 @@ import {
 } from "@/lib/auth0-oidc";
 import { recordAdminAuditEvent } from "@/lib/admin-store";
 
+/**
+ * The admin session cookie is SameSite=Strict. A redirect issued in reply to
+ * the cross-site navigation from Auth0 inherits that cross-site context, so the
+ * browser would withhold the new cookie from /dashboard and loop back to login.
+ * Hand over with a same-origin page instead: the navigation it starts is
+ * same-site, so the Strict cookie is sent. No script, so CSP is unaffected.
+ */
+function continueToDashboard() {
+  return new NextResponse(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+      '<meta http-equiv="refresh" content="0;url=/dashboard">' +
+      "<title>Signing in…</title></head><body>" +
+      '<p><a href="/dashboard">Continue to the dashboard</a></p></body></html>',
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Referrer-Policy": "no-referrer",
+      },
+    },
+  );
+}
+
 function loginError(request: Request) {
   return NextResponse.redirect(new URL("/dashboard/login?error=invalid", request.url), 303);
 }
@@ -49,7 +73,7 @@ export async function GET(request: Request) {
       outcome: "success",
     });
     await createAdminSession(identity.subject, "auth0");
-    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
+    return continueToDashboard();
   } catch {
     return loginError(request);
   }
