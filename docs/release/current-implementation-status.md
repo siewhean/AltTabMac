@@ -61,14 +61,13 @@ absent:
 
 The following cannot be accepted from repository automation alone:
 
-- production Auth0 configuration (database backup/restore is done: a
-  point-in-time restore was verified on 11 October 2026 and nightly dumps go to
-  S3, see `docs/operations/database-backups.md`; the Vercel firewall is configured and verified:
-  see `docs/security/vercel-firewall.md`; KMS signing is done: trial and license keys
-  provisioned with Vercel OIDC, trial signing verified live on 10 October 2026;
-  waitlist email is done: `cmdtab.net` is a
-  verified Resend sending domain and the contact mailbox is
-  `trycmdtab@gmail.com`, 10 October 2026);
+- none of the production service configuration remains open. Done on 10–11
+  October 2026: Auth0 owner login with enforced MFA
+  (`docs/security/dashboard-authentication.md`), database backup/restore on a
+  CmdTab-only Neon project (`docs/operations/database-backups.md`), the Vercel
+  firewall (`docs/security/vercel-firewall.md`), KMS signing with Vercel OIDC,
+  and waitlist email from a verified `cmdtab.net` Resend domain with
+  `trycmdtab@gmail.com` as the contact mailbox;
 - a real Lemon Squeezy test-mode purchase-to-update lifecycle with no manual
   database intervention;
 - the intended Developer ID identity, Team ID reconciliation, Hardened Runtime
