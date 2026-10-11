@@ -61,8 +61,9 @@ absent:
 
 The following cannot be accepted from repository automation alone:
 
-- production Vercel/Postgres/rate-limit storage/Auth0 configuration
-  and backup/restore evidence (the Vercel firewall is configured and verified:
+- production Auth0 configuration (database backup/restore is done: a
+  point-in-time restore was verified on 11 October 2026 and nightly dumps go to
+  S3, see `docs/operations/database-backups.md`; the Vercel firewall is configured and verified:
   see `docs/security/vercel-firewall.md`; KMS signing is done: trial and license keys
   provisioned with Vercel OIDC, trial signing verified live on 10 October 2026;
   waitlist email is done: `cmdtab.net` is a
