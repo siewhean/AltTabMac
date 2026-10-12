@@ -29,7 +29,7 @@ type WaitlistFormProps = {
 export function WaitlistForm({
   source,
   variant = "page",
-  submitLabel = "Join the private beta",
+  submitLabel = "Join the waitlist",
 }: WaitlistFormProps) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -182,8 +182,9 @@ export function WaitlistForm({
         {fieldErrors?.email ? <p className="text-sm text-rose-300">{String(fieldErrors.email)}</p> : null}
         {errorMessage}
         <p className="max-w-[34rem] text-xs leading-5 text-subdued">
-          macOS 14+, invitations in waves. Previews need Accessibility and Screen Recording
-          permission. Beta emails only; unsubscribe anytime.{" "}
+          Joining the waitlist is free. We’ll email you when beta invitations open. Requires
+          macOS 14+. Previews need Accessibility and Screen Recording permission. Beta emails
+          only; unsubscribe anytime.{" "}
           <a href="/privacy" className="underline underline-offset-2 hover:text-text">
             Privacy
           </a>
