@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { MobileNavigation } from "@/components/ui/mobile-navigation";
+import { siteConfig } from "@/content/site";
 
 const marketingNav = [
   { href: "/features/window-switcher", label: "Features" },
@@ -43,7 +44,7 @@ export function SiteHeader() {
       </nav>
 
       <Button href="/waitlist" variant="secondary" className="max-lg:hidden">
-        Join the private beta
+        {siteConfig.ctas.primary}
       </Button>
       <MobileNavigation />
     </header>

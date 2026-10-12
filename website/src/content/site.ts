@@ -13,7 +13,7 @@ export const siteConfig = {
     { label: "Demo", href: "#demo" },
   ],
   ctas: {
-    primary: "Join the private beta",
+    primary: "Join the waitlist",
     secondary: "Watch the app",
     tertiary: "Read the privacy policy",
   },

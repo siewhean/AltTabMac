@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { siteConfig } from "@/content/site";
+
 const mobileNavItems = [
   { href: "/features/window-switcher", label: "Features" },
   { href: "/showcase", label: "Showcase" },
@@ -7,7 +9,7 @@ const mobileNavItems = [
   { href: "/evidence", label: "Evidence" },
   { href: "/faq", label: "FAQ" },
   { href: "/help", label: "Help" },
-  { href: "/waitlist", label: "Join beta" },
+  { href: "/waitlist", label: "Waitlist" },
 ] as const;
 
 export function MobileNavigation() {
@@ -35,7 +37,7 @@ export function MobileNavigation() {
             href="/waitlist"
             className="mt-1 flex min-h-12 items-center justify-center rounded-[16px] border border-cyan/25 bg-cyan/10 px-4 text-sm font-medium text-text transition-colors hover:bg-cyan/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-cyan/60"
           >
-            Join the private beta
+            {siteConfig.ctas.primary}
           </Link>
         </div>
       </nav>
