@@ -482,3 +482,12 @@ Goal: keystrokes system-wide never wait on CmdTab's main thread (AX, inventory, 
 - [x] Tests: licensing gate snapshot, input mirror; full suite; packaged-app check by user
 
 Review (1b): 407 XCTest + 2 Swift Testing; only the known host-permission-dependent preview test fails. Installed at ~/Applications/CmdTab.app and launches without crashing; live tap behaviour awaits the user's permission re-grant.
+## 2026-10-12 — Interactive demo fidelity
+
+- [x] Compare the demo with tracked native switching, palette search, radial layout, and window actions at `ce04adec`.
+- [x] Update only demo components, sample fixtures, and behavior helpers; distinguish browser simulation from native shortcuts and captures.
+- [x] Verify window identity, search, activation/history, actions, keyboard escape, and reduced motion with focused regressions and browser checks.
+- [ ] Complete independent QA and record candidate/CI status. Preserve unrelated original-checkout changes.
+
+Scope excludes native behavior, waitlist/email flows, dependencies, and production deployment.
+Use a dedicated branch based on `ce04adec`; rollback is reverting the demo change.
