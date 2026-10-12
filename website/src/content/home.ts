@@ -71,9 +71,9 @@ export const walkthroughSteps = [
 
 export const interactiveDemoContent = {
   eyebrow: "Interactive demo",
-  title: "Try the switcher in the browser before you download.",
+  title: "Try switching between individual windows.",
   body:
-    "Click through the same three modes, move the selection, type into the palette, and see how each style feels when you are choosing a real target.",
+    "Explore the three native layouts with sample windows. Search by app, window title, or acronym, then activate the exact window you want. This browser simulation does not access your Mac.",
   modes: [
     {
       id: "classicGrid",
@@ -94,62 +94,14 @@ export const interactiveDemoContent = {
 } as const;
 
 export const interactiveDemoWindows = [
-  {
-    id: "claude",
-    app: "Claude",
-    title: "Security checklist review",
-    accent: "from-amber-300/25 via-slate-950 to-slate-950",
-    pill: "Recent",
-  },
-  {
-    id: "telegram",
-    app: "Telegram",
-    title: "Founder launch feedback",
-    accent: "from-sky-400/25 via-slate-950 to-slate-950",
-    pill: "Messages",
-  },
-  {
-    id: "vscode",
-    app: "VS Code",
-    title: "CmdTab Website",
-    accent: "from-cyan/25 via-slate-950 to-slate-950",
-    pill: "Code",
-  },
-  {
-    id: "pdfgear",
-    app: "PDFGear",
-    title: "Launch pricing notes",
-    accent: "from-rose-400/25 via-slate-950 to-slate-950",
-    pill: "PDF",
-  },
-  {
-    id: "mimestream",
-    app: "Mimestream",
-    title: "Launch support replies",
-    accent: "from-indigo-400/20 via-slate-950 to-slate-950",
-    pill: "Mail",
-  },
-  {
-    id: "spotify",
-    app: "Spotify",
-    title: "Deep work mix",
-    accent: "from-emerald-400/20 via-slate-950 to-slate-950",
-    pill: "Audio",
-  },
-  {
-    id: "notebooklm",
-    app: "NotebookLM",
-    title: "Research synthesis",
-    accent: "from-violet-400/20 via-slate-950 to-slate-950",
-    pill: "Notes",
-  },
-  {
-    id: "calendar",
-    app: "Calendar",
-    title: "Founder launch week",
-    accent: "from-orange-400/20 via-slate-950 to-slate-950",
-    pill: "Plan",
-  },
+  { id: "finder-project", app: "Finder", title: "CmdTab project", accent: "from-sky-400/25 via-slate-950 to-slate-950", pill: "Files", preview: "finder" },
+  { id: "claude-review", app: "Claude", title: "Security checklist review", accent: "from-amber-300/25 via-slate-950 to-slate-950", pill: "Conversation", preview: "conversation" },
+  { id: "vscode", app: "VS Code", title: "CmdTab Website", accent: "from-cyan/25 via-slate-950 to-slate-950", pill: "Editor", preview: "code" },
+  { id: "finder-downloads", app: "Finder", title: "Downloads", accent: "from-sky-400/25 via-slate-950 to-slate-950", pill: "Files", preview: "finder" },
+  { id: "claude-research", app: "Claude", title: "Research synthesis", accent: "from-amber-300/25 via-slate-950 to-slate-950", pill: "Conversation", preview: "conversation" },
+  { id: "pdfgear", app: "PDFGear", title: "Launch notes", accent: "from-rose-400/25 via-slate-950 to-slate-950", pill: "Document", preview: "document" },
+  { id: "calendar", app: "Calendar", title: "Planning week", accent: "from-orange-400/20 via-slate-950 to-slate-950", pill: "Calendar", preview: "calendar" },
+  { id: "vscode-tests", app: "VS Code", title: "SwitcherCycleSession.swift", accent: "from-cyan/25 via-slate-950 to-slate-950", pill: "Editor", preview: "code" },
 ] as const;
 
 export const detailBands = [
