@@ -201,6 +201,16 @@ export default function SwitchWindowsGuidePage() {
           </li>
         </ul>
       </SectionShell>
+      <SectionShell
+        eyebrow="Private preview"
+        title="Still looking for the window you meant?"
+        description="If you reach the right app but still have to cycle through its open windows, CmdTab is being built to help you get back to the one you meant."
+        className="pt-0"
+      >
+        <Button href="/waitlist?utm_source=switch_guide&utm_medium=organic_search&utm_campaign=waitlist_1000_30d&utm_content=guide_end_cta">
+          Request private-preview access
+        </Button>
+      </SectionShell>
       <FooterSection />
     </main>
   );
