@@ -4,7 +4,6 @@ import { FooterSection } from "@/components/sections/footer-section";
 import { Button } from "@/components/ui/button";
 import { SectionShell } from "@/components/ui/section-shell";
 import { SiteHeader } from "@/components/ui/site-header";
-import { productFacts } from "@/content/product-facts";
 import { createPageMetadata } from "@/lib/seo";
 import {
   createArticleStructuredData,
@@ -87,7 +86,7 @@ export default function SwitchWindowsGuidePage() {
         className="pt-14"
       >
         <div className="mb-8">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date="2026-10-12" />
         </div>
         <div className="surface-panel p-7">
           <p className="text-lg leading-8 text-text">
@@ -125,6 +124,14 @@ export default function SwitchWindowsGuidePage() {
                 {method.title}
               </h2>
               <p className="mt-4 text-base leading-8 text-muted">{method.body}</p>
+              {method.shortcut === "Command-`" ? (
+                <a
+                  className="mt-4 inline-block text-sm font-medium text-cyan underline underline-offset-4 hover:text-text"
+                  href="/guides/cmd-backtick-not-working-mac"
+                >
+                  If Command+` is not working, try these checks →
+                </a>
+              ) : null}
             </article>
           ))}
         </div>

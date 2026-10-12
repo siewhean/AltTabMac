@@ -28,6 +28,7 @@ const expectedRoutes = new Map([
   ["/features/command-palette", /Search open Mac windows by app name or window text/i],
   ["/features/radial-menu", /A circular Mac window switcher for directional selection/i],
   ["/features/quick-actions", /Manage the selected Mac window without switching into it first/i],
+  ["/guides/cmd-backtick-not-working-mac", /Command\+` not working on Mac/i],
   ["/compare/cmdtab-vs-alttab", /CmdTab versus AltTab: choose the window-switching model first/i],
 ]);
 

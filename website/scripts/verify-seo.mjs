@@ -35,6 +35,7 @@ for (const requiredPath of [
   "/features/radial-menu",
   "/features/quick-actions",
   "/guides/switch-between-windows-on-mac",
+  "/guides/cmd-backtick-not-working-mac",
   "/compare/cmdtab-vs-macos-command-tab",
   "/compare/cmdtab-vs-alttab",
   "/compare/mac-window-switchers",
