@@ -138,7 +138,7 @@ try {
     if(result.exceptionDetails) throw new Error(result.exceptionDetails.text);
     return result.result.value;
   };
-  const click = async text => { await evaluate(`(()=>{const button=[...document.querySelectorAll('[data-demo] button')].find(b=>b.textContent.trim()===${JSON.stringify(text)}); if(!button)throw new Error('Missing control'); button.click()})()`); await sleep(100); };
+  const click = async text => { await evaluate(`(()=>{const button=[...document.querySelectorAll('[data-demo] button')].find(b=>b.textContent.trim()===${JSON.stringify(text)}||b.firstElementChild?.textContent.trim()===${JSON.stringify(text)}); if(!button)throw new Error('Missing control'); button.click()})()`); await sleep(100); };
   const check = async (name, expression) => { if(!await evaluate(expression))failures.push(name); };
   for(const [name,width,height,reduced] of [['desktop',1440,1000,false],['mobile',390,844,false],['narrow',320,720,true]]) {
     await client.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
@@ -147,7 +147,13 @@ try {
     for(let attempt=0;attempt<100;attempt++){if(await evaluate(`Boolean(document.querySelector('[data-demo-window-id]'))`))break; await sleep(100);}
     await sleep(700);
     await evaluate(`(()=>{const b=[...document.querySelectorAll('button')].find(e=>e.textContent.trim()==='Decline');b?.click()})()`); await sleep(100);
-    await check(`${name}: eight distinct sample windows`, `document.querySelectorAll('[data-demo-window-id]').length===8 && new Set([...document.querySelectorAll('[data-demo-window-id]')].map(e=>e.dataset.demoWindowId)).size===8`);
+    const count = `document.querySelectorAll('[data-demo-window-id]').length`;
+    const status = `document.querySelector('[data-demo] [role=status]').textContent`;
+    const key = async (value, code, vk) => { await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:value,code,windowsVirtualKeyCode:vk,text:value}); await client.send('Input.dispatchKeyEvent',{type:'keyUp',key:value,code,windowsVirtualKeyCode:vk}); await sleep(100); };
+    const focusStage = () => evaluate(`document.querySelector('[aria-label="Sample window switcher"]').focus()`);
+    await check(`${name}: ten distinct sample windows`, `${count}===10 && new Set([...document.querySelectorAll('[data-demo-window-id]')].map(e=>e.dataset.demoWindowId)).size===10`);
+    await check(`${name}: quick-action buttons show native shortcuts`, `['hide:⌘H','minimize:⌘M','close:⌘W','quit:⌘Q'].every(pair=>{const [kind,shortcut]=pair.split(':');return document.querySelector('[data-demo-action="'+kind+'"] kbd')?.textContent===shortcut})`);
+    await check(`${name}: include minimized defaults off`, `document.querySelector('[data-demo] input[type=checkbox]').checked===false`);
     await evaluate(`document.querySelector('[aria-label="Sample window switcher"]').focus()`);
     await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39}); await sleep(100);
     await check(`${name}: arrow changes selection`, `document.querySelector('[data-demo-window-id][aria-current=true]').dataset.demoWindowId==='claude-review'`);
@@ -161,10 +167,19 @@ try {
     await click('Hide app');
     await check(`${name}: hidden app retains both windows`, `[...document.querySelectorAll('[data-demo-window-id]')].filter(e=>e.textContent.includes('Hidden app')).length===2`);
     await click('Minimize window');
-    await check(`${name}: minimize retains window`, `document.querySelectorAll('[data-demo-window-id]').length===8 && Boolean(document.querySelector('[data-demo-window-id][aria-current=true]').textContent.includes('Minimized window'))`);
-    await click('Close window'); await check(`${name}: close only one`, `document.querySelectorAll('[data-demo-window-id]').length===7`);
-    await click('Reset sample windows'); await click('Quit app'); await check(`${name}: quit removes app siblings`, `document.querySelectorAll('[data-demo-window-id]').length===6`);
+    await check(`${name}: minimize leaves the window out by default`, `${count}===9 && !document.querySelector('[data-demo-window-id="finder-project"]') && ${status}.includes('left out of the switcher by default')`);
+    await evaluate(`document.querySelector('[data-demo] input[type=checkbox]').click()`); await sleep(100);
+    await check(`${name}: include minimized lists it again`, `${count}===10 && document.querySelector('[data-demo-window-id="finder-project"]').textContent.includes('Minimized window')`);
+    await click('Close window'); await check(`${name}: close only one`, `${count}===9`);
+    await click('Reset sample windows'); await click('Quit app'); await check(`${name}: quit removes app siblings`, `${count}===8`);
+    await click('Reset sample windows'); await focusStage();
+    await key('h','KeyH',72); await check(`${name}: H hides the selected app`, `${status}.includes('Hidden sample app: Finder')`);
+    await key('q','KeyQ',81); await check(`${name}: bare Q does not quit`, `${count}===10 && ${status}.includes('Q on its own does nothing')`);
+    await key('w','KeyW',87); await check(`${name}: W closes one window`, `${count}===9 && ${status}.includes('Closed sample window')`);
+    await key('m','KeyM',77); await check(`${name}: M minimizes and leaves it out`, `${count}===8 && ${status}.includes('Minimized sample window')`);
     await click('Reset sample windows'); await click('Command Palette');
+    await evaluate(`document.querySelector('input[aria-label="Search sample windows"]').focus()`);
+    await key('w','KeyW',87); await check(`${name}: palette letters type into search`, `document.querySelector('input[aria-label="Search sample windows"]').value==='w' && !${status}.includes('Closed')`);
     await evaluate(`(()=>{const i=document.querySelector('input[aria-label="Search sample windows"]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'Downloads'); i.dispatchEvent(new Event('input',{bubbles:true}));i.focus()})()`); await sleep(100);
     await check(`${name}: title ranking`, `document.querySelector('[data-demo-window-id][aria-current=true]').dataset.demoWindowId==='finder-downloads'`);
     await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13}); await sleep(100);
@@ -176,9 +191,13 @@ try {
     await evaluate(`document.querySelector('[aria-label="Sample window switcher"]').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
     await check(`${name}: cancelled stage cannot activate`, `document.querySelector('[data-demo] [role=status]').textContent.includes('Cancelled')`);
     await click('Reset sample windows'); await click('Radial Menu');
-    await check(`${name}: radial eight slots`, `document.querySelectorAll('[data-demo-window-id]').length===8`);
+    await check(`${name}: radial eight slots`, `${count}===8 && Boolean(document.querySelector('[data-demo-radial-overflow]'))`);
     await check(`${name}: centered icons and selectors`, `(()=>{const nodes=[...document.querySelectorAll('[data-demo-radial-selector]')];return nodes.length===8&&nodes.every(n=>{const b=n.getBoundingClientRect(),i=n.querySelector('img').getBoundingClientRect();return Math.abs(b.x+b.width/2-i.x-i.width/2)<0.5&&Math.abs(b.y+b.height/2-i.y-i.height/2)<0.5&&b.width>=44&&i.width>=b.width*0.65&&i.width<b.width})})()`);
     await check(`${name}: ring selectors do not overlap`, `(()=>{const a=[...document.querySelectorAll('[data-demo-radial-selector]')].map(n=>n.getBoundingClientRect());return a.every((b,j)=>a.slice(j+1).every(c=>Math.hypot(b.x+b.width/2-c.x-c.width/2,b.y+b.height/2-c.y-c.height/2)>(b.width+c.width)/2))})()`);
+    await focusStage();
+    for (let step = 0; step < 4; step++) await client.send('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
+    await sleep(100);
+    await check(`${name}: radial scrolls the ninth window onto the ring`, `${count}===8 && Boolean(document.querySelector('[data-demo-window-id="calendar-release"]')) && document.querySelector('[data-demo-window-id][aria-current=true]').dataset.demoWindowId==='claude-research'`);
     await evaluate(`document.querySelector('[aria-label="Sample window switcher"]').scrollIntoView({block:'start'})`);
     await check(`${name}: no horizontal overflow`, `document.documentElement.scrollWidth<=${width}+1`);
     await check(`${name}: no animation`, `[...document.querySelectorAll('[data-demo] *')].every(e=>getComputedStyle(e).animationName==='none')`);

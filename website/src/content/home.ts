@@ -101,6 +101,9 @@ export const interactiveDemoWindows = [
   { id: "claude-research", app: "Claude", title: "Research synthesis", accent: "from-amber-300/25 via-slate-950 to-slate-950", pill: "Conversation", preview: "conversation" },
   { id: "pdfgear", app: "PDFGear", title: "Launch notes", accent: "from-rose-400/25 via-slate-950 to-slate-950", pill: "Document", preview: "document" },
   { id: "calendar", app: "Calendar", title: "Planning week", accent: "from-orange-400/20 via-slate-950 to-slate-950", pill: "Calendar", preview: "calendar" },
+  // Ten windows: the Radial Menu shows eight at a time and scrolls the rest in, as the app does.
+  { id: "pdfgear-guide", app: "PDFGear", title: "Permissions guide", accent: "from-rose-400/25 via-slate-950 to-slate-950", pill: "Document", preview: "document" },
+  { id: "calendar-release", app: "Calendar", title: "Release review", accent: "from-orange-400/20 via-slate-950 to-slate-950", pill: "Calendar", preview: "calendar" },
   { id: "vscode-tests", app: "VS Code", title: "SwitcherCycleSession.swift", accent: "from-cyan/25 via-slate-950 to-slate-950", pill: "Editor", preview: "code" },
 ] as const;
 

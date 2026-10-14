@@ -1,5 +1,33 @@
 # Interactive demo fidelity
 
+## App-parity follow-up (2026-10-14)
+
+Each change was checked against `Sources/CmdTab` before editing:
+
+- Quick-action keys: `SwitcherQuickAction.action(...)` and
+  `ProductionSwitcherWindowController.handlePanelKeyEvent`. H/M/W act bare or with
+  Command (not with Option or Control); Q needs Command; Command Palette returns before
+  the mapping. The demo handles bare keys only while the switcher stage has focus and
+  never intercepts modified keys, so Quit is button-only. Buttons show ⌘H/⌘M/⌘W/⌘Q.
+- Minimized windows: `SwitcherPreferences.includeMinimizedWindows` defaults to false
+  and `ProductionAppSwitcher` filters them. The demo adds the same toggle, default off.
+- Palette memory: `SearchMemoryStore` persists to `UserDefaults`; copy now says the app
+  keeps it across launches and the demo forgets it on reload.
+- Radial: `demo-radial-viewport.ts` ports `RadialMenuViewportState` and its tests;
+  the demo has ten sample windows so paging is visible.
+- Palette ranking already matched `PaletteSearch.swift` (same recurrence, weights,
+  thresholds); constants are now named and the native `PaletteSearchTests` cases ported.
+- Hold-to-show hint follows `ProfileHotkeyTimingPolicy` (200 ms reveal, quick switch
+  on early release). Copy only.
+
+Local validation on the branch: PASS typecheck; PASS unit groups 104 + 14 and 27
+licensing tests (3 PostgreSQL store tests skipped, no disposable DB); PASS release,
+commerce, beta-trial, five-feature, analytics-privacy, API-security, dependency-audit
+and SEO/showcase checks; PASS `next build --webpack` (Turbopack refused the worktree's
+symlinked `node_modules`); PASS `demo:check` interactions at 1440, 390 and 320 px with
+screenshot writes disabled because the disk was full. No lint script exists. Hosted CI,
+native acceptance and production publication are pending.
+
 ## Radial alignment follow-up (2026-10-14)
 
 Both the native view and browser demo were corrected. Native selectors use an
@@ -33,13 +61,20 @@ The demo must preserve these product distinctions:
   selected window into recent history; cancel leaves the active target unchanged.
 - Click commits a target. Return confirms and Escape cancels. Browser Tab remains
   available to leave the demo; native shortcuts are configurable profile settings.
-- Palette search matches application names and window titles using the native
-  whitespace-insensitive fuzzy ranking, with stable ordering for equal scores.
-- Grid navigation follows columns vertically. The demo contains eight sample
-  windows, matching the native radial view's maximum visible slots. Larger native
-  inventories use a rotating viewport; that scenario is not simulated here.
-- Minimize preserves a window; hide affects an app's windows; close removes one
-  window; quit removes all windows of that app. These operations are simulated.
+- Palette search is a direct port of `PaletteSearch.swift` (Smith-Waterman, 0.4
+  minimum, 0.05 remembered-choice tolerance, whitespace-insensitive, acronym bonus),
+  with stable ordering for equal scores. The app persists query memory across
+  launches; the demo keeps it in page memory only and says so.
+- Grid navigation follows columns vertically. The demo contains ten sample
+  windows; the Radial Menu shows eight and scrolls the rest in with a port of
+  `RadialMenuViewportState.swift`.
+- Minimize hides a window from the switcher unless "Include minimized windows" is
+  on (off by default, as in the app); hide affects an app's windows; close removes
+  one window; quit removes all windows of that app. These operations are simulated.
+- Quick-action keys follow `SwitcherQuickAction`: in Classic Grid and Radial Menu,
+  bare H, M and W act while the demo has focus and bare Q does nothing. Command
+  shortcuts are left to the browser, so Quit is button-only. In Command Palette,
+  letters type into search.
 - Preview artwork represents sample content; unavailable previews are labelled.
   Animation respects reduced motion and keyboard focus remains visible.
 
