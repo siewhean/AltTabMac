@@ -751,6 +751,29 @@ final class LicensingControllerTests: XCTestCase {
             return XCTFail("Expected signed, install-bound claim to activate")
         }
 
+        let preservedClaimStore = MemoryTrialClaimStore(claim: claim)
+        let missingKey = makeController(
+            trialClaimStore: preservedClaimStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(secret: secret),
+            trialClaimAuthenticator: SignedTrialClaimAuthenticator(
+                legacyPublicKeyDERBase64: v1.publicKeyBase64,
+                v2PublicKeysDERBase64: [:]
+            ),
+            currentDate: { now },
+            publicKeyBase64: v1.publicKeyBase64
+        )
+        missingKey.refreshStatus()
+        XCTAssertFalse(missingKey.hasUnlockedAccess)
+        XCTAssertEqual(preservedClaimStore.loadClaim(), claim)
+        let restoredKey = makeController(
+            trialClaimStore: preservedClaimStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(secret: secret),
+            trialClaimAuthenticator: authenticator,
+            currentDate: { now },
+            publicKeyBase64: v1.publicKeyBase64
+        )
+        XCTAssertTrue(restoredKey.hasUnlockedAccess)
+
         let tamperedClaim = TrialClaimRecord(
             id: claim.id,
             email: "attacker@example.com",
@@ -1328,6 +1351,59 @@ final class LicensingControllerTests: XCTestCase {
             entitlement: entitlement,
             mint: mint
         )
+    }
+
+    func testMissingPaidVerificationKeyPreservesTokenWithoutGrantingAccess() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fixture = try makeLeaseFixture(issuedAt: now, now: now)
+        let credentials = MemoryLicenseKeyStore()
+        credentials.value = "CMDTAB-ACT-\(String(repeating: "l", count: 43))"
+        let controller = makeController(
+            licenseStore: credentials,
+            deviceEntitlementStore: fixture.entitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(
+                secret: Data(repeating: 9, count: 32)
+            ),
+            licenseV2PublicKeysDERBase64: [:],
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+
+        controller.refreshStatus()
+        XCTAssertEqual(fixture.entitlementStore.value, fixture.entitlement)
+        XCTAssertNotNil(credentials.value)
+        guard case .unregistered = controller.status else {
+            return XCTFail("An unknown signing key must not authorize paid access")
+        }
+        XCTAssertFalse(controller.hasUnlockedAccess)
+        XCTAssertEqual(controller.licenseMessage?.tone, .warning)
+        XCTAssertEqual(
+            controller.licenseMessage?.text,
+            "This CmdTab build is missing a license verification key. Install a correctly configured build to verify this Mac's saved license."
+        )
+        // A correctly configured controller can still verify the preserved
+        // token, with no replacement activation or credential mutation.
+        fixture.controller.refreshStatus()
+        XCTAssertTrue(fixture.controller.hasUnlockedAccess)
+    }
+
+    func testWrongPaidVerificationKeyStillClearsInvalidSignature() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let fixture = try makeLeaseFixture(issuedAt: now, now: now)
+        let wrongKey = P256.Signing.PrivateKey()
+        let controller = makeController(
+            deviceEntitlementStore: fixture.entitlementStore,
+            deviceIdentityStore: MemoryLicenseDeviceIdentityStore(
+                secret: Data(repeating: 9, count: 32)
+            ),
+            licenseV2PublicKeysDERBase64: [
+                "license-lease": wrongKey.publicKey.derRepresentation.base64EncodedString(),
+            ],
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertFalse(controller.hasUnlockedAccess)
+        XCTAssertNil(fixture.entitlementStore.value)
     }
 
     func testLapsedLeaseKeepsTokenWithoutAccessAndRenewalRestoresIt() async throws {

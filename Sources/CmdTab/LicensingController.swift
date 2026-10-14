@@ -400,10 +400,19 @@ final class LicensingController: ObservableObject {
                 )
                 return
             }
-            // A missing or temporarily unavailable Keychain read is not proof
-            // that a stored paid entitlement is invalid. Clear only a token
-            // that was actually returned and failed signature validation.
-            try? deviceEntitlementStore.clearEntitlement()
+            if case .failure(LicenseTokenVerificationError.unknownKey) = verification {
+                // A build missing the token's verification key cannot establish
+                // validity or revocation. Keep the token for a correctly
+                // configured build, but never grant paid access from it.
+                licenseMessage = LicensingMessage(
+                    tone: .warning,
+                    text: "This CmdTab build is missing a license verification key. Install a correctly configured build to verify this Mac's saved license."
+                )
+            } else {
+                // A returned token that fails validation is invalid. Missing
+                // key configuration above and expired leases are recoverable.
+                try? deviceEntitlementStore.clearEntitlement()
+            }
         }
 
         let storedToken = licenseStore.loadLicenseKeySilently()

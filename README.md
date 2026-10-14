@@ -1,5 +1,7 @@
 # CmdTab
 
+Local-test recovery (2026-10-14): the initial radial local-QA bundle used Release configuration without public verification keyrings, whereas the installed developer app used a saved DEBUG test-activation scenario. The installed build was restored. Unknown signing keys now preserve saved entitlements without granting access; 430 XCTest plus 2 Swift Testing tests pass. A separate Debug radial test bundle retains the installed public keyrings and existing developer settings. It is not a production release; live shortcut confirmation remains pending.
+
 Radial alignment update (2026-10-14): native selectors are fixed 84-point squares with centred 52-point icons; labels no longer shift ring anchors, and the centre hub is separate from the capability banner. The browser demo uses larger local app icons in circular selectors with shared polar positions and separate labels. Local Swift tests (428 XCTest plus 2 Swift Testing), rendered native geometry checks, and three browser profiles pass. Installed-app acceptance and production publication remain pending.
 
 Interactive demo update (2026-10-12): sample windows now model distinct same-app targets, click/Enter activation, Escape cancellation, recent-use ordering, native search scoring, and correctly scoped hide/minimize/close/quit. Browser controls are labelled separately from configurable macOS profiles; previews are illustrative, with no desktop access or autoplay. Focused model and local browser verification are recorded in `docs/qa/interactive-demo-fidelity.md`. Production publication is pending.

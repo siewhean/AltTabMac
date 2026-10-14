@@ -498,3 +498,9 @@ Use a dedicated branch based on `ce04adec`; rollback is reverting the demo chang
 - [x] Add larger browser app icons and evenly spaced circular selectors; preserve interaction behavior.
 - [x] Pass rendered native geometry, full Swift suite, website model tests, production build, and browser centre/overlap checks at 1440, 390, and 320 pixels.
 - [ ] Complete final exact-head CI. Installed native app and production website publication remain pending.
+## 2026-10-14 — Local test build falls through to macOS switching
+
+- [x] Verify running artifact, healthy tap, allowed permissions, disabled Secure Input, and enabled profiles.
+- [x] Identify Release-versus-Debug activation mismatch and absent verification keyrings; restore the installed Debug app.
+- [x] Preserve saved entitlements on unknown verification keys while denying unverifiable paid access; pass focused and full Swift regressions.
+- [ ] Confirm live custom-switcher recovery and test the corrected Debug radial artifact.
