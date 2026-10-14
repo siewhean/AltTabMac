@@ -8,6 +8,7 @@ on:
       - Package.swift
       - Package.resolved
       - Resources/Info.plist
+      - Resources/PrivacyInfo.xcprivacy
       - release/**
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
@@ -27,6 +28,7 @@ on:
       - Package.swift
       - Package.resolved
       - Resources/Info.plist
+      - Resources/PrivacyInfo.xcprivacy
       - release/**
       - Sources/CmdTab/**
       - Tests/CmdTabTests/**
@@ -118,6 +120,7 @@ jobs:
         run: |
           python3 scripts/release/release_config.py verify-repository
           python3 scripts/release/verify-public-release-controls.py
+          python3 scripts/release/verify-privacy-manifest.py Resources/PrivacyInfo.xcprivacy
           python3 scripts/release/test-release-update-pipeline.py
           python3 scripts/release/test-private-capability-canary.py
           python3 scripts/performance/test-performance-evidence.py
