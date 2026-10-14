@@ -482,3 +482,25 @@ Goal: keystrokes system-wide never wait on CmdTab's main thread (AX, inventory, 
 - [x] Tests: licensing gate snapshot, input mirror; full suite; packaged-app check by user
 
 Review (1b): 407 XCTest + 2 Swift Testing; only the known host-permission-dependent preview test fails. Installed at ~/Applications/CmdTab.app and launches without crashing; live tap behaviour awaits the user's permission re-grant.
+## 2026-10-12 — Interactive demo fidelity
+
+- [x] Compare the demo with tracked native switching, palette search, radial layout, and window actions at `ce04adec`.
+- [x] Update only demo components, sample fixtures, and behavior helpers; distinguish browser simulation from native shortcuts and captures.
+- [x] Verify window identity, search, activation/history, actions, keyboard escape, and reduced motion with focused regressions and browser checks.
+- [ ] Complete independent QA and record candidate/CI status. Preserve unrelated original-checkout changes.
+
+Scope excludes native behavior, waitlist/email flows, dependencies, and production deployment.
+Use a dedicated branch based on `ce04adec`; rollback is reverting the demo change.
+## 2026-10-14 — Radial icons and selector alignment
+
+- [x] Identify native centre-stack and icon/title anchor mismatches; inspect website selector geometry.
+- [x] Enlarge and centre native icons; separate labels and capability banner from positioned geometry.
+- [x] Add larger browser app icons and evenly spaced circular selectors; preserve interaction behavior.
+- [x] Pass rendered native geometry, full Swift suite, website model tests, production build, and browser centre/overlap checks at 1440, 390, and 320 pixels.
+- [ ] Complete final exact-head CI. Installed native app and production website publication remain pending.
+## 2026-10-14 — Local test build falls through to macOS switching
+
+- [x] Verify running artifact, healthy tap, allowed permissions, disabled Secure Input, and enabled profiles.
+- [x] Identify Release-versus-Debug activation mismatch and absent verification keyrings; restore the installed Debug app.
+- [x] Preserve saved entitlements on unknown verification keys while denying unverifiable paid access; pass focused and full Swift regressions.
+- [ ] Confirm live custom-switcher recovery and test the corrected Debug radial artifact.

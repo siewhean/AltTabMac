@@ -1,706 +1,152 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
+import Image from "next/image";
+import { demoRadialPosition, DEMO_RADIAL_SELECTOR_SIZE } from "@/lib/demo-radial-layout";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { interactiveDemoWindows } from "@/content/home";
-import { demoNavigationDirection } from "@/lib/demo-keyboard-navigation";
+import { activateDemoWindow, navigateDemo, normalizedDemoQuery, orderDemoWindows, rankDemoWindows, removeDemoTarget, type DemoMode, type DemoWindow } from "@/lib/demo-switcher-model";
 import { trackSiteEvent } from "@/lib/site-analytics-client";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type DemoMode = "classicGrid" | "commandPalette" | "radialMenu";
-
-interface DemoWindow {
-  readonly id: string;
-  readonly app: string;
-  readonly title: string;
-  readonly accent: string;
-  readonly pill: string;
-}
-
-// ─── App icons (emoji stand-ins that match the real app icons' colours) ──────
-
-const APP_ICONS: Record<string, string> = {
-  Claude: "🟡",
-  Telegram: "🔵",
-  "VS Code": "🩵",
-  PDFGear: "🔴",
-  Mimestream: "🟣",
-  Spotify: "🟢",
-  NotebookLM: "🟤",
-  Calendar: "🟠",
-};
-
-// ─── Radial positions – evenly spaced on the ring ────────────────────────────
-
-const RADIAL_POSITIONS = [
-  { x: 50, y: 14 },
-  { x: 78, y: 22 },
-  { x: 86, y: 50 },
-  { x: 78, y: 78 },
-  { x: 50, y: 86 },
-  { x: 22, y: 78 },
-  { x: 14, y: 50 },
-  { x: 22, y: 22 },
+const MODES: { id: DemoMode; label: string }[] = [
+  { id: "classicGrid", label: "Classic Grid" },
+  { id: "commandPalette", label: "Command Palette" },
+  { id: "radialMenu", label: "Radial Menu" },
 ];
+const radialIcons: Record<string, string> = { Finder: "finder", Claude: "claude", "VS Code": "vscode", PDFGear: "pdfgear", Calendar: "calendar" };
+const control = "min-h-10 rounded-xl border border-white/15 px-3 py-2 text-sm text-text hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan disabled:opacity-40";
 
-// ─── Fake preview content bars ───────────────────────────────────────────────
-
-const PREVIEW_BARS = [
-  ["78%", "58%", "86%", "44%"],
-  ["66%", "82%", "52%", "70%"],
-  ["72%", "46%", "88%", "60%"],
-  ["84%", "62%", "44%", "78%"],
-  ["58%", "76%", "64%", "82%"],
-  ["88%", "52%", "72%", "56%"],
-  ["64%", "84%", "56%", "76%"],
-  ["74%", "60%", "80%", "50%"],
-] as const;
-
-// ─── Search filtering (mirrors the Swift PaletteSearch logic) ─────────────────
-
-function searchWindows(query: string): DemoWindow[] {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return [...interactiveDemoWindows] as DemoWindow[];
-
-  return ([...interactiveDemoWindows] as DemoWindow[])
-    .map((item) => {
-      const appName = item.app.toLowerCase();
-      const windowTitle = item.title.toLowerCase();
-      if (appName.startsWith(needle)) return { item, rank: 0 };
-      if (appName.includes(needle)) return { item, rank: 1 };
-      if (windowTitle.includes(needle)) return { item, rank: 2 };
-      return null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => a!.rank - b!.rank)
-    .map((r) => r!.item);
+function SamplePreview({ item }: { item: DemoWindow }) {
+  return <div aria-hidden="true" className={`mb-3 aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-linear-to-br/srgb ${item.accent}`}>
+    <div className="border-b border-white/10 bg-black/30 px-3 py-2 text-[10px] text-muted">{item.title}</div>
+    <div className="p-3 text-[10px] leading-5 text-muted">
+      {item.preview === "finder" ? <div className="grid grid-cols-2 gap-2">{(item.id === "finder-downloads" ? ["Documents", "Screenshots", "Notes.pdf", "Archive"] : ["Sources", "Tests", "Website", "README.md"]).map((name) => <span key={name}>▰ {name}</span>)}</div>
+        : item.preview === "code" ? <pre className="whitespace-pre-wrap font-mono text-cyan/80">{item.id === "vscode-tests" ? "struct SwitcherCycleSession {\n  let items: [SwitcherItem]\n  var selectedIndex: Int\n}" : "<main>\n  <SwitcherLiveDemo />\n</main>"}</pre>
+          : item.preview === "conversation" ? <><p className="rounded bg-white/10 p-2">{item.id === "claude-review" ? "Review the switcher checklist." : "Summarize the research notes."}</p><p className="mt-2">{item.id === "claude-review" ? "Check window identity, previews, and keyboard navigation." : "Keep each window distinguishable by its title."}</p></>
+            : item.preview === "calendar" ? <div className="grid grid-cols-5 gap-1">{["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => <div key={day} className="rounded border border-white/10 p-1">{day}<div className="mt-2 rounded bg-cyan/20 p-1">Focus</div></div>)}</div>
+              : <div className="rounded bg-white/10 p-3"><strong>Launch notes</strong><p className="mt-2">Window switching · Search · Keyboard navigation</p></div>}
+    </div>
+  </div>;
 }
-
-// ─── Mode labels ──────────────────────────────────────────────────────────────
-
-const MODE_META: Record<DemoMode, { label: string; kbd: string; hint: string }> = {
-  classicGrid: {
-    label: "Classic Grid",
-    kbd: "⌘ Tab",
-    hint: "Click a card or use Tab / arrow keys to move the selection. Release to switch.",
-  },
-  commandPalette: {
-    label: "Command Palette",
-    kbd: "⌘ Space",
-    hint: "Type an app name, use ↑ ↓ to navigate, then press Return to activate.",
-  },
-  radialMenu: {
-    label: "Radial Menu",
-    kbd: "⌥ Tab",
-    hint: "Click an icon around the ring or use ← → to spin through apps.",
-  },
-};
-
-const MODES: DemoMode[] = ["classicGrid", "commandPalette", "radialMenu"];
-
-// ─── Auto-play sequence ───────────────────────────────────────────────────────
-
-type AutoStep =
-  | { mode: "classicGrid"; select: number }
-  | { mode: "commandPalette"; query: string; select: number }
-  | { mode: "radialMenu"; select: number };
-
-const AUTO_SEQUENCE: AutoStep[] = [
-  { mode: "classicGrid", select: 0 },
-  { mode: "classicGrid", select: 2 },
-  { mode: "classicGrid", select: 5 },
-  { mode: "commandPalette", query: "", select: 0 },
-  { mode: "commandPalette", query: "c", select: 0 },
-  { mode: "commandPalette", query: "cl", select: 0 },
-  { mode: "commandPalette", query: "cla", select: 0 },
-  { mode: "commandPalette", query: "clau", select: 0 },
-  { mode: "commandPalette", query: "claud", select: 0 },
-  { mode: "radialMenu", select: 0 },
-  { mode: "radialMenu", select: 2 },
-  { mode: "radialMenu", select: 5 },
-  { mode: "radialMenu", select: 7 },
-  { mode: "classicGrid", select: 1 },
-];
-
-const AUTO_STEP_DURATION_MS = 820;
-const MODE_TRANSITION_OUT_MS = 110;
-const MODE_TRANSITION_IN_MS = 220;
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function SwitcherLiveDemo() {
   const [mode, setMode] = useState<DemoMode>("classicGrid");
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [windows, setWindows] = useState<DemoWindow[]>([...interactiveDemoWindows]);
+  const [frontmost, setFrontmost] = useState("vscode-tests");
+  const [selected, setSelected] = useState(0);
   const [query, setQuery] = useState("");
-  const [autoPlaying, setAutoPlaying] = useState(true);
-  const [stagePhase, setStagePhase] = useState<"steady" | "out" | "in">("steady");
-  const demoRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const lastTrackedSearchBucket = useRef<string | null>(null);
-  const modeTransitionTimeouts = useRef<number[]>([]);
-
-  // ── Derived state ──────────────────────────────────────────────────────────
-
-  const filteredWindows = useMemo(() => searchWindows(query), [query]);
-  const clampedIndex = Math.min(selectedIndex, Math.max(0, filteredWindows.length - 1));
-  const activeIndex = mode === "commandPalette" ? clampedIndex : selectedIndex % interactiveDemoWindows.length;
-  const activeWindow =
-    mode === "commandPalette"
-      ? filteredWindows[activeIndex] ?? (interactiveDemoWindows[0] as DemoWindow)
-      : (interactiveDemoWindows[activeIndex] as DemoWindow);
-
-  // ── Auto-play ──────────────────────────────────────────────────────────────
-
-  const clearModeTransition = useCallback(() => {
-    for (const timeout of modeTransitionTimeouts.current) {
-      window.clearTimeout(timeout);
-    }
-    modeTransitionTimeouts.current = [];
-  }, []);
-
-  const applyDemoState = useCallback(
-    ({
-      nextMode,
-      nextSelectedIndex,
-      nextQuery,
-      animateModeShift = true,
-    }: {
-      nextMode: DemoMode;
-      nextSelectedIndex: number;
-      nextQuery: string;
-      animateModeShift?: boolean;
-    }) => {
-      const commit = () => {
-        setMode(nextMode);
-        setSelectedIndex(nextSelectedIndex);
-        setQuery(nextQuery);
-      };
-
-      if (!animateModeShift || nextMode === mode) {
-        clearModeTransition();
-        setStagePhase("steady");
-        commit();
-        return;
-      }
-
-      clearModeTransition();
-      setStagePhase("out");
-
-      const swapTimeout = window.setTimeout(() => {
-        commit();
-        setStagePhase("in");
-
-        const settleTimeout = window.setTimeout(() => {
-          setStagePhase("steady");
-        }, MODE_TRANSITION_IN_MS);
-        modeTransitionTimeouts.current.push(settleTimeout);
-      }, MODE_TRANSITION_OUT_MS);
-
-      modeTransitionTimeouts.current.push(swapTimeout);
-    },
-    [clearModeTransition, mode]
-  );
-
+  const [open, setOpen] = useState(true);
+  const [hiddenApps, setHiddenApps] = useState<string[]>([]);
+  const [minimized, setMinimized] = useState<string[]>([]);
+  const [announcement, setAnnouncement] = useState("Sample switcher open. Choose a different window.");
+  const memory = useRef<Record<string, string>>({});
+  const lastBucket = useRef<string | null>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
+  const reopenButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    return () => clearModeTransition();
-  }, [clearModeTransition]);
+    if (!open) reopenButton.current?.focus();
+  }, [open]);
+  const ordered = useMemo(() => orderDemoWindows(windows, frontmost), [windows, frontmost]);
+  const results = useMemo(() => mode === "commandPalette" ? rankDemoWindows(ordered, query, memory.current[normalizedDemoQuery(query)]) : ordered, [ordered, mode, query]);
+  const activeIndex = Math.min(selected, Math.max(0, results.length - 1));
+  const target = results[activeIndex];
+  const focused = windows.find((item) => item.id === frontmost);
 
-  useEffect(() => {
-    if (!autoPlaying) return;
-
-    const id = setInterval(() => {
-      const currentIndex = AUTO_SEQUENCE.findIndex((step) => {
-        if (step.mode !== mode) return false;
-        if (step.mode === "commandPalette") {
-          return step.query === query && step.select === selectedIndex;
-        }
-        return step.select === selectedIndex;
-      });
-      const nextIndex = (currentIndex + 1 + AUTO_SEQUENCE.length) % AUTO_SEQUENCE.length;
-      const step = AUTO_SEQUENCE[nextIndex];
-      applyDemoState({
-        nextMode: step.mode,
-        nextSelectedIndex: step.select,
-        nextQuery: step.mode === "commandPalette" ? step.query : "",
-      });
-    }, AUTO_STEP_DURATION_MS);
-
-    return () => clearInterval(id);
-  }, [applyDemoState, autoPlaying, mode, query, selectedIndex]);
-
-  const stopAutoPlay = useCallback(() => {
-    if (autoPlaying) setAutoPlaying(false);
-  }, [autoPlaying]);
-
-  // ── Keyboard handler ───────────────────────────────────────────────────────
-
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      // Only intercept when focus is inside the demo container
-      if (!demoRef.current?.contains(document.activeElement)) return;
-      if (mode === "commandPalette" && document.activeElement === inputRef.current) return;
-
-      const collection = mode === "commandPalette" ? filteredWindows : [...interactiveDemoWindows];
-      const count = collection.length;
-      if (count === 0) return;
-
-      const direction = demoNavigationDirection(e);
-      if (direction === "next") {
-        e.preventDefault();
-        stopAutoPlay();
-        setSelectedIndex((i) => (i + 1) % count);
-      } else if (direction === "previous") {
-        e.preventDefault();
-        stopAutoPlay();
-        setSelectedIndex((i) => (i - 1 + count) % count);
-      }
+  function reopen() {
+    setOpen(true); setQuery(""); setSelected(0);
+    setAnnouncement("Sample switcher open. The current window is last; the first alternative is selected.");
+    requestAnimationFrame(() => stage.current?.focus());
+  }
+  function activate(item: DemoWindow) {
+    if (mode === "commandPalette" && normalizedDemoQuery(query)) memory.current[normalizedDemoQuery(query)] = item.id;
+    setWindows((current) => activateDemoWindow(current, item.id));
+    setFrontmost(item.id); setHiddenApps((current) => current.filter((app) => app !== item.app)); setMinimized((current) => current.filter((id) => id !== item.id));
+    setOpen(false); setAnnouncement(`Activated sample window: ${item.app} · ${item.title}.`);
+    trackSiteEvent("demo_selection", { mode, target: item.app.toLowerCase().replace(/\s+/g, "_") });
+  }
+  function move(key: string) {
+    const columns = grid.current ? getComputedStyle(grid.current).gridTemplateColumns.split(" ").length : 2;
+    setSelected(navigateDemo(activeIndex, results.length, key, mode, columns));
+    trackSiteEvent("demo_navigation", { mode, direction: key === "ArrowLeft" || key === "ArrowUp" ? "prev" : "next" });
+  }
+  function handleKeys(event: KeyboardEvent<HTMLDivElement>) {
+    if (!open) return;
+    // Tab keeps its browser focus behavior; system shortcuts remain with macOS.
+    if (event.nativeEvent.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+    const element = event.target as HTMLElement;
+    if (element !== stage.current && element.tagName !== "INPUT") return;
+    if (event.key === "Escape") { event.preventDefault(); setOpen(false); setAnnouncement("Cancelled. The sample focused window has not changed."); }
+    else if (event.key === "Enter" && target) { event.preventDefault(); activate(target); }
+    else if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      if (element.tagName === "INPUT" && ["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      if (mode === "radialMenu" && ["ArrowUp", "ArrowDown"].includes(event.key)) return;
+      event.preventDefault(); move(event.key);
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [mode, filteredWindows, stopAutoPlay]);
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  function switchMode(next: DemoMode) {
-    stopAutoPlay();
-    applyDemoState({
-      nextMode: next,
-      nextSelectedIndex: 0,
-      nextQuery: next === "commandPalette" ? query : "",
-    });
-    trackSiteEvent("demo_mode_selected", { mode: next });
   }
-
-  function moveSelection(dir: "prev" | "next") {
-    stopAutoPlay();
-    const collection = mode === "commandPalette" ? filteredWindows : [...interactiveDemoWindows];
-    if (collection.length === 0) return;
-    trackSiteEvent("demo_navigation", { mode, direction: dir });
-    setSelectedIndex((i) => {
-      const base = Math.min(i, collection.length - 1);
-      return dir === "next"
-        ? (base + 1) % collection.length
-        : (base - 1 + collection.length) % collection.length;
-    });
-  }
-
-  function trackDemoSelection(selectedMode: DemoMode, app: string) {
-    trackSiteEvent("demo_selection", {
-      mode: selectedMode,
-      target: app.toLowerCase().replace(/\s+/g, "_"),
-    });
-  }
-
-  function trackPaletteSearch(nextQuery: string, resultCount: number) {
-    const normalized = nextQuery.trim();
-    if (!normalized) {
-      lastTrackedSearchBucket.current = null;
-      return;
+  function action(kind: "hide" | "minimize" | "close" | "quit") {
+    if (!target) return;
+    if (kind === "hide") setHiddenApps((current) => [...new Set([...current, target.app])]);
+    if (kind === "minimize") setMinimized((current) => [...new Set([...current, target.id])]);
+    if (kind === "close" || kind === "quit") {
+      const remaining = removeDemoTarget(windows, target, kind === "quit" ? "app" : "window");
+      setWindows(remaining); setSelected(Math.min(activeIndex, Math.max(0, remaining.length - 1)));
+      if (kind === "quit" && focused?.app === target.app || kind === "close" && frontmost === target.id) setFrontmost("");
     }
-
-    const queryLengthBucket =
-      normalized.length <= 2 ? "1-2" : normalized.length <= 4 ? "3-4" : "5+";
-    const resultsBucket =
-      resultCount === 0 ? "0" : resultCount <= 2 ? "1-2" : resultCount <= 4 ? "3-4" : "5+";
-    const bucket = `${queryLengthBucket}:${resultsBucket}`;
-    if (lastTrackedSearchBucket.current === bucket) return;
-
-    lastTrackedSearchBucket.current = bucket;
-    trackSiteEvent("demo_palette_search", { queryLengthBucket, resultsBucket });
+    setAnnouncement(kind === "hide" ? `Hidden sample app: ${target.app}. All its windows remain available.` : kind === "minimize" ? `Minimized sample window: ${target.title}. Activate it to restore.` : kind === "quit" ? `Quit sample app: ${target.app}. All its windows were removed.` : `Closed sample window: ${target.title}. Other windows remain available.`);
+  }
+  function reset() {
+    setWindows([...interactiveDemoWindows]); setFrontmost("vscode-tests"); setHiddenApps([]); setMinimized([]); memory.current = {}; setQuery(""); setSelected(0); setOpen(true); setAnnouncement("Sample windows reset.");
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
-  return (
-    <div
-      ref={demoRef}
-      className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-panel backdrop-blur-xl"
-    >
-      {/* ── Header ── */}
-      <div className="border-b border-white/8 px-5 py-4 sm:px-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan">
-              Interactive demo
-            </p>
-            <h3 className="text-2xl font-medium tracking-[-0.04em] text-text sm:text-[1.75rem]">
-              Try each mode live in the browser.
-            </h3>
-            <p className="max-w-xl text-sm leading-6 text-muted">
-              Click a mode tab, interact with the switcher, or just watch the auto-demo run.
-              Keyboard navigation works too — use the arrow keys.
-            </p>
-          </div>
-
-          {/* Mode tabs */}
-          <div className="flex flex-wrap gap-2">
-            {MODES.map((m) => {
-              const active = m === mode;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMode(m)}
-                  className={`inline-flex min-h-10 flex-col items-start rounded-2xl border px-4 py-2 text-left transition duration-200 ${
-                    active
-                      ? "border-cyan/50 bg-cyan/12 shadow-halo"
-                      : "border-white/10 bg-white/[0.03] hover:border-white/18"
-                  }`}
-                >
-                  <span className={`text-sm font-medium ${active ? "text-text" : "text-muted"}`}>
-                    {MODE_META[m].label}
-                  </span>
-                  <span className="mt-0.5 font-mono text-[10px] tracking-wide text-subdued">
-                    {MODE_META[m].kbd}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+  return <div data-demo="switcher" className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.04] shadow-panel">
+    <div className="space-y-4 border-b border-white/10 p-5 sm:p-6">
+      <h3 className="text-2xl font-medium text-text">Choose the window, not just the app.</h3>
+      <p className="max-w-3xl text-sm leading-6 text-muted">Browser simulation with sample windows and illustrated previews. The Mac app captures real window previews when permissions allow. Your desktop is not accessed here.</p>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Switcher layout">
+        {MODES.map((item) => <button key={item.id} type="button" aria-pressed={mode === item.id} className={`${control} ${mode === item.id ? "border-cyan/60 bg-cyan/10" : ""}`} onClick={() => { setMode(item.id); setQuery(""); setSelected(0); setOpen(true); trackSiteEvent("demo_mode_selected", { mode: item.id }); }}>{item.label}</button>)}
       </div>
-
-      {/* ── Main area ── */}
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_300px]">
-
-        {/* Left: switcher replica */}
-        <div className="relative min-h-[540px] border-b border-white/8 p-5 sm:p-6 lg:min-h-[600px] lg:border-b-0 lg:border-r lg:border-white/8">
-
-          {/* Auto-play badge */}
-          {autoPlaying && (
-            <div className="absolute right-4 top-4 z-10 flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/60 px-3 py-1 backdrop-blur-xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan animate-pulse" />
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-subdued">
-                Auto
-              </span>
-            </div>
-          )}
-
-          <div
-            className={`h-full transition-[opacity,transform,filter] duration-300 ease-out ${
-              stagePhase === "out"
-                ? "translate-y-2 scale-[0.985] opacity-0 blur-[2px]"
-                : stagePhase === "in"
-                  ? "translate-y-0 scale-100 opacity-100 blur-[0px]"
-                  : "translate-y-0 scale-100 opacity-100 blur-[0px]"
-            }`}
-          >
-
-          {/* ── Classic Grid ── */}
-          {mode === "classicGrid" && (
-            <div className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {(interactiveDemoWindows as readonly DemoWindow[]).map((item, idx) => {
-                const bars = PREVIEW_BARS[idx % PREVIEW_BARS.length];
-                const selected = idx === activeIndex;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      stopAutoPlay();
-                      setSelectedIndex(idx);
-                      trackDemoSelection("classicGrid", item.app);
-                    }}
-                    className={`group flex flex-col rounded-[22px] border p-3 text-left transition-[transform,box-shadow,border-color,background-color,opacity] duration-250 ease-out ${
-                      selected
-                        ? "-translate-y-1 scale-[1.015] border-cyan/60 bg-cyan/[0.07] shadow-[0_0_0_1px_rgba(105,214,255,0.22),0_20px_60px_rgba(4,7,15,0.45)]"
-                        : "border-white/10 bg-white/[0.03] opacity-90 hover:-translate-y-0.5 hover:border-white/18 hover:bg-white/[0.05] hover:opacity-100"
-                    }`}
-                  >
-                    {/* Thumbnail */}
-                    <div
-                      className={`relative mb-2.5 aspect-[4/3] w-full overflow-hidden rounded-[16px] border border-white/8 bg-linear-to-br/srgb ${item.accent}`}
-                    >
-                      {/* Fake title bar */}
-                      <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/60 px-2.5 py-1.5">
-                        <div className="flex gap-1">
-                          <span className="h-2 w-2 rounded-full bg-white/15" />
-                          <span className="h-2 w-2 rounded-full bg-white/15" />
-                          <span className="h-2 w-2 rounded-full bg-white/15" />
-                        </div>
-                        <span className="text-[9px] uppercase tracking-[0.18em] text-subdued">
-                          {item.app}
-                        </span>
-                        <span className="rounded-full border border-white/10 px-1.5 py-0.5 text-[8px] text-subdued">
-                          {item.pill}
-                        </span>
-                      </div>
-                      {/* Fake content */}
-                      <div className="space-y-2 px-3 pb-3 pt-3">
-                        {bars.map((w, bi) => (
-                          <div
-                            key={bi}
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            selected ? "bg-white/[0.16]" : "bg-white/[0.1]"
-                          }`}
-                          style={{ width: w }}
-                        />
-                      ))}
-                      </div>
-                    </div>
-                    {/* Label */}
-                    <p className="text-sm font-semibold tracking-[-0.02em] text-text">{item.app}</p>
-                    <p className="mt-0.5 truncate text-xs leading-5 text-muted">{item.title}</p>
-                    {selected && (
-                      <span className="mt-1.5 self-start rounded-full border border-cyan/30 bg-cyan/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.18em] text-cyan">
-                        Selected
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ── Command Palette ── */}
-          {mode === "commandPalette" && (
-            <div className="mx-auto flex h-full max-w-[560px] flex-col">
-              {/* Panel chrome */}
-              <div className="overflow-hidden rounded-[24px] border border-white/12 bg-slate-950/70 shadow-[0_24px_80px_rgba(4,7,15,0.6)]">
-                {/* Search bar */}
-                <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3">
-                  <svg
-                    width="16" height="16" viewBox="0 0 16 16" fill="none"
-                    className="shrink-0 text-white/40"
-                  >
-                    <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => {
-                      stopAutoPlay();
-                      const nextQuery = e.target.value;
-                      setQuery(nextQuery);
-                      setSelectedIndex(0);
-                      trackPaletteSearch(nextQuery, searchWindows(nextQuery).length);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "ArrowDown") { e.preventDefault(); moveSelection("next"); }
-                      else if (e.key === "ArrowUp") { e.preventDefault(); moveSelection("prev"); }
-                    }}
-                    placeholder="Type to filter…"
-                    className="flex-1 bg-transparent font-mono text-sm text-text outline-hidden placeholder:text-white/30"
-                    spellCheck={false}
-                    autoComplete="off"
-                  />
-                  {query && (
-                    <span className="shrink-0 text-[11px] font-medium text-white/35">
-                      {filteredWindows.length} result{filteredWindows.length !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                </div>
-
-                {/* Results list */}
-                <div className="max-h-[380px] overflow-y-auto p-2">
-                  {filteredWindows.length > 0 ? (
-                    filteredWindows.map((item, idx) => {
-                      const selected = idx === activeIndex;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            stopAutoPlay();
-                            setSelectedIndex(idx);
-                            trackDemoSelection("commandPalette", item.app);
-                          }}
-                          className={`flex w-full items-center gap-3 rounded-[16px] border px-3 py-2.5 text-left transition-[transform,box-shadow,border-color,background-color,opacity] duration-200 ease-out ${
-                            selected
-                              ? "translate-x-1 scale-[1.01] border-[rgba(105,214,255,0.55)] bg-[rgba(105,214,255,0.08)] shadow-[0_0_0_1px_rgba(105,214,255,0.2),0_6px_30px_rgba(105,214,255,0.12)]"
-                              : "border-transparent bg-transparent opacity-90 hover:border-white/8 hover:bg-white/[0.03] hover:opacity-100"
-                          }`}
-                        >
-                          {/* App initial avatar */}
-                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.06] text-base">
-                            {APP_ICONS[item.app] ?? item.app[0]}
-                          </div>
-                          {/* Text */}
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-semibold tracking-[-0.02em] text-text">
-                              {item.app}
-                            </p>
-                            <p className="truncate text-xs leading-5 text-muted">{item.title}</p>
-                          </div>
-                          {/* Return hint on selected */}
-                          {selected && (
-                            <span className="shrink-0 font-mono text-xs text-white/30">↵</span>
-                          )}
-                        </button>
-                      );
-                    })
-                  ) : (
-                    <div className="px-4 py-10 text-center">
-                      <p className="text-sm font-medium text-text">No matches</p>
-                      <p className="mt-1 text-xs leading-5 text-muted">
-                        Try: Claude, Spotify, VS Code…
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Radial Menu ── */}
-          {mode === "radialMenu" && (
-            <div className="flex h-full min-h-[480px] items-center justify-center">
-              <div className="relative aspect-square w-full max-w-[500px]">
-                {/* Outer ring glow */}
-                <div className="absolute inset-0 rounded-full border border-white/[0.07] bg-[radial-gradient(circle_at_center,rgba(105,214,255,0.06),transparent_50%)]" />
-                <div
-                  className="absolute h-[116px] w-[116px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan/30 bg-cyan/[0.05] shadow-[0_0_0_1px_rgba(105,214,255,0.12),0_0_80px_rgba(105,214,255,0.1)] transition-all duration-300 ease-out"
-                  style={{
-                    left: `${RADIAL_POSITIONS[activeIndex % RADIAL_POSITIONS.length]?.x ?? 50}%`,
-                    top: `${RADIAL_POSITIONS[activeIndex % RADIAL_POSITIONS.length]?.y ?? 10}%`,
-                  }}
-                />
-
-                {/* Centre hub */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="flex h-[160px] w-[160px] flex-col items-center justify-center rounded-full border border-white/12 bg-slate-950/80 p-4 text-center shadow-[0_20px_70px_rgba(4,7,15,0.7)] transition-transform duration-300 ease-out">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-cyan">
-                      Active
-                    </span>
-                    <span className="mt-2 text-xl font-semibold tracking-[-0.03em] text-text">
-                      {activeWindow.app}
-                    </span>
-                    <span className="mt-1 line-clamp-2 text-[10px] leading-4 text-muted">
-                      {activeWindow.title}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Spoke lines */}
-                {RADIAL_POSITIONS.map((pos, idx) => {
-                  const selected = idx === activeIndex;
-                  return (
-                    <div
-                      key={idx}
-                      className={`absolute h-px origin-left transition-[background-color,opacity] duration-300 ease-out ${selected ? "bg-cyan/30" : "bg-white/[0.04]"}`}
-                      style={{
-                        left: "50%",
-                        top: "50%",
-                        width: `calc(${Math.hypot(pos.x - 50, pos.y - 50)}% - 80px)`,
-                        transform: `rotate(${Math.atan2(pos.y - 50, pos.x - 50) * (180 / Math.PI)}deg)`,
-                      }}
-                    />
-                  );
-                })}
-
-                {/* Ring nodes */}
-                {(interactiveDemoWindows as readonly DemoWindow[]).slice(0, 8).map((item, idx) => {
-                  const selected = idx === activeIndex;
-                  const pos = RADIAL_POSITIONS[idx];
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        stopAutoPlay();
-                        setSelectedIndex(idx);
-                        trackDemoSelection("radialMenu", item.app);
-                      }}
-                      className={`absolute flex h-[86px] w-[86px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border text-center transition-[transform,box-shadow,border-color,background-color,opacity] duration-300 ease-out ${
-                        selected
-                          ? "scale-110 border-cyan/70 bg-cyan/[0.12] shadow-[0_0_0_1px_rgba(105,214,255,0.28),0_16px_50px_rgba(4,7,15,0.5)]"
-                          : "border-white/10 bg-white/[0.04] opacity-95 hover:scale-[1.04] hover:border-white/20 hover:bg-white/[0.07]"
-                      }`}
-                      style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                    >
-                      <span className="text-xl leading-none">{APP_ICONS[item.app] ?? item.app[0]}</span>
-                      <span className="mt-1 max-w-[60px] truncate text-[9px] font-medium uppercase tracking-[0.14em] text-subdued">
-                        {item.app.split(" ")[0]}
-                      </span>
+      <p className="text-xs leading-5 text-muted">Native profiles can use ⌘Tab or ⌥Tab with your chosen layout. In this browser: focus the switcher, use arrows, then Enter. Click a window to activate it. Escape cancels; Tab moves between controls.</p>
+    </div>
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div ref={stage} tabIndex={open ? 0 : -1} aria-label="Sample window switcher" onKeyDown={handleKeys} className="min-w-0 p-5 focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-cyan sm:p-6">
+        {!open ? <div className="flex min-h-[380px] flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-black/20 text-center"><p className="text-xs text-muted">Sample focused window</p><h4 className="text-xl text-text">{focused ? `${focused.app} · ${focused.title}` : "No focused window"}</h4>{focused && <div className="w-64 max-w-full"><SamplePreview item={focused} /></div>}<button ref={reopenButton} type="button" className={control} onClick={reopen}>Open sample switcher</button></div> : <>
+          {mode === "commandPalette" && <label className="mb-4 block text-xs text-muted">Search sample windows<input aria-label="Search sample windows" className="mt-2 block w-full rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-base text-text focus-visible:outline-2 focus-visible:outline-cyan" placeholder="App, window title, or acronym (try VS)" autoComplete="off" spellCheck={false} value={query} onChange={(event) => {
+            const value = event.target.value.slice(0, 120); setQuery(value); setSelected(0);
+            const count = rankDemoWindows(ordered, value).length;
+            const length = value.trim().length; const queryLengthBucket = length <= 2 ? "1-2" : length <= 4 ? "3-4" : "5+"; const resultsBucket = count === 0 ? "0" : count <= 2 ? "1-2" : count <= 4 ? "3-4" : "5+"; const bucket = `${queryLengthBucket}:${resultsBucket}`;
+            if (length && lastBucket.current !== bucket) { trackSiteEvent("demo_palette_search", { queryLengthBucket, resultsBucket }); lastBucket.current = bucket; }
+            if (!length) lastBucket.current = null;
+          }} /></label>}
+          {!results.length ? <p className="py-12 text-center text-muted">{windows.length ? "No matches. Try an app name, window title, or acronym." : "No sample windows remain. Reset the demo to try again."}</p>
+            : <div ref={grid} className={mode === "classicGrid" ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : mode === "radialMenu" ? "relative mx-auto aspect-square w-full max-w-[480px]" : "space-y-2"}>
+              {mode === "radialMenu" && <div className="pointer-events-none absolute inset-[34%] flex flex-col items-center justify-center rounded-full border border-white/10 bg-black/20 px-2 text-center"><p className="hidden text-xs text-muted sm:block">Selected window</p><p className="mt-1 text-xs font-semibold text-text sm:text-sm">{target?.app}</p><p className="mt-1 line-clamp-2 max-w-full break-words text-[10px] leading-tight text-muted sm:text-xs" title={target?.title}>{target?.title}</p>{target && (hiddenApps.includes(target.app) || minimized.includes(target.id)) && <p className="mt-1 text-[9px] text-cyan">{[hiddenApps.includes(target.app) && "Hidden app", minimized.includes(target.id) && "Minimized"].filter(Boolean).join(" · ")}</p>}</div>}
+              {results.map((item, index) => {
+                const status = [hiddenApps.includes(item.app) && "Hidden app", minimized.includes(item.id) && "Minimized window"].filter(Boolean).join(" · ");
+                if (mode === "radialMenu") {
+                  const position = demoRadialPosition(index, results.length);
+                  return <div key={item.id} data-demo-radial-node className="absolute aspect-square -translate-x-1/2 -translate-y-1/2" style={{ width: `max(44px, ${DEMO_RADIAL_SELECTOR_SIZE}%)`, left: `${position.x}%`, top: `${position.y}%` }}>
+                    <button data-demo-window-id={item.id} data-demo-radial-selector type="button" title={`${item.app}: ${item.title}`} aria-label={`Activate ${item.app}: ${item.title}${status ? `. ${status}` : ""}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => activate(item)} className={`absolute inset-0 flex items-center justify-center rounded-full border-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan ${index === activeIndex ? "border-cyan bg-cyan/15 shadow-[0_0_24px_rgba(105,214,255,0.15)]" : "border-white/15 bg-slate-950/80 hover:border-white/40 hover:bg-white/10"}`}>
+                      <Image data-demo-radial-icon src={`/demo-icons/${radialIcons[item.app]}.png`} width={128} height={128} alt="" aria-hidden="true" draggable={false} className="pointer-events-none h-[72%] w-[72%] object-contain" />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          </div>
-        </div>
-
-        {/* ── Right panel: context + controls ── */}
-        <div className="flex flex-col justify-between gap-5 p-5 sm:p-6">
-
-          {/* Info cards */}
-          <div className="space-y-3">
-            {/* Mode info */}
-            <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                Mode
-              </p>
-              <p className="mt-2 text-lg font-semibold tracking-[-0.03em] text-text">
-                {MODE_META[mode].label}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted">{MODE_META[mode].hint}</p>
-            </div>
-
-            {/* Current selection */}
-            <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan">
-                Selected
-              </p>
-              <div className="mt-2 flex items-center gap-2.5 transition-transform duration-300 ease-out">
-                <span className="text-2xl leading-none">{APP_ICONS[activeWindow.app] ?? activeWindow.app[0]}</span>
-                <div className="min-w-0">
-                  <p className="truncate text-base font-semibold tracking-[-0.03em] text-text">
-                    {activeWindow.app}
-                  </p>
-                  <p className="truncate text-xs leading-5 text-muted">{activeWindow.title}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Keyboard shortcut reminder */}
-            <div className="rounded-[20px] border border-white/8 bg-white/[0.02] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-subdued">
-                Real shortcut
-              </p>
-              <p className="mt-1.5 font-mono text-xl font-medium tracking-tight text-text">
-                {MODE_META[mode].kbd}
-              </p>
-            </div>
-          </div>
-
-          {/* Step controls */}
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => moveSelection("prev")}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.04] py-2.5 text-sm font-medium text-text transition hover:border-white/20 hover:bg-white/[0.08]"
-              >
-                <span className="text-xs text-subdued">←</span> Prev
-              </button>
-              <button
-                type="button"
-                onClick={() => moveSelection("next")}
-                className="flex flex-1 items-center justify-center gap-2 rounded-full border border-cyan/40 bg-cyan/[0.1] py-2.5 text-sm font-medium text-text transition hover:border-cyan/60 hover:bg-cyan/[0.16]"
-              >
-                Next <span className="text-xs text-cyan/60">→</span>
-              </button>
-            </div>
-
-            {/* Auto-play toggle */}
-            <button
-              type="button"
-              onClick={() => setAutoPlaying((v) => !v)}
-              className={`w-full rounded-full border py-2 text-xs font-medium transition ${
-                autoPlaying
-                  ? "border-white/10 bg-white/[0.04] text-subdued hover:text-muted"
-                  : "border-cyan/30 bg-cyan/[0.07] text-cyan hover:bg-cyan/[0.12]"
-              }`}
-            >
-              {autoPlaying ? "Pause auto-demo" : "Resume auto-demo"}
-            </button>
-          </div>
-        </div>
+                    <span aria-hidden="true" className={`pointer-events-none absolute left-1/2 top-full mt-1 block w-[125%] -translate-x-1/2 truncate text-center text-[10px] leading-4 sm:text-xs ${index === activeIndex ? "font-semibold text-cyan" : "text-muted"}`}>{item.app}</span>
+                  </div>;
+                }
+                return <button key={item.id} data-demo-window-id={item.id} type="button" title={`${item.app}: ${item.title}`} aria-label={`Activate ${item.app}: ${item.title}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => activate(item)} className={`w-full rounded-2xl border p-3 text-left focus-visible:outline-2 focus-visible:outline-cyan ${index === activeIndex ? "border-cyan/70 bg-cyan/10" : "border-white/10 bg-slate-950/80"}`}>
+                  {mode === "classicGrid" && <SamplePreview item={item} />}
+                  <span className="block truncate text-sm font-semibold text-text">{item.app}</span><span className="mt-1 block truncate text-xs text-muted">{item.title}</span>
+                  {status && <span className="mt-1 block text-[10px] text-cyan">{status}</span>}
+                </button>;
+              })}
+            </div>}
+        </>}
+      </div>
+      <div className="space-y-4 border-t border-white/10 p-5 lg:border-l lg:border-t-0">
+        <p className="text-xs leading-5 text-muted">Windows are ordered by recent use. The currently focused window moves to the end when you reopen. Palette search remembers close-ranked choices during this session.</p>
+        <p className="text-sm text-text">Selected: {open && target ? `${target.app} · ${target.title}` : "None"}</p>
+        {open && <><div className="flex gap-2"><button type="button" className={control} disabled={!target} onClick={() => move("ArrowLeft")}>Previous</button><button type="button" className={control} disabled={!target} onClick={() => move("ArrowRight")}>Next</button></div><button type="button" className={`${control} w-full border-cyan/40`} disabled={!target} onClick={() => target && activate(target)}>Activate selected window</button><div className="grid grid-cols-2 gap-2">{([ ["hide", "Hide app"], ["minimize", "Minimize window"], ["close", "Close window"], ["quit", "Quit app"] ] as const).map(([kind, label]) => <button key={kind} type="button" className={control} disabled={!target} onClick={() => action(kind)}>{label}</button>)}</div><p className="text-xs leading-5 text-muted">Actions affect sample windows only. Hide and quit apply to the app; minimize and close apply to one window. Native action availability depends on the app and permissions.</p></>}
+        <button type="button" className={control} onClick={reset}>Reset sample windows</button>
       </div>
     </div>
-  );
+    <p role="status" aria-live="polite" aria-atomic="true" className="border-t border-white/10 px-5 py-3 text-sm leading-6 text-muted">{announcement}</p>
+  </div>;
 }

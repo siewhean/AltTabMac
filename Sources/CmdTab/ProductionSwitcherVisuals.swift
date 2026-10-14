@@ -378,7 +378,7 @@ struct ProductionRadialMenuView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             Circle()
                 .fill(Color.white.opacity(0.03))
                 .background(
@@ -401,8 +401,7 @@ struct ProductionRadialMenuView: View {
                 let angle = itemAngle(index: entry.slot, total: visibleSlots.count)
                 ProductionRadialItem(
                     item: entry.item,
-                    isSelected: entry.slot == selectedSlot,
-                    angle: angle
+                    isSelected: entry.slot == selectedSlot
                 )
                 .position(
                     x: canvasSize / 2 + cos(angle) * ringRadius,
@@ -412,13 +411,14 @@ struct ProductionRadialMenuView: View {
                     viewModel.hoveredIndex = hovering ? entry.index : nil
                 }
             }
-
+        }
+        .frame(width: canvasSize, height: canvasSize)
+        .overlay(alignment: .bottomTrailing) {
             WorkspaceCapabilityBanner(
                 status: ProductionCapabilitySummary.worstStatus(in: viewModel.items)
             )
             .padding(18)
         }
-        .frame(width: canvasSize, height: canvasSize)
         .animation(.spring(response: 0.24, dampingFraction: 0.84), value: visibleSlots.map(\.item.id))
     }
 
@@ -456,51 +456,53 @@ struct ProductionRadialMenuView: View {
 private struct ProductionRadialItem: View {
     let item: SwitcherItem
     let isSelected: Bool
-    let angle: Double
 
     var body: some View {
-        VStack(spacing: 5) {
-            ZStack(alignment: .topTrailing) {
-                Circle()
-                    .fill(
-                        isSelected
-                            ? Color(red: 0.18, green: 0.38, blue: 0.82).opacity(0.38)
-                            : Color.white.opacity(0.08)
+        // The selector is the positioned view. Its label is an overlay so title
+        // length and font metrics cannot shift the icon away from the ring slot.
+        ZStack {
+            Circle()
+                .fill(
+                    isSelected
+                        ? Color(red: 0.18, green: 0.38, blue: 0.82).opacity(0.38)
+                        : Color.white.opacity(0.08)
+                )
+                .frame(width: 84, height: 84)
+                .overlay(
+                    Circle().strokeBorder(
+                        isSelected ? Color(red: 0.26, green: 0.58, blue: 1.0) : .white.opacity(0.14),
+                        lineWidth: isSelected ? 3.5 : 1
                     )
-                    .frame(width: 70, height: 70)
-                    .overlay(
-                        Circle().strokeBorder(
-                            isSelected ? Color(red: 0.26, green: 0.58, blue: 1.0) : .white.opacity(0.14),
-                            lineWidth: isSelected ? 3.5 : 1
-                        )
-                    )
-                    .shadow(
-                        color: isSelected ? Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.72) : .clear,
-                        radius: isSelected ? 34 : 0
-                    )
+                )
+                .shadow(
+                    color: isSelected ? Color(red: 0.19, green: 0.52, blue: 1.0).opacity(0.72) : .clear,
+                    radius: isSelected ? 34 : 0
+                )
 
-                Group {
-                    if let icon = item.icon {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .interpolation(.high)
-                    } else {
-                        Image(systemName: "app.fill")
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
+            Group {
+                if let icon = item.icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                } else {
+                    Image(systemName: "app.fill")
+                        .resizable()
+                        .scaledToFit()
+                        .foregroundStyle(.white.opacity(0.4))
                 }
-                .frame(width: 42, height: 42)
-                .position(x: 35, y: 35)
-
             }
-            .frame(width: 84, height: 76)
-            .scaleEffect(isSelected ? 1.16 : 1.0)
-
+            .frame(width: 52, height: 52)
+        }
+        .frame(width: 84, height: 84)
+        .scaleEffect(isSelected ? 1.08 : 1.0, anchor: .center)
+        .overlay(alignment: .bottom) {
             Text(item.title)
                 .font(.system(size: 10, weight: isSelected ? .semibold : .regular, design: .rounded))
                 .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.60))
                 .lineLimit(1)
-                .frame(width: 92)
+                .frame(width: 112)
+                .offset(y: 22)
         }
         .accessibilityElement(children: .combine)
         .accessibilityValue(productionAccessibilityState(for: item))
