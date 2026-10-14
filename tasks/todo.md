@@ -1,3 +1,11 @@
+## 2026-10-15 — Release-status docs refresh
+
+- [x] `docs/release/current-implementation-status.md`: date fixed; PRs #110, #111, #112 and Dependabot #93/#97 (merged) and #98 (open) recorded.
+- [x] `docs/release/public-beta-release-matrix.md`: CI on `main` marked PASS (hosted) with run IDs; release-candidate CI and every signing, notarization, update, device, performance and accessibility gate left UNPROVEN.
+- [x] README progress entry and `Last updated` date; Neon project move ticked below.
+
+Review: docs-only change; no code, tests or builds run (disk nearly full). Facts checked with `gh pr view` and `gh run list` on 2026-10-15. SEO and GEO and Release Readiness for `084ebfe1` were still in progress at write time. Neon history retention remains open.
+
 ## 2026-10-11 — Dashboard login (Auth0) and Resend account
 
 - [x] CmdTab-only Auth0 tenant `cmdtab.us.auth0.com`: dashboard app, email/password only, sign-ups off, TOTP MFA always, owner subject set in Vercel.
@@ -25,7 +33,7 @@ Details: `docs/operations/database-backups.md`.
 - [x] Nightly `pg_dump` workflow to S3 via GitHub OIDC with a read-only `cmdtab_backup` role and an upload-only AWS role.
 - [x] First run uploaded a dump; it restored into a fresh database with all 102 tables matching live.
 - [ ] Neon history retention is only 6 hours; consider a paid plan.
-- [ ] `neondb` is shared with Matchday; move CmdTab to its own Neon project.
+- [x] `neondb` is shared with Matchday; move CmdTab to its own Neon project. (Done 2026-10-11: project `sparkling-surf-15506179`, database `cmdtab`, nightly S3 backups verified; see the section above.)
 
 Details: `docs/operations/database-backups.md`.
 
