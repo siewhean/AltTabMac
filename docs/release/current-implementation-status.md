@@ -59,8 +59,19 @@ results are recorded in `tasks/todo.md` before push.
 - October marketing posts and reel, recompressed logo, and `.playwright-mcp`
   added to `.gitignore` (PR #111).
 - Dependabot: `actions/setup-node` 4.4.0 → 7.1.0 (PR #93) and `postgres`
-  3.4.8 → 3.4.9 (PR #97) merged on 2026-10-14; `zod` 4.3.6 → 4.6.6 (PR #98)
-  is still open as of 2026-10-15.
+  3.4.8 → 3.4.9 (PR #97) merged on 2026-10-14. Also merged on 2026-10-14:
+  `zod` 4.3.6 → 4.6.6 (PR #98, `5e0782bd`), `@vercel/oidc` 3.8.10 → 4.0.0
+  (PR #95), `actions/upload-artifact` 4.6.2 → 7.0.2 (PR #94) and
+  `actions/checkout` 4.4.0 → 7.0.1 (PR #42). The `@types/node` 26 (PR #96)
+  and `typescript` 7 (PR #99) majors were closed unmerged; PR #116 makes
+  Dependabot ignore major bumps for both.
+- Privacy manifest (`Resources/PrivacyInfo.xcprivacy`, checked by
+  `scripts/release/verify-privacy-manifest.py`) and the `/help` 200%-zoom
+  overflow fix (PR #115). The same wrapping fix now covers `/waitlist` and the
+  waitlist success panel.
+- `marketing/12-organic-distribution-test-2026-10-15.md` (PR #114).
+- The `release/public-release-readiness` branch was deleted and archived as
+  tag `archive/release-public-release-readiness`.
 
 Hosted CI on `main`: Security, Swift (macOS 14 and 15 plus deterministic
 release configuration), SEO and GEO, and Release Readiness all succeeded on

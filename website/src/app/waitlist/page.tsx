@@ -31,6 +31,9 @@ export const metadata = createPageMetadata({
   path: "/waitlist",
   imageAlt: "Join the CmdTab private beta waitlist",
 });
+// Button's base class sets `whitespace-nowrap`, which Tailwind v4 emits after
+// `whitespace-normal`; the important modifier lets labels wrap at high zoom.
+const wrappingButton = "whitespace-normal! text-center";
 
 export default function WaitlistPage() {
   // When a signed build is published, the same page offers the download.
@@ -54,7 +57,7 @@ export default function WaitlistPage() {
         }
         className="pt-14"
       >
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           {/* The form leads on small screens: one goal per page, no competing buttons. */}
           <MotionReveal direction="right" className="surface-panel order-1 min-w-0 p-6 sm:p-8 xl:order-2">
             <p className="type-eyebrow text-cyan">{release ? "Or join the list" : "Save your spot"}</p>
@@ -91,7 +94,7 @@ export default function WaitlistPage() {
               <Button
                 href="/#demo"
                 variant="secondary"
-                className="w-full whitespace-normal text-center text-xs sm:w-auto"
+                className={`w-full text-xs sm:w-auto ${wrappingButton}`}
                 {...analyticsAttributes("waitlist_page_demo_click", "waitlist_page")}
               >
                 Try the switcher in your browser
@@ -109,7 +112,7 @@ export default function WaitlistPage() {
                   href={release.dmgURL}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full text-xs"
+                  className={`w-full text-xs ${wrappingButton}`}
                   {...analyticsAttributes("waitlist_page_download_click", "waitlist_page")}
                 >
                   Download CmdTab {release.version} (.dmg)
