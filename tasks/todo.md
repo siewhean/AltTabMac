@@ -1,3 +1,10 @@
+## 2026-10-15 — Waitlist zoom fix and merge record
+
+- [x] `/waitlist` and waitlist success panel: single-column grid default and `whitespace-normal!` on Button labels (same pattern as #115 on `/help`), so labels wrap at 200%/400% zoom.
+- [x] Release docs: #98 recorded as merged (`5e0782bd`); #95, #94, #42 merged; #96/#99 closed; #116, #115, #114 and the `archive/release-public-release-readiness` tag recorded.
+
+Review: compiled Tailwind 4.3.3 confirms plain `whitespace-normal` is emitted before `whitespace-nowrap` (loses) while `whitespace-normal!` is `!important`; `grid-cols-1` is `minmax(0, 1fr)`. No local browser run (disk nearly full); CI `browser:check` covers `/waitlist` at 640px and 320px. PR states checked with `gh pr view`.
+
 ## 2026-10-15 — Release-status docs refresh
 
 - [x] `docs/release/current-implementation-status.md`: date fixed; PRs #110, #111, #112 and Dependabot #93/#97 (merged) and #98 (open) recorded.
