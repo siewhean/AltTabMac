@@ -1,5 +1,7 @@
 # CmdTab
 
+Release docs refresh (2026-10-15): demo app-parity merged in #110, `security.txt` points to `cmdtab.net` (#112), October marketing assets and the `.playwright-mcp` ignore merged (#111). Dependabot `setup-node` (#93) and `postgres` (#97) bumps merged; `zod` (#98) is still open. Hosted CI on `main` is green (Security, Swift on macOS 14 and 15, SEO and GEO, Release Readiness on `52462b10` and later merges; nightly database backup succeeding), recorded in [`docs/release/public-beta-release-matrix.md`](docs/release/public-beta-release-matrix.md). Developer ID signing, notarization, Sparkle keys in CI, appcast publication, clean-account install, N→N+1 update, device matrix and performance/accessibility receipts remain open.
+
 Demo app-parity update (2026-10-14, `feat/demo-app-parity`): the website demo now matches the app on quick-action keys (H/M/W bare or with ⌘, bare Q ignored, none in Command Palette; ⌘ shortcuts left to the browser so Quit is button-only), hides minimized windows unless "Include minimized windows" is on (default off), ports `RadialMenuViewportState` so the ten-window demo scrolls past eight radial slots, states that palette memory persists across launches in the app but not in the demo, and adds a hold-to-show hint. Palette ranking was confirmed to be a direct port of `PaletteSearch.swift`. Local: typecheck, unit suites (104 + 14 + 27; 3 PostgreSQL store tests skipped with no DB), prebuild source/security/SEO checks, webpack production build and `demo:check` interactions on three profiles pass (screenshots not written: disk full). Hosted CI and production publication pending. Details: [`docs/qa/interactive-demo-fidelity.md`](docs/qa/interactive-demo-fidelity.md).
 
 Local-test recovery (2026-10-14): the initial radial local-QA bundle used Release configuration without public verification keyrings, whereas the installed developer app used a saved DEBUG test-activation scenario. The installed build was restored. Unknown signing keys now preserve saved entitlements without granting access; 430 XCTest plus 2 Swift Testing tests pass. A separate Debug radial test bundle retains the installed public keyrings and existing developer settings. It is not a production release; live shortcut confirmation remains pending.
@@ -26,7 +28,7 @@ Latest reported Swift result: 425 tests pass and `swift build -c release` passes
 - Paid licensing needs an app release that contains #65; older builds reject leased tokens. Commerce remains disabled (`commerceEnabled: false`).
 - Device acceptance requires the user: #69 is not yet checked on real multi-display hardware, and the dedicated-thread event-tap build installed at `~/Applications/CmdTab.app` launches but its live tap behaviour awaits a permission re-grant ([tasks/todo.md](tasks/todo.md), Step 1b). Developer ID signing and notarization remain release gates (see [Production-readiness plan](#production-readiness-plan)).
 
-Last updated: 2026-10-10
+Last updated: 2026-10-15
 Active task: none in progress in the repository. Next steps are the user-run device checks and deploy configuration above. Earlier device results are condensed in [Device acceptance history](#device-acceptance-history).
 
 P-1 audit (2026-09-09):

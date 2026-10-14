@@ -1,6 +1,6 @@
 # Public-beta release matrix
 
-Last reviewed: 2026-09-09
+Last reviewed: 2026-10-15
 
 CmdTab remains **BLOCKED**. This matrix is fail-closed: source checks do not
 replace signed-artifact or physical-Mac evidence.
@@ -34,7 +34,8 @@ replace signed-artifact or physical-Mac evidence.
 | Hardened Runtime | UNPROVEN | Enforced for release packaging; no accepted signed artifact supplied. |
 | Notarization | UNPROVEN | No `CmdTabNotary` Keychain profile; requires accepted `notarytool` receipt and stapling validation. |
 | Gatekeeper | UNPROVEN | Requires clean-account DMG installation assessment. |
-| CI | UNPROVEN | No CmdTab workflow ran for the candidate SHA; unrelated Dependabot and historical-branch runs are not evidence. |
+| CI on `main` | PASS (hosted) | 2026-10-14 on `52462b10`: Security 38528443164, Swift 38528443181 (macos-14, macos-15, deterministic release configuration), SEO and GEO 38528443163, Release Readiness 38528443171, all success. Later merges also green (e.g. `3e03270d`: 38601011094, 38601011061, 38601011102). Nightly database backup succeeding (latest 38483214973). |
+| CI for release candidate | UNPROVEN | No signed release-candidate SHA exists yet; that exact commit still needs its own successful hosted run. |
 
 ## Required external receipts
 
