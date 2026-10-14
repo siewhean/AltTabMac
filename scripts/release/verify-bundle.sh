@@ -32,6 +32,8 @@ ICON_FILE="$(python3 "${CONFIG_TOOL}" get iconFile)"
 INFO_PATH="${APP_PATH}/Contents/Info.plist"
 EXECUTABLE_PATH="${APP_PATH}/Contents/MacOS/${EXECUTABLE_NAME}"
 ICON_PATH="${APP_PATH}/Contents/Resources/${ICON_FILE}.icns"
+PRIVACY_MANIFEST_PATH="${APP_PATH}/Contents/Resources/PrivacyInfo.xcprivacy"
+PRIVACY_MANIFEST_VERIFIER="${ROOT_DIR}/scripts/release/verify-privacy-manifest.py"
 SPARKLE_FRAMEWORK="${APP_PATH}/Contents/Frameworks/Sparkle.framework"
 
 [[ "$(basename "${APP_PATH}")" == "${APP_NAME}.app" ]] || {
@@ -44,6 +46,10 @@ SPARKLE_FRAMEWORK="${APP_PATH}/Contents/Frameworks/Sparkle.framework"
   exit 1
 }
 [[ -f "${ICON_PATH}" ]] || { echo "Missing app icon: ${ICON_PATH}" >&2; exit 1; }
+[[ -f "${PRIVACY_MANIFEST_PATH}" ]] || {
+  echo "Missing PrivacyInfo.xcprivacy: ${PRIVACY_MANIFEST_PATH}" >&2
+  exit 1
+}
 [[ -d "${SPARKLE_FRAMEWORK}" ]] || {
   echo "Missing embedded Sparkle.framework" >&2
   exit 1
@@ -51,6 +57,7 @@ SPARKLE_FRAMEWORK="${APP_PATH}/Contents/Frameworks/Sparkle.framework"
 
 plutil -lint "${INFO_PATH}" >/dev/null
 python3 "${CONFIG_TOOL}" verify-info-plist "${INFO_PATH}"
+python3 "${PRIVACY_MANIFEST_VERIFIER}" "${PRIVACY_MANIFEST_PATH}"
 
 if [[ -n "$(find "${APP_PATH}" -type l ! -path "${SPARKLE_FRAMEWORK}/*" -print -quit)" ]]; then
   echo "App bundle contains a symbolic link outside Sparkle.framework." >&2

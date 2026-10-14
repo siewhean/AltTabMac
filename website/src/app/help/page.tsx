@@ -24,6 +24,9 @@ const breadcrumbs = [
   { name: "Home", path: "/" as const },
   { name: "Help", path: "/help" as const },
 ];
+// Button's base class sets `whitespace-nowrap`, which Tailwind v4 emits after
+// `whitespace-normal`; the important modifier lets labels wrap at high zoom.
+const wrappingButton = "whitespace-normal! text-center";
 
 export const metadata = createPageMetadata({
   title,
@@ -59,8 +62,8 @@ export default function HelpPage() {
           <LastReviewed date={productFacts.reviewedAt} />
           <p className="text-sm text-subdued">Current documented version: {productFacts.currentVersion}</p>
         </div>
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <MotionReveal direction="left" className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <MotionReveal direction="left" className="min-w-0 space-y-6">
             <HelpJourney />
 
             <div className="surface-panel p-6">
@@ -75,18 +78,24 @@ export default function HelpPage() {
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 border-t border-white/8 pt-4">
-                  <Button href="/permissions" variant="secondary">
+                  <Button href="/permissions" variant="secondary" className={wrappingButton}>
                     Diagnose permissions
                   </Button>
-                  <Button href="/faq" variant="secondary">
+                  <Button href="/faq" variant="secondary" className={wrappingButton}>
                     Read common answers
                   </Button>
-                  <Button href="/waitlist" variant="secondary" {...analyticsAttributes("help_page_waitlist_click", "help_page")}>
+                  <Button
+                    href="/waitlist"
+                    variant="secondary"
+                    className={wrappingButton}
+                    {...analyticsAttributes("help_page_waitlist_click", "help_page")}
+                  >
                     Join the beta list
                   </Button>
                   {commerce.licensePortalUrl ? (
                     <Button
                       href={commerce.licensePortalUrl}
+                      className={wrappingButton}
                       target="_blank"
                       rel="noreferrer"
                       {...analyticsAttributes("help_page_portal_click", "help_page")}
@@ -99,7 +108,7 @@ export default function HelpPage() {
             </div>
           </MotionReveal>
 
-          <MotionReveal direction="right" delay={120}>
+          <MotionReveal direction="right" delay={120} className="min-w-0">
             <LicenseRequestForm />
           </MotionReveal>
         </div>
