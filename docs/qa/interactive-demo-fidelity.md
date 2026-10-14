@@ -1,5 +1,28 @@
 # Interactive demo fidelity
 
+## Radial alignment follow-up (2026-10-14)
+
+Both the native view and browser demo were corrected. Native selectors use an
+84-point square with a centred, aspect-preserving 52-point icon; a bottom label
+overlay does not alter the positioned selector's centre. The capability banner
+has its own bottom-right overlay, leaving the hub centred.
+
+Browser selectors share evenly spaced polar coordinates, contain centred icons,
+and place app labels outside the selector. PNG icons are local AppKit exports
+from the installed Finder, Claude, Visual Studio Code, PDFgear, and Calendar app
+icons; they are illustrative assets, not live window captures.
+
+PASS: 428 XCTest plus 2 Swift Testing tests, including rendered four-cardinal
+selector/icon centroid, icon size and aspect-ratio regressions. Website groups
+93 + 14 and 27 licensing tests pass; three unrelated PostgreSQL store tests were
+skipped locally. Production build and Chrome profiles at 1440, 390, and 320px pass:
+icon-to-selector centre error below 0.5px, non-overlapping selectors, keyboard
+and action behavior, reduced motion, and no browser exceptions. Independent QA
+and hosted CI receipts are retained outside source.
+
+The installed app has not been replaced; physical-device acceptance and website
+production publication remain pending. The native rotating inventory is unchanged.
+
 Native reference: tracked `main` at `ce04adecefbe0c7e4f47cd76991850ecf72678f8`.
 The website uses sample data and browser controls; it cannot intercept macOS global
 shortcuts, capture live windows, or manipulate real applications.

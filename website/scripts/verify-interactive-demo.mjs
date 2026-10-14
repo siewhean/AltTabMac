@@ -177,6 +177,8 @@ try {
     await check(`${name}: cancelled stage cannot activate`, `document.querySelector('[data-demo] [role=status]').textContent.includes('Cancelled')`);
     await click('Reset sample windows'); await click('Radial Menu');
     await check(`${name}: radial eight slots`, `document.querySelectorAll('[data-demo-window-id]').length===8`);
+    await check(`${name}: centered icons and selectors`, `(()=>{const nodes=[...document.querySelectorAll('[data-demo-radial-selector]')];return nodes.length===8&&nodes.every(n=>{const b=n.getBoundingClientRect(),i=n.querySelector('img').getBoundingClientRect();return Math.abs(b.x+b.width/2-i.x-i.width/2)<0.5&&Math.abs(b.y+b.height/2-i.y-i.height/2)<0.5&&b.width>=44&&i.width>=b.width*0.65&&i.width<b.width})})()`);
+    await check(`${name}: ring selectors do not overlap`, `(()=>{const a=[...document.querySelectorAll('[data-demo-radial-selector]')].map(n=>n.getBoundingClientRect());return a.every((b,j)=>a.slice(j+1).every(c=>Math.hypot(b.x+b.width/2-c.x-c.width/2,b.y+b.height/2-c.y-c.height/2)>(b.width+c.width)/2))})()`);
     await evaluate(`document.querySelector('[aria-label="Sample window switcher"]').scrollIntoView({block:'start'})`);
     await check(`${name}: no horizontal overflow`, `document.documentElement.scrollWidth<=${width}+1`);
     await check(`${name}: no animation`, `[...document.querySelectorAll('[data-demo] *')].every(e=>getComputedStyle(e).animationName==='none')`);

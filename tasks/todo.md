@@ -491,3 +491,10 @@ Review (1b): 407 XCTest + 2 Swift Testing; only the known host-permission-depend
 
 Scope excludes native behavior, waitlist/email flows, dependencies, and production deployment.
 Use a dedicated branch based on `ce04adec`; rollback is reverting the demo change.
+## 2026-10-14 — Radial icons and selector alignment
+
+- [x] Identify native centre-stack and icon/title anchor mismatches; inspect website selector geometry.
+- [x] Enlarge and centre native icons; separate labels and capability banner from positioned geometry.
+- [x] Add larger browser app icons and evenly spaced circular selectors; preserve interaction behavior.
+- [x] Pass rendered native geometry, full Swift suite, website model tests, production build, and browser centre/overlap checks at 1440, 390, and 320 pixels.
+- [ ] Complete final exact-head CI. Installed native app and production website publication remain pending.

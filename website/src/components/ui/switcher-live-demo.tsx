@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import { demoRadialPosition, DEMO_RADIAL_SELECTOR_SIZE } from "@/lib/demo-radial-layout";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { interactiveDemoWindows } from "@/content/home";
 import { activateDemoWindow, navigateDemo, normalizedDemoQuery, orderDemoWindows, rankDemoWindows, removeDemoTarget, type DemoMode, type DemoWindow } from "@/lib/demo-switcher-model";
@@ -10,6 +12,7 @@ const MODES: { id: DemoMode; label: string }[] = [
   { id: "commandPalette", label: "Command Palette" },
   { id: "radialMenu", label: "Radial Menu" },
 ];
+const radialIcons: Record<string, string> = { Finder: "finder", Claude: "claude", "VS Code": "vscode", PDFGear: "pdfgear", Calendar: "calendar" };
 const control = "min-h-10 rounded-xl border border-white/15 px-3 py-2 text-sm text-text hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan disabled:opacity-40";
 
 function SamplePreview({ item }: { item: DemoWindow }) {
@@ -116,13 +119,22 @@ export function SwitcherLiveDemo() {
           }} /></label>}
           {!results.length ? <p className="py-12 text-center text-muted">{windows.length ? "No matches. Try an app name, window title, or acronym." : "No sample windows remain. Reset the demo to try again."}</p>
             : <div ref={grid} className={mode === "classicGrid" ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : mode === "radialMenu" ? "relative mx-auto aspect-square w-full max-w-[480px]" : "space-y-2"}>
-              {mode === "radialMenu" && <div className="pointer-events-none absolute inset-[20%] flex flex-col items-center justify-center rounded-full border border-white/10 px-2 text-center sm:px-8"><p className="text-xs text-muted">Selected window</p><p className="mt-2 text-sm text-text">{target?.app}</p><p className="mt-1 max-w-full truncate text-xs text-muted" title={target?.title}>{target?.title}</p></div>}
+              {mode === "radialMenu" && <div className="pointer-events-none absolute inset-[34%] flex flex-col items-center justify-center rounded-full border border-white/10 bg-black/20 px-2 text-center"><p className="hidden text-xs text-muted sm:block">Selected window</p><p className="mt-1 text-xs font-semibold text-text sm:text-sm">{target?.app}</p><p className="mt-1 line-clamp-2 max-w-full break-words text-[10px] leading-tight text-muted sm:text-xs" title={target?.title}>{target?.title}</p>{target && (hiddenApps.includes(target.app) || minimized.includes(target.id)) && <p className="mt-1 text-[9px] text-cyan">{[hiddenApps.includes(target.app) && "Hidden app", minimized.includes(target.id) && "Minimized"].filter(Boolean).join(" · ")}</p>}</div>}
               {results.map((item, index) => {
-                const angle = index * 2 * Math.PI / results.length - Math.PI / 2;
-                return <button key={item.id} data-demo-window-id={item.id} type="button" title={`${item.app}: ${item.title}`} aria-label={`Activate ${item.app}: ${item.title}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => activate(item)} className={`${mode === "radialMenu" ? "absolute w-[22%] -translate-x-1/2 -translate-y-1/2 rounded-2xl p-2" : "w-full rounded-2xl p-3"} border text-left focus-visible:outline-2 focus-visible:outline-cyan ${index === activeIndex ? "border-cyan/70 bg-cyan/10" : "border-white/10 bg-slate-950/80"}`} style={mode === "radialMenu" ? { left: `${50 + Math.cos(angle) * 38}%`, top: `${50 + Math.sin(angle) * 38}%` } : undefined}>
+                const status = [hiddenApps.includes(item.app) && "Hidden app", minimized.includes(item.id) && "Minimized window"].filter(Boolean).join(" · ");
+                if (mode === "radialMenu") {
+                  const position = demoRadialPosition(index, results.length);
+                  return <div key={item.id} data-demo-radial-node className="absolute aspect-square -translate-x-1/2 -translate-y-1/2" style={{ width: `max(44px, ${DEMO_RADIAL_SELECTOR_SIZE}%)`, left: `${position.x}%`, top: `${position.y}%` }}>
+                    <button data-demo-window-id={item.id} data-demo-radial-selector type="button" title={`${item.app}: ${item.title}`} aria-label={`Activate ${item.app}: ${item.title}${status ? `. ${status}` : ""}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => activate(item)} className={`absolute inset-0 flex items-center justify-center rounded-full border-2 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan ${index === activeIndex ? "border-cyan bg-cyan/15 shadow-[0_0_24px_rgba(105,214,255,0.15)]" : "border-white/15 bg-slate-950/80 hover:border-white/40 hover:bg-white/10"}`}>
+                      <Image data-demo-radial-icon src={`/demo-icons/${radialIcons[item.app]}.png`} width={128} height={128} alt="" aria-hidden="true" draggable={false} className="pointer-events-none h-[72%] w-[72%] object-contain" />
+                    </button>
+                    <span aria-hidden="true" className={`pointer-events-none absolute left-1/2 top-full mt-1 block w-[125%] -translate-x-1/2 truncate text-center text-[10px] leading-4 sm:text-xs ${index === activeIndex ? "font-semibold text-cyan" : "text-muted"}`}>{item.app}</span>
+                  </div>;
+                }
+                return <button key={item.id} data-demo-window-id={item.id} type="button" title={`${item.app}: ${item.title}`} aria-label={`Activate ${item.app}: ${item.title}`} aria-current={index === activeIndex ? "true" : undefined} onClick={() => activate(item)} className={`w-full rounded-2xl border p-3 text-left focus-visible:outline-2 focus-visible:outline-cyan ${index === activeIndex ? "border-cyan/70 bg-cyan/10" : "border-white/10 bg-slate-950/80"}`}>
                   {mode === "classicGrid" && <SamplePreview item={item} />}
                   <span className="block truncate text-sm font-semibold text-text">{item.app}</span><span className="mt-1 block truncate text-xs text-muted">{item.title}</span>
-                  {(hiddenApps.includes(item.app) || minimized.includes(item.id)) && <span className="mt-1 block text-[10px] text-cyan">{[hiddenApps.includes(item.app) && "Hidden app", minimized.includes(item.id) && "Minimized window"].filter(Boolean).join(" · ")}</span>}
+                  {status && <span className="mt-1 block text-[10px] text-cyan">{status}</span>}
                 </button>;
               })}
             </div>}
