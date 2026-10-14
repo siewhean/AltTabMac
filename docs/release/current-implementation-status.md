@@ -1,6 +1,6 @@
 # CmdTab Native Release — Current Implementation Status
 
-**Updated:** 2026-07-27
+**Updated:** 2026-10-15
 **Canonical long-form plan:** `docs/release/native-production-readiness-plan.md`  
 **Implementation branch:** `codex/implementation-plan-phase1`
 **Base:** `origin/main@5a2b2ff7a68b5d901824f2c04933b8b5e54d2d2a`
@@ -44,6 +44,30 @@ TypeScript/build/browser verification, zero
 moderate dependency vulnerabilities, and release/update/performance harness
 tests. Final package/reproducibility and independent integration/security
 results are recorded in `tasks/todo.md` before push.
+
+## Recent merges (2026-10-14 to 2026-10-15)
+
+- Interactive website demo app-parity (PR #110): H/M/W quick keys in Grid and
+  Radial; Quit (⌘Q) is button-only because ⌘ shortcuts stay with the browser;
+  minimized windows are hidden by default behind an "Include minimized
+  windows" toggle; the radial view scrolls past eight slots using the app's
+  viewport logic (`RadialMenuViewportState`); palette-memory copy now says
+  memory persists across launches in the app but not in the demo; a
+  hold-to-show hint notes the ~200 ms reveal delay. Details:
+  `docs/qa/interactive-demo-fidelity.md`.
+- `security.txt` now points to `cmdtab.net` (PR #112).
+- October marketing posts and reel, recompressed logo, and `.playwright-mcp`
+  added to `.gitignore` (PR #111).
+- Dependabot: `actions/setup-node` 4.4.0 → 7.1.0 (PR #93) and `postgres`
+  3.4.8 → 3.4.9 (PR #97) merged on 2026-10-14; `zod` 4.3.6 → 4.6.6 (PR #98)
+  is still open as of 2026-10-15.
+
+Hosted CI on `main`: Security, Swift (macOS 14 and 15 plus deterministic
+release configuration), SEO and GEO, and Release Readiness all succeeded on
+`52462b10` (2026-10-14, runs 38528443164, 38528443181, 38528443163,
+38528443171); later merges passed Security, SEO and GEO, and Release Readiness
+(for example `3e03270d`). The nightly database backup workflow succeeded on its three most recent
+runs (38182233318, 38331701445, 38483214973; latest 2026-10-13 23:16 UTC). None of this is a release-candidate run.
 
 ## Release truth
 
