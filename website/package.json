@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-kms": "^3.1148.0",
-    "@aws-sdk/credential-providers": "^3.1148.0",
+    "@aws-sdk/credential-providers": "^3.1149.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/oidc": "^4.0.0",
     "@vercel/speed-insights": "^2.0.0",
