@@ -46,3 +46,6 @@ __pycache__/
 
 # Local website build copies (never served)
 website/public/_build/
+
+# Playwright MCP session artifacts (local only)
+.playwright-mcp/
