@@ -17,6 +17,9 @@ Until 11 October 2026 CmdTab shared database `neondb` in project
 | Neon point-in-time history | **6 hours** (current Neon plan) | Create a branch from a past timestamp (below) |
 | Nightly logical dump to S3 | **35 days** | Download a dump and `pg_restore` it (below) |
 
+Rows removed by the daily 90-day retention purge stay in these dumps for up to
+35 more days; see [data-retention.md](data-retention.md).
+
 ### Nightly dump
 
 `.github/workflows/db-backup.yml` runs daily at 19:17 UTC (03:17 Singapore) and

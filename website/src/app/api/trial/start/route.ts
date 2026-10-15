@@ -105,16 +105,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // A claim anonymised by the retention purge has no email. Shipped apps
+    // decode `claim.email` as a required string, so stand in the same
+    // placeholder subject an anonymous trial would have used.
+    const claim = {
+      ...result.claim,
+      email: result.claim.email ?? anonymousTrialSubject(result.claim.installId),
+    };
+
     const entitlement = await issueCmdTabTokenV2({
       signer: getTrialTokenSigner(),
       typ: "trial",
-      subjectIdentifier: result.claim.email,
-      orderIdentifier: result.claim.id,
+      subjectIdentifier: claim.email,
+      orderIdentifier: claim.id,
       binding: {
         typ: "install",
-        value: result.claim.installId,
+        value: claim.installId,
       },
-      issuedAt: new Date(result.claim.startedAt),
+      issuedAt: new Date(claim.startedAt),
     });
 
     let notificationDelivered = false;
@@ -122,8 +130,8 @@ export async function POST(request: Request) {
       try {
         await sendTrialStartedEmail({
           email: contactEmail,
-          startedAt: result.claim.startedAt,
-          endsAt: result.claim.endsAt,
+          startedAt: claim.startedAt,
+          endsAt: claim.endsAt,
         });
         notificationDelivered = true;
       } catch (error) {
@@ -136,7 +144,7 @@ export async function POST(request: Request) {
       alreadyRegistered: result.kind === "existing",
       anonymous: !contactEmail,
       notificationDelivered,
-      claim: result.claim,
+      claim,
       entitlementToken: entitlement.token,
       serverTime: new Date().toISOString(),
     });

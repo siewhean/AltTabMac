@@ -17,6 +17,7 @@
   "files": [
     "support/route-alias.ts",
     "licensing-routes.test.ts",
-    "licensing-stores.pg.test.ts"
+    "licensing-stores.pg.test.ts",
+    "retention-purge.pg.test.ts"
   ]
 }
