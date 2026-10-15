@@ -84,6 +84,17 @@ jobs:
         run: npm run seo:check
       - name: Typecheck
         run: npm run typecheck
+      # Store SQL (licensing, trial claims, retention purge) against a
+      # separate database on the same service, so test rows never reach the
+      # database the production server uses below.
+      - name: Run PostgreSQL store tests
+        env:
+          PGPASSWORD: cmdtab-ci
+          CMDTAB_TEST_DATABASE_URL: postgres://cmdtab:cmdtab-ci@127.0.0.1:5432/cmdtab_store_tests
+        run: |
+          psql --host 127.0.0.1 --username cmdtab --dbname cmdtab_ci \
+            --command "create database cmdtab_store_tests"
+          npm run test:licensing
       - name: Build production website
         run: npx next build --webpack
       - name: Start production server

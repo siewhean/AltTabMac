@@ -68,6 +68,27 @@ assert.match(
   "outbox worker must return before database access while commerce is disabled",
 );
 
+// Data retention purge: Vercel Cron GET, fails closed without a strong
+// CRON_SECRET, scheduled daily, and never anonymises or deletes waitlist rows.
+const retentionRoute = read("src/app/api/internal/retention-purge/route.ts");
+assert.match(retentionRoute, /export async function GET\(request: Request\)/);
+assert.doesNotMatch(retentionRoute, /export async function POST/);
+assert.match(
+  retentionRoute,
+  /isAuthorizedInternalWorker\(\s*request,\s*optionalStrongInternalSecret\(process\.env\.CRON_SECRET\)/,
+);
+assert.match(retentionRoute, /status: 401/);
+const retentionPurge = read("src/lib/retention-purge.ts");
+assert.match(retentionPurge, /export const RETENTION_DAYS = 90;/);
+assert.match(retentionPurge, /anonymized_at is null and ends_at < /);
+assert.doesNotMatch(retentionPurge, /waitlist_signups/, "waitlist signups are out of retention scope");
+assert.doesNotMatch(
+  retentionPurge,
+  /delete from trial_claims/,
+  "trial claims are anonymised, never deleted, so they keep blocking repeat trials",
+);
+assert.match(read("db/migrations/002_data_retention.sql"), /alter column email drop not null/);
+
 const commerce = read("src/lib/commerce.ts");
 assert.match(commerce, /import \{ isCommerceLaunchEnabled \} from "\.\/env(?:\.js)?"/);
 assert.match(commerce, /const launchEnabled = isCommerceLaunchEnabled\(env\)/);
@@ -87,6 +108,11 @@ const outboxCron = vercelConfig.crons?.find(
 );
 assert.ok(outboxCron, "license outbox retry cron is missing");
 assert.equal(outboxCron.schedule, "15 2 * * *");
+const retentionCron = vercelConfig.crons?.find(
+  (cron) => cron.path === "/api/internal/retention-purge",
+);
+assert.ok(retentionCron, "data retention purge cron is missing");
+assert.match(retentionCron.schedule, /^\d{1,2} \d{1,2} \* \* \*$/, "retention purge must run daily");
 
 for (const path of [
   "src/lib/license-api.ts",

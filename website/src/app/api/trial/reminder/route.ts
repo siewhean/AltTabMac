@@ -35,9 +35,13 @@ export async function GET(request: Request) {
     let failed = 0;
 
     for (const claim of dueClaims) {
+      // Due claims have not ended, so they are never anonymised; the guard
+      // only narrows the type.
+      if (!claim.email) continue;
+      const email = claim.email;
       try {
         const message = renderTrialReminderEmail({
-          email: claim.email,
+          email,
           startedAt: claim.startedAt,
           endsAt: claim.endsAt,
           siteUrl: getSiteUrl(),
@@ -45,7 +49,7 @@ export async function GET(request: Request) {
 
         await resend.emails.send({
           from: env.licenseDeliveryFromEmail ?? env.waitlistFromEmail,
-          to: claim.email,
+          to: email,
           replyTo: env.waitlistReplyToEmail,
           subject: message.subject,
           text: message.text,
@@ -57,7 +61,7 @@ export async function GET(request: Request) {
       } catch (error) {
         failed += 1;
         console.error("[CmdTab Website] trial reminder email failed", {
-          email: claim.email,
+          email,
           error,
         });
       }
