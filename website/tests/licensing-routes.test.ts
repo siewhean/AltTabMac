@@ -10,6 +10,7 @@ import * as fulfillmentStore from "../src/lib/license-fulfillment-store.js";
 import * as lifecycleStore from "../src/lib/license-lifecycle-store.js";
 import * as rateLimit from "../src/lib/rate-limit.js";
 import * as trialStore from "../src/lib/trial-claim-store.js";
+import * as retentionPurge from "../src/lib/retention-purge.js";
 import {
   issueCmdTabTokenV2,
   LocalPemP256Signer,
@@ -22,6 +23,7 @@ import { POST as recover } from "../src/app/api/license/recover/route.js";
 import { POST as renew } from "../src/app/api/license/renew/route.js";
 import { POST as startTrial } from "../src/app/api/trial/start/route.js";
 import { POST as lemonWebhook } from "../src/app/api/lemonsqueezy/webhook/route.js";
+import { GET as retentionPurgeCron } from "../src/app/api/internal/retention-purge/route.js";
 
 // Route handlers are exercised in-process. Every store, rate limiter and
 // signer is replaced with a test double, so no database, KMS, Resend or
@@ -602,6 +604,48 @@ test("trial start refuses a second trial with 409 and signs nothing", async (t) 
   assert.equal(getSigner.mock.callCount(), 0);
 });
 
+test("trial start answers an anonymised (email-less) claim with a placeholder email and its original dates", async (t) => {
+  allowRateLimits(t);
+  const trialSigner = licenseSigningMaterials().signer;
+  t.mock.method(kms, "getTrialTokenSigner", () => trialSigner);
+  const installId = "4".repeat(64);
+  t.mock.method(trialStore, "createOrGetTrialClaim", async () => ({
+    kind: "existing" as const,
+    claim: {
+      id: "claim-anon",
+      email: null,
+      installId,
+      startedAt: "2026-05-01T00:00:00.000Z",
+      endsAt: "2026-05-15T00:00:00.000Z",
+      lastSeenAt: "2026-05-10T00:00:00.000Z",
+      anonymizedAt: "2026-08-14T00:00:00.000Z",
+      createdAt: "2026-05-01T00:00:00.000Z",
+      updatedAt: "2026-08-14T00:00:00.000Z",
+    },
+  }));
+
+  const { status, body } = await read(
+    await startTrial(
+      jsonRequest("/api/trial/start", {
+        email: "new-address@example.com",
+        installId,
+        hardwareId: "e".repeat(64),
+      }),
+    ),
+  );
+
+  assert.equal(status, 200);
+  assert.equal(body.alreadyRegistered, true);
+  // No welcome email for an existing claim, and no new trial dates.
+  assert.equal(body.notificationDelivered, false);
+  const returned = body.claim as Json;
+  // Shipped apps decode claim.email as a required string.
+  assert.match(String(returned.email), /^anonymous\+[a-f0-9]{32}@trial\.cmdtab\.invalid$/);
+  assert.equal(returned.startedAt, "2026-05-01T00:00:00.000Z");
+  assert.equal(returned.endsAt, "2026-05-15T00:00:00.000Z");
+  assert.match(String(body.entitlementToken), /^CMDTAB2\./);
+});
+
 test("trial start rejects a raw (unhashed) hardware identifier", async (t) => {
   allowRateLimits(t);
   const claim = t.mock.method(trialStore, "createOrGetTrialClaim");
@@ -618,6 +662,76 @@ test("trial start rejects a raw (unhashed) hardware identifier", async (t) => {
   assert.equal(status, 400);
   assert.equal(body.code, "invalid_request");
   assert.equal(claim.mock.callCount(), 0);
+});
+
+// ------------------------------------------------------ retention purge
+
+const CRON_SECRET = "retention-cron-secret-with-more-than-32-characters";
+
+function cronRequest(authorization?: string) {
+  return new Request("https://cmdtab.net/api/internal/retention-purge", {
+    headers: authorization ? { authorization } : {},
+  });
+}
+
+test("retention purge cron fails closed without a strong CRON_SECRET or the right bearer", async (t) => {
+  const purge = t.mock.method(retentionPurge, "runRetentionPurge", async () => {
+    throw new Error("must not run");
+  });
+
+  setEnv(t, { CRON_SECRET: undefined, DATABASE_URL: "postgres://unused@127.0.0.1/none" });
+  assert.equal((await retentionPurgeCron(cronRequest())).status, 401);
+  assert.equal((await retentionPurgeCron(cronRequest("Bearer "))).status, 401);
+
+  setEnv(t, { CRON_SECRET: "short" });
+  assert.equal((await retentionPurgeCron(cronRequest("Bearer short"))).status, 401);
+
+  setEnv(t, { CRON_SECRET });
+  assert.equal((await retentionPurgeCron(cronRequest())).status, 401);
+  assert.equal((await retentionPurgeCron(cronRequest(`Bearer ${CRON_SECRET}x`))).status, 401);
+  assert.equal((await retentionPurgeCron(cronRequest(CRON_SECRET))).status, 401);
+  const denied = await read(await retentionPurgeCron(cronRequest("Bearer wrong")));
+  assert.equal(denied.body.code, "unauthorized");
+  assert.equal(purge.mock.callCount(), 0);
+});
+
+test("retention purge cron returns only counts when authorised", async (t) => {
+  setEnv(t, { CRON_SECRET, DATABASE_URL: "postgres://unused@127.0.0.1/none" });
+  const counts = {
+    cutoff: "2026-07-17T20:30:00.000Z",
+    trialClaimsAnonymized: 2,
+    appUsageEventsDeleted: 30,
+    siteAnalyticsEventsDeleted: 400,
+    licenseRequestsDeleted: 1,
+    ingestRateLimitsDeleted: 5,
+    requestDeduplicationDeleted: 6,
+    complete: true,
+  };
+  const purge = t.mock.method(retentionPurge, "runRetentionPurge", async () => counts);
+  const info = t.mock.method(console, "info", () => {});
+
+  const response = await retentionPurgeCron(cronRequest(`Bearer ${CRON_SECRET}`));
+  const { status, body } = await read(response);
+
+  assert.equal(status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.deepEqual(body, { ok: true, ...counts });
+  assert.equal(purge.mock.callCount(), 1);
+  assert.deepEqual(info.mock.calls[0]!.arguments[1], counts);
+});
+
+test("retention purge cron reports a failure without leaking details", async (t) => {
+  setEnv(t, { CRON_SECRET, DATABASE_URL: "postgres://unused@127.0.0.1/none" });
+  t.mock.method(retentionPurge, "runRetentionPurge", async () => {
+    throw new Error("connection refused");
+  });
+  t.mock.method(console, "error", () => {});
+
+  const { status, body } = await read(
+    await retentionPurgeCron(cronRequest(`Bearer ${CRON_SECRET}`)),
+  );
+  assert.equal(status, 500);
+  assert.deepEqual(body, { ok: false, code: "purge_failed" });
 });
 
 // ------------------------------------------------------------- recovery

@@ -4,7 +4,11 @@ import { getSql, isDatabaseConfigured } from "@/lib/postgres";
 
 type TrialClaimRow = {
   id: string;
-  email: string;
+  // Null once the retention purge has anonymised the claim (90 days after
+  // the trial ended). The row then keeps only the hashed install and
+  // hardware identifiers and the trial dates, so it still blocks a repeat
+  // trial on the same Mac.
+  email: string | null;
   install_id: string;
   hardware_id?: string | null;
   app_version: string | null;
@@ -13,13 +17,15 @@ type TrialClaimRow = {
   ends_at: string;
   last_seen_at: string;
   reminder_sent_at: string | null;
+  anonymized_at?: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type TrialClaim = {
   id: string;
-  email: string;
+  /** Null after retention anonymisation; see TrialClaimRow.email. */
+  email: string | null;
   installId: string;
   appVersion?: string;
   osVersion?: string;
@@ -27,6 +33,7 @@ export type TrialClaim = {
   endsAt: string;
   lastSeenAt: string;
   reminderSentAt?: string;
+  anonymizedAt?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -49,7 +56,12 @@ export function isTrialClaimStoreConfigured() {
   return isDatabaseConfigured();
 }
 
-async function ensureSchema() {
+/**
+ * Creates or upgrades the trial_claims table. Exported so the retention purge
+ * can run on a cold instance that has not served a trial request yet. Mirrors
+ * db/migrations/002_data_retention.sql.
+ */
+export async function ensureTrialClaimSchema() {
   if (schemaReady) return;
 
   const sql = getSql();
@@ -78,6 +90,12 @@ async function ensureSchema() {
     create unique index if not exists trial_claims_hardware_idx
     on trial_claims (hardware_id) where hardware_id is not null
   `;
+  // Retention: anonymised claims drop their email (see retention-purge.ts).
+  await sql`
+    alter table trial_claims
+    add column if not exists anonymized_at timestamptz
+  `;
+  await sql`alter table trial_claims alter column email drop not null`;
 
   schemaReady = true;
 }
@@ -93,6 +111,7 @@ function mapRow(row: TrialClaimRow): TrialClaim {
     endsAt: row.ends_at,
     lastSeenAt: row.last_seen_at,
     reminderSentAt: row.reminder_sent_at ?? undefined,
+    anonymizedAt: row.anonymized_at ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -107,7 +126,7 @@ export async function createOrGetTrialClaim(input: {
   trialLengthDays: number;
   now?: Date;
 }): Promise<CreateTrialClaimResult> {
-  await ensureSchema();
+  await ensureTrialClaimSchema();
   const sql = getSql();
   const now = input.now ?? new Date();
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -175,6 +194,14 @@ export async function createOrGetTrialClaim(input: {
     };
   }
 
+  // An anonymised claim no longer knows its email, so it cannot tell a
+  // matching email from a different one. The install already had its trial:
+  // return that claim with its original (expired) dates, as for any return
+  // visit, and never start a second trial.
+  if (existingByInstall && existingByInstall.email === null) {
+    return { kind: "existing", claim: mapRow(existingByInstall) };
+  }
+
   if (existingByInstall && existingByInstall.email !== normalizedEmail) {
     return {
       kind: "blocked",
@@ -215,7 +242,7 @@ export async function createOrGetTrialClaim(input: {
 }
 
 export async function touchTrialClaim(installId: string) {
-  await ensureSchema();
+  await ensureTrialClaimSchema();
   const sql = getSql();
   const [row] = await sql<TrialClaimRow[]>`
     update trial_claims
@@ -230,7 +257,7 @@ export async function touchTrialClaim(installId: string) {
 }
 
 export async function getTrialClaimAggregateStats() {
-  await ensureSchema();
+  await ensureTrialClaimSchema();
   const sql = getSql();
   const [row] = await sql<
     {
@@ -260,7 +287,7 @@ export async function getTrialClaimAggregateStats() {
 }
 
 export async function listTrialClaimsDueForReminder(limit = 100) {
-  await ensureSchema();
+  await ensureTrialClaimSchema();
   const sql = getSql();
   const rows = await sql<TrialClaimRow[]>`
     select *
@@ -279,7 +306,7 @@ export async function listTrialClaimsDueForReminder(limit = 100) {
 }
 
 export async function markTrialReminderSent(id: string) {
-  await ensureSchema();
+  await ensureTrialClaimSchema();
   const sql = getSql();
   const [row] = await sql<TrialClaimRow[]>`
     update trial_claims

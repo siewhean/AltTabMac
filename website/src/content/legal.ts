@@ -73,7 +73,7 @@ export const privacyContent = {
       title: "Retention, access, and deletion",
       body: [
         "CmdTab keeps purchase, license, activation, fulfilment, fraud-prevention, refund, revocation, and support records while they are needed to operate and recover perpetual licenses. Non-personal order, license, refund, chargeback, dispute, and revocation tombstones may be retained indefinitely so recovery cannot bypass payment or revocation state.",
-        "Trial records are kept for 90 days after the trial ends. Then the email address and other personal details are deleted automatically. Only a hashed device identifier is kept, so the same Mac cannot start another free trial.",
+        "Trial records are kept for 90 days after the trial ends. Then the email address and other personal details are deleted automatically. Only hashed device identifiers and the trial dates are kept, so the same Mac cannot start another free trial.",
         "Optional native-app telemetry, optional website analytics events, and license help requests are kept for 90 days and then deleted automatically. Withdrawing analytics consent stops future collection and deletes browser-side CmdTab visitor and session identifiers; it does not retroactively identify and delete already pseudonymized server events.",
         "Deleted records can remain in encrypted database backups until those backups expire, up to 35 days later.",
         `For access, correction, or deletion requests concerning CmdTab-held data, contact ${siteConfig.contactEmail} and include enough information to locate the relevant trial, purchase, support request, or install record.`,
