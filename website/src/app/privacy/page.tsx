@@ -49,7 +49,7 @@ export default function PrivacyPage() {
         className="pt-14"
       >
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <LastReviewed date={productFacts.reviewedAt} />
+          <LastReviewed date={privacyContent.lastUpdated} label="Last updated" />
         </div>
         <div className="space-y-10">
           <AnalyticsPrivacyControls />
