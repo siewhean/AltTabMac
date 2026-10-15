@@ -33,7 +33,7 @@
     "demo:check": "node scripts/verify-interactive-demo.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-kms": "^3.1148.0",
+    "@aws-sdk/client-kms": "^3.1149.0",
     "@aws-sdk/credential-providers": "^3.1148.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/oidc": "^4.0.0",
