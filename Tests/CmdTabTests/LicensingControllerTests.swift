@@ -1,3 +1,4 @@
+import Combine
 import CryptoKit
 import Foundation
 import Security
@@ -1532,6 +1533,219 @@ final class LicensingControllerTests: XCTestCase {
         XCTAssertFalse(controller.hasUnlockedAccess && controller.currentLicenseID != nil)
     }
 
+    // MARK: - Refresh churn (menu-bar tooltip regression)
+
+    func testRepeatedTrialRefreshesWithUnchangedStateDoNotPublish() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt.addingTimeInterval(60)
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "churn", startedAt: startedAt
+            )),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        let initialStatus = controller.status
+        let initialEmail = controller.enteredTrialEmail
+        var emissions = 0
+        let subscription = controller.objectWillChange.sink { _ in emissions += 1 }
+        defer { subscription.cancel() }
+
+        for _ in 0..<20 {
+            now = now.addingTimeInterval(5)
+            controller.refreshStatus()
+        }
+
+        XCTAssertEqual(emissions, 0, "Unchanged revalidation must not emit objectWillChange")
+        XCTAssertEqual(controller.status, initialStatus)
+        XCTAssertEqual(controller.enteredTrialEmail, initialEmail)
+    }
+
+    func testRepeatedLicensedRefreshesDoNotPublish() throws {
+        let materials = makeSigningMaterials()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let licenseStore = MemoryLicenseKeyStore()
+        licenseStore.value = try signedToken(
+            email: "owner@example.com",
+            name: "Owner",
+            licenseID: "LIC-CHURN",
+            privateKey: materials.privateKey,
+            issuedAt: now
+        )
+        let controller = makeController(
+            licenseStore: licenseStore,
+            currentDate: { now },
+            publicKeyBase64: materials.publicKeyBase64
+        )
+        guard case .licensed = controller.status else {
+            return XCTFail("Expected a licensed status")
+        }
+        var emissions = 0
+        let subscription = controller.objectWillChange.sink { _ in emissions += 1 }
+        defer { subscription.cancel() }
+
+        for _ in 0..<10 { controller.refreshStatus() }
+
+        XCTAssertEqual(emissions, 0)
+    }
+
+    func testDeveloperScenarioRefreshesKeepAStableStatus() {
+        let defaults = UserDefaults(suiteName: UUID().uuidString)!
+        let developerSettings = DeveloperSettings(defaults: defaults, keyPrefix: "CmdTab.test")
+        developerSettings.releaseChannel = .test
+        developerSettings.licensingScenario = .simulatedLicensed
+        var now = Date(timeIntervalSince1970: 1_700_000_000)
+        let controller = makeController(
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64,
+            developerSettings: developerSettings
+        )
+        let initialStatus = controller.status
+        var emissions = 0
+        let subscription = controller.objectWillChange.sink { _ in emissions += 1 }
+        defer { subscription.cancel() }
+
+        for _ in 0..<10 {
+            now = now.addingTimeInterval(5)
+            controller.refreshStatus()
+        }
+
+        XCTAssertEqual(emissions, 0, "A simulated scenario must not mint new dates on every pass")
+        XCTAssertEqual(controller.status, initialStatus)
+
+        developerSettings.licensingScenario = .expiredTrial
+        controller.refreshStatus()
+        XCTAssertTrue(controller.status.isExpired, "Switching scenario must still apply")
+    }
+
+    func testRealStateChangeStillPublishes() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt.addingTimeInterval(60)
+        let day: TimeInterval = 24 * 60 * 60
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "change", startedAt: startedAt
+            )),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertNil(controller.menuBarTrialStatusTitle)
+        var emissions = 0
+        let subscription = controller.objectWillChange.sink { _ in emissions += 1 }
+        defer { subscription.cancel() }
+
+        now = startedAt.addingTimeInterval(11 * day)
+        controller.refreshStatus()
+
+        XCTAssertEqual(emissions, 1)
+        XCTAssertEqual(controller.menuBarTrialStatusTitle, "Trial: 3 Days Remaining")
+        let presentation = MenuBarPresentation(
+            licensingController: controller,
+            updatesConfigured: false
+        )
+        XCTAssertTrue(presentation.statusToolTip.hasPrefix("CmdTab — 3 days remain"))
+    }
+
+    func testTrialLastSeenWriteIsThrottledButStillAdvances() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt.addingTimeInterval(60)
+        let clockStore = CountingSecureTrialClockStore()
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "throttle", startedAt: startedAt
+            )),
+            secureTrialClockStore: clockStore,
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        XCTAssertEqual(clockStore.saveCount, 1, "A missing last-seen date is written at once")
+        let firstSeen = now
+        XCTAssertEqual(clockStore.date, firstSeen)
+
+        // Four minutes of 5-second refreshes: no Keychain writes.
+        for _ in 0..<48 {
+            now = now.addingTimeInterval(5)
+            controller.refreshStatus()
+        }
+        XCTAssertEqual(clockStore.saveCount, 1)
+        XCTAssertEqual(clockStore.date, firstSeen)
+
+        // Once the stored value is a persist interval old it advances.
+        now = firstSeen.addingTimeInterval(LicensingController.lastSeenPersistInterval)
+        controller.refreshStatus()
+        XCTAssertEqual(clockStore.saveCount, 2)
+        XCTAssertEqual(clockStore.date, now)
+    }
+
+    func testThrottledLastSeenStillDetectsClockRollback() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt.addingTimeInterval(60 * 60)
+        let clockStore = CountingSecureTrialClockStore()
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "rollback", startedAt: startedAt
+            )),
+            secureTrialClockStore: clockStore,
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        guard case .activeTrial = controller.status else {
+            return XCTFail("Expected an active trial")
+        }
+
+        // Roll back past the persisted value by more than the tolerance.
+        now = now.addingTimeInterval(-(6 * 60))
+        controller.refreshStatus()
+
+        guard case .unregistered = controller.status else {
+            return XCTFail("A rollback beyond the tolerance must fail closed")
+        }
+        XCTAssertEqual(
+            controller.trialMessage?.text,
+            "The system clock moved backwards. Connect to the internet and revalidate the trial."
+        )
+    }
+
+    func testShouldPersistLastSeenBoundary() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let interval = LicensingController.lastSeenPersistInterval
+        XCTAssertTrue(LicensingController.shouldPersistLastSeen(nil, now: now))
+        XCTAssertFalse(LicensingController.shouldPersistLastSeen(now, now: now))
+        XCTAssertFalse(LicensingController.shouldPersistLastSeen(
+            now.addingTimeInterval(-interval + 1), now: now
+        ))
+        XCTAssertTrue(LicensingController.shouldPersistLastSeen(
+            now.addingTimeInterval(-interval), now: now
+        ))
+        XCTAssertFalse(
+            LicensingController.shouldPersistLastSeen(now.addingTimeInterval(60), now: now),
+            "A stored date ahead of now is never lowered"
+        )
+    }
+
+    func testMenuBarPresentationIsStableAcrossUnchangedRefreshes() {
+        let startedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        var now = startedAt.addingTimeInterval(12 * 24 * 60 * 60)
+        let controller = makeController(
+            trialClaimStore: MemoryTrialClaimStore(claim: makeTrialClaim(
+                email: "trial@example.com", installID: "menu", startedAt: startedAt
+            )),
+            currentDate: { now },
+            publicKeyBase64: makeSigningMaterials().publicKeyBase64
+        )
+        let first = MenuBarPresentation(licensingController: controller, updatesConfigured: false)
+        now = now.addingTimeInterval(5)
+        controller.refreshStatus()
+        let second = MenuBarPresentation(licensingController: controller, updatesConfigured: false)
+
+        XCTAssertEqual(first, second)
+        XCTAssertEqual(first.trialStatusTitle, "Trial: 2 Days Remaining")
+        XCTAssertNotEqual(
+            first,
+            MenuBarPresentation(licensingController: controller, updatesConfigured: true)
+        )
+    }
+
     private func makeController(
         trialStore: TrialStartDateStore = MemoryTrialStartDateStore(),
         trialClaimStore: TrialClaimStore = MemoryTrialClaimStore(),
@@ -1996,5 +2210,23 @@ private extension Data {
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+private final class CountingSecureTrialClockStore: SecureTrialClockStore {
+    var date: Date?
+    private(set) var saveCount = 0
+
+    func loadLastSeenDate() -> Date? {
+        date
+    }
+
+    func saveLastSeenDate(_ value: Date) {
+        saveCount += 1
+        date = max(date ?? value, value)
+    }
+
+    func clearLastSeenDate() {
+        date = nil
     }
 }

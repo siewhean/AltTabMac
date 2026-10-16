@@ -121,6 +121,7 @@ final class LicensingController: ObservableObject {
     private static let shortcutRefreshInterval: TimeInterval = 5
     #if DEBUG
     private let developerSettings: DeveloperSettings
+    private var developerOverrideAnchor: (scenario: DeveloperLicensingScenario, date: Date)?
     #endif
     private let iso8601 = ISO8601DateFormatter()
 
@@ -371,12 +372,12 @@ final class LicensingController: ObservableObject {
             if case .failure(LicenseTokenVerificationError.expired) = verification {
                 // A lapsed lease is genuine but no longer grants access. Keep
                 // it: renewal presents it to the server, which decides.
-                status = .unregistered
+                assignIfChanged(\.status, .unregistered)
                 let renewalMessage = LicensingMessage(
                     tone: .warning,
                     text: "Connect to the internet so CmdTab can renew this Mac's license."
                 )
-                if licenseMessage != renewalMessage { licenseMessage = renewalMessage }
+                assignIfChanged(\.licenseMessage, renewalMessage)
                 return
             }
             if case let .success(verifiedPayload) = verification {
@@ -387,27 +388,27 @@ final class LicensingController: ObservableObject {
                     try? deviceEntitlementStore.clearEntitlement()
                     try? licenseStore.clearLicenseKey()
                     payloadCacheStore.clearPayload()
-                    status = .unregistered
+                    assignIfChanged(\.status, .unregistered)
                     return
                 }
                 guard !BoundedKeychainReadRegistry.hasPendingReads else {
                     return
                 }
                 payloadCacheStore.savePayload(verifiedPayload)
-                status = .licensed(
+                assignIfChanged(\.status, .licensed(
                     payload: verifiedPayload,
                     activatedAt: activationMetadataStore.loadActivationDate()
-                )
+                ))
                 return
             }
             if case .failure(LicenseTokenVerificationError.unknownKey) = verification {
                 // A build missing the token's verification key cannot establish
                 // validity or revocation. Keep the token for a correctly
                 // configured build, but never grant paid access from it.
-                licenseMessage = LicensingMessage(
+                assignIfChanged(\.licenseMessage, LicensingMessage(
                     tone: .warning,
                     text: "This CmdTab build is missing a license verification key. Install a correctly configured build to verify this Mac's saved license."
-                )
+                ))
             } else {
                 // A returned token that fails validation is invalid. Missing
                 // key configuration above and expired leases are recoverable.
@@ -428,17 +429,17 @@ final class LicensingController: ObservableObject {
             guard !isLicenseRevoked(verifiedPayload.licenseID) else {
                 try? licenseStore.clearLicenseKey()
                 payloadCacheStore.clearPayload()
-                status = .unregistered
+                assignIfChanged(\.status, .unregistered)
                 return
             }
             guard !BoundedKeychainReadRegistry.hasPendingReads else {
                 return
             }
             payloadCacheStore.savePayload(verifiedPayload)
-            status = .licensed(
+            assignIfChanged(\.status, .licensed(
                 payload: verifiedPayload,
                 activatedAt: activationMetadataStore.loadActivationDate()
-            )
+            ))
             return
         }
         // A decoded UserDefaults cache is display metadata only. It must never
@@ -447,7 +448,7 @@ final class LicensingController: ObservableObject {
 
         #if DEBUG
         if let overrideStatus = developerOverrideStatus(now: now) {
-            status = overrideStatus
+            assignIfChanged(\.status, overrideStatus)
             return
         }
         #endif
@@ -462,45 +463,53 @@ final class LicensingController: ObservableObject {
            let claimedEndsAt = claim.endsDate {
             // Deleting the last-seen Keychain item must not disable rollback
             // detection: the server time captured with the claim is a floor.
-            let lastSeen = secureTrialClockStore.loadLastSeenDate()
-                ?? claim.validatedDate
+            let storedLastSeen = secureTrialClockStore.loadLastSeenDate()
+            let lastSeen = storedLastSeen ?? claim.validatedDate
             guard !BoundedKeychainReadRegistry.hasPendingReads else {
                 return
             }
             if let lastSeen,
                now.addingTimeInterval(Self.clockRollbackTolerance) < lastSeen {
-                enteredTrialEmail = Self.visibleTrialEmail(claim.email)
-                status = .unregistered
-                trialMessage = LicensingMessage(
+                assignIfChanged(\.enteredTrialEmail, Self.visibleTrialEmail(claim.email))
+                assignIfChanged(\.status, .unregistered)
+                assignIfChanged(\.trialMessage, LicensingMessage(
                     tone: .warning,
                     text: "The system clock moved backwards. Connect to the internet and revalidate the trial."
-                )
+                ))
                 return
             }
             let endsAt = Self.trialEndDate(startedAt: startedAt)
             guard abs(claimedEndsAt.timeIntervalSince(endsAt)) <=
                     Self.trialClaimSerializationTolerance else {
                 trialClaimStore.clearClaim()
-                enteredTrialEmail = ""
-                status = .unregistered
+                assignIfChanged(\.enteredTrialEmail, "")
+                assignIfChanged(\.status, .unregistered)
                 return
             }
-            enteredTrialEmail = Self.visibleTrialEmail(claim.email)
-            secureTrialClockStore.saveLastSeenDate(now)
+            assignIfChanged(\.enteredTrialEmail, Self.visibleTrialEmail(claim.email))
+            // The status refreshes every few seconds; writing the Keychain on
+            // each pass only loads securityd. Advance the high-water mark once
+            // it is `lastSeenPersistInterval` old. Rollback detection still
+            // compares against the latest persisted value, so a backwards jump
+            // is caught once it exceeds clockRollbackTolerance plus at most
+            // this interval (worst case 10 minutes instead of 5).
+            if Self.shouldPersistLastSeen(storedLastSeen, now: now) {
+                secureTrialClockStore.saveLastSeenDate(now)
+            }
             if now < endsAt {
-                status = .activeTrial(
+                assignIfChanged(\.status, .activeTrial(
                     startedAt: startedAt,
                     endsAt: endsAt,
                     daysRemaining: Self.daysRemaining(until: endsAt, now: now)
-                )
+                ))
             } else {
                 let overdue = Self.daysOverdue(since: endsAt, now: now)
-                status = .expired(startedAt: startedAt, endedAt: endsAt, daysOverdue: overdue)
+                assignIfChanged(\.status, .expired(startedAt: startedAt, endedAt: endsAt, daysOverdue: overdue))
             }
             return
         }
 
-        status = .unregistered
+        assignIfChanged(\.status, .unregistered)
     }
 
     @discardableResult
@@ -1055,13 +1064,29 @@ final class LicensingController: ObservableObject {
 
     #if DEBUG
     private func developerOverrideStatus(now: Date) -> LicensingStatus? {
-        guard developerSettings.releaseChannel == .test else { return nil }
+        guard developerSettings.releaseChannel == .test,
+              developerSettings.licensingScenario != .live else {
+            developerOverrideAnchor = nil
+            return nil
+        }
 
-        switch developerSettings.licensingScenario {
+        // Pin each simulated scenario to the moment it was first applied, so
+        // periodic refreshes yield an equal status instead of a new value
+        // (fresh dates) every few seconds.
+        let scenario = developerSettings.licensingScenario
+        let anchor: Date
+        if let existing = developerOverrideAnchor, existing.scenario == scenario {
+            anchor = existing.date
+        } else {
+            anchor = now
+            developerOverrideAnchor = (scenario, now)
+        }
+
+        switch scenario {
         case .live:
             return nil
         case .freshTrial:
-            let startedAt = now
+            let startedAt = anchor
             let endsAt = Self.trialEndDate(startedAt: startedAt)
             return .activeTrial(
                 startedAt: startedAt,
@@ -1069,7 +1094,7 @@ final class LicensingController: ObservableObject {
                 daysRemaining: LicensingConfiguration.trialLengthDays
             )
         case .oneDayLeft:
-            let endsAt = now.addingTimeInterval(12 * 60 * 60)
+            let endsAt = anchor.addingTimeInterval(12 * 60 * 60)
             let startedAt = endsAt.addingTimeInterval(-Self.trialDuration)
             return .activeTrial(
                 startedAt: startedAt,
@@ -1077,7 +1102,7 @@ final class LicensingController: ObservableObject {
                 daysRemaining: 1
             )
         case .expiredTrial:
-            let endedAt = now.addingTimeInterval(-(2 * 60 * 60))
+            let endedAt = anchor.addingTimeInterval(-(2 * 60 * 60))
             let startedAt = endedAt.addingTimeInterval(-Self.trialDuration)
             return .expired(
                 startedAt: startedAt,
@@ -1091,10 +1116,10 @@ final class LicensingController: ObservableObject {
                     product: LicensingConfiguration.productIdentifier,
                     email: "developer@cmdtab.local",
                     licenseID: "DEV-SIMULATED",
-                    issuedAt: iso8601.string(from: now),
+                    issuedAt: iso8601.string(from: anchor),
                     purchaserName: "Developer Test License"
                 ),
-                activatedAt: now
+                activatedAt: anchor
             )
         }
     }
@@ -1106,6 +1131,27 @@ final class LicensingController: ObservableObject {
         TimeInterval(LicensingConfiguration.trialLengthDays) * secondsPerDay
     private static let trialClaimSerializationTolerance: TimeInterval = 1
     private static let clockRollbackTolerance: TimeInterval = 5 * 60
+    /// How stale the persisted trial last-seen date may get before a refresh
+    /// writes it again. Kept equal to the rollback tolerance so detection
+    /// stays within twice that tolerance.
+    static let lastSeenPersistInterval: TimeInterval = clockRollbackTolerance
+
+    static func shouldPersistLastSeen(_ stored: Date?, now: Date) -> Bool {
+        guard let stored else { return true }
+        return now.timeIntervalSince(stored) >= lastSeenPersistInterval
+    }
+
+    /// Assigns a published value only when it differs, so periodic
+    /// revalidation that finds nothing new does not emit `objectWillChange`
+    /// (which rebuilds the menu-bar item and re-renders observing views).
+    private func assignIfChanged<Value: Equatable>(
+        _ keyPath: ReferenceWritableKeyPath<LicensingController, Value>,
+        _ value: Value
+    ) {
+        if self[keyPath: keyPath] != value {
+            self[keyPath: keyPath] = value
+        }
+    }
     private static let leaseRenewalAge: TimeInterval = 24 * 60 * 60
     #if DEBUG
     private static let legacyLicensesUnlockLocally = true

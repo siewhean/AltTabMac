@@ -1,6 +1,45 @@
 import AppKit
 import Combine
 
+/// Everything the status-item menu and tooltip depend on. The menu is rebuilt,
+/// and the tooltip reassigned, only when this value changes: licensing
+/// revalidates every few seconds, and re-setting a status button's tooltip
+/// while AppKit tracks the pointer inside it makes the tooltip pop up at the
+/// current pointer location, even over other apps.
+struct MenuBarPresentation: Equatable {
+    static let defaultToolTip = "Click for CmdTab controls and settings."
+
+    let trialStatusTitle: String?
+    let trialWarningText: String?
+    let updatesConfigured: Bool
+
+    @MainActor
+    init(licensingController: LicensingController, updatesConfigured: Bool) {
+        if let title = licensingController.menuBarTrialStatusTitle,
+           let warning = licensingController.trialWarningMessage {
+            trialStatusTitle = title
+            trialWarningText = warning.text
+        } else {
+            trialStatusTitle = nil
+            trialWarningText = nil
+        }
+        self.updatesConfigured = updatesConfigured
+    }
+
+    var statusToolTip: String {
+        trialWarningText.map { "CmdTab — \($0)" } ?? Self.defaultToolTip
+    }
+
+    /// Assigns `toolTip` only when it differs. Returns whether it changed.
+    @MainActor
+    @discardableResult
+    static func applyToolTip(_ toolTip: String, to view: NSView?) -> Bool {
+        guard let view, view.toolTip != toolTip else { return false }
+        view.toolTip = toolTip
+        return true
+    }
+}
+
 @MainActor
 final class MenuBarController {
 
@@ -14,6 +53,7 @@ final class MenuBarController {
     private lazy var profilePreferencesWindowController = ProductionProfilePreferencesWindowController()
     private lazy var diagnosticsWindowController = ProductionDiagnosticsWindowController()
     private var contextMenu: NSMenu?
+    private var renderedPresentation: MenuBarPresentation?
     private var licensingObserver: AnyCancellable?
     private var licensingRefreshTimer: Timer?
 
@@ -84,16 +124,28 @@ final class MenuBarController {
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleStatusItemClick)
         statusItem.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        statusItem.button?.toolTip = "Click for CmdTab controls and settings."
+        renderedPresentation = nil
 
-        updateMenu()
+        updateMenu(force: true)
     }
 
-    func updateMenu() {
+    /// Rebuilds the menu only when its inputs changed. Preference changes pass
+    /// `force` because they are rare and explicit.
+    func updateMenu(force: Bool = false) {
+        let presentation = MenuBarPresentation(
+            licensingController: licensingController,
+            updatesConfigured: updaterController?.isConfigured == true
+        )
+        MenuBarPresentation.applyToolTip(presentation.statusToolTip, to: statusItem.button)
+        guard force || contextMenu == nil || presentation != renderedPresentation else {
+            return
+        }
+        renderedPresentation = presentation
+
         let menu = NSMenu()
 
-        if let warningTitle = licensingController.menuBarTrialStatusTitle,
-           let warning = licensingController.trialWarningMessage {
+        if let warningTitle = presentation.trialStatusTitle,
+           let warningText = presentation.trialWarningText {
             let warningItem = NSMenuItem(
                 title: warningTitle,
                 action: #selector(openLicensing),
@@ -103,13 +155,10 @@ final class MenuBarController {
                 systemSymbolName: "exclamationmark.triangle.fill",
                 accessibilityDescription: warningTitle
             )
-            warningItem.toolTip = warning.text
+            warningItem.toolTip = warningText
             warningItem.target = self
             menu.addItem(warningItem)
             menu.addItem(.separator())
-            statusItem.button?.toolTip = "CmdTab — \(warning.text)"
-        } else {
-            statusItem.button?.toolTip = "Click for CmdTab controls and settings."
         }
 
         let settingsItem = NSMenuItem(
@@ -126,8 +175,8 @@ final class MenuBarController {
             keyEquivalent: ""
         )
         updateItem.target = self
-        updateItem.isEnabled = updaterController?.isConfigured == true
-        updateItem.toolTip = updaterController?.isConfigured == true
+        updateItem.isEnabled = presentation.updatesConfigured
+        updateItem.toolTip = presentation.updatesConfigured
             ? "Check the CmdTab beta update channel."
             : "Updates are unavailable in this local QA build."
         menu.addItem(updateItem)
@@ -315,7 +364,7 @@ final class MenuBarController {
     }
 
     @objc private func handlePreferencesDidChange() {
-        updateMenu()
+        updateMenu(force: true)
     }
 
     @objc private func showAbout() {
