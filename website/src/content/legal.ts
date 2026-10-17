@@ -3,7 +3,7 @@ import { siteConfig } from "@/content/site";
 export const privacyContent = {
   intro:
     "This page explains what the CmdTab website and native app currently collect, which fields are transmitted, and how that information is used while you browse, start a trial, activate a license, or run the app.",
-  lastUpdated: "2026-10-15",
+  lastUpdated: "2026-10-17",
   sections: [
     {
       title: "Website analytics",
@@ -65,7 +65,7 @@ export const privacyContent = {
         "CmdTab's database is PostgreSQL hosted by Neon in the AWS Singapore region (ap-southeast-1). Nightly encrypted backups of it are stored in Amazon S3 in the same region.",
         "Trial and license tokens are signed with keys held in AWS Key Management Service (US East region). The data sent for signing contains only hashed identifiers, not your email address or Mac name.",
         `Signup notices, help requests, and privacy requests are sent to CmdTab's own mailbox, ${siteConfig.contactEmail}.`,
-        "Transactional email, including waitlist, trial-reminder, and license emails, is delivered through Resend, which processes it in the United States. Hosted checkout, receipt, and license-management links may point to Lemon Squeezy or another configured commerce provider, whose own terms and privacy policy apply to that transaction.",
+        "Transactional email, including waitlist, trial-reminder, and license emails, is delivered through Resend, which processes it in the United States (North Virginia, us-east-1). Hosted checkout, receipt, and license-management links may point to Lemon Squeezy or another configured commerce provider, whose own terms and privacy policy apply to that transaction.",
         "We and our service providers process data in Singapore and the United States. Where the law requires it, these transfers rely on our providers' standard contractual clauses.",
       ],
     },
