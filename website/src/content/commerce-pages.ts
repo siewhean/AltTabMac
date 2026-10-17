@@ -68,8 +68,8 @@ export const commercePageContent = {
         body: "CmdTab is sold once, not as a subscription.",
       },
       {
-        title: "Trial first, then decide",
-        body: "The trial exists so people can prove the app in real use before paying.",
+        title: "Early access before purchase",
+        body: "Waitlist members get early access so they can prove the app in real use before paying.",
       },
       {
         title: "Hosted checkout, direct help",

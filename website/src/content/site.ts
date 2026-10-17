@@ -32,7 +32,7 @@ export const siteConfig = {
     "Mac app beta waitlist",
     "macOS productivity beta",
     "one-time license for Mac utility",
-    "Mac utility free trial",
+    "Mac utility early access",
   ],
   contactEmail: "trycmdtab@gmail.com",
 } as const;
