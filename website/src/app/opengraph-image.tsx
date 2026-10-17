@@ -51,7 +51,7 @@ export default function OpenGraphImage() {
                 textTransform: "uppercase",
               }}
             >
-              14-day free trial
+              Private preview · Join the waitlist
             </div>
             <div style={{ fontSize: 86, fontWeight: 600, letterSpacing: "-0.08em" }}>
               CmdTab
