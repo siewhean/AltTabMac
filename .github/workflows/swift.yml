@@ -56,8 +56,8 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-          - macos-14
           - macos-15
+          - macos-26
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
 
@@ -65,16 +65,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Select Swift Testing-compatible Xcode on macOS 14
-        # The macOS 14 runner's default Xcode has no Swift Testing module.
-        if: matrix.runner == 'macos-14'
+
+      - name: Resolve Swift packages
+        # Hosted runners intermittently fail to fetch Sparkle's binary artifact
+        # ("already exists in file system" from a stale SwiftPM artifact cache
+        # entry, or a GitHub release 5xx). Retry from a clean artifact cache so
+        # the test steps below start from a resolved package graph.
         run: |
           set -euo pipefail
-          export DEVELOPER_DIR=/Applications/Xcode_16.2.app/Contents/Developer
-          test -d "$DEVELOPER_DIR"
-          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
-          xcodebuild -version
-          swift --version
+          for attempt in 1 2 3; do
+            rm -rf "$HOME/Library/Caches/org.swift.swiftpm/artifacts"
+            if swift package resolve; then
+              exit 0
+            fi
+            sleep $((attempt * 15))
+          done
+          exit 1
 
       - name: Verify pre-fix model evidence remains reproducible
         shell: bash
@@ -109,7 +115,7 @@ jobs:
 
   release-configuration:
     name: Deterministic release configuration
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 15
 
     steps:

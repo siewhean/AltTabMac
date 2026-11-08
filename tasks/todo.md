@@ -7,7 +7,9 @@
 - [x] Activation: unhide hidden apps; restore minimized windows on the base path.
 - [x] Extra: stable order inside an open session; active-window display matched in AppKit coordinates.
 - [x] Regression tests (`Tests/CmdTabTests/SwitcherReliabilityRegressionTests.swift`) and A/B plan (`docs/qa/switcher-reliability-ab-test-plan.md`).
-- [ ] macOS CI green (build and full suite on macOS 14 and 15).
+- [x] macOS 15 CI: build and full suite pass (464 XCTest, 0 failures).
+- [x] CI: `macos-14` hosted image retired 2026-11-02; matrices moved to `macos-15` + `macos-26`; retries for Sparkle artifact and ffmpeg-static downloads.
+- [ ] CI green on the updated matrices.
 - [ ] Manual A/B cases on a real Mac (user-run).
 
 Review: no Swift toolchain in the cloud environment, so nothing was compiled or run locally; CI on the pull request is the first build. Existing ordering tests were checked by hand against the new ranking (the fallback-grouping test keeps its expected order). Manual cases are NOT_RUN.
