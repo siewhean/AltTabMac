@@ -64,6 +64,7 @@ jobs:
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+      FFMPEG_BIN: /usr/bin/ffmpeg
     defaults:
       run:
         working-directory: website
@@ -76,6 +77,13 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: website/package-lock.json
+      - name: Install ffmpeg from the Ubuntu archive
+        # ffmpeg-static's postinstall otherwise downloads its binary from
+        # GitHub releases, which can fail with 5xx for long stretches.
+        # FFMPEG_BIN (job env) points ffmpeg-static at this binary instead.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
       - name: Install dependencies
         # ffmpeg-static's postinstall downloads its binary from GitHub
         # releases, which intermittently answers 5xx; retry the install.
@@ -167,15 +175,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
 
+      - name: Restore SwiftPM binary artifacts
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm/artifacts
+          key: swiftpm-artifacts-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+
+      - name: Prime Sparkle binary artifact
+        # github.com release downloads can fail with 5xx for long stretches
+        # (SwiftPM then reports "already exists in file system" on the 92-byte
+        # error page). Fetch the checksum-verified zip into SwiftPM's cache,
+        # also through the GitHub API route, before resolving.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/release/prime-sparkle-artifact.sh
+
       - name: Resolve Swift packages
-        # Hosted runners intermittently fail to fetch Sparkle's binary artifact
-        # ("already exists in file system" from a stale SwiftPM artifact cache
-        # entry, or a GitHub release 5xx). Retry from a clean artifact cache so
-        # the test steps below start from a resolved package graph.
         run: |
           set -euo pipefail
           for attempt in 1 2 3; do
-            rm -rf "$HOME/Library/Caches/org.swift.swiftpm/artifacts"
             if swift package resolve; then
               exit 0
             fi

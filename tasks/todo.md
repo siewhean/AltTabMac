@@ -9,6 +9,7 @@
 - [x] Regression tests (`Tests/CmdTabTests/SwitcherReliabilityRegressionTests.swift`) and A/B plan (`docs/qa/switcher-reliability-ab-test-plan.md`).
 - [x] macOS 15 CI: build and full suite pass (464 XCTest, 0 failures).
 - [x] CI: `macos-14` hosted image retired 2026-11-02; matrices moved to `macos-15` + `macos-26`; retries for Sparkle artifact and ffmpeg-static downloads.
+- [x] CI: GitHub release 504s — checksum-verified Sparkle artifact priming + `actions/cache`; website jobs use Ubuntu ffmpeg via `FFMPEG_BIN`.
 - [ ] CI green on the updated matrices.
 - [ ] Manual A/B cases on a real Mac (user-run).
 

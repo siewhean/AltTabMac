@@ -43,6 +43,7 @@ jobs:
     env:
       GOOGLE_SITE_VERIFICATION: cmdtab-google-verification-ci
       BING_SITE_VERIFICATION: cmdtab-bing-verification-ci
+      FFMPEG_BIN: /usr/bin/ffmpeg
     defaults:
       run:
         working-directory: website
@@ -57,6 +58,14 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: website/package-lock.json
+
+      - name: Install ffmpeg from the Ubuntu archive
+        # ffmpeg-static's postinstall otherwise downloads its binary from
+        # GitHub releases, which can fail with 5xx for long stretches.
+        # FFMPEG_BIN (job env) points ffmpeg-static at this binary instead.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
 
       - name: Install dependencies
         run: npm ci
