@@ -87,6 +87,11 @@ final class AppSwitcher: NSObject {
     private var lastRefresh = Date.distantPast
     private var isRefreshing = false
     private var pendingForcedRefresh = false
+    /// Capture policy of the replay queued behind an in-flight refresh. A full
+    /// request always wins over an incremental one.
+    private var pendingReplayPreviewReuseAge: TimeInterval?
+    /// Coalesced background refresh (activation, launch, quit, preferences).
+    private var backgroundRefreshWorkItem: DispatchWorkItem?
     private let refreshInterval: TimeInterval = 0.8
     private let maxPreviewCacheEntries = 512
     private let maximumPhaseTwoFallbackAge: TimeInterval = 120.0
@@ -95,6 +100,18 @@ final class AppSwitcher: NSObject {
     private let initialWindowFocusDelay: TimeInterval = 0.08
     private let observedActivationRetryLimit = 3
     private let observedActivationRetryDelay: TimeInterval = 0.05
+    /// Activation, launch and quit notifications arrive in bursts. They are
+    /// coalesced into one rebuild that starts this long after the first one.
+    static let backgroundRefreshDelay: TimeInterval = 0.25
+    /// Background rebuilds keep the switcher's membership current while it is
+    /// hidden, but recapturing every window on every app switch was the main
+    /// idle CPU cost. They reuse a preview captured within this age and only
+    /// capture new, changed (title/frame) or stale windows. Opening the
+    /// switcher still runs a fresh capture pass.
+    static let backgroundPreviewReuseAge: TimeInterval = 20.0
+    /// Opening the switcher repeatedly within this window reuses the previous
+    /// presentation's frames instead of recapturing every window again.
+    static let presentationPreviewReuseAge: TimeInterval = 1.0
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     var onActivationConfirmed: ((SwitcherHistoryIdentity, pid_t) -> Void)?
@@ -156,22 +173,22 @@ final class AppSwitcher: NSObject {
               app.bundleIdentifier != Bundle.main.bundleIdentifier else { return }
 
         if pendingActivationPIDs.contains(app.processIdentifier) {
-            warmCache(force: true)
+            scheduleBackgroundRefresh()
             return
         }
 
         noteObservedActivation(for: app)
         refreshFrontmostIdentityInBackground()
-        warmCache(force: true)
+        scheduleBackgroundRefresh()
     }
 
     @objc private func frontmostFocusChanged() { refreshFrontmostIdentityInBackground() }
 
     @objc private func workspaceChanged() {
         refreshFrontmostIdentityInBackground()
-        warmCache(force: true)
+        scheduleBackgroundRefresh()
     }
-    @objc private func preferencesChanged() { warmCache(force: true) }
+    @objc private func preferencesChanged() { scheduleBackgroundRefresh() }
 
     private func noteObservedActivation(for app: NSRunningApplication, attempt: Int = 0) {
         let delay = observedActivationRetryDelay * Double(attempt + 1)
@@ -302,10 +319,40 @@ final class AppSwitcher: NSObject {
         return Date().timeIntervalSince(lastRefresh) > refreshInterval
     }
 
+    /// Immediate rebuild with a fresh capture pass (switcher presentation,
+    /// explicit preview refresh, configuration change).
     func warmCache(force: Bool = false) {
         buildQueue.async { [weak self] in
-            self?.refreshCacheIfNeeded(force: force)
+            self?.refreshCacheIfNeeded(
+                force: force,
+                previewReuseAge: Self.presentationPreviewReuseAge
+            )
         }
+    }
+
+    /// Coalesced, incremental rebuild for events that happen while the
+    /// switcher is usually hidden. At most one is queued at a time; a burst of
+    /// notifications therefore costs one membership walk and captures only the
+    /// windows whose preview is missing, changed, or stale.
+    func scheduleBackgroundRefresh() {
+        cacheLock.lock()
+        guard backgroundRefreshWorkItem == nil else {
+            cacheLock.unlock()
+            return
+        }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.cacheLock.lock()
+            self.backgroundRefreshWorkItem = nil
+            self.cacheLock.unlock()
+            self.refreshCacheIfNeeded(
+                force: true,
+                previewReuseAge: Self.backgroundPreviewReuseAge
+            )
+        }
+        backgroundRefreshWorkItem = item
+        cacheLock.unlock()
+        buildQueue.asyncAfter(deadline: .now() + Self.backgroundRefreshDelay, execute: item)
     }
 
     /// Publish a recovered exact-window frame from the continuity store without
@@ -427,7 +474,7 @@ final class AppSwitcher: NSObject {
     //   on this background queue, rebuild items with real previews, cache
     //   again, and notify the UI to swap icons for thumbnails.
 
-    private func refreshCacheIfNeeded(force: Bool) {
+    private func refreshCacheIfNeeded(force: Bool, previewReuseAge: TimeInterval) {
         cacheLock.lock()
         let isStale = Date().timeIntervalSince(lastRefresh) > refreshInterval
         guard force || isStale else {
@@ -437,6 +484,10 @@ final class AppSwitcher: NSObject {
         if isRefreshing {
             if force {
                 pendingForcedRefresh = true
+                pendingReplayPreviewReuseAge = min(
+                    pendingReplayPreviewReuseAge ?? previewReuseAge,
+                    previewReuseAge
+                )
             }
             cacheLock.unlock()
             return
@@ -484,7 +535,8 @@ final class AppSwitcher: NSObject {
             let fullItems = self.assembleItems(
                 from: context,
                 capturePreviews: true,
-                previewFallbacks: preservedPreviews
+                previewFallbacks: preservedPreviews,
+                previewReuseAge: previewReuseAge
             )
             let phase2Duration = Date().timeIntervalSince(phase2Start)
             var metrics = SnapshotDiagnosticsTracker.shared.snapshot()
@@ -497,7 +549,9 @@ final class AppSwitcher: NSObject {
             self.lastRefresh = Date()
             self.isRefreshing = false
             let shouldReplay = self.pendingForcedRefresh
+            let replayReuseAge = self.pendingReplayPreviewReuseAge ?? Self.backgroundPreviewReuseAge
             self.pendingForcedRefresh = false
+            self.pendingReplayPreviewReuseAge = nil
             self.cacheLock.unlock()
 
             // Notify UI again — thumbnails now available.
@@ -507,7 +561,7 @@ final class AppSwitcher: NSObject {
 
             if shouldReplay {
                 self.buildQueue.async { [weak self] in
-                    self?.refreshCacheIfNeeded(force: true)
+                    self?.refreshCacheIfNeeded(force: true, previewReuseAge: replayReuseAge)
                 }
             }
         }
@@ -640,14 +694,28 @@ final class AppSwitcher: NSObject {
         from context: BuildContext,
         capturePreviews: Bool,
         previewFallbacks: [String: PreviewCacheEntry],
-        allowPreviewlessItems: Bool = false
+        allowPreviewlessItems: Bool = false,
+        previewReuseAge: TimeInterval = 0
     ) -> [SwitcherItem] {
+        let now = Date()
         let windowItems: [SwitcherItem] = context.candidates.compactMap { candidate -> SwitcherItem? in
             let previewKey = candidate.previewCacheKey
             let preview: NSImage?
             let backdrop: NSImage?
             let previewCaptureIsFresh: Bool
-            if capturePreviews {
+            var previewCapturedAt: Date?
+            var allowsRecovery = capturePreviews
+            if capturePreviews,
+               let cached = previewFallbacks[previewKey],
+               Self.mayReuseCapturedPreview(capturedAt: cached.capturedAt, now: now, maximumAge: previewReuseAge) {
+                // The same exact window, title and frame was captured
+                // recently: reuse that frame instead of another capture.
+                previewCaptureIsFresh = false
+                previewCapturedAt = cached.capturedAt
+                allowsRecovery = false
+                preview = cached.image
+                backdrop = cached.backdropImage ?? cached.image
+            } else if capturePreviews {
                 let assets = capturePreviewAssets(for: candidate)
                 previewCaptureIsFresh = assets != nil
                 preview = assets?.thumbnail ?? reusablePhaseTwoFallback(from: previewFallbacks[previewKey])
@@ -672,7 +740,8 @@ final class AppSwitcher: NSObject {
                 icon: candidate.appIcon,
                 previewImage: preview,
                 previewCaptureIsFresh: previewCaptureIsFresh,
-                allowsPreviewRecovery: capturePreviews,
+                previewCapturedAt: previewCapturedAt,
+                allowsPreviewRecovery: allowsRecovery,
                 backdropImage: backdrop,
                 backdropFrame: candidate.bounds,
                 backdropSourceScreenFrame: candidate.screenFrame,
@@ -728,6 +797,15 @@ final class AppSwitcher: NSObject {
         SnapshotDiagnosticsTracker.shared.record(metrics)
 
         return resultItems
+    }
+
+    /// A cached frame stands in for a new capture only when it was captured
+    /// for the same preview key (exact window, title and frame) within
+    /// `maximumAge`. A clock that moved backwards never counts as fresh.
+    static func mayReuseCapturedPreview(capturedAt: Date, now: Date, maximumAge: TimeInterval) -> Bool {
+        guard maximumAge > 0 else { return false }
+        let age = now.timeIntervalSince(capturedAt)
+        return age >= 0 && age <= maximumAge
     }
 
     private func reusablePhaseTwoFallback(from entry: PreviewCacheEntry?) -> NSImage? {
@@ -1035,6 +1113,13 @@ final class AppSwitcher: NSObject {
         markPendingActivation(candidate.ownerPID)
         schedulePendingActivationTimeout(for: candidate.ownerPID, token: token)
 
+        // A hidden application (Command-H) keeps its windows in the switcher.
+        // Bringing one of its windows forward with the private focus call does
+        // not unhide the application, so the window stayed invisible until the
+        // retry chain eventually escalated to app activation, or never came
+        // back at all when the window was not reported again.
+        if app.isHidden { app.unhide() }
+
         // An unavailable identity or focus bridge must never be treated as an
         // exact selection.  Public application activation still preserves a
         // usable switcher, but it is explicitly an unverified app fallback and
@@ -1145,8 +1230,15 @@ final class AppSwitcher: NSObject {
         ) else {
             return .exactWindowNotFound
         }
+        let window = windows[exactIndex]
+        // Minimized windows are listed by Core Graphics, so with "Include
+        // minimized windows" on they reach this base path too. Focusing and
+        // raising a minimized window leaves it in the Dock: restore it first.
+        if axBool(for: window, attribute: kAXMinimizedAttribute as CFString) {
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+        }
         return raiseWindow(
-            windows[exactIndex],
+            window,
             ownerPID: candidate.ownerPID,
             bringApplicationFrontmost: false
         ) ? .raised : .raiseFailed
@@ -2094,47 +2186,38 @@ final class AppSwitcher: NSObject {
         let width = cgImage.width
         let height = cgImage.height
         let insetLimit = max(0, min(maxInset, min(width / 4, height / 4)))
-        guard insetLimit > 0,
-              let alphaContext = CGContext(
-                data: nil, width: width, height: height,
-                bitsPerComponent: 8, bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ), let data = alphaContext.data else { return cgImage }
-        defer { withExtendedLifetime(alphaContext) {} }
-        // Core Graphics converts any source layout into RGBA; alpha is the
-        // fourth byte of each pixel. An alpha-only context would be smaller but
-        // needs a nil color space, which older macOS SDKs cannot express.
-        alphaContext.setBlendMode(.copy)
-        alphaContext.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-        let alpha = data.assumingMemoryBound(to: UInt8.self)
-        let stride = alphaContext.bytesPerRow
+        guard insetLimit > 0 else { return cgImage }
 
-        func rowHasOpaquePixels(_ y: Int) -> Bool {
-            (0..<width).contains { alpha[y * stride + $0 * 4 + 3] >= alphaThreshold }
-        }
-
-        func columnHasOpaquePixels(_ x: Int) -> Bool {
-            (0..<height).contains { alpha[$0 * stride + x * 4 + 3] >= alphaThreshold }
-        }
+        // Only the four border strips can be trimmed, so only they are
+        // rasterized. Converting the whole frame to RGBA cost width x height x
+        // 4 bytes per capture (about 24 MB for one Retina window) on every
+        // capture pass; the strips are a small fraction of that. Strips are
+        // at most a quarter of each dimension, so they never overlap.
+        guard let top = AlphaStrip(cgImage, x: 0, y: 0, width: width, height: insetLimit),
+              let bottom = AlphaStrip(cgImage, x: 0, y: height - insetLimit, width: width, height: insetLimit),
+              let left = AlphaStrip(cgImage, x: 0, y: 0, width: insetLimit, height: height),
+              let right = AlphaStrip(cgImage, x: width - insetLimit, y: 0, width: insetLimit, height: height)
+        else { return cgImage }
 
         var topInset = 0
-        while topInset < insetLimit && !rowHasOpaquePixels(topInset) {
+        while topInset < insetLimit && !top.rowHasOpaquePixels(topInset, threshold: alphaThreshold) {
             topInset += 1
         }
 
         var bottomInset = 0
-        while bottomInset < insetLimit && !rowHasOpaquePixels(height - 1 - bottomInset) {
+        while bottomInset < insetLimit &&
+            !bottom.rowHasOpaquePixels(insetLimit - 1 - bottomInset, threshold: alphaThreshold) {
             bottomInset += 1
         }
 
         var leftInset = 0
-        while leftInset < insetLimit && !columnHasOpaquePixels(leftInset) {
+        while leftInset < insetLimit && !left.columnHasOpaquePixels(leftInset, threshold: alphaThreshold) {
             leftInset += 1
         }
 
         var rightInset = 0
-        while rightInset < insetLimit && !columnHasOpaquePixels(width - 1 - rightInset) {
+        while rightInset < insetLimit &&
+            !right.columnHasOpaquePixels(insetLimit - 1 - rightInset, threshold: alphaThreshold) {
             rightInset += 1
         }
 
@@ -2152,6 +2235,47 @@ final class AppSwitcher: NSObject {
         )
 
         return cgImage.cropping(to: cropRect) ?? cgImage
+    }
+
+    /// The alpha channel of one rectangular region of an image, normalized to
+    /// RGBA. Rows count from the top of the region, like CGImage cropping.
+    private struct AlphaStrip {
+        let width: Int
+        let height: Int
+        private let bytes: [UInt8]
+        private let stride: Int
+
+        init?(_ image: CGImage, x: Int, y: Int, width: Int, height: Int) {
+            guard width > 0, height > 0,
+                  let region = image.cropping(to: CGRect(x: x, y: y, width: width, height: height)),
+                  region.width == width, region.height == height,
+                  let context = CGContext(
+                    data: nil, width: width, height: height,
+                    bitsPerComponent: 8, bytesPerRow: width * 4,
+                    space: CGColorSpaceCreateDeviceRGB(),
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                  ), let data = context.data else { return nil }
+            // Core Graphics converts any source layout into RGBA; alpha is the
+            // fourth byte of each pixel.
+            context.setBlendMode(.copy)
+            context.draw(region, in: CGRect(x: 0, y: 0, width: width, height: height))
+            let stride = context.bytesPerRow
+            self.width = width
+            self.height = height
+            self.stride = stride
+            self.bytes = Array(UnsafeBufferPointer(
+                start: data.assumingMemoryBound(to: UInt8.self),
+                count: stride * height
+            ))
+        }
+
+        func rowHasOpaquePixels(_ row: Int, threshold: UInt8) -> Bool {
+            (0..<width).contains { bytes[row * stride + $0 * 4 + 3] >= threshold }
+        }
+
+        func columnHasOpaquePixels(_ column: Int, threshold: UInt8) -> Bool {
+            (0..<height).contains { bytes[$0 * stride + column * 4 + 3] >= threshold }
+        }
     }
 
     static func presentationSafeWindowCapture(_ cgImage: CGImage) -> CGImage {

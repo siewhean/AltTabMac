@@ -1,3 +1,17 @@
+## 2026-11-08 — Switcher MRU, latency, CPU and activation fixes
+
+- [x] Read README, AGENTS and lessons; trace hotkey → controller → production switcher → base switcher → history.
+- [x] MRU: app-level history entries rank one representative window (`SwitcherOrdering.effectiveRanks`); focused-window lookup retries 6 times.
+- [x] Latency: per-presentation frontmost memo; style-gated SwiftUI root rebuild; enrichment epoch instead of generation for publication; per-profile inventory cache; AX observer registration backoff.
+- [x] CPU: coalesced background refresh with incremental capture; strip-only trim rasterization; catalogue reuse for preview-only publications; synthetic (minimized) capture cache; throttled durable history writes.
+- [x] Activation: unhide hidden apps; restore minimized windows on the base path.
+- [x] Extra: stable order inside an open session; active-window display matched in AppKit coordinates.
+- [x] Regression tests (`Tests/CmdTabTests/SwitcherReliabilityRegressionTests.swift`) and A/B plan (`docs/qa/switcher-reliability-ab-test-plan.md`).
+- [ ] macOS CI green (build and full suite on macOS 14 and 15).
+- [ ] Manual A/B cases on a real Mac (user-run).
+
+Review: no Swift toolchain in the cloud environment, so nothing was compiled or run locally; CI on the pull request is the first build. Existing ordering tests were checked by hand against the new ranking (the fallback-grouping test keeps its expected order). Manual cases are NOT_RUN.
+
 ## 2026-10-15 — Waitlist zoom fix and merge record
 
 - [x] `/waitlist` and waitlist success panel: single-column grid default and `whitespace-normal!` on Button labels (same pattern as #115 on `/help`), so labels wrap at 200%/400% zoom.

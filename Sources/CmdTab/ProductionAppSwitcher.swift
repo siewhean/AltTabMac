@@ -211,6 +211,93 @@ enum ProductionMembershipFinalizer {
     }
 }
 
+/// Last published inventory for each recently used profile configuration.
+///
+/// Switching between shortcut profiles used to discard the only enriched
+/// inventory, so the next switcher waited for a whole-desktop Accessibility
+/// walk before it could appear (and a quick tap during that walk did nothing).
+/// Each entry was enriched for exactly that configuration, so restoring it
+/// never exposes items filtered for a different profile; it is bounded in age
+/// so a long-unused profile still waits for fresh membership.
+struct ProductionInventoryCache {
+    struct Entry {
+        let configuration: SwitcherSessionConfiguration
+        let items: [SwitcherItem]
+        let descriptors: [SwitcherHistoryIdentity: LiveWindowHistoryDescriptor]
+        let suppressed: Set<SwitcherHistoryIdentity>
+        let publishedAt: TimeInterval
+    }
+
+    static let maximumAge: TimeInterval = 60
+    static let capacity = 4
+
+    private(set) var entries: [Entry] = []
+
+    mutating func store(_ entry: Entry) {
+        entries.removeAll { $0.configuration == entry.configuration }
+        entries.insert(entry, at: 0)
+        if entries.count > Self.capacity {
+            entries.removeLast(entries.count - Self.capacity)
+        }
+    }
+
+    func entry(
+        for configuration: SwitcherSessionConfiguration,
+        now: TimeInterval
+    ) -> Entry? {
+        guard let entry = entries.first(where: { $0.configuration == configuration }) else {
+            return nil
+        }
+        let age = now - entry.publishedAt
+        return age >= 0 && age <= Self.maximumAge ? entry : nil
+    }
+
+    mutating func removeAll() { entries.removeAll() }
+}
+
+/// Reuses AX-only (minimized or off-Space) window captures between enrichment
+/// passes. Every base publication triggers enrichment, and each pass used to
+/// recapture every such window. A minimized window's content cannot change
+/// while it stays in the Dock; other AX-only windows are reused briefly.
+struct SyntheticPreviewCache {
+    struct Entry {
+        let assets: AppSwitcher.PreviewAssets
+        let capturedAt: Date
+        let frame: CGRect?
+        let isMinimized: Bool
+    }
+
+    static let minimizedMaximumAge: TimeInterval = 60
+    static let visibleMaximumAge: TimeInterval = 3
+
+    private var entries: [SwitcherHistoryIdentity: Entry] = [:]
+
+    func reusableAssets(
+        for identity: SwitcherHistoryIdentity,
+        frame: CGRect?,
+        isMinimized: Bool,
+        now: Date
+    ) -> Entry? {
+        guard let entry = entries[identity],
+              entry.isMinimized == isMinimized,
+              entry.frame == frame else { return nil }
+        let age = now.timeIntervalSince(entry.capturedAt)
+        let limit = isMinimized ? Self.minimizedMaximumAge : Self.visibleMaximumAge
+        return age >= 0 && age <= limit ? entry : nil
+    }
+
+    mutating func store(_ entry: Entry, for identity: SwitcherHistoryIdentity) {
+        entries[identity] = entry
+    }
+
+    /// Drops windows that are no longer part of the inventory.
+    mutating func retain(only identities: Set<SwitcherHistoryIdentity>) {
+        entries = entries.filter { identities.contains($0.key) }
+    }
+
+    var count: Int { entries.count }
+}
+
 /// Profile-aware facade over the proven Phase 1 `AppSwitcher`.
 ///
 /// The base switcher remains responsible for fast CG enumeration, previews, and
@@ -246,12 +333,25 @@ final class ProductionAppSwitcher {
     private var cachedEnrichedItems: [SwitcherItem] = []
     private var hasPublishedInventory = false
     private var suppressedBaseWindowIdentities = Set<SwitcherHistoryIdentity>()
+    /// Coalesces queued enrichment work: a pass that has not started yet is
+    /// skipped when a newer one was scheduled.
     private var enrichmentGeneration: UInt64 = 0
+    /// Bumped only when in-flight results become wrong (a window was closed or
+    /// quit by a switcher action). A newer *scheduled* pass no longer discards
+    /// a finished one: under steady base publications that starved
+    /// publication, leaving a stale or empty inventory on screen.
+    private var invalidationEpoch: UInt64 = 0
     private var enrichmentGate = ProductionEnrichmentGate()
+    private var inventoryCache = ProductionInventoryCache()
+    private var syntheticPreviews = SyntheticPreviewCache()
+    private var lastEnrichedMembershipKeys: [String]?
 
     private var catalogCache: AXWindowCatalogSnapshot?
     private var catalogCacheDate = Date.distantPast
     private let catalogRefreshInterval: TimeInterval = 0.35
+    /// A publication that only changes previews (the base capture pass) does
+    /// not need a new whole-desktop Accessibility walk.
+    static let previewOnlyCatalogMaximumAge: TimeInterval = 2.0
 
     var onItemsChanged: (([SwitcherItem]) -> Void)?
     var onActivationConfirmed: ((SwitcherHistoryIdentity, pid_t) -> Void)?
@@ -332,17 +432,29 @@ final class ProductionAppSwitcher {
         let changed = activeConfiguration != configuration
         activeConfiguration = configuration
         if changed {
-            // Never expose items enriched for a different profile. Reuse only a
-            // provably safe exact subset while the new async enrichment pass runs.
-            cachedEnrichedItems = ProvisionalSwitcherPolicy.filteredEnrichedItems(
-                cachedEnrichedItems,
-                configuration: configuration
-            )
-            hasPublishedInventory = false
-            suppressedBaseWindowIdentities.removeAll()
-            descriptorsByIdentity = descriptorsByIdentity.filter { identity, _ in
-                cachedEnrichedItems.contains { $0.historyIdentity == identity }
+            if let cached = inventoryCache.entry(
+                for: configuration,
+                now: ProcessInfo.processInfo.systemUptime
+            ) {
+                // Published for exactly this configuration moments ago.
+                cachedEnrichedItems = cached.items
+                descriptorsByIdentity = cached.descriptors
+                suppressedBaseWindowIdentities = cached.suppressed
+                hasPublishedInventory = true
+            } else {
+                // Never expose items enriched for a different profile. Reuse only a
+                // provably safe exact subset while the new async enrichment pass runs.
+                cachedEnrichedItems = ProvisionalSwitcherPolicy.filteredEnrichedItems(
+                    cachedEnrichedItems,
+                    configuration: configuration
+                )
+                hasPublishedInventory = false
+                suppressedBaseWindowIdentities.removeAll()
+                descriptorsByIdentity = descriptorsByIdentity.filter { identity, _ in
+                    cachedEnrichedItems.contains { $0.historyIdentity == identity }
+                }
             }
+            lastEnrichedMembershipKeys = nil
             enrichmentGate.invalidate()
         }
         stateLock.unlock()
@@ -427,13 +539,18 @@ final class ProductionAppSwitcher {
 
     @discardableResult
     func reconcileCurrentFrontmostHistory() -> SwitcherHistoryIdentity? {
-        guard let identity = base.reconcileCurrentFrontmostHistory() else {
+        guard let identity = base.currentFrontmostIdentity() else {
             return nil
         }
-        if let descriptor = descriptor(for: identity) {
-            history.noteActivation(identity, descriptor: descriptor)
-        }
+        reconcileFrontmostHistory(identity)
         return identity
+    }
+
+    /// Records an already resolved frontmost identity as the most recent use,
+    /// so a presentation resolves the frontmost window once instead of once
+    /// per caller.
+    func reconcileFrontmostHistory(_ identity: SwitcherHistoryIdentity) {
+        history.noteActivation(identity, descriptor: descriptor(for: identity))
     }
 
     @discardableResult
@@ -466,6 +583,7 @@ final class ProductionAppSwitcher {
         )
         if result.succeeded {
             invalidateCatalogCache()
+            invalidateInFlightEnrichment()
             base.warmCache(force: true)
         }
         return result
@@ -493,6 +611,7 @@ final class ProductionAppSwitcher {
         }
         enrichmentGeneration &+= 1
         let generation = enrichmentGeneration
+        let epoch = invalidationEpoch
         stateLock.unlock()
 
         enrichmentQueue.async { [weak self] in
@@ -500,22 +619,34 @@ final class ProductionAppSwitcher {
 
             self.stateLock.lock()
             guard generation == self.enrichmentGeneration else {
+                // A newer pass is queued behind this one; let it do the work.
                 self.stateLock.unlock()
                 return
             }
             let currentItems = self.latestBaseItems
             let currentConfiguration = self.activeConfiguration
+            let catalogMaximumAge = Self.catalogMaximumAge(
+                forcedRefresh: forceCatalogRefresh,
+                membershipKeys: currentItems.map(\.id),
+                lastEnrichedMembershipKeys: self.lastEnrichedMembershipKeys,
+                defaultMaximumAge: self.catalogRefreshInterval
+            )
             self.stateLock.unlock()
 
             let result = self.buildEnrichedItems(
                 from: currentItems,
                 configuration: currentConfiguration,
-                forceCatalogRefresh: forceCatalogRefresh
+                forceCatalogRefresh: forceCatalogRefresh,
+                catalogMaximumAge: catalogMaximumAge
             )
 
             self.stateLock.lock()
-            guard generation == self.enrichmentGeneration,
-                  currentConfiguration == self.activeConfiguration else {
+            guard Self.mayPublishEnrichment(
+                epoch: epoch,
+                currentEpoch: self.invalidationEpoch,
+                configuration: currentConfiguration,
+                activeConfiguration: self.activeConfiguration
+            ) else {
                 self.stateLock.unlock()
                 return
             }
@@ -523,6 +654,14 @@ final class ProductionAppSwitcher {
             self.cachedEnrichedItems = result.items
             self.descriptorsByIdentity = result.descriptors
             self.suppressedBaseWindowIdentities = result.suppressedBaseWindowIdentities
+            self.lastEnrichedMembershipKeys = currentItems.map(\.id)
+            self.inventoryCache.store(.init(
+                configuration: currentConfiguration,
+                items: result.items,
+                descriptors: result.descriptors,
+                suppressed: result.suppressedBaseWindowIdentities,
+                publishedAt: ProcessInfo.processInfo.systemUptime
+            ))
             self.stateLock.unlock()
 
             self.history.reconcileLiveWindows(
@@ -531,7 +670,12 @@ final class ProductionAppSwitcher {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.stateLock.lock()
-                let isCurrent = generation == self.enrichmentGeneration && currentConfiguration == self.activeConfiguration
+                let isCurrent = Self.mayPublishEnrichment(
+                    epoch: epoch,
+                    currentEpoch: self.invalidationEpoch,
+                    configuration: currentConfiguration,
+                    activeConfiguration: self.activeConfiguration
+                )
                 self.stateLock.unlock()
                 guard isCurrent else { return }
                 SnapshotDiagnosticsTracker.shared.recordPublishedPreviewStates(result.items)
@@ -540,10 +684,39 @@ final class ProductionAppSwitcher {
         }
     }
 
+    /// A finished enrichment pass is published unless the inventory it was
+    /// built from was explicitly invalidated or the profile changed meanwhile.
+    static func mayPublishEnrichment(
+        epoch: UInt64,
+        currentEpoch: UInt64,
+        configuration: SwitcherSessionConfiguration,
+        activeConfiguration: SwitcherSessionConfiguration
+    ) -> Bool {
+        epoch == currentEpoch && configuration == activeConfiguration
+    }
+
+    /// The Accessibility catalogue must be fresh when membership may have
+    /// changed. When the base publication lists exactly the windows the last
+    /// enrichment saw (the capture pass only replaced previews), the recent
+    /// catalogue is reused instead of walking every application again.
+    static func catalogMaximumAge(
+        forcedRefresh: Bool,
+        membershipKeys: [String],
+        lastEnrichedMembershipKeys: [String]?,
+        defaultMaximumAge: TimeInterval
+    ) -> TimeInterval {
+        guard !forcedRefresh else { return 0 }
+        guard let lastEnrichedMembershipKeys, lastEnrichedMembershipKeys == membershipKeys else {
+            return defaultMaximumAge
+        }
+        return max(defaultMaximumAge, previewOnlyCatalogMaximumAge)
+    }
+
     private func buildEnrichedItems(
         from baseItems: [SwitcherItem],
         configuration: SwitcherSessionConfiguration,
-        forceCatalogRefresh: Bool
+        forceCatalogRefresh: Bool,
+        catalogMaximumAge: TimeInterval
     ) -> EnrichmentResult {
         if let inventoryProvider {
             let items = inventoryProvider(baseItems, configuration)
@@ -560,7 +733,8 @@ final class ProductionAppSwitcher {
         )
         let snapshot = suppliedInventory?.1 ?? catalogSnapshot(
             applications: applications,
-            forceRefresh: forceCatalogRefresh
+            forceRefresh: forceCatalogRefresh,
+            maximumAge: catalogMaximumAge
         )
 
         let knownLiveWindowIDsByPID = Dictionary(grouping: baseItems.compactMap { item -> (pid_t, CGWindowID)? in
@@ -575,6 +749,7 @@ final class ProductionAppSwitcher {
         )
 
         var represented = Set<SwitcherHistoryIdentity>()
+        var capturedSyntheticIdentities = Set<SwitcherHistoryIdentity>()
         var descriptors: [SwitcherHistoryIdentity: LiveWindowHistoryDescriptor] = [:]
         var items: [SwitcherItem] = []
         items.reserveCapacity(baseItems.count + snapshot.allWindows.count)
@@ -665,23 +840,21 @@ final class ProductionAppSwitcher {
             // The base capture pass cannot see AX-only/minimized windows.
             // Capture their exact drawable here before falling back to deferred
             // ScreenCaptureKit recovery, which may omit minimized windows.
-            let assets: AppSwitcher.PreviewAssets?
-            if let previewCapture {
-                assets = previewCapture(metadata.ownerPID, metadata.windowID, metadata.frame ?? .zero)
-            } else {
-                assets = base.captureExactPreviewAssets(
-                    ownerPID: metadata.ownerPID, windowID: metadata.windowID,
-                    bounds: metadata.frame ?? .zero
-                )
-            }
+            let assets = syntheticPreviewAssets(for: metadata, identity: identity)
+            capturedSyntheticIdentities.insert(identity)
             items.append(
                 SwitcherPreviewResolver.item(
                     title: title,
                     subtitle: appName,
                     icon: app.icon,
-                    previewImage: assets?.thumbnail,
-                    previewCaptureIsFresh: assets != nil,
-                    backdropImage: assets?.backdrop,
+                    previewImage: assets?.assets.thumbnail,
+                    previewCaptureIsFresh: assets?.isFresh ?? false,
+                    previewCapturedAt: assets?.capturedAt,
+                    // A reused frame already went through recovery admission
+                    // when it was captured; asking again every pass would
+                    // turn each enrichment into a ScreenCaptureKit request.
+                    allowsPreviewRecovery: assets.map { $0.isFresh } ?? true,
+                    backdropImage: assets?.assets.backdrop,
                     backdropFrame: metadata.frame,
                     backdropSourceScreenFrame: nil,
                     previewCacheKey: syntheticPreviewKey(
@@ -723,6 +896,9 @@ final class ProductionAppSwitcher {
             globalIncludesMinimized: preferences.includeMinimizedWindows
         )
         let finalizedIdentities = Set(finalizedItems.map(\.historyIdentity))
+        stateLock.lock()
+        syntheticPreviews.retain(only: capturedSyntheticIdentities)
+        stateLock.unlock()
         let suppressed = Set(baseItems.filter {
             $0.kind == .appWindow && !finalizedIdentities.contains($0.historyIdentity)
         }.map(\.historyIdentity))
@@ -862,14 +1038,53 @@ final class ProductionAppSwitcher {
         return descriptor
     }
 
+    /// Enrichment queue. Returns a recent capture of an AX-only window when one
+    /// is still valid, otherwise captures it now and remembers the result.
+    private func syntheticPreviewAssets(
+        for metadata: AXWindowMetadata,
+        identity: SwitcherHistoryIdentity
+    ) -> (assets: AppSwitcher.PreviewAssets, capturedAt: Date, isFresh: Bool)? {
+        let now = Date()
+        stateLock.lock()
+        let reusable = syntheticPreviews.reusableAssets(
+            for: identity,
+            frame: metadata.frame,
+            isMinimized: metadata.isMinimized,
+            now: now
+        )
+        stateLock.unlock()
+        if let reusable {
+            return (reusable.assets, reusable.capturedAt, false)
+        }
+
+        let captured: AppSwitcher.PreviewAssets?
+        if let previewCapture {
+            captured = previewCapture(metadata.ownerPID, metadata.windowID, metadata.frame ?? .zero)
+        } else {
+            captured = base.captureExactPreviewAssets(
+                ownerPID: metadata.ownerPID, windowID: metadata.windowID,
+                bounds: metadata.frame ?? .zero
+            )
+        }
+        guard let captured else { return nil }
+        stateLock.lock()
+        syntheticPreviews.store(
+            .init(assets: captured, capturedAt: now, frame: metadata.frame, isMinimized: metadata.isMinimized),
+            for: identity
+        )
+        stateLock.unlock()
+        return (captured, now, true)
+    }
+
     private func catalogSnapshot(
         applications: [NSRunningApplication],
-        forceRefresh: Bool
+        forceRefresh: Bool,
+        maximumAge: TimeInterval
     ) -> AXWindowCatalogSnapshot {
         stateLock.lock()
         if !forceRefresh,
            let catalogCache,
-           Date().timeIntervalSince(catalogCacheDate) <= catalogRefreshInterval {
+           Date().timeIntervalSince(catalogCacheDate) <= maximumAge {
             stateLock.unlock()
             return catalogCache
         }
@@ -887,8 +1102,16 @@ final class ProductionAppSwitcher {
         stateLock.lock()
         catalogCache = nil
         catalogCacheDate = .distantPast
+        lastEnrichedMembershipKeys = nil
         enrichmentGate.invalidate()
-        enrichmentGeneration &+= 1
+        stateLock.unlock()
+    }
+
+    /// Discards enrichment results that are still being built: they may list a
+    /// window that a switcher action has just closed or quit.
+    private func invalidateInFlightEnrichment() {
+        stateLock.lock()
+        invalidationEpoch &+= 1
         stateLock.unlock()
     }
 
@@ -1061,7 +1284,7 @@ final class ProductionAppSwitcher {
                                 metadata.ownerPID
                             )
                             self.invalidateCatalogCache()
-                            self.base.warmCache(force: true)
+                            self.base.scheduleBackgroundRefresh()
                             return
                         }
 
