@@ -169,7 +169,7 @@ assert.ok(
   packageJson.scripts.prebuild.includes("showcase:generate") || packageJson.scripts["seo:check"].includes("showcase:generate"),
   "Vercel prebuild path must generate HD media",
 );
-assert.equal(packageJson.dependencies.next, "16.4.0", "Next.js patch is not pinned");
+assert.equal(packageJson.dependencies.next, "16.4.5", "Next.js patch is not pinned");
 assert.equal(packageJson.dependencies.resend, "6.18.0", "Resend patch is not pinned");
 assert.equal(packageJson.dependencies.sharp, "0.35.5", "Sharp patch is not pinned");
 assert.equal(packageJson.devDependencies.postcss, "8.5.29", "PostCSS patch is not pinned");

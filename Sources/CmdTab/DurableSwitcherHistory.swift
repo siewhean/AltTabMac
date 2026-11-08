@@ -335,6 +335,12 @@ final class DurableSwitcherHistoryStore {
     private var records: [DurableWindowHistoryRecord]
     private var recordIDByLiveIdentity: [SwitcherHistoryIdentity: UUID] = [:]
     private var liveIdentityByRecordID: [UUID: SwitcherHistoryIdentity] = [:]
+    private var lastPersistedAt: Date?
+    /// Live reconciliation runs after every switcher enrichment pass and only
+    /// refreshes `lastSeenAt`, which matters at the 45-day expiry scale. It
+    /// used to rewrite the whole file each time (every app switch); now such
+    /// refresh-only changes are written at most this often.
+    static let lastSeenPersistInterval: TimeInterval = 300
 
     init(
         fileURL: URL? = nil,
@@ -352,6 +358,7 @@ final class DurableSwitcherHistoryStore {
         now: Date = Date()
     ) -> [SwitcherHistoryIdentity] {
         queue.sync {
+            let recordIDsBefore = records.map(\.id)
             records.removeAll {
                 now.timeIntervalSince($0.lastSeenAt) > expirationInterval
             }
@@ -415,7 +422,13 @@ final class DurableSwitcherHistoryStore {
                 return updated
             }
             pruneIdentityMappingsLocked()
-            persistLocked()
+            if Self.shouldPersistReconciliation(
+                recordsChanged: records.map(\.id) != recordIDsBefore,
+                lastPersistedAt: lastPersistedAt,
+                now: now
+            ) {
+                persistLocked(now: now)
+            }
 
             // Records remain sorted by durable activation order, so this preserves
             // MRU while returning each exact live identity at most once.
@@ -480,8 +493,19 @@ final class DurableSwitcherHistoryStore {
                 self.records.removeLast(self.records.count - self.maximumRecords)
             }
             self.pruneIdentityMappingsLocked()
-            self.persistLocked()
+            self.persistLocked(now: now)
         }
+    }
+
+    static func shouldPersistReconciliation(
+        recordsChanged: Bool,
+        lastPersistedAt: Date?,
+        now: Date
+    ) -> Bool {
+        if recordsChanged { return true }
+        guard let lastPersistedAt else { return true }
+        let elapsed = now.timeIntervalSince(lastPersistedAt)
+        return elapsed < 0 || elapsed >= lastSeenPersistInterval
     }
 
     func waitForPendingWrites() {
@@ -512,7 +536,8 @@ final class DurableSwitcherHistoryStore {
         }
     }
 
-    private func persistLocked() {
+    private func persistLocked(now: Date = Date()) {
+        lastPersistedAt = now
         do {
             let directory = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(

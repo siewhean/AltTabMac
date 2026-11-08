@@ -258,16 +258,108 @@ enum SwitcherOrdering {
         historyEntries: [SwitcherHistoryIdentity],
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
-        let items = SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items)
-        let rankByIdentity = Dictionary(
-            uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
+        recencyOrdered(
+            SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items),
+            historyEntries: historyEntries,
+            currentFrontmost: currentFrontmost,
+            ranksFallbackItemsByApplication: false
         )
+    }
 
-        let ranked = items.enumerated().sorted { lhs, rhs in
-            let lhsRank = rankByIdentity[lhs.element.historyIdentity]
-            let rhsRank = rankByIdentity[rhs.element.historyIdentity]
+    static func orderedItems(
+        _ items: [SwitcherItem],
+        history: SwitcherHistoryStore,
+        currentFrontmost: SwitcherHistoryIdentity?
+    ) -> [SwitcherItem] {
+        let ordered = recencyOrdered(
+            SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items),
+            historyEntries: history.snapshot(),
+            currentFrontmost: currentFrontmost,
+            ranksFallbackItemsByApplication: true
+        )
+        return SwitcherMembershipPolicy.applyingPerApplicationLimit(
+            ordered,
+            limit: SwitcherPreferences.shared.maxWindowsPerApp,
+            currentFrontmost: currentFrontmost
+        )
+    }
 
-            switch (lhsRank, rhsRank) {
+    /// Effective recency rank of each item (by position in `items`).
+    ///
+    /// Exact window identities rank by their own history entry. An
+    /// application-level entry is recorded when an app was activated but its
+    /// focused window could not be resolved in time (a slow or busy app, an
+    /// Accessibility timeout, a window still opening). That entry still means
+    /// "this app was used then", so it carries over to exactly one of the
+    /// app's windows: the one that was already most recent, else the first
+    /// listed. Without this, using A, then B through such an activation, then
+    /// C ranked A's window above B's and Command-Tab from C returned to A.
+    /// Only one window inherits the rank, so repeated apps are never grouped.
+    static func effectiveRanks(
+        items: [SwitcherItem],
+        historyEntries: [SwitcherHistoryIdentity]
+    ) -> [Int?] {
+        var exactRank: [SwitcherHistoryIdentity: Int] = [:]
+        var applicationRankByPID: [pid_t: Int] = [:]
+        var applicationRankByBundle: [String: Int] = [:]
+        for (offset, entry) in historyEntries.enumerated() {
+            if exactRank[entry] == nil { exactRank[entry] = offset }
+            guard case let .appFallback(bundleID, pid) = entry else { continue }
+            if let pid {
+                if applicationRankByPID[pid] == nil { applicationRankByPID[pid] = offset }
+            } else {
+                let key = bundleID.lowercased()
+                if applicationRankByBundle[key] == nil { applicationRankByBundle[key] = offset }
+            }
+        }
+
+        var ranks: [Int?] = items.map { exactRank[$0.historyIdentity] }
+        guard !applicationRankByPID.isEmpty || !applicationRankByBundle.isEmpty else {
+            return ranks
+        }
+
+        var representativeByPID: [pid_t: Int] = [:]
+        for (offset, item) in items.enumerated() where item.kind == .appWindow {
+            guard let pid = item.ownerPID else { continue }
+            guard let current = representativeByPID[pid] else {
+                representativeByPID[pid] = offset
+                continue
+            }
+            if (ranks[offset] ?? Int.max) < (ranks[current] ?? Int.max) {
+                representativeByPID[pid] = offset
+            }
+        }
+
+        for (pid, offset) in representativeByPID {
+            let bundleRank = items[offset].sourceAppIdentifier
+                .flatMap { applicationRankByBundle[$0.lowercased()] }
+            let candidates = [applicationRankByPID[pid], bundleRank].compactMap { $0 }
+            guard let applicationRank = candidates.min(),
+                  applicationRank < (ranks[offset] ?? Int.max) else { continue }
+            ranks[offset] = applicationRank
+        }
+        return ranks
+    }
+
+    private static func recencyOrdered(
+        _ items: [SwitcherItem],
+        historyEntries: [SwitcherHistoryIdentity],
+        currentFrontmost: SwitcherHistoryIdentity?,
+        ranksFallbackItemsByApplication: Bool
+    ) -> [SwitcherItem] {
+        var ranks = effectiveRanks(items: items, historyEntries: historyEntries)
+        if ranksFallbackItemsByApplication {
+            for (offset, item) in items.enumerated() where ranks[offset] == nil {
+                guard item.kind == .appFallback,
+                      let pid = item.historyIdentity.ownerPID else { continue }
+                ranks[offset] = historyEntries.firstIndex {
+                    $0.matches(bundleID: item.sourceAppIdentifier, pid: pid)
+                }
+            }
+        }
+
+        let ranked = items.indices.sorted { lhs, rhs in
+            switch (ranks[lhs], ranks[rhs]) {
             case let (.some(lhsRank), .some(rhsRank)):
                 if lhsRank != rhsRank { return lhsRank < rhsRank }
             case (.some, .none):
@@ -277,10 +369,10 @@ enum SwitcherOrdering {
             case (.none, .none):
                 break
             }
-            return lhs.offset < rhs.offset
+            return lhs < rhs
         }
 
-        var ordered = ranked.map(\.element)
+        var ordered = ranked.map { items[$0] }
         if let currentFrontmost,
            let currentIndex = ordered.firstIndex(where: {
                $0.historyIdentity == currentFrontmost
@@ -291,61 +383,39 @@ enum SwitcherOrdering {
         return ordered
     }
 
-    static func orderedItems(
-        _ items: [SwitcherItem],
-        history: SwitcherHistoryStore,
+    /// Keeps the order the user is already looking at while a session is open.
+    ///
+    /// Later publications (the capture pass, Accessibility enrichment) refresh
+    /// each tile's content, drop windows that closed, and append windows that
+    /// appeared, but never move existing tiles. Re-sorting mid-session inserted
+    /// late-discovered windows (for example minimized ones) ahead of the
+    /// selection, so the next Tab landed on a different window than the user
+    /// was counting towards. The current window stays last.
+    static func stableSessionOrder(
+        current: [SwitcherItem],
+        refreshed: [SwitcherItem],
         currentFrontmost: SwitcherHistoryIdentity?
     ) -> [SwitcherItem] {
-        let items = SwitcherMembershipPolicy.deduplicatedWithoutRepresentedFallbacks(items)
-        let historyEntries = history.snapshot()
-        let rankByIdentity = Dictionary(
-            uniqueKeysWithValues: historyEntries.enumerated().map { ($0.element, $0.offset) }
-        )
-
-        func appRank(bundleID: String?, pid: Int32?) -> Int? {
-            historyEntries.firstIndex { $0.matches(bundleID: bundleID, pid: pid) }
+        var refreshedByIdentity: [SwitcherHistoryIdentity: SwitcherItem] = [:]
+        for item in refreshed where refreshedByIdentity[item.historyIdentity] == nil {
+            refreshedByIdentity[item.historyIdentity] = item
         }
-
-        func rank(for item: SwitcherItem) -> Int? {
-            if let exact = rankByIdentity[item.historyIdentity] {
-                return exact
-            }
-            if item.kind == .appFallback,
-               let pid = item.historyIdentity.ownerPID {
-                return appRank(bundleID: item.sourceAppIdentifier, pid: pid)
-            }
-            return nil
+        var seen = Set<SwitcherHistoryIdentity>()
+        var result: [SwitcherItem] = []
+        result.reserveCapacity(refreshed.count)
+        for item in current {
+            guard let updated = refreshedByIdentity[item.historyIdentity],
+                  seen.insert(item.historyIdentity).inserted else { continue }
+            result.append(updated)
         }
-
-        let ranked = items.enumerated().sorted { lhs, rhs in
-            let lhsRank = rank(for: lhs.element)
-            let rhsRank = rank(for: rhs.element)
-            switch (lhsRank, rhsRank) {
-            case let (.some(lhsRank), .some(rhsRank)):
-                if lhsRank != rhsRank { return lhsRank < rhsRank }
-            case (.some, .none):
-                return true
-            case (.none, .some):
-                return false
-            case (.none, .none):
-                break
-            }
-            return lhs.offset < rhs.offset
+        for item in refreshed where seen.insert(item.historyIdentity).inserted {
+            result.append(item)
         }
-
-        var ordered = ranked.map(\.element)
         if let currentFrontmost,
-           let currentIndex = ordered.firstIndex(where: {
-               $0.historyIdentity == currentFrontmost
-           }) {
-            let activeItem = ordered.remove(at: currentIndex)
-            ordered.append(activeItem)
+           let index = result.firstIndex(where: { $0.historyIdentity == currentFrontmost }),
+           index != result.count - 1 {
+            result.append(result.remove(at: index))
         }
-
-        return SwitcherMembershipPolicy.applyingPerApplicationLimit(
-            ordered,
-            limit: SwitcherPreferences.shared.maxWindowsPerApp,
-            currentFrontmost: currentFrontmost
-        )
+        return result
     }
 }

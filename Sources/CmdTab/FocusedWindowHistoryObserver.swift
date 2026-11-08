@@ -34,8 +34,34 @@ final class FocusedWindowHistoryObserver {
     )
     private let generationLock = NSLock()
 
+    /// Focused-window lookups retried before an activation is recorded at
+    /// application level only. A busy app can take longer than the 0.25 s
+    /// Accessibility timeout to report its focused window right after
+    /// activation; the earlier three tries (about 120 ms) recorded such
+    /// activations without a window, which made MRU order skip them.
+    static let focusedWindowAttempts = 6
+    /// An app that refused AX notification registration is retried at most
+    /// this often. Registration is synchronous IPC on the main thread, and
+    /// retrying every unsupported or hung app on every activation stalled
+    /// the main thread (and with it the switcher's appearance).
+    static let failedRegistrationRetryInterval: TimeInterval = 5
+
+    static func retryDelay(afterAttempt attempt: Int) -> TimeInterval {
+        attempt == 0 ? 0 : 0.04 * Double(attempt)
+    }
+
+    static func mayRetryRegistration(
+        lastFailureUptime: TimeInterval?,
+        now: TimeInterval
+    ) -> Bool {
+        guard let lastFailureUptime else { return true }
+        let elapsed = now - lastFailureUptime
+        return elapsed < 0 || elapsed >= failedRegistrationRetryInterval
+    }
+
     /// Main-run-loop owned.
     private var observersByPID: [pid_t: AXObserver] = [:]
+    private var failedRegistrationUptimeByPID: [pid_t: TimeInterval] = [:]
     private var observations: [(NotificationCenter, NSObjectProtocol)] = []
     private var permissionRetryTimer: Timer?
 
@@ -164,6 +190,9 @@ final class FocusedWindowHistoryObserver {
         }
         let activePIDs = Set(applications.map(\.processIdentifier))
 
+        failedRegistrationUptimeByPID = failedRegistrationUptimeByPID.filter {
+            activePIDs.contains($0.key)
+        }
         for pid in observersByPID.keys.filter({ !activePIDs.contains($0) }) {
             guard let observer = observersByPID.removeValue(forKey: pid) else {
                 continue
@@ -185,7 +214,12 @@ final class FocusedWindowHistoryObserver {
         permissionRetryTimer = nil
 
         let refcon = Unmanaged.passUnretained(self).toOpaque()
+        let now = ProcessInfo.processInfo.systemUptime
         for app in applications where observersByPID[app.processIdentifier] == nil {
+            guard Self.mayRetryRegistration(
+                lastFailureUptime: failedRegistrationUptimeByPID[app.processIdentifier],
+                now: now
+            ) else { continue }
             var observer: AXObserver?
             guard AXObserverCreate(
                 app.processIdentifier,
@@ -193,6 +227,7 @@ final class FocusedWindowHistoryObserver {
                 &observer
             ) == .success,
             let observer else {
+                failedRegistrationUptimeByPID[app.processIdentifier] = now
                 continue
             }
 
@@ -214,7 +249,11 @@ final class FocusedWindowHistoryObserver {
                 return installedAny || result == .success
             }
 
-            guard installed else { continue }
+            guard installed else {
+                failedRegistrationUptimeByPID[app.processIdentifier] = now
+                continue
+            }
+            failedRegistrationUptimeByPID.removeValue(forKey: app.processIdentifier)
             CFRunLoopAddSource(
                 CFRunLoopGetMain(),
                 AXObserverGetRunLoopSource(observer),
@@ -264,7 +303,7 @@ final class FocusedWindowHistoryObserver {
             return
         }
 
-        let delay = attempt == 0 ? 0 : 0.04 * Double(attempt)
+        let delay = Self.retryDelay(afterAttempt: attempt)
         metadataQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
             guard let self,
                   self.isCurrentGeneration(generation, pid: pid) else {
@@ -327,7 +366,7 @@ final class FocusedWindowHistoryObserver {
             return
         }
 
-        guard attempt < 2 else {
+        guard attempt < Self.focusedWindowAttempts - 1 else {
             guard isCurrentGeneration(generation, pid: pid),
                   workspace.frontmostApplication?.processIdentifier == pid else {
                 return

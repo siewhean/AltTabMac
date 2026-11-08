@@ -141,6 +141,16 @@ final class ProductionSwitcherWindowController: NSObject {
     private var activeFrontmostPID: pid_t = 0
     private var frontmostOverride: FrontmostOverrideState?
     private var searchQueryObserver: AnyCancellable?
+    /// Style the hosting views were last built for. Replacing a SwiftUI root
+    /// rebuilds every tile, so it happens only when the style changes.
+    private var renderedPanelStyle: SwitcherStyle?
+    /// The frontmost window resolved once per presentation. Opening the
+    /// switcher asked for it from five places; whenever the background cache
+    /// was still refreshing after a focus change, each one repeated a
+    /// synchronous Accessibility walk of the frontmost app on the main thread
+    /// (each call bounded only by the 0.25 s AX timeout), delaying the panel.
+    private var presentationFrontmost: (pid: pid_t, identity: SwitcherHistoryIdentity?)?
+    private var hasReconciledPresentationFrontmost = false
 
     var isVisible: Bool { viewModel.isVisible }
     var currentStyle: SwitcherStyle { activeConfiguration?.style ?? preferences.switcherStyle }
@@ -266,7 +276,7 @@ final class ProductionSwitcherWindowController: NSObject {
 
     func applyCurrentStyleImmediately() {
         if viewModel.isVisible {
-            refreshPanelContentRoots()
+            refreshPanelContentRoots(force: true)
             refreshVisibleItemsIfNeeded()
             showPanel(makeKey: false)
             return
@@ -393,6 +403,7 @@ final class ProductionSwitcherWindowController: NSObject {
         hosting.translatesAutoresizingMaskIntoConstraints = false
         hosting.onCardClick = { [weak self] _ in self?.handleCardClick() }
         panel.contentView = hosting
+        renderedPanelStyle = currentStyle
         panel.onEscapePressed = { [weak self] in self?.cancelAndHide() }
         panel.onKeyEvent = { [weak self] event in
             self?.handlePanelKeyEvent(event) ?? false
@@ -424,7 +435,9 @@ final class ProductionSwitcherWindowController: NSObject {
         self.backdropPanel = panel
     }
 
-    private func refreshPanelContentRoots() {
+    private func refreshPanelContentRoots(force: Bool = false) {
+        guard force || renderedPanelStyle != currentStyle else { return }
+        renderedPanelStyle = currentStyle
         if let hosting = panel.contentView as? ClickableHostingView<ProfileSwitcherView> {
             hosting.rootView = ProfileSwitcherView(viewModel: viewModel, style: currentStyle)
             hosting.onCardClick = { [weak self] _ in self?.handleCardClick() }
@@ -447,6 +460,9 @@ final class ProductionSwitcherWindowController: NSObject {
 
     private func startSession(reverse: Bool, profileID: UUID, pendingMakeKey: Bool? = nil, allowsLicensingPresentation: Bool = false) -> Bool {
         pendingPresentation = nil
+        // Resolve the frontmost window afresh for every new presentation.
+        presentationFrontmost = nil
+        hasReconciledPresentationFrontmost = false
         if !allowsLicensingPresentation {
             SettingsWindowVisibilityPolicy.hideSettings(in: NSApp.windows)
         }
@@ -579,7 +595,15 @@ final class ProductionSwitcherWindowController: NSObject {
         let raw = SwitcherMembershipPolicy.excludingApplicationOnlyItems(
             applyingPendingSuppressions(to: appSwitcher.getItems())
         )
-        _ = appSwitcher.reconcileCurrentFrontmostHistory()
+        // The current window is the most recent use. Record it once per
+        // presentation: every refresh and palette keystroke used to note it
+        // again, each time queueing a durable-history file write.
+        if !hasReconciledPresentationFrontmost {
+            hasReconciledPresentationFrontmost = true
+            if let identity = systemFrontmostIdentity() {
+                appSwitcher.reconcileFrontmostHistory(identity)
+            }
+        }
         return SwitcherOrdering.orderedItems(
             raw,
             history: history,
@@ -682,7 +706,11 @@ final class ProductionSwitcherWindowController: NSObject {
             }
         } else {
             let previousIDs = session.items.map(\.id)
-            session.refreshItems(refreshed)
+            session.refreshItems(SwitcherOrdering.stableSessionOrder(
+                current: session.items,
+                refreshed: refreshed,
+                currentFrontmost: currentFrontmostIdentity(availableItems: refreshed)
+            ))
             self.session = session
             syncViewModelFromSession(animated: previousIDs != session.items.map(\.id))
         }
@@ -857,7 +885,7 @@ final class ProductionSwitcherWindowController: NSObject {
         FrontmostResolution.effectiveIdentity(
             availableItems: availableItems,
             historyEntries: history.snapshot(),
-            systemFrontmostIdentity: appSwitcher.currentFrontmostIdentity(),
+            systemFrontmostIdentity: systemFrontmostIdentity(),
             systemFrontmostPID: currentSystemFrontmostPID(),
             observedFrontmostPID: activeFrontmostPID,
             overrideState: frontmostOverride,
@@ -969,6 +997,18 @@ final class ProductionSwitcherWindowController: NSObject {
         )
     }
 
+    /// The system's frontmost window, resolved at most once per presentation
+    /// while the same process stays frontmost.
+    private func systemFrontmostIdentity() -> SwitcherHistoryIdentity? {
+        let pid = currentSystemFrontmostPID()
+        if let memo = presentationFrontmost, memo.pid == pid {
+            return memo.identity
+        }
+        let identity = pid == 0 ? nil : appSwitcher.currentFrontmostIdentity()
+        presentationFrontmost = (pid, identity)
+        return identity
+    }
+
     private func currentSystemFrontmostPID() -> pid_t {
         guard let app = NSWorkspace.shared.frontmostApplication,
               app.activationPolicy == .regular,
@@ -1051,6 +1091,8 @@ final class ProductionSwitcherWindowController: NSObject {
         tearDownMirroredPanels()
         session = nil
         activeConfiguration = nil
+        presentationFrontmost = nil
+        hasReconciledPresentationFrontmost = false
         paletteFullItemCount = 0
         viewModel.items = []
         viewModel.selectedIndex = 0
@@ -1121,9 +1163,14 @@ final class ProductionSwitcherWindowController: NSObject {
               let frame = items.first(where: { $0.historyIdentity == identity })?.backdropFrame else {
             return nil
         }
-        let center = NSPoint(x: frame.midX, y: frame.midY)
-        return NSScreen.screens.first { $0.frame.contains(center) }
-            ?? NSScreen.screens.first { $0.visibleFrame.intersects(frame) }
+        // Window frames are Core Graphics bounds; screens are AppKit frames.
+        let screens = NSScreen.screens
+        guard let index = DisplayGeometry.screenIndex(
+            containingCGRect: frame,
+            appKitScreenFrames: screens.map(\.frame),
+            mainDisplayHeight: CGDisplayBounds(CGMainDisplayID()).height
+        ) else { return nil }
+        return screens[index]
     }
 
     private func cursorScreen() -> NSScreen? {
