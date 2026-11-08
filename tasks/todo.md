@@ -10,7 +10,7 @@
 - [x] macOS 15 CI: build and full suite pass (464 XCTest, 0 failures).
 - [x] CI: `macos-14` hosted image retired 2026-11-02; matrices moved to `macos-15` + `macos-26`; retries for Sparkle artifact and ffmpeg-static downloads.
 - [x] CI: GitHub release 504s — checksum-verified Sparkle artifact priming + `actions/cache`; website jobs use Ubuntu ffmpeg via `FFMPEG_BIN`.
-- [ ] CI green on the updated matrices.
+- [x] CI green on the updated matrices.
 - [ ] Manual A/B cases on a real Mac (user-run).
 
 Review: no Swift toolchain in the cloud environment, so nothing was compiled or run locally; CI on the pull request is the first build. Existing ordering tests were checked by hand against the new ranking (the fallback-grouping test keeps its expected order). Manual cases are NOT_RUN.
